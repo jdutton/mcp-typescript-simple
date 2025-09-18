@@ -14,6 +14,7 @@ jobs:
     strategy:
       matrix:
         node-version: [18.x, 20.x]
+      fail-fast: false
 
     steps:
     - name: Checkout code
@@ -61,10 +62,28 @@ jobs:
         # Basic smoke test - container should start and exit gracefully
         timeout 10s docker run --rm mcp-typescript-simple || [ $? -eq 124 ]
 
+  # Required status check - all jobs must pass
+  all-checks:
+    name: All Checks Passed
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    if: always()
+
+    steps:
+    - name: Check all jobs status
+      run: |
+        if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.docker.result }}" != "success" ]; then
+          echo "❌ Some checks failed:"
+          echo "Test result: ${{ needs.test.result }}"
+          echo "Docker result: ${{ needs.docker.result }}"
+          exit 1
+        fi
+        echo "✅ All checks passed successfully!"
+
   deploy:
     name: Deploy Check
     runs-on: ubuntu-latest
-    needs: [test, docker]
+    needs: [all-checks]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:

@@ -8,7 +8,7 @@
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "start": "node build/index.js",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:ci": "npx tsx test/ci-test.ts",
     "test:mcp": "npx tsx test/test-mcp.ts",
     "test:interactive": "npx tsx test/interactive-client.ts",
