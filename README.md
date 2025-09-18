@@ -12,7 +12,7 @@ This project provides a containerized MCP server with three basic tools and comp
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (Current LTS)
 - Docker (via Colima on macOS)
 
 ## Development
