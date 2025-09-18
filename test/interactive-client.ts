@@ -7,14 +7,14 @@ interface MCPRequest {
   jsonrpc: string;
   id: number;
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 interface MCPResponse {
   jsonrpc: string;
   id: number;
-  result?: any;
-  error?: any;
+  result?: unknown;
+  error?: unknown;
 }
 
 interface MCPTool {
@@ -22,7 +22,7 @@ interface MCPTool {
   description: string;
   inputSchema: {
     type: string;
-    properties: Record<string, any>;
+    properties: Record<string, unknown>;
     required?: string[];
   };
 }
@@ -31,7 +31,7 @@ class InteractiveMCPClient {
   private server: ChildProcess | null = null;
   private requestId = 1;
   private pendingRequests = new Map<number, (response: MCPResponse) => void>();
-  private rl: any;
+  private rl: unknown;
   private availableTools: MCPTool[] = [];
 
   async start(): Promise<void> {
@@ -89,7 +89,7 @@ class InteractiveMCPClient {
               callback(response);
               this.pendingRequests.delete(response.id);
             }
-          } catch (error) {
+          } catch {
             // Ignore parsing errors for non-JSON output
           }
         }
@@ -272,12 +272,13 @@ class InteractiveMCPClient {
       const properties = tool.inputSchema.properties;
       const required = tool.inputSchema.required || [];
 
-      Object.entries(properties).forEach(([name, schema]: [string, any]) => {
+      Object.entries(properties).forEach(([name, schema]: [string, unknown]) => {
+        const schemaObj = schema as { type?: string; description?: string };
         const isRequired = required.includes(name);
         const requiredText = isRequired ? ' (required)' : ' (optional)';
-        console.log(`  • ${name}: ${schema.type}${requiredText}`);
-        if (schema.description) {
-          console.log(`    ${schema.description}`);
+        console.log(`  • ${name}: ${schemaObj.type}${requiredText}`);
+        if (schemaObj.description) {
+          console.log(`    ${schemaObj.description}`);
         }
       });
     } else {
@@ -301,14 +302,14 @@ class InteractiveMCPClient {
     }
   }
 
-  private async parseToolArguments(tool: MCPTool, args: string[]): Promise<any> {
+  private async parseToolArguments(tool: MCPTool, args: string[]): Promise<Record<string, unknown>> {
     if (!tool.inputSchema?.properties) {
       return {};
     }
 
     const properties = tool.inputSchema.properties;
     const propertyNames = Object.keys(properties);
-    const result: any = {};
+    const result: Record<string, unknown> = {};
 
     // Simple heuristic: map positional arguments to required parameters first
     const required = tool.inputSchema.required || [];
@@ -318,7 +319,7 @@ class InteractiveMCPClient {
     requiredParams.forEach((param, index) => {
       if (index < args.length) {
         const value = args[index];
-        const paramSchema = properties[param];
+        const paramSchema = properties[param] as { type?: string };
 
         // Basic type conversion
         if (paramSchema.type === 'number') {
@@ -334,7 +335,8 @@ class InteractiveMCPClient {
     // If we have remaining args and only one string parameter, join them
     if (args.length > requiredParams.length && requiredParams.length === 1) {
       const firstParam = requiredParams[0];
-      if (properties[firstParam].type === 'string') {
+      const firstParamSchema = properties[firstParam] as { type?: string };
+      if (firstParamSchema.type === 'string') {
         result[firstParam] = args.join(' ');
       }
     }
@@ -351,7 +353,7 @@ class InteractiveMCPClient {
     }
   }
 
-  private async callTool(name: string, args: any): Promise<void> {
+  private async callTool(name: string, args: unknown): Promise<void> {
     console.log(`🔧 Calling tool: ${name}`);
 
     const response = await this.sendRequest({

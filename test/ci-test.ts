@@ -70,14 +70,14 @@ class CITestRunner {
   }
 
   private async testTypeScriptBuild(): Promise<void> {
-    const { stdout, stderr } = await execAsync('npm run build');
+    const { stdout: _stdout, stderr } = await execAsync('npm run build');
     if (stderr && !stderr.includes('warning')) {
       throw new Error(`Build failed: ${stderr}`);
     }
   }
 
   private async testTypeCheck(): Promise<void> {
-    const { stdout, stderr } = await execAsync('npm run typecheck');
+    const { stdout: _stdout, stderr } = await execAsync('npm run typecheck');
     if (stderr) {
       throw new Error(`Type check failed: ${stderr}`);
     }
@@ -85,10 +85,11 @@ class CITestRunner {
 
   private async testLinting(): Promise<void> {
     try {
-      const { stdout, stderr } = await execAsync('npm run lint');
-    } catch (error: any) {
-      if (error.code === 1) {
-        throw new Error(`Linting failed: ${error.stdout || error.stderr}`);
+      const { stdout: _stdout, stderr: _stderr } = await execAsync('npm run lint');
+    } catch (error: unknown) {
+      const execError = error as { code?: number; stdout?: string; stderr?: string };
+      if (execError.code === 1) {
+        throw new Error(`Linting failed: ${execError.stdout || execError.stderr}`);
       }
       throw error;
     }
@@ -100,10 +101,10 @@ class CITestRunner {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
-      let stderr = '';
+      let _stderr = '';
 
       child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        _stderr += data.toString();
       });
 
       const timeout = setTimeout(() => {
@@ -127,7 +128,7 @@ class CITestRunner {
       child.on('exit', (code) => {
         clearTimeout(timeout);
         if (code !== null && code !== 0) {
-          reject(new Error(`Server exited with code ${code}: ${stderr}`));
+          reject(new Error(`Server exited with code ${code}: ${_stderr}`));
         }
       });
     });
@@ -149,7 +150,7 @@ class CITestRunner {
     }
 
     const expectedTools = ['hello', 'echo', 'current-time'];
-    const actualTools = response.result.tools.map((t: any) => t.name);
+    const actualTools = response.result.tools.map((t: { name: string }) => t.name);
 
     for (const tool of expectedTools) {
       if (!actualTools.includes(tool)) {
@@ -234,7 +235,7 @@ class CITestRunner {
       await execAsync('docker --version');
 
       // Build the Docker image
-      const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
+      const { stdout: _stdout, stderr: _stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
         timeout: 120000 // 2 minutes timeout
       });
 
@@ -243,9 +244,10 @@ class CITestRunner {
         // Ignore cleanup errors
       });
 
-    } catch (error: any) {
-      if (error.message.includes('docker: command not found') ||
-          error.message.includes('Cannot connect to the Docker daemon')) {
+    } catch (error: unknown) {
+      const execError = error as { message?: string };
+      if (execError.message?.includes('docker: command not found') ||
+          execError.message?.includes('Cannot connect to the Docker daemon')) {
         console.log('   ⚠️  Docker not available, skipping Docker build test');
         return;
       }
@@ -253,21 +255,21 @@ class CITestRunner {
     }
   }
 
-  private async sendMCPRequest(request: any): Promise<any> {
+  private async sendMCPRequest(request: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const child = spawn('npx', ['tsx', 'src/index.ts'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
       let stdout = '';
-      let stderr = '';
+      let _stderr = '';
 
       child.stdout.on('data', (data) => {
         stdout += data.toString();
       });
 
       child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        _stderr += data.toString();
       });
 
       const timeout = setTimeout(() => {

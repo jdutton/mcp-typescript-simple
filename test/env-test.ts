@@ -29,7 +29,7 @@ try {
 try {
   const dockerVersion = execSync('docker --version', { encoding: 'utf8' });
   console.log('Docker version:', dockerVersion.trim());
-} catch (error) {
+} catch {
   console.log('Docker not available (expected in some environments)');
 }
 

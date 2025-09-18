@@ -6,14 +6,14 @@ interface MCPRequest {
   jsonrpc: string;
   id: number;
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 interface MCPResponse {
   jsonrpc: string;
   id: number;
-  result?: any;
-  error?: any;
+  result?: unknown;
+  error?: unknown;
 }
 
 class MCPTester {
@@ -36,7 +36,7 @@ class MCPTester {
     }
 
     const tools = toolsResponse.result?.tools || [];
-    console.log('✅ Available tools:', tools.map((t: any) => t.name).join(', '));
+    console.log('✅ Available tools:', tools.map((t: { name: string }) => t.name).join(', '));
     console.log();
 
     // Test 2: Hello tool
@@ -127,20 +127,20 @@ class MCPTester {
       });
 
       let stdout = '';
-      let stderr = '';
+      let _stderr = '';
 
       child.stdout.on('data', (data) => {
         stdout += data.toString();
       });
 
       child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        _stderr += data.toString();
       });
 
-      child.on('close', (code) => {
+      child.on('close', (_code) => {
         // Filter out server startup messages
-        if (stderr && !stderr.includes('MCP TypeScript Simple server running')) {
-          console.error('Server stderr:', stderr);
+        if (_stderr && !_stderr.includes('MCP TypeScript Simple server running')) {
+          console.error('Server stderr:', _stderr);
         }
 
         try {
