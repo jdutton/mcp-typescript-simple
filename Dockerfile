@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
@@ -6,28 +6,27 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (needed for build)
+RUN npm ci
 
-# Copy source code
+# Copy source code and TypeScript config
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-# Install TypeScript and build
-RUN npm install -g typescript
+# Build the TypeScript project
 RUN npm run build
 
-# Remove dev dependencies and source files
-RUN rm -rf src/ tsconfig.json node_modules/
+# Remove dev dependencies and source files to reduce image size
+RUN rm -rf src/ tsconfig.json
 RUN npm ci --only=production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+RUN adduser -S mcpuser -u 1001 -G nodejs
 
 # Change ownership of the app directory
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+RUN chown -R mcpuser:nodejs /app
+USER mcpuser
 
 # Expose port (MCP typically uses stdio, but this can be useful for HTTP variants)
 EXPOSE 3000

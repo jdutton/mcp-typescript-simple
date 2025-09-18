@@ -4,7 +4,7 @@ A simple MCP (Model Context Protocol) server built with TypeScript featuring bas
 
 ## Current State
 
-This project provides a containerized MCP server with three basic tools:
+This project provides a containerized MCP server with three basic tools and comprehensive CI/CD testing:
 
 - **hello**: Greets a person by name
 - **echo**: Echoes back a provided message
@@ -12,7 +12,7 @@ This project provides a containerized MCP server with three basic tools:
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+ (Current LTS)
 - Docker (via Colima on macOS)
 
 ## Development
