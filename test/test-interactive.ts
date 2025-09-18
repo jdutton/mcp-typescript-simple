@@ -9,10 +9,10 @@ async function testInteractiveClient(): Promise<void> {
     stdio: ['pipe', 'pipe', 'pipe']
   });
 
-  let output = '';
+  let _output = '';
 
   client.stdout.on('data', (data) => {
-    output += data.toString();
+    _output += data.toString();
     console.log(data.toString());
   });
 

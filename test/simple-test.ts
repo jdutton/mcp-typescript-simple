@@ -6,7 +6,7 @@ interface MCPRequest {
   jsonrpc: string;
   id: number;
   method: string;
-  params?: any;
+  params?: unknown;
 }
 
 async function testMCPServer(): Promise<void> {
@@ -57,7 +57,7 @@ async function testMCPServer(): Promise<void> {
       } else {
         if (test.name === 'List Tools') {
           const tools = response.result?.tools || [];
-          console.log(`✅ Found ${tools.length} tools: ${tools.map((t: any) => t.name).join(', ')}`);
+          console.log(`✅ Found ${tools.length} tools: ${tools.map((t: { name: string }) => t.name).join(', ')}`);
         } else {
           const content = response.result?.content?.[0]?.text;
           console.log(`✅ Result: ${content}`);
@@ -73,21 +73,21 @@ async function testMCPServer(): Promise<void> {
   console.log('🎉 Test completed!');
 }
 
-async function sendRequest(request: MCPRequest): Promise<any> {
+async function sendRequest(request: MCPRequest): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const child = spawn('npx', ['tsx', 'src/index.ts'], {
       stdio: ['pipe', 'pipe', 'pipe']
     });
 
     let stdout = '';
-    let stderr = '';
+    let _stderr = '';
 
     child.stdout.on('data', (data) => {
       stdout += data.toString();
     });
 
     child.stderr.on('data', (data) => {
-      stderr += data.toString();
+      _stderr += data.toString();
     });
 
     child.on('close', () => {
