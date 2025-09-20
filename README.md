@@ -1,6 +1,6 @@
 # MCP TypeScript Simple
 
-A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection**.
+A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection** and **dual-mode operation** (STDIO + SSE with OAuth).
 
 ## Key Features
 
@@ -10,6 +10,13 @@ A production-ready MCP (Model Context Protocol) server built with TypeScript fea
 - **Intelligent Defaults**: Each tool optimized for specific provider/model combinations
 - **Runtime Flexibility**: Override provider/model per request
 - **Backward Compatibility**: Existing code continues to work unchanged
+
+### 🚀 **Dual-Mode Operation**
+- **STDIO Mode**: Traditional stdin/stdout for development and Claude Desktop
+- **SSE Mode**: Server-Sent Events with HTTP endpoints for web applications
+- **OAuth Authentication**: Secure Google OAuth integration for production
+- **Development Bypass**: Easy auth bypass for local development
+- **Claude Code Ready**: Full compatibility with Claude Code integration
 
 ## Current State
 
@@ -60,24 +67,43 @@ cp .env.example .env
 # Install dependencies
 npm install
 
-# Run in development mode (recommended)
+# STDIO Mode (traditional MCP - recommended for development)
 npm run dev
 
-# Alternative: Run directly with npx
-npx tsx src/index.ts
+# SSE Mode (for web development - no auth)
+npm run dev:sse
+
+# SSE Mode (with OAuth - requires Google credentials)
+npm run dev:oauth
+
+# Vercel Serverless Development (test as serverless functions)
+npm run dev:vercel
 
 # Build the project
 npm run build
 
-# Run built version
+# Production STDIO mode
 npm start
+
+# Production SSE mode
+npm run start:sse
 
 # Type checking
 npm run typecheck
 
 # Linting
 npm run lint
+
+# Test dual-mode functionality
+npm run test:dual-mode
 ```
+
+#### Development Guides
+- 📘 **Traditional Development**: Use the commands above for STDIO/SSE modes
+- 🛠️ **[Vercel Local Development](./docs/vercel-local-development.md)** - Complete guide for developing with Vercel locally
+- 🏗️ **[System Architecture](./docs/architecture.md)** - Detailed architecture overview with diagrams
+- 🚀 **[Dual-Mode Operation Guide](./docs/dual-mode-guide.md)** - Understanding STDIO and HTTP transport modes
+- 🔐 **[OAuth Setup Guide](./docs/oauth-setup.md)** - Configure OAuth authentication
 
 ### Docker Development
 
@@ -180,6 +206,40 @@ npm install -g @modelcontextprotocol/inspector
 # Launch with web interface
 mcp-inspector npx tsx src/index.ts
 ```
+
+### Developer Testing Tools
+
+For manual testing and development workflows, several utility scripts are available in the `tools/` directory:
+
+#### OAuth Testing
+```bash
+# Test OAuth flow interactively
+node tools/test-oauth.js --flow
+
+# Test server health
+node tools/test-oauth.js
+
+# Test with existing token
+node tools/test-oauth.js --token <your_token>
+```
+
+#### Vercel Development Testing
+```bash
+# Start local Vercel mock server
+npx tsx tools/test-vercel-local.ts
+
+# Test API functions directly
+npx tsx tools/test-api-direct.ts
+
+# Test MCP endpoint specifically
+npx tsx tools/test-mcp-api.ts
+```
+
+These tools help with:
+- **OAuth Flow Validation**: Test authentication flows with real providers
+- **Local Vercel Testing**: Mock Vercel environment for development
+- **API Function Testing**: Direct testing of serverless functions
+- **MCP Protocol Debugging**: Low-level MCP endpoint testing
 
 ### GitHub Actions CI/CD
 The project includes a complete CI/CD pipeline in `.github/workflows/ci.yml`:
@@ -334,3 +394,36 @@ Educational explanations with adaptive AI models.
 - **Runtime Detection**: Automatically detects available providers
 - **Secure Defaults**: No hardcoded secrets, graceful failure modes
 - **Multi-Provider Support**: Works with any combination of available API keys
+
+## Deployment Options
+
+### Vercel Serverless Deployment
+
+Deploy the MCP server as Vercel serverless functions with full streaming support.
+
+#### Features
+- **Serverless Functions**: Auto-scaling serverless endpoints
+- **Streamable HTTP**: Full MCP streaming protocol support
+- **Multi-Provider OAuth**: Google, GitHub, Microsoft authentication
+- **Built-in Monitoring**: Health checks, metrics, and request logging
+- **Global CDN**: Vercel's edge network for optimal performance
+
+#### Available Endpoints
+- `/api/mcp` - MCP protocol endpoint
+- `/api/health` - Health and status checks
+- `/api/auth` - OAuth authentication flows
+- `/api/admin` - Metrics and administration
+
+#### Documentation
+- 🚀 **[Quick Start](./docs/vercel-quickstart.md)** - 5-minute deployment
+- 📖 **[Complete Deployment Guide](./docs/vercel-deployment.md)** - Detailed deployment instructions
+- 🛠️ **[Local Development](./docs/vercel-local-development.md)** - Develop and test locally with Vercel
+
+### Traditional Deployment
+
+For traditional server deployment, use the standard Node.js build:
+
+```bash
+npm run build
+npm start
+```
