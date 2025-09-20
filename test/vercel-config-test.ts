@@ -184,7 +184,7 @@ class VercelConfigTestRunner {
           const importPath = importStatement.match(/from ['"]([^'"]+)['"]/)?.[1];
           if (importPath?.startsWith('../build/')) {
             // Verify the build file exists
-            const buildPath = importPath.replace('../build/', 'build/') + '.js';
+            const buildPath = importPath.replace('../build/', 'build/') + (importPath.endsWith('.js') ? '' : '.js');
             if (!existsSync(buildPath)) {
               throw new Error(`Import path not found: ${buildPath} (imported in ${file})`);
             }

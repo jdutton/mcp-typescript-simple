@@ -9,8 +9,10 @@ import { TransportMode } from "../config/environment.js";
 /**
  * Configuration options for different transport types
  */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface StdioTransportOptions {
-  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+  // Currently no configuration options for STDIO transport
+  // This interface is reserved for future configuration options
 }
 
 export interface SSETransportOptions {

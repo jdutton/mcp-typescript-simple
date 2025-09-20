@@ -121,7 +121,7 @@ export class MCPStreamableHttpServer {
     this.setupSessionRoutes();
 
     // Catch-all error handler
-    this.app.use((error: Error, req: Request, res: Response, _next: NextFunction) => {
+    this.app.use((error: Error, req: Request, res: Response) => {
       console.error('Express error:', error);
       res.status(500).json({
         error: 'Internal server error',

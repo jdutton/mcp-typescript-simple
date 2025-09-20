@@ -1,5 +1,6 @@
 /**
- * Transport factory for creating stdio and SSE transport managers
+ * Transport factory for creating stdio, SSE, and streamable_http transport managers
+ * Supports modes: stdio, sse, streamable_http
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -278,6 +279,13 @@ export class TransportFactory implements ITransportFactory {
       default:
         throw new Error(`Unsupported transport mode: ${mode}`);
     }
+  }
+
+  /**
+   * Get the current transport mode from environment
+   */
+  static getTransportMode(): TransportMode {
+    return EnvironmentConfig.getTransportMode();
   }
 
   /**
