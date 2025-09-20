@@ -1,0 +1,44 @@
+# Source files (TypeScript will be compiled)
+src/
+
+# Development files
+test/
+examples/
+*.md
+.gitignore
+.git/
+
+# Logs and temporary files
+logs/
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Build artifacts not needed in deployment
+build/
+
+# Development dependencies
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files (will be configured in Vercel dashboard)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Testing artifacts
+coverage/
+jest-report/
+
+# Lock files (will be rebuilt)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

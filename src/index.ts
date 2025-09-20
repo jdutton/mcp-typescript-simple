@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -11,6 +10,11 @@ import {
 // Import secret management and LLM components
 import { TieredSecretManager } from "./secrets/tiered-manager.js";
 import { LLMManager } from "./llm/manager.js";
+
+// Import new transport system
+import { EnvironmentConfig } from "./config/environment.js";
+import { TransportFactory } from "./transport/factory.js";
+import { setupMCPServer } from "./server/mcp-setup.js";
 
 // Initialize secret manager and LLM manager
 const secretManager = new TieredSecretManager();
@@ -28,7 +32,7 @@ const server = new Server(
   }
 );
 
-// Tool definitions
+// Legacy tool definitions (will be removed after testing)
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   const availableProviders = llmManager.getAvailableProviders();
   const hasLLM = availableProviders.length > 0;
@@ -225,6 +229,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 async function main() {
   try {
+    // Load environment configuration
+    const config = EnvironmentConfig.get();
+    const mode = EnvironmentConfig.getTransportMode();
+
+    console.error(`🚀 Starting MCP TypeScript Simple server in ${mode} mode`);
+    console.error(`📊 Environment: ${config.NODE_ENV}`);
+
     // Initialize LLM manager (gracefully handle missing API keys)
     try {
       await llmManager.initialize();
@@ -234,9 +245,20 @@ async function main() {
       console.error("💡 To enable LLM tools, set API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY");
     }
 
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error("🚀 MCP TypeScript Simple server running on stdio");
+    // Setup MCP server with shared logic (used by both regular server and serverless functions)
+    await setupMCPServer(server, llmManager);
+
+    // Create and start transport
+    const transportManager = TransportFactory.createFromEnvironment();
+
+    // Initialize transport with server
+    await transportManager.initialize(server);
+
+    // Start the transport
+    await transportManager.start();
+
+    // Display status information
+    console.error(`🔗 Transport: ${transportManager.getInfo()}`);
 
     const availableProviders = llmManager.getAvailableProviders();
     if (availableProviders.length > 0) {
@@ -244,6 +266,23 @@ async function main() {
     } else {
       console.error("📝 Basic tools only (no LLM providers configured)");
     }
+
+    // Handle graceful shutdown
+    const handleShutdown = async (signal: string) => {
+      console.error(`\n⚠️  Received ${signal}, shutting down gracefully...`);
+      try {
+        await transportManager.stop();
+        console.error("✅ Server stopped successfully");
+        process.exit(0);
+      } catch (error) {
+        console.error("❌ Error during shutdown:", error);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGINT', () => handleShutdown('SIGINT'));
+    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+
   } catch (error) {
     console.error("❌ Server startup failed:", error);
     process.exit(1);

@@ -1,6 +1,6 @@
 # MCP TypeScript Simple
 
-A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection**.
+A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection** and **dual-mode operation** (STDIO + SSE with OAuth).
 
 ## Key Features
 
@@ -10,6 +10,13 @@ A production-ready MCP (Model Context Protocol) server built with TypeScript fea
 - **Intelligent Defaults**: Each tool optimized for specific provider/model combinations
 - **Runtime Flexibility**: Override provider/model per request
 - **Backward Compatibility**: Existing code continues to work unchanged
+
+### 🚀 **Dual-Mode Operation**
+- **STDIO Mode**: Traditional stdin/stdout for development and Claude Desktop
+- **SSE Mode**: Server-Sent Events with HTTP endpoints for web applications
+- **OAuth Authentication**: Secure Google OAuth integration for production
+- **Development Bypass**: Easy auth bypass for local development
+- **Claude Code Ready**: Full compatibility with Claude Code integration
 
 ## Current State
 
@@ -60,23 +67,32 @@ cp .env.example .env
 # Install dependencies
 npm install
 
-# Run in development mode (recommended)
+# STDIO Mode (traditional MCP - recommended for development)
 npm run dev
 
-# Alternative: Run directly with npx
-npx tsx src/index.ts
+# SSE Mode (for web development - no auth)
+npm run dev:sse
+
+# SSE Mode (with OAuth - requires Google credentials)
+npm run dev:oauth
 
 # Build the project
 npm run build
 
-# Run built version
+# Production STDIO mode
 npm start
+
+# Production SSE mode
+npm run start:sse
 
 # Type checking
 npm run typecheck
 
 # Linting
 npm run lint
+
+# Test dual-mode functionality
+npm run test:dual-mode
 ```
 
 ### Docker Development
@@ -334,3 +350,50 @@ Educational explanations with adaptive AI models.
 - **Runtime Detection**: Automatically detects available providers
 - **Secure Defaults**: No hardcoded secrets, graceful failure modes
 - **Multi-Provider Support**: Works with any combination of available API keys
+
+## Deployment Options
+
+### Vercel Serverless Deployment
+
+Deploy the MCP server as Vercel serverless functions with full streaming support.
+
+#### Quick Deploy to Vercel
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Build and deploy
+npm run build
+vercel --prod
+```
+
+Configure environment variables in Vercel dashboard:
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`
+- Optional OAuth: `OAUTH_PROVIDER=google`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+
+#### Features
+- **Serverless Functions**: Auto-scaling serverless endpoints
+- **Streamable HTTP**: Full MCP streaming protocol support
+- **Multi-Provider OAuth**: Google, GitHub, Microsoft authentication
+- **Built-in Monitoring**: Health checks, metrics, and request logging
+- **Global CDN**: Vercel's edge network for optimal performance
+
+#### Endpoints
+- `/api/mcp` - MCP protocol endpoint
+- `/api/health` - Health and status checks
+- `/api/auth` - OAuth authentication flows
+- `/api/admin` - Metrics and administration
+
+📖 **Complete Guide**: See [docs/vercel-deployment.md](./docs/vercel-deployment.md) for detailed deployment instructions.
+
+🚀 **Quick Start**: See [docs/vercel-quickstart.md](./docs/vercel-quickstart.md) for 5-minute deployment.
+
+### Traditional Deployment
+
+For traditional server deployment, use the standard Node.js build:
+
+```bash
+npm run build
+npm start
+```
