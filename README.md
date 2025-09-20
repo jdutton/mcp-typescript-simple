@@ -76,6 +76,9 @@ npm run dev:sse
 # SSE Mode (with OAuth - requires Google credentials)
 npm run dev:oauth
 
+# Vercel Serverless Development (test as serverless functions)
+npm run dev:vercel
+
 # Build the project
 npm run build
 
@@ -94,6 +97,13 @@ npm run lint
 # Test dual-mode functionality
 npm run test:dual-mode
 ```
+
+#### Development Guides
+- 📘 **Traditional Development**: Use the commands above for STDIO/SSE modes
+- 🛠️ **[Vercel Local Development](./docs/vercel-local-development.md)** - Complete guide for developing with Vercel locally
+- 🏗️ **[System Architecture](./docs/architecture.md)** - Detailed architecture overview with diagrams
+- 🚀 **[Dual-Mode Operation Guide](./docs/dual-mode-guide.md)** - Understanding STDIO and HTTP transport modes
+- 🔐 **[OAuth Setup Guide](./docs/oauth-setup.md)** - Configure OAuth authentication
 
 ### Docker Development
 
@@ -196,6 +206,40 @@ npm install -g @modelcontextprotocol/inspector
 # Launch with web interface
 mcp-inspector npx tsx src/index.ts
 ```
+
+### Developer Testing Tools
+
+For manual testing and development workflows, several utility scripts are available in the `tools/` directory:
+
+#### OAuth Testing
+```bash
+# Test OAuth flow interactively
+node tools/test-oauth.js --flow
+
+# Test server health
+node tools/test-oauth.js
+
+# Test with existing token
+node tools/test-oauth.js --token <your_token>
+```
+
+#### Vercel Development Testing
+```bash
+# Start local Vercel mock server
+npx tsx tools/test-vercel-local.ts
+
+# Test API functions directly
+npx tsx tools/test-api-direct.ts
+
+# Test MCP endpoint specifically
+npx tsx tools/test-mcp-api.ts
+```
+
+These tools help with:
+- **OAuth Flow Validation**: Test authentication flows with real providers
+- **Local Vercel Testing**: Mock Vercel environment for development
+- **API Function Testing**: Direct testing of serverless functions
+- **MCP Protocol Debugging**: Low-level MCP endpoint testing
 
 ### GitHub Actions CI/CD
 The project includes a complete CI/CD pipeline in `.github/workflows/ci.yml`:
@@ -357,21 +401,6 @@ Educational explanations with adaptive AI models.
 
 Deploy the MCP server as Vercel serverless functions with full streaming support.
 
-#### Quick Deploy to Vercel
-
-```bash
-# Install Vercel CLI
-npm install -g vercel
-
-# Build and deploy
-npm run build
-vercel --prod
-```
-
-Configure environment variables in Vercel dashboard:
-- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `GOOGLE_API_KEY`
-- Optional OAuth: `OAUTH_PROVIDER=google`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-
 #### Features
 - **Serverless Functions**: Auto-scaling serverless endpoints
 - **Streamable HTTP**: Full MCP streaming protocol support
@@ -379,15 +408,16 @@ Configure environment variables in Vercel dashboard:
 - **Built-in Monitoring**: Health checks, metrics, and request logging
 - **Global CDN**: Vercel's edge network for optimal performance
 
-#### Endpoints
+#### Available Endpoints
 - `/api/mcp` - MCP protocol endpoint
 - `/api/health` - Health and status checks
 - `/api/auth` - OAuth authentication flows
 - `/api/admin` - Metrics and administration
 
-📖 **Complete Guide**: See [docs/vercel-deployment.md](./docs/vercel-deployment.md) for detailed deployment instructions.
-
-🚀 **Quick Start**: See [docs/vercel-quickstart.md](./docs/vercel-quickstart.md) for 5-minute deployment.
+#### Documentation
+- 🚀 **[Quick Start](./docs/vercel-quickstart.md)** - 5-minute deployment
+- 📖 **[Complete Deployment Guide](./docs/vercel-deployment.md)** - Detailed deployment instructions
+- 🛠️ **[Local Development](./docs/vercel-local-development.md)** - Develop and test locally with Vercel
 
 ### Traditional Deployment
 

@@ -58,8 +58,9 @@ npm run deploy:vercel    # Deploy to Vercel production
 │   ├── auth.ts                 # OAuth authentication endpoints
 │   ├── health.ts               # Health check and status
 │   └── admin.ts                # Administration and metrics
-├── test/                        # Comprehensive test suite
-├── docs/                        # Deployment documentation
+├── test/                        # Automated test suite (unit/integration tests)
+├── tools/                       # Manual development and testing utilities
+├── docs/                        # Deployment and architecture documentation
 ├── build/                       # Compiled JavaScript output
 ├── vercel.json                  # Vercel deployment configuration
 └── package.json                # Dependencies and scripts
@@ -127,11 +128,251 @@ npm run dev:vercel
 - Provider-specific client ID/secret pairs
 
 ## Testing Strategy
+
+This project requires **comprehensive test coverage** for all features and bug fixes. When developing new features or fixing bugs, you MUST add corresponding tests.
+
+### Test Coverage Requirements
+- **New Features**: MUST include unit tests validating the feature works correctly
+- **Bug Fixes**: MUST include regression tests that would have caught the bug
+- **API Changes**: MUST include tests for all new endpoints, parameters, or behaviors
+- **Configuration Changes**: MUST include validation tests for new config options
+- **Integration Points**: MUST test interactions between components
+
+### Test Categories
+
+#### Core MCP Testing
 - **CI/CD Pipeline**: Comprehensive automated testing via GitHub Actions
 - **Protocol Compliance**: Full MCP specification validation
 - **Tool Functionality**: Individual and integration tool testing
 - **Dual-Mode Testing**: Both STDIO and HTTP transport validation
 - **Interactive Testing**: Manual testing client with tool discovery
+
+#### Deployment Testing
+- **Vercel Configuration**: `npm run test:vercel-config` - validates serverless deployment setup
+- **Transport Layer**: `npm run test:transport` - validates HTTP/streaming transport functionality
+- **Docker Build**: Validates containerization works correctly
+- **Multi-Environment**: Tests across Node.js versions and deployment targets
+
+#### Integration Testing
+- **End-to-End**: Full MCP client-server communication validation
+- **Error Scenarios**: Tests error handling and edge cases
+- **Performance**: Validates response times and resource usage
+- **Security**: Tests authentication and authorization flows
+
+### Test Implementation Guidelines
+
+#### When Adding a New Feature
+1. **Write tests FIRST** (TDD approach preferred)
+2. **Test the happy path** - normal operation
+3. **Test edge cases** - boundary conditions, invalid inputs
+4. **Test error scenarios** - what happens when things go wrong
+5. **Test integration points** - how it works with other components
+
+#### When Fixing a Bug
+1. **Write a test that reproduces the bug** (should fail initially)
+2. **Fix the bug**
+3. **Verify the test now passes**
+4. **Add additional edge case tests** to prevent similar bugs
+
+#### Test Coverage Validation
+```bash
+# Run before committing ANY changes
+npm run validate           # Complete validation pipeline
+npm run test:ci           # Full CI test suite
+npm run test:vercel-config # Vercel deployment validation
+npm run test:transport    # Transport layer validation
+```
+
+#### Required Test Coverage Areas
+- **New Tools**: Must test tool registration, schema validation, execution, and error handling
+- **New Transports**: Must test connection, message handling, streaming, and cleanup
+- **New Authentication**: Must test login, logout, token refresh, and security
+- **New Configuration**: Must test parsing, validation, and environment handling
+- **New Integrations**: Must test initialization, communication, and error scenarios
+
+### CI Pipeline Validation
+The CI pipeline includes 10 comprehensive test categories:
+1. TypeScript Compilation
+2. Type Checking
+3. Code Linting
+4. **Vercel Configuration** (deployment readiness)
+5. **Transport Layer** (communication protocols)
+6. MCP Server Startup
+7. MCP Protocol Compliance
+8. Tool Functionality
+9. Error Handling
+10. Docker Build
+
+**ALL tests must pass** before code can be merged. No exceptions.
+
+## Development Workflow
+
+### Branch Management Requirements
+**CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
+
+#### Creating Feature Branches
+1. **Always branch from main**: `git checkout main && git pull origin main`
+2. **Create descriptive branch name**:
+   - `feature/add-new-tool` - for new features
+   - `fix/oauth-redirect-bug` - for bug fixes
+   - `docs/update-architecture` - for documentation
+   - `refactor/cleanup-transport` - for refactoring
+3. **If branch topic is unclear**: ASK the user for clarification before proceeding
+
+#### Pull Request Workflow
+- **No direct pushes to main** - ALL changes must go through pull requests
+- **Branch naming convention**: `type/brief-description` (feature/fix/docs/refactor)
+- **Pull request must include**: Tests, documentation updates, and validation
+- **All CI checks must pass** before merge approval
+
+#### Example Branch Creation:
+```bash
+git checkout main
+git pull origin main
+git checkout -b feature/add-redis-caching
+# Make changes, commit, push, create PR
+```
+
+### Before Starting Any Work
+1. **Create appropriate feature branch** - never work directly on main
+2. **Understand the requirement** - feature or bug fix
+3. **Identify test coverage gaps** - what tests are missing?
+4. **Plan your testing approach** - what tests will you add?
+
+### During Development
+1. **Write tests first** (TDD) or **alongside code**
+2. **Run tests frequently** with `npm run test:ci`
+3. **Verify test coverage** for your changes
+4. **Test edge cases and error scenarios**
+
+### Before Committing
+```bash
+# MANDATORY pre-commit validation
+npm run validate
+
+# If any test fails, fix before committing
+# If adding new functionality, ensure new tests are included
+# If fixing a bug, ensure regression test is added
+```
+
+### Creating Pull Request
+```bash
+# Push feature branch
+git push origin feature/your-branch-name
+
+# Create pull request via GitHub CLI or web interface
+gh pr create --title "Brief description" --body "Detailed description"
+
+# Or use GitHub web interface to create PR
+```
+
+#### Pull Request Requirements
+- **Title**: Clear, concise description of changes
+- **Description**:
+  - What was changed and why
+  - Testing approach and coverage
+  - Any breaking changes or migration notes
+- **All CI checks must pass**
+- **Documentation must be updated**
+- **Tests must be included for all changes**
+
+### Documentation Requirements
+**CRITICAL**: Always keep documentation up to date before merging:
+
+#### README.md Updates Required For:
+- **New Features**: Add feature description, usage examples, and configuration options
+- **New Tools**: Update tool list with descriptions and parameters
+- **Configuration Changes**: Update environment variables, setup instructions
+- **Deployment Changes**: Update deployment options and requirements
+- **Breaking Changes**: Update prerequisites, migration guides, compatibility notes
+
+#### Documentation Validation Checklist:
+- [ ] README.md reflects all new features and changes
+- [ ] Code examples are current and functional
+- [ ] Prerequisites and dependencies are accurate
+- [ ] Installation and setup instructions work
+- [ ] Environment variable documentation is complete
+- [ ] Tool descriptions match actual implementation
+- [ ] Links to detailed documentation are correct
+
+### Code Review Requirements
+- **Test coverage must be complete** for all changes
+- **Tests must be meaningful** (not just for coverage numbers)
+- **Edge cases must be tested**
+- **Error scenarios must be validated**
+- **Integration points must be verified**
+- **README.md must be updated** to reflect all changes
+- **Documentation must be accurate** and match implementation
+- **Examples must be functional** and tested
+
+### Examples of Required Tests
+
+#### Adding a New MCP Tool
+```typescript
+// Must test:
+// 1. Tool registration and schema validation
+// 2. Successful execution with valid parameters
+// 3. Error handling with invalid parameters
+// 4. Integration with LLM providers (if applicable)
+// 5. Response format validation
+```
+
+#### Fixing a Transport Bug
+```typescript
+// Must test:
+// 1. Reproduce the original bug (test should fail before fix)
+// 2. Verify fix resolves the issue
+// 3. Test similar scenarios that might have same bug
+// 4. Test error conditions and edge cases
+// 5. Integration with both STDIO and HTTP transports
+```
+
+#### Adding New Configuration Options
+```typescript
+// Must test:
+// 1. Configuration parsing and validation
+// 2. Default value handling
+// 3. Invalid configuration error handling
+// 4. Environment variable precedence
+// 5. Integration with existing systems
+```
+
+### Test Quality Standards
+- **Tests must be deterministic** (no flaky tests)
+- **Tests must be isolated** (no dependencies between tests)
+- **Tests must be fast** (unit tests < 100ms each)
+- **Tests must be readable** (clear test names and structure)
+- **Tests must cover real usage scenarios**
+
+## Directory Structure Guidelines
+
+### `test/` - Automated Tests Only
+- **Unit tests**: Testing individual functions and components
+- **Integration tests**: Testing component interactions
+- **CI/CD tests**: Automated regression testing
+- **Protocol compliance tests**: MCP specification validation
+- **Must be non-interactive** and suitable for automated execution
+
+### `tools/` - Manual Development Utilities
+- **Interactive testing scripts**: Require user input or interaction
+- **Development servers**: Long-running processes for manual testing
+- **OAuth flow testing**: Browser-based authentication testing
+- **API debugging tools**: Direct function testing and inspection
+- **Local development helpers**: Mock servers, direct API calls
+- **Manual validation tools**: Scripts requiring human verification
+
+### Examples of `tools/` vs `test/` Classification:
+- ✅ `test/ci-test.ts` - Automated CI/CD validation
+- ✅ `test/test-mcp.ts` - Automated MCP protocol testing
+- ✅ `tools/test-oauth.js` - Interactive OAuth flow testing (requires browser)
+- ✅ `tools/test-vercel-local.ts` - Manual Vercel mock server
+- ✅ `tools/test-api-direct.ts` - Manual API function debugging
+
+### Development Workflow Convention:
+- **Automated testing**: Always use `test/` directory and `npm test` commands
+- **Manual testing/debugging**: Use `tools/` directory and direct script execution
+- **Documentation**: Reference `tools/` scripts in development guides
+- **CI/CD**: Only `test/` directory files should be run by automated pipelines
 
 ## Key Dependencies
 - `@modelcontextprotocol/sdk` - Core MCP SDK (v1.18.0)

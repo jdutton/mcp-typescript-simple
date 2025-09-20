@@ -31,7 +31,7 @@ The MCP TypeScript Simple server has been adapted to run on Vercel using serverl
 
 ## Prerequisites
 
-1. **Node.js**: Version 20.0.0 or higher
+1. **Node.js**: Version 22.0.0 or higher
 2. **Vercel Account**: Free or paid Vercel account
 3. **Vercel CLI**: Installed globally (`npm install -g vercel`)
 4. **API Keys**: At least one LLM provider API key

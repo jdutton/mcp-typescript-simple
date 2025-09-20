@@ -4,7 +4,7 @@ Deploy the MCP TypeScript Simple server to Vercel in 5 minutes.
 
 ## Prerequisites
 
-- Node.js 20+ installed
+- Node.js 22+ installed
 - Vercel account (free tier works)
 - At least one LLM provider API key
 

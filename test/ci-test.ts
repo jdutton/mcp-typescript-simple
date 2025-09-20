@@ -28,6 +28,8 @@ class CITestRunner {
       { name: 'TypeScript Compilation', fn: () => this.testTypeScriptBuild() },
       { name: 'Type Checking', fn: () => this.testTypeCheck() },
       { name: 'Code Linting', fn: () => this.testLinting() },
+      { name: 'Vercel Configuration', fn: () => this.testVercelConfiguration() },
+      { name: 'Transport Layer', fn: () => this.testTransportLayer() },
       { name: 'MCP Server Startup', fn: () => this.testServerStartup() },
       { name: 'MCP Protocol Compliance', fn: () => this.testMCPProtocol() },
       { name: 'Tool Functionality', fn: () => this.testToolFunctionality() },
@@ -226,6 +228,38 @@ class CITestRunner {
 
     if (!errorResponse.error.message.includes('Unknown tool')) {
       throw new Error('Error message does not match expected format');
+    }
+  }
+
+  private async testVercelConfiguration(): Promise<void> {
+    try {
+      // Run Vercel configuration tests
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/vercel-config-test.ts');
+      if (stderr && stderr.includes('Failed tests:')) {
+        throw new Error(`Vercel configuration validation failed: ${stderr}`);
+      }
+    } catch (error: unknown) {
+      const execError = error as { code?: number; stdout?: string; stderr?: string };
+      if (execError.code !== 0) {
+        throw new Error(`Vercel configuration tests failed: ${execError.stdout || execError.stderr}`);
+      }
+      throw error;
+    }
+  }
+
+  private async testTransportLayer(): Promise<void> {
+    try {
+      // Run transport layer tests
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/transport-test.ts');
+      if (stderr && stderr.includes('Failed tests:')) {
+        throw new Error(`Transport layer validation failed: ${stderr}`);
+      }
+    } catch (error: unknown) {
+      const execError = error as { code?: number; stdout?: string; stderr?: string };
+      if (execError.code !== 0) {
+        throw new Error(`Transport layer tests failed: ${execError.stdout || execError.stderr}`);
+      }
+      throw error;
     }
   }
 
