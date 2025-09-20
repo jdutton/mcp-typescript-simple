@@ -3,8 +3,8 @@ FROM node:22-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files and npm configuration
+COPY package*.json .npmrc ./
 
 # Install all dependencies (needed for build)
 RUN npm ci
