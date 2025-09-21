@@ -1,5 +1,5 @@
-# Source files (TypeScript will be compiled)
-src/
+# Source files (TypeScript will be compiled) - KEEP FOR VERCEL BUILD
+# src/
 
 # Development files
 test/
