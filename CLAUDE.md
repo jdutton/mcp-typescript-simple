@@ -305,7 +305,11 @@ git commit -m "descriptive message
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-# 3. Push to feature branch (creates or updates PR)
+# 3. Ask permission before pushing (unless explicitly told to push)
+# IMPORTANT: Claude Code must ask user permission before git push
+# Exception: Only push automatically if user explicitly requests it
+
+# 4. Push to feature branch (creates or updates PR)
 git status              # Quick check - any other modifications?
 git push origin <your-branch-name>
 ```
