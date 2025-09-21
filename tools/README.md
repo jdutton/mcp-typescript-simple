@@ -2,6 +2,23 @@
 
 This directory contains manual testing and development utilities for the MCP TypeScript Simple server. These tools are designed for interactive use during development and debugging, complementing the automated test suite in the `test/` directory.
 
+**Note**: This directory has been streamlined to contain only tools that provide unique value that cannot be replaced by automated testing or official development workflows. For most testing needs, use the comprehensive automated test suite (`npm run test:ci`) or official development environments (`npm run dev:vercel`).
+
+## Tool Standards
+
+**TypeScript First**: All tools should be written in TypeScript where possible for consistency, type safety, and maintainability.
+
+**Direct Execution**: All TypeScript tools use the shebang `#!/usr/bin/env -S npx tsx` and are executable directly from the command line:
+```bash
+# Direct execution (preferred)
+./tools/test-oauth.ts --help
+
+# Alternative npx execution
+npx tsx tools/test-oauth.ts --help
+```
+
+**Consistent Help**: All tools support `--help` and `-h` flags with comprehensive usage documentation.
+
 ## Tool Categories
 
 ### Interactive Testing Tools
@@ -16,59 +33,70 @@ Direct function testing and inspection utilities.
 ### Manual Validation Scripts
 Tools requiring human verification and inspection.
 
-## Available Tools
+## Available Tool
 
-### OAuth Flow Testing - `test-oauth.js`
+The tools directory now contains **one carefully curated tool** that provides unique value that cannot be replicated through automated testing:
+
+### OAuth Flow Testing - `test-oauth.ts`
 Interactive OAuth authentication flow testing and validation.
 
-**Purpose**: Test OAuth providers, token validation, and authentication workflows
+**Purpose**: Test OAuth providers, token validation, and authentication workflows across deployment modes
 
 **Usage**:
 ```bash
-# Test server health
-node tools/test-oauth.js
+# Test server health (default local)
+./tools/test-oauth.ts
 
-# Interactive OAuth flow testing (opens browser)
-node tools/test-oauth.js --flow
+# Interactive OAuth flow testing
+./tools/test-oauth.ts --flow --provider google
 
 # Test with existing access token
-node tools/test-oauth.js --token <your_access_token>
+./tools/test-oauth.ts --token <your_access_token>
 
-# Start server and test
-node tools/test-oauth.js --start
+# Test against Vercel deployment
+./tools/test-oauth.ts --url https://myapp.vercel.app --flow
+
+# Start server and test (local only)
+./tools/test-oauth.ts --start
 ```
 
 **Features**:
-- Health check validation
+- Multi-deployment mode support (local, Docker, Vercel)
+- Command-line parameter configuration (no environment variables)
 - Interactive OAuth provider testing
 - Token validation and MCP endpoint testing
 - Support for Google, GitHub, Microsoft, and generic OAuth
 - Session management testing
+- Health check validation
 
-**Environment Variables**:
-```bash
-OAUTH_PROVIDER=google|github|microsoft|generic
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-SERVER_URL=http://localhost:3000  # Override server URL
-```
+**Command-Line Options**:
+- `--url <url>` - Server URL (default: http://localhost:3000)
+- `--provider <provider>` - OAuth provider: google|github|microsoft|generic
+- `--flow` - Test interactive OAuth flow
+- `--token <token>` - Test with existing access token
+- `--start` - Start local server and test
 
-### Vercel Local Development Server - `test-vercel-local.ts`
-Mock Vercel serverless environment for local development and testing.
+### Official Vercel Development
+For Vercel serverless function development, use the official Vercel CLI instead of custom mock servers.
 
-**Purpose**: Test Vercel API functions locally without deploying
+**Purpose**: Test Vercel API functions in authentic serverless environment
 
 **Usage**:
 ```bash
-npx tsx tools/test-vercel-local.ts
+# Official Vercel development (recommended)
+npm run dev:vercel
+
+# Or use Vercel CLI directly
+npx vercel dev --listen 3000
 ```
 
 **Features**:
-- Runs all API endpoints locally: `/api/health`, `/api/mcp`, `/api/auth`, `/api/admin`
-- Mock VercelRequest/VercelResponse objects
-- Real-time request logging
-- Error handling and debugging
-- Hot reloading on file changes
+- **Authentic Vercel runtime** - real serverless function execution
+- **Real VercelRequest/VercelResponse objects** - not mocks
+- **Official routing** - uses `vercel.json` configuration exactly
+- **Environment variable handling** - matches production behavior
+- **Hot reloading** - built-in file watching and recompilation
+- **Production parity** - closest to actual deployment environment
 
 **Endpoints Available**:
 - `http://localhost:3000/api/health` - Health check
@@ -76,74 +104,52 @@ npx tsx tools/test-vercel-local.ts
 - `http://localhost:3000/api/auth` - OAuth authentication
 - `http://localhost:3000/api/admin` - Administration and metrics
 
-### Direct API Function Testing - `test-api-direct.ts`
-Direct testing of individual Vercel API functions with mock objects.
+**Setup**: See [Vercel Local Development Guide](../docs/vercel-local-development.md) for authentication and configuration.
 
-**Purpose**: Unit test individual API functions without HTTP layer
 
-**Usage**:
-```bash
-npx tsx tools/test-api-direct.ts
-```
+### Automated MCP Testing
+For MCP protocol testing, use the comprehensive automated test suite instead of manual tools.
 
-**Features**:
-- Direct function invocation
-- Mock VercelRequest/VercelResponse creation
-- Individual endpoint testing
-- Response validation
-- Error scenario testing
-
-### MCP Endpoint Testing - `test-mcp-api.ts`
-Focused testing of the MCP protocol endpoint with various request scenarios.
-
-**Purpose**: Test MCP protocol implementation and tool execution
+**Purpose**: Validate MCP protocol compliance and functionality
 
 **Usage**:
 ```bash
-npx tsx tools/test-mcp-api.ts
+# Full MCP testing suite (recommended)
+npm run test:ci          # Includes MCP protocol compliance
+npm run test:mcp         # Direct MCP STDIO client testing
+npm run test:transport   # HTTP transport and CORS testing
 ```
 
 **Features**:
-- MCP protocol compliance testing
-- Tool execution validation
-- JSON-RPC request/response testing
-- Content-type negotiation testing
-- Error handling validation
+- **Real MCP client communication** - actual STDIO protocol testing
+- **Protocol compliance validation** - JSON-RPC 2.0 specification adherence
+- **Tool execution testing** - validates all available MCP tools
+- **Transport layer testing** - HTTP, CORS, streaming, error handling
+- **Integration testing** - end-to-end MCP workflow validation
 
-### MCP Interface Testing - `test-mcp-fixed.ts`
-Advanced MCP testing with proper Node.js HTTP interfaces.
+**Advantages over manual testing**:
+- **Authentic MCP runtime** - tests real protocol implementation, not mocks
+- **Comprehensive coverage** - validates entire MCP ecosystem
+- **Automated execution** - suitable for CI/CD pipelines
+- **Production parity** - tests actual deployment scenarios
 
-**Purpose**: Test MCP implementation with real Node.js HTTP objects
-
-**Usage**:
-```bash
-npx tsx tools/test-mcp-fixed.ts
-```
-
-**Features**:
-- Real Node.js IncomingMessage/ServerResponse objects
-- Proper HTTP interface testing
-- Stream handling validation
-- Low-level transport testing
 
 ## Development Workflow
 
 ### When to Use These Tools
 
 #### During Feature Development
-- Use `test-vercel-local.ts` to test API changes locally
-- Use `test-api-direct.ts` to debug specific function issues
-- Use `test-mcp-api.ts` to validate MCP protocol changes
+- Use `npm run dev:vercel` for authentic Vercel serverless function testing
+- Use `npm run test:mcp` to validate MCP protocol changes
 
 #### During OAuth Implementation
-- Use `test-oauth.js --flow` to test authentication flows
-- Use `test-oauth.js --token` to validate token handling
+- Use `./tools/test-oauth.ts --flow` to test authentication flows
+- Use `./tools/test-oauth.ts --token` to validate token handling
 - Test multiple OAuth providers systematically
 
 #### During Debugging
-- Use direct API testing for isolated function debugging
-- Use local Vercel server for end-to-end workflow testing
-- Use MCP testing for protocol compliance validation
+- Use `npm run dev:vercel` for end-to-end workflow testing in authentic Vercel environment
+- Use `npm run test:mcp` for protocol compliance validation
 
 ### Integration with Development Commands
 
@@ -151,34 +157,33 @@ These tools complement the standard development workflow:
 
 ```bash
 # Standard development
-npm run dev:vercel          # Official Vercel development
-npx tsx tools/test-vercel-local.ts  # Alternative local testing
+npm run dev:vercel          # Official Vercel development (recommended)
 
 # OAuth testing
 npm run dev:oauth           # Development with OAuth enabled
-node tools/test-oauth.js --flow     # Interactive OAuth testing
+./tools/test-oauth.ts --flow        # Interactive OAuth testing
 
-# API debugging
-npm run test:ci             # Automated test suite
-npx tsx tools/test-api-direct.ts    # Manual API debugging
+# MCP and API testing
+npm run test:ci             # Comprehensive test suite
+npm run test:mcp            # MCP protocol testing
 ```
 
 ## Testing Scenarios
 
 ### OAuth Flow Validation
-1. Start with health check: `node tools/test-oauth.js`
-2. Test interactive flow: `node tools/test-oauth.js --flow`
-3. Validate tokens: `node tools/test-oauth.js --token <token>`
+1. Start with health check: `./tools/test-oauth.ts`
+2. Test interactive flow: `./tools/test-oauth.ts --flow`
+3. Validate tokens: `./tools/test-oauth.ts --token <token>`
 
 ### Vercel Development Testing
-1. Start local server: `npx tsx tools/test-vercel-local.ts`
-2. Test endpoints manually or with curl
-3. Debug issues with direct API testing
+1. Start official Vercel development server: `npm run dev:vercel`
+2. Test endpoints manually or with curl against authentic Vercel environment
 
-### MCP Protocol Debugging
-1. Test protocol compliance: `npx tsx tools/test-mcp-api.ts`
-2. Test with real HTTP objects: `npx tsx tools/test-mcp-fixed.ts`
-3. Validate tool execution and responses
+### MCP Protocol Testing
+1. Run full test suite: `npm run test:ci` (includes MCP protocol compliance)
+2. Test MCP client communication: `npm run test:mcp` (STDIO protocol testing)
+3. Test HTTP transport layer: `npm run test:transport` (CORS, streaming, etc.)
+4. Debug with official Vercel environment: `npm run dev:vercel` (authentic runtime)
 
 ## Environment Setup
 
@@ -214,34 +219,42 @@ MCP_MODE=streamable_http
 - **Token validation fails**: Verify client ID/secret and redirect URLs
 - **Server not responding**: Ensure server is running on correct port
 
-#### Vercel Local Testing Issues
+#### Vercel Development Issues
+- **Vercel CLI not found**: Install with `npm install -g vercel`
+- **Authentication required**: Run `npx vercel login` first
 - **API functions not loading**: Run `npm run build` first
 - **Import errors**: Check that build output exists in `build/` directory
-- **Port conflicts**: Modify port in script or stop conflicting processes
+- **Port conflicts**: Use `--listen <port>` to specify different port
 
 #### MCP Testing Issues
-- **Protocol errors**: Verify MCP SDK version compatibility
-- **Tool execution fails**: Check LLM provider API keys
-- **Transport errors**: Ensure proper request/response object mocking
+- **Protocol errors**: Verify MCP SDK version compatibility with `npm run test:mcp`
+- **Tool execution fails**: Check LLM provider API keys in environment variables
+- **Transport errors**: Run `npm run test:transport` to validate HTTP layer
 
 ### Debug Mode
 Most tools support verbose logging for debugging:
 
 ```bash
 # Enable debug logging
-DEBUG=* npx tsx tools/test-vercel-local.ts
-NODE_ENV=development node tools/test-oauth.js --flow
+NODE_ENV=development ./tools/test-oauth.ts --flow
+NODE_ENV=development npm run dev:vercel
 ```
 
 ## Contributing
 
+**High Bar for New Tools**: Only add tools that provide genuinely unique value that cannot be achieved through automated testing or official development workflows.
+
 When adding new development tools:
 
-1. **Follow naming convention**: `test-<feature>-<type>.ts/js`
-2. **Add to this README**: Document purpose, usage, and features
-3. **Include error handling**: Proper error messages and recovery
-4. **Add usage examples**: Clear command-line examples
-5. **Update main README**: Reference new tools in development section
+1. **Justify unique value**: Tool must provide functionality not available in automated tests or official development tools
+2. **Follow naming convention**: `test-<feature>-<type>.ts`
+3. **Use TypeScript**: All new tools should be written in TypeScript with proper shebang
+4. **Add executable shebang**: Use `#!/usr/bin/env -S npx tsx` and make file executable with `chmod +x`
+5. **Add comprehensive --help**: Include usage, description, options, examples, and deployment mode guidance
+6. **Add to this README**: Document purpose, usage, and features, and why it can't be replaced by automated testing
+7. **Include error handling**: Proper error messages and recovery
+8. **Add usage examples**: Clear command-line examples showing direct execution (./tools/tool-name.ts)
+9. **Update main README**: Reference new tools in development section
 
 ### Tool Categories for New Scripts
 - **Interactive Tools**: Require user input or interaction
@@ -265,9 +278,8 @@ When adding new development tools:
 - Protocol compliance checking
 
 **Manual Testing Tools** (`tools/` directory):
-- Interactive development workflows
-- Browser-based testing
-- Local environment debugging
-- Human verification required
+- Interactive development workflows (OAuth flows requiring browser interaction)
+- Human verification workflows (authentication testing, token validation)
+- Scenarios requiring manual inspection or interaction
 
-Use automated tests for validation and manual tools for development and debugging workflows.
+Use automated tests for validation and manual tools only for workflows that cannot be automated (like OAuth browser flows).

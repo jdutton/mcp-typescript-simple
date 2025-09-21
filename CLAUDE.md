@@ -440,8 +440,6 @@ gh pr create --title "Brief description" --body "Detailed description"
 - ✅ `test/ci-test.ts` - Automated CI/CD validation
 - ✅ `test/test-mcp.ts` - Automated MCP protocol testing
 - ✅ `tools/test-oauth.js` - Interactive OAuth flow testing (requires browser)
-- ✅ `tools/test-vercel-local.ts` - Manual Vercel mock server
-- ✅ `tools/test-api-direct.ts` - Manual API function debugging
 
 ### Development Workflow Convention:
 - **Automated testing**: Always use `test/` directory and `npm test` commands

@@ -225,14 +225,11 @@ node tools/test-oauth.js --token <your_token>
 
 #### Vercel Development Testing
 ```bash
-# Start local Vercel mock server
-npx tsx tools/test-vercel-local.ts
+# Start official Vercel development server
+npm run dev:vercel
 
-# Test API functions directly
-npx tsx tools/test-api-direct.ts
-
-# Test MCP endpoint specifically
-npx tsx tools/test-mcp-api.ts
+# Test MCP protocol compliance
+npm run test:mcp
 ```
 
 These tools help with:
