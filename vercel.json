@@ -29,6 +29,5 @@
   },
   "env": {
     "NODE_ENV": "production"
-  },
-  "outputDirectory": "build"
+  }
 }
