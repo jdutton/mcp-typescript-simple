@@ -368,6 +368,32 @@ gh pr create --title "Brief description" --body "Detailed description"
 
 ### Quality Requirements for All Changes
 
+#### Documentation Standards (MANDATORY)
+
+**IMPORTANT**: All documentation in this project must show **current state only**. Never include status updates, progress indicators, or temporary information.
+
+**Documentation Files That Must Follow This Rule:**
+- All README.md files (root and subdirectories)
+- All files in the `docs/` directory
+- All documentation in `tools/README.md`
+- Any .md files in the project
+
+**What NOT to Include:**
+- ❌ "Status Update" sections
+- ❌ "Recently Fixed" or "Recently Added" sections
+- ❌ Progress indicators or completion status
+- ❌ Temporary update notes
+- ❌ "Coming Soon" or "In Progress" sections
+
+**What TO Include:**
+- ✅ Current features and capabilities
+- ✅ Current usage instructions and examples
+- ✅ Current configuration options
+- ✅ Current architecture and design
+- ✅ Current installation and setup steps
+
+**Rationale**: Documentation should be a reliable reference for the current state of the project, not a historical record of changes or work in progress.
+
 #### Documentation Updates (Required)
 **Update README.md for:**
 - **New Features**: Add feature description, usage examples, configuration options
