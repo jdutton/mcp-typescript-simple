@@ -4,6 +4,40 @@
  * Test MCP API with proper Node.js response interface
  */
 
+// Handle help argument
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+Advanced MCP Interface Testing Tool
+
+Usage:
+  npx tsx tools/test-mcp-fixed.ts [--help]
+
+Description:
+  Tests MCP implementation with proper Node.js HTTP interfaces and real objects.
+  Uses actual IncomingMessage/ServerResponse for more accurate testing.
+
+Features:
+  - Real Node.js IncomingMessage/ServerResponse objects
+  - Proper HTTP interface testing
+  - Stream handling validation
+  - Low-level transport testing
+  - More accurate Vercel environment simulation
+
+Tests Performed:
+  - OPTIONS request with real HTTP objects
+  - POST /api/mcp with proper Node.js interfaces
+
+Examples:
+  npx tsx tools/test-mcp-fixed.ts       # Run advanced MCP interface tests
+
+Environment:
+  Works with local development and Vercel deployments
+  More accurate than mock-based testing
+  Requires MCP server to be built first (npm run build)
+  `);
+  process.exit(0);
+}
+
 import { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from 'net';
 

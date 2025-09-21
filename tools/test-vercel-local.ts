@@ -4,6 +4,46 @@
  * Local test script for Vercel API functions
  */
 
+// Handle help argument
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+Vercel Local Development Server
+
+Usage:
+  npx tsx tools/test-vercel-local.ts [--help]
+
+Description:
+  Creates a mock Vercel serverless environment for local development and testing.
+  Runs all API endpoints locally with proper request/response handling.
+
+Features:
+  - Local API endpoints: /api/health, /api/mcp, /api/auth, /api/admin
+  - Mock VercelRequest/VercelResponse objects
+  - Real-time request logging
+  - Vercel serverless function simulation
+  - Hot reloading compatible
+
+Endpoints Available:
+  - http://localhost:3000/api/health   - Health check
+  - http://localhost:3000/api/mcp      - MCP protocol endpoint
+  - http://localhost:3000/api/auth     - OAuth authentication
+  - http://localhost:3000/api/admin    - Administration and metrics
+
+Examples:
+  npx tsx tools/test-vercel-local.ts   # Start local server on port 3000
+
+  # Test endpoints:
+  curl http://localhost:3000/api/health
+  curl -X POST http://localhost:3000/api/mcp
+
+Environment:
+  Simulates Vercel serverless environment locally
+  Requires project to be built first (npm run build)
+  Server runs until manually stopped (Ctrl+C)
+  `);
+  process.exit(0);
+}
+
 import { createServer } from 'http';
 import { parse } from 'url';
 

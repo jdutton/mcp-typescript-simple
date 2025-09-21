@@ -2,15 +2,6 @@
 
 This directory contains manual testing and development utilities for the MCP TypeScript Simple server. These tools are designed for interactive use during development and debugging, complementing the automated test suite in the `test/` directory.
 
-## Status Update (September 2025)
-
-All tools have been updated and fixed:
-
-✅ **Import Paths Fixed**: All TypeScript tools now correctly import from `../api/` instead of `./api/`
-✅ **Full Functionality**: All tools are now working correctly after the import path fixes
-✅ **Testing Validated**: Each tool has been tested and confirmed to work properly
-✅ **Ready for Use**: All development and testing workflows are now functional
-
 ## Tool Categories
 
 ### Interactive Testing Tools

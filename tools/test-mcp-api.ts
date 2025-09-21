@@ -4,6 +4,38 @@
  * Test the MCP API endpoint specifically
  */
 
+// Handle help argument
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+MCP Protocol Endpoint Testing Tool
+
+Usage:
+  npx tsx tools/test-mcp-api.ts [--help]
+
+Description:
+  Tests MCP protocol implementation with various request scenarios.
+  Validates CORS preflight, MCP initialization, and protocol compliance.
+
+Features:
+  - MCP protocol compliance testing (JSON-RPC 2.0)
+  - CORS preflight request validation
+  - MCP initialize handshake testing
+  - Tool execution validation
+
+Tests Performed:
+  - OPTIONS request (CORS preflight)
+  - POST /api/mcp (MCP initialize request)
+
+Examples:
+  npx tsx tools/test-mcp-api.ts          # Run MCP protocol tests
+
+Environment:
+  Works with local development and Vercel deployments
+  Requires MCP server to be built first (npm run build)
+  `);
+  process.exit(0);
+}
+
 // Mock VercelRequest and VercelResponse for MCP testing
 class MockVercelRequest {
   method: string;

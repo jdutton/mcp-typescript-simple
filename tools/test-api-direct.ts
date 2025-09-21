@@ -4,6 +4,38 @@
  * Direct test of Vercel API functions
  */
 
+// Handle help argument
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log(`
+Direct API Function Testing Tool
+
+Usage:
+  npx tsx tools/test-api-direct.ts [--help]
+
+Description:
+  Tests Vercel API functions directly using mock VercelRequest/Response objects.
+  Validates health, admin/info, and admin/metrics endpoints without HTTP layer.
+
+Features:
+  - Direct function invocation testing
+  - Mock request/response validation
+  - Individual endpoint testing
+  - Response validation and error handling
+
+Endpoints Tested:
+  - /api/health - Server health check
+  - /api/admin/info - Server information
+  - /api/admin/metrics - Performance metrics
+
+Examples:
+  npx tsx tools/test-api-direct.ts     # Run all API function tests
+
+Environment:
+  Works with any deployment mode (local, Docker, Vercel)
+  `);
+  process.exit(0);
+}
+
 // Mock VercelRequest and VercelResponse
 class MockVercelRequest {
   method: string;
