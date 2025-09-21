@@ -36,8 +36,9 @@ npm run validate         # Complete validation (typecheck + lint + build + test)
 npm run lint             # ESLint code checking
 npm run typecheck        # TypeScript type checking
 
-# Deployment
-npm run deploy:vercel    # Deploy to Vercel production
+# Development Deployment (Preview Only)
+npm run build            # Build for deployment
+npm run dev:vercel       # Local Vercel development server
 ```
 
 ## Project Architecture
@@ -100,15 +101,24 @@ npm run dev:sse          # HTTP mode without authentication
 npm run dev:oauth        # HTTP mode with OAuth
 ```
 
-### Vercel Serverless Deployment
+### Vercel Deployment Workflow
+
+#### Development/Preview Deployment (PR Testing)
 ```bash
-# Quick deployment
+# Build and deploy to preview environment for testing
 npm run build
-vercel --prod
+vercel                    # Deploys to preview URL for testing
 
 # Local testing
-npm run dev:vercel
+npm run dev:vercel        # Local Vercel development server
 ```
+
+#### Production Deployment (Automated Only)
+**IMPORTANT**: Production deployments happen automatically via GitHub Actions when PRs are merged to main.
+
+- **Claude Code should NEVER deploy to production**
+- **Only GitHub Actions deploys to production after all CI checks pass**
+- **Preview deployments are for testing during PR development**
 
 **Vercel Features:**
 - Auto-scaling serverless functions
@@ -207,6 +217,16 @@ The CI pipeline includes 10 comprehensive test categories:
 
 ## Development Workflow
 
+### **MANDATORY Steps for ANY Code Change**
+**Every commit must follow this process - no exceptions:**
+
+1. **Create feature branch** (never work on main)
+2. **Make your changes**
+3. **Run `npm run validate`** (MANDATORY - must pass)
+4. **Commit and push** (creates or updates PR)
+5. **Monitor PR status** (every 15 seconds until all checks pass)
+6. **Fix immediately** if any checks fail, then resume monitoring
+
 ### Branch Management Requirements
 **CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
 
@@ -245,25 +265,95 @@ git checkout -b feature/add-redis-caching
 3. **Verify test coverage** for your changes
 4. **Test edge cases and error scenarios**
 
-### Before Committing
-```bash
-# MANDATORY pre-commit validation
-npm run validate
+### Testing with Preview Deployments (Optional)
+**For testing deployment functionality during development:**
 
-# If any test fails, fix before committing
-# If adding new functionality, ensure new tests are included
-# If fixing a bug, ensure regression test is added
+```bash
+# Only if deployment testing is needed
+npm run build              # Build the project
+vercel                     # Deploy to preview URL (NOT production)
 ```
 
-### Creating Pull Request
-```bash
-# Push feature branch
-git push origin feature/your-branch-name
+**When to use preview deployments:**
+- Testing serverless function behavior
+- Validating environment variable configuration
+- Testing with real HTTP requests and OAuth flows
+- **NEVER for production** - only for development/testing
 
-# Create pull request via GitHub CLI or web interface
+### Committing Changes (New Commits and PR Updates)
+**CRITICAL**: These steps are MANDATORY for ALL commits - initial commits and PR updates:
+
+#### Pre-Commit Validation (REQUIRED)
+```bash
+# MANDATORY validation - NEVER skip this step
+npm run validate
+
+# If validation fails, fix ALL issues before proceeding
+# Ensure all new changes have corresponding tests
+# Update documentation if needed
+```
+
+#### Commit and Push Workflow
+```bash
+# 1. Stage your changes
+git add <files>
+
+# 2. Commit with descriptive message
+git commit -m "descriptive message
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 3. Push to feature branch (creates or updates PR)
+git status              # Quick check - any other modifications?
+git push origin <your-branch-name>
+```
+
+#### Post-Push PR Monitoring (MANDATORY)
+**After pushing changes to a PR, Claude Code MUST monitor the PR status:**
+
+```bash
+# Monitor PR status every 15 seconds for errors or success
+gh pr checks <pr-number>
+
+# Continue monitoring until either:
+# 1. All checks pass (✅ SUCCESS - stop monitoring)
+# 2. Any check fails (❌ ERROR - analyze and fix immediately)
+```
+
+**Monitoring Protocol:**
+- **Check every 15 seconds** using `gh pr checks <pr-number>`
+- **Stop monitoring when**: All checks are green/passing
+- **Immediate action when**: Any check fails or shows error
+- **Fix immediately**: Analyze the error, implement fix, test locally, push update
+- **Resume monitoring**: After pushing fixes, continue monitoring until all green
+
+**Example monitoring workflow:**
+```bash
+# Monitor until completion
+while true; do
+  gh pr checks 7
+  # If all pass: break and stop monitoring
+  # If any fail: analyze error, fix, commit, push, continue monitoring
+  sleep 15
+done
+```
+
+#### Commit Requirements
+- **MANDATORY validation MUST pass** before any commit/push
+- **All CI checks MUST pass** after push
+- **New functionality MUST include tests**
+- **Bug fixes MUST include regression tests**
+- **Documentation MUST be updated** for any API/feature changes
+- **No exceptions** - failed validation = no commit allowed
+
+### Creating Initial Pull Request
+```bash
+# After first push, create PR via GitHub CLI or web interface
 gh pr create --title "Brief description" --body "Detailed description"
 
-# Or use GitHub web interface to create PR
+# Or use GitHub web interface
 ```
 
 #### Pull Request Requirements
@@ -276,17 +366,17 @@ gh pr create --title "Brief description" --body "Detailed description"
 - **Documentation must be updated**
 - **Tests must be included for all changes**
 
-### Documentation Requirements
-**CRITICAL**: Always keep documentation up to date before merging:
+### Quality Requirements for All Changes
 
-#### README.md Updates Required For:
-- **New Features**: Add feature description, usage examples, and configuration options
+#### Documentation Updates (Required)
+**Update README.md for:**
+- **New Features**: Add feature description, usage examples, configuration options
 - **New Tools**: Update tool list with descriptions and parameters
 - **Configuration Changes**: Update environment variables, setup instructions
 - **Deployment Changes**: Update deployment options and requirements
 - **Breaking Changes**: Update prerequisites, migration guides, compatibility notes
 
-#### Documentation Validation Checklist:
+#### Documentation Validation Checklist
 - [ ] README.md reflects all new features and changes
 - [ ] Code examples are current and functional
 - [ ] Prerequisites and dependencies are accurate
@@ -294,16 +384,6 @@ gh pr create --title "Brief description" --body "Detailed description"
 - [ ] Environment variable documentation is complete
 - [ ] Tool descriptions match actual implementation
 - [ ] Links to detailed documentation are correct
-
-### Code Review Requirements
-- **Test coverage must be complete** for all changes
-- **Tests must be meaningful** (not just for coverage numbers)
-- **Edge cases must be tested**
-- **Error scenarios must be validated**
-- **Integration points must be verified**
-- **README.md must be updated** to reflect all changes
-- **Documentation must be accurate** and match implementation
-- **Examples must be functional** and tested
 
 ### Examples of Required Tests
 
@@ -382,3 +462,4 @@ gh pr create --title "Brief description" --body "Detailed description"
 - `express` - HTTP server for Streamable HTTP transport
 - `@vercel/node` - Vercel serverless function support
 - `typescript` - TypeScript compiler with strict configuration
+- Always run CI tests locally before pushing to PR to ensure PR tests will pass

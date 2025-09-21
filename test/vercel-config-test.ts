@@ -87,26 +87,37 @@ class VercelConfigTestRunner {
         throw new Error(`Expected version 2, got ${config.version}`);
       }
 
-      if (!config.builds || !Array.isArray(config.builds)) {
-        throw new Error('Missing or invalid builds configuration');
+      // Modern Vercel uses functions instead of builds
+      if (!config.functions || typeof config.functions !== 'object') {
+        throw new Error('Missing or invalid functions configuration');
       }
 
-      if (!config.routes || !Array.isArray(config.routes)) {
-        throw new Error('Missing or invalid routes configuration');
+      // Check for modern rewrites or legacy routes
+      if (!config.rewrites && !config.routes) {
+        throw new Error('Missing routing configuration (rewrites or routes)');
       }
 
-      // Validate builds
-      const hasNodeBuild = config.builds.some((build: any) =>
-        build.use === '@vercel/node' && build.src.includes('api/**/*.ts')
-      );
-
-      if (!hasNodeBuild) {
-        throw new Error('Missing @vercel/node build configuration for API functions');
+      const routing = config.rewrites || config.routes;
+      if (!Array.isArray(routing)) {
+        throw new Error('Invalid routing configuration - must be array');
       }
 
-      // Validate routes
+      // Validate functions configuration
+      const requiredFunctions = ['api/mcp.ts', 'api/auth.ts'];
+      for (const func of requiredFunctions) {
+        if (!config.functions[func]) {
+          throw new Error(`Missing function configuration for ${func}`);
+        }
+
+        // Validate function has maxDuration
+        if (typeof config.functions[func].maxDuration !== 'number') {
+          throw new Error(`Missing or invalid maxDuration for function ${func}`);
+        }
+      }
+
+      // Validate routing (rewrites or routes)
       const expectedRoutes = ['/health', '/mcp', '/auth', '/admin'];
-      const configuredRoutes = config.routes.map((route: any) => route.src);
+      const configuredRoutes = routing.map((route: any) => route.src || route.source);
 
       for (const expectedRoute of expectedRoutes) {
         const hasRoute = configuredRoutes.some((route: string) =>
@@ -115,6 +126,11 @@ class VercelConfigTestRunner {
         if (!hasRoute) {
           throw new Error(`Missing route configuration for ${expectedRoute}`);
         }
+      }
+
+      // Ensure no conflicting builds property exists
+      if (config.builds) {
+        throw new Error('Legacy builds configuration detected. Use functions instead.');
       }
     });
   }
@@ -128,12 +144,17 @@ class VercelConfigTestRunner {
       const content = readFileSync('.vercelignore', 'utf8');
       const lines = content.split('\n').map(line => line.trim());
 
-      // Check for important exclusions
-      const expectedExclusions = ['src/', 'test/', 'node_modules/', '.git/'];
+      // Check for important exclusions (src/ should be included for TypeScript compilation)
+      const expectedExclusions = ['test/', 'node_modules/', '.git/'];
       for (const exclusion of expectedExclusions) {
         if (!lines.includes(exclusion)) {
           throw new Error(`Missing exclusion in .vercelignore: ${exclusion}`);
         }
+      }
+
+      // Ensure src/ is NOT excluded (needed for TypeScript compilation)
+      if (lines.includes('src/')) {
+        throw new Error('src/ should not be excluded - Vercel needs it for TypeScript compilation');
       }
     });
   }

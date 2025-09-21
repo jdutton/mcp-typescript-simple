@@ -1,5 +1,5 @@
-# Source files (TypeScript will be compiled)
-src/
+# Source files (TypeScript will be compiled) - KEEP FOR VERCEL BUILD
+# src/
 
 # Development files
 test/
@@ -16,7 +16,7 @@ logs/
 *.pid.lock
 
 # Build artifacts not needed in deployment
-build/
+# build/ - KEEP BUILD DIRECTORY FOR API FUNCTIONS
 
 # Development dependencies
 node_modules/
