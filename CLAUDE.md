@@ -224,7 +224,8 @@ The CI pipeline includes 10 comprehensive test categories:
 2. **Make your changes**
 3. **Run `npm run validate`** (MANDATORY - must pass)
 4. **Commit and push** (creates or updates PR)
-5. **Ensure all CI checks pass**
+5. **Monitor PR status** (every 15 seconds until all checks pass)
+6. **Fix immediately** if any checks fail, then resume monitoring
 
 ### Branch Management Requirements
 **CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
@@ -307,6 +308,36 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 # 3. Push to feature branch (creates or updates PR)
 git status              # Quick check - any other modifications?
 git push origin <your-branch-name>
+```
+
+#### Post-Push PR Monitoring (MANDATORY)
+**After pushing changes to a PR, Claude Code MUST monitor the PR status:**
+
+```bash
+# Monitor PR status every 15 seconds for errors or success
+gh pr checks <pr-number>
+
+# Continue monitoring until either:
+# 1. All checks pass (✅ SUCCESS - stop monitoring)
+# 2. Any check fails (❌ ERROR - analyze and fix immediately)
+```
+
+**Monitoring Protocol:**
+- **Check every 15 seconds** using `gh pr checks <pr-number>`
+- **Stop monitoring when**: All checks are green/passing
+- **Immediate action when**: Any check fails or shows error
+- **Fix immediately**: Analyze the error, implement fix, test locally, push update
+- **Resume monitoring**: After pushing fixes, continue monitoring until all green
+
+**Example monitoring workflow:**
+```bash
+# Monitor until completion
+while true; do
+  gh pr checks 7
+  # If all pass: break and stop monitoring
+  # If any fail: analyze error, fix, commit, push, continue monitoring
+  sleep 15
+done
 ```
 
 #### Commit Requirements
