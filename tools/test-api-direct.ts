@@ -64,7 +64,7 @@ async function testHealthEndpoint() {
   console.log('========================');
 
   try {
-    const { default: healthHandler } = await import('./api/health.js');
+    const { default: healthHandler } = await import('../api/health.js');
 
     const req = new MockVercelRequest('GET', '/api/health');
     const res = new MockVercelResponse();
@@ -83,7 +83,7 @@ async function testAdminEndpoint() {
   console.log('========================');
 
   try {
-    const { default: adminHandler } = await import('./api/admin.js');
+    const { default: adminHandler } = await import('../api/admin.js');
 
     const req = new MockVercelRequest('GET', '/api/admin/info');
     const res = new MockVercelResponse();
@@ -102,7 +102,7 @@ async function testAdminMetrics() {
   console.log('===============================');
 
   try {
-    const { default: adminHandler } = await import('./api/admin.js');
+    const { default: adminHandler } = await import('../api/admin.js');
 
     const req = new MockVercelRequest('GET', '/api/admin/metrics');
     const res = new MockVercelResponse();

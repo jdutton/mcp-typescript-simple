@@ -12,7 +12,7 @@ async function testMCPWithProperInterface() {
   console.log('================================================\n');
 
   try {
-    const { default: mcpHandler } = await import('./api/mcp.js');
+    const { default: mcpHandler } = await import('../api/mcp.js');
 
     // Create a minimal socket
     const socket = new Socket();
@@ -100,7 +100,7 @@ async function testMCPOptions() {
   console.log('==============================');
 
   try {
-    const { default: mcpHandler } = await import('./api/mcp.js');
+    const { default: mcpHandler } = await import('../api/mcp.js');
 
     const socket = new Socket();
     const req = new IncomingMessage(socket);

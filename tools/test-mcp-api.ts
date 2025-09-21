@@ -72,7 +72,7 @@ async function testMCPOptions() {
   console.log('======================================');
 
   try {
-    const { default: mcpHandler } = await import('./api/mcp.js');
+    const { default: mcpHandler } = await import('../api/mcp.js');
 
     const req = new MockVercelRequest('OPTIONS', '/api/mcp', {
       'Origin': 'http://localhost:3000',
@@ -94,7 +94,7 @@ async function testMCPInitialize() {
   console.log('===============================');
 
   try {
-    const { default: mcpHandler } = await import('./api/mcp.js');
+    const { default: mcpHandler } = await import('../api/mcp.js');
 
     const mcpInitRequest = {
       jsonrpc: '2.0',

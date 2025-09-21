@@ -9,10 +9,10 @@ import { parse } from 'url';
 
 // Import our API handlers
 const handlers = {
-  '/api/health': () => import('./api/health.js'),
-  '/api/admin': () => import('./api/admin.js'),
-  '/api/auth': () => import('./api/auth.js'),
-  '/api/mcp': () => import('./api/mcp.js'),
+  '/api/health': () => import('../api/health.js'),
+  '/api/admin': () => import('../api/admin.js'),
+  '/api/auth': () => import('../api/auth.js'),
+  '/api/mcp': () => import('../api/mcp.js'),
 };
 
 async function createVercelMockServer(port: number = 3000) {
