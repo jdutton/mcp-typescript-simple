@@ -30,6 +30,5 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "regions": ["iad1", "sfo1"],
   "outputDirectory": "build"
 }
