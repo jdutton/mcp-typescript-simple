@@ -87,21 +87,26 @@ class VercelConfigTestRunner {
         throw new Error(`Expected version 2, got ${config.version}`);
       }
 
-      if (!config.builds || !Array.isArray(config.builds)) {
-        throw new Error('Missing or invalid builds configuration');
+      // Modern Vercel uses functions instead of builds
+      if (!config.functions || typeof config.functions !== 'object') {
+        throw new Error('Missing or invalid functions configuration');
       }
 
       if (!config.routes || !Array.isArray(config.routes)) {
         throw new Error('Missing or invalid routes configuration');
       }
 
-      // Validate builds
-      const hasNodeBuild = config.builds.some((build: any) =>
-        build.use === '@vercel/node' && build.src.includes('api/**/*.ts')
-      );
+      // Validate functions configuration
+      const requiredFunctions = ['api/mcp.ts', 'api/auth.ts'];
+      for (const func of requiredFunctions) {
+        if (!config.functions[func]) {
+          throw new Error(`Missing function configuration for ${func}`);
+        }
 
-      if (!hasNodeBuild) {
-        throw new Error('Missing @vercel/node build configuration for API functions');
+        // Validate function has maxDuration
+        if (typeof config.functions[func].maxDuration !== 'number') {
+          throw new Error(`Missing or invalid maxDuration for function ${func}`);
+        }
       }
 
       // Validate routes
@@ -115,6 +120,11 @@ class VercelConfigTestRunner {
         if (!hasRoute) {
           throw new Error(`Missing route configuration for ${expectedRoute}`);
         }
+      }
+
+      // Ensure no conflicting builds property exists
+      if (config.builds) {
+        throw new Error('Legacy builds configuration detected. Use functions instead.');
       }
     });
   }
