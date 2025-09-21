@@ -298,18 +298,18 @@ npm run validate
 # 1. Stage your changes
 git add <files>
 
-# 2. Commit with descriptive message
+# 2. Ask permission before committing
+# IMPORTANT: Claude Code must ask user permission before git commit
+# If permission granted, Claude may then push to update the PR
+
+# 3. Commit with descriptive message (only after permission granted)
 git commit -m "descriptive message
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-# 3. Ask permission before pushing (unless explicitly told to push)
-# IMPORTANT: Claude Code must ask user permission before git push
-# Exception: Only push automatically if user explicitly requests it
-
-# 4. Push to feature branch (creates or updates PR)
+# 4. Push to feature branch (after commit permission granted)
 git status              # Quick check - any other modifications?
 git push origin <your-branch-name>
 ```
