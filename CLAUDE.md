@@ -305,6 +305,7 @@ git commit -m "descriptive message
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
 # 3. Push to feature branch (creates or updates PR)
+git status              # Quick check - any other modifications?
 git push origin <your-branch-name>
 ```
 
