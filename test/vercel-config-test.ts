@@ -92,8 +92,14 @@ class VercelConfigTestRunner {
         throw new Error('Missing or invalid functions configuration');
       }
 
-      if (!config.routes || !Array.isArray(config.routes)) {
-        throw new Error('Missing or invalid routes configuration');
+      // Check for modern rewrites or legacy routes
+      if (!config.rewrites && !config.routes) {
+        throw new Error('Missing routing configuration (rewrites or routes)');
+      }
+
+      const routing = config.rewrites || config.routes;
+      if (!Array.isArray(routing)) {
+        throw new Error('Invalid routing configuration - must be array');
       }
 
       // Validate functions configuration
@@ -109,9 +115,9 @@ class VercelConfigTestRunner {
         }
       }
 
-      // Validate routes
+      // Validate routing (rewrites or routes)
       const expectedRoutes = ['/health', '/mcp', '/auth', '/admin'];
-      const configuredRoutes = config.routes.map((route: any) => route.src);
+      const configuredRoutes = routing.map((route: any) => route.src || route.source);
 
       for (const expectedRoute of expectedRoutes) {
         const hasRoute = configuredRoutes.some((route: string) =>
@@ -138,12 +144,17 @@ class VercelConfigTestRunner {
       const content = readFileSync('.vercelignore', 'utf8');
       const lines = content.split('\n').map(line => line.trim());
 
-      // Check for important exclusions
-      const expectedExclusions = ['src/', 'test/', 'node_modules/', '.git/'];
+      // Check for important exclusions (src/ should be included for TypeScript compilation)
+      const expectedExclusions = ['test/', 'node_modules/', '.git/'];
       for (const exclusion of expectedExclusions) {
         if (!lines.includes(exclusion)) {
           throw new Error(`Missing exclusion in .vercelignore: ${exclusion}`);
         }
+      }
+
+      // Ensure src/ is NOT excluded (needed for TypeScript compilation)
+      if (lines.includes('src/')) {
+        throw new Error('src/ should not be excluded - Vercel needs it for TypeScript compilation');
       }
     });
   }

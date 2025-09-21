@@ -1,33 +1,60 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "framework": null,
-  "routes": [
+  "rewrites": [
     {
-      "src": "/health",
-      "dest": "/api/health"
+      "source": "/health",
+      "destination": "/api/health"
     },
     {
-      "src": "/mcp",
-      "dest": "/api/mcp"
+      "source": "/mcp",
+      "destination": "/api/mcp"
     },
     {
-      "src": "/auth/(.*)",
-      "dest": "/api/auth"
+      "source": "/auth/(.*)",
+      "destination": "/api/auth"
     },
     {
-      "src": "/admin/(.*)",
-      "dest": "/api/admin"
+      "source": "/admin/(.*)",
+      "destination": "/api/admin"
     }
   ],
   "functions": {
     "api/mcp.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024
     },
     "api/auth.ts": {
-      "maxDuration": 15
+      "maxDuration": 15,
+      "memory": 512
+    },
+    "api/health.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "api/admin.ts": {
+      "maxDuration": 20,
+      "memory": 512
     }
   },
-  "env": {
-    "NODE_ENV": "production"
-  }
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
 }
