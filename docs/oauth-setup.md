@@ -4,46 +4,83 @@ This guide explains how to configure and test OAuth authentication with differen
 
 ## Quick Start
 
-1. **Choose a transport mode** (Streamable HTTP recommended):
+1. **Set up environment file**:
    ```bash
-   export MCP_MODE=streamable_http  # Modern (recommended)
-   # OR
-   export MCP_MODE=sse             # Legacy but supported
+   # Copy the example file and edit with your credentials
+   cp .env.example .env
+   # Edit .env with your OAuth provider credentials (see sections below)
    ```
 
-2. **Choose an OAuth provider**:
+2. **Choose a transport mode** (Streamable HTTP recommended):
    ```bash
-   export OAUTH_PROVIDER=google    # Default
+   # Add to your .env file:
+   MCP_MODE=streamable_http  # Modern (recommended)
    # OR
-   export OAUTH_PROVIDER=github
-   # OR
-   export OAUTH_PROVIDER=microsoft
-   # OR
-   export OAUTH_PROVIDER=generic
+   MCP_MODE=sse             # Legacy but supported
    ```
 
-3. **Configure provider credentials** (see provider-specific sections below)
-
-4. **Start the server**:
+3. **Choose an OAuth provider**:
    ```bash
-   npm start
+   # Add to your .env file:
+   OAUTH_PROVIDER=google    # Default
+   # OR
+   OAUTH_PROVIDER=github
+   # OR
+   OAUTH_PROVIDER=microsoft
+   # OR
+   OAUTH_PROVIDER=generic
    ```
 
-5. **Test OAuth flow** (see Testing section below)
+4. **Configure provider credentials** (see provider-specific sections below)
+
+5. **Start the server**:
+   ```bash
+   npm run dev:oauth  # Development with OAuth
+   # OR
+   npm start         # Production mode
+   ```
+
+6. **Test OAuth flow** (see Testing section below)
 
 ## Provider Configuration
 
 ### 🔵 Google OAuth Setup
 
 **1. Create Google OAuth Application:**
+
+**Step 1: Access Google Cloud Console**
 - Go to [Google Cloud Console](https://console.cloud.google.com/)
-- Create a new project or select existing one
-- Enable the Google+ API or Google Identity API
-- Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
-- Choose "Web application"
-- Add authorized redirect URIs:
-  - `http://localhost:3000/auth/google/callback` (development)
-  - `https://yourdomain.com/auth/google/callback` (production)
+- Sign in with your Google account
+
+**Step 2: Create or Select Project**
+- Click on the project dropdown (top left, next to "Google Cloud")
+- Either create a new project ("New Project") or select an existing one
+- Give it a name like "MCP OAuth Testing" if creating new
+
+**Step 3: Configure OAuth Consent Screen**
+- In the left sidebar, go to **"APIs & Services" > "OAuth consent screen"**
+- Choose **"External"** (unless you have a Google Workspace account)
+- Fill out required fields:
+  - **App name**: "MCP TypeScript Simple"
+  - **User support email**: Your email address
+  - **Developer contact information**: Your email address
+- Click **"Save and Continue"**
+- Skip "Scopes" section (click "Save and Continue")
+- Add test users:
+  - Click **"Add Users"**
+  - Add your email address as a test user
+  - Click **"Save and Continue"**
+
+**Step 4: Create OAuth Credentials**
+- Go to **"APIs & Services" > "Credentials"**
+- Click **"+ Create Credentials" > "OAuth client ID"**
+- Select **"Web application"**
+- Configure settings:
+  - **Name**: "MCP Local Development"
+  - **Authorized JavaScript origins**: `http://localhost:3000`
+  - **Authorized redirect URIs**: `http://localhost:3000/api/auth/google/callback`
+- Click **"Create"**
+- **Save the Client ID and Client Secret** - you'll need these for environment variables!
 
 **2. Environment Variables:**
 ```bash
@@ -169,7 +206,50 @@ export OAUTH_SCOPES="openid,profile,email"
         http://localhost:3000/mcp
    ```
 
-### Method 3: MCP Client Testing
+### Method 3: OAuth Testing Tool (Recommended)
+
+The project includes a dedicated OAuth testing tool that supports multiple deployment modes:
+
+**Basic Usage:**
+```bash
+# Test server health
+./tools/test-oauth.ts
+
+# Test interactive OAuth flow
+./tools/test-oauth.ts --flow --provider google
+
+# Test with existing token
+./tools/test-oauth.ts --token <your_access_token>
+
+# Start development server and test
+./tools/test-oauth.ts --start
+```
+
+**Multi-Environment Testing:**
+```bash
+# Local development
+./tools/test-oauth.ts --flow --provider google
+
+# Docker deployment
+./tools/test-oauth.ts --url http://localhost:3000 --flow
+
+# Vercel preview deployment
+./tools/test-oauth.ts --url https://your-branch-abc123.vercel.app --flow
+
+# Production deployment
+./tools/test-oauth.ts --url https://your-app.vercel.app --flow --provider google
+```
+
+**Features:**
+- Interactive OAuth flow testing with browser guidance
+- Token validation against MCP endpoints
+- Multi-provider support (Google, GitHub, Microsoft, generic)
+- Cross-deployment testing (local, Docker, Vercel)
+- Comprehensive error reporting and troubleshooting guidance
+
+**Get help:** `./tools/test-oauth.ts --help`
+
+### Method 4: MCP Client Testing
 
 1. **Create a test client** (create `test-oauth-client.js`):
    ```javascript

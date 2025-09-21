@@ -223,9 +223,10 @@ The CI pipeline includes 10 comprehensive test categories:
 1. **Create feature branch** (never work on main)
 2. **Make your changes**
 3. **Run `npm run validate`** (MANDATORY - must pass)
-4. **Commit and push** (creates or updates PR)
-5. **Monitor PR status** (every 15 seconds until all checks pass)
-6. **Fix immediately** if any checks fail, then resume monitoring
+4. **Check if branch is up to date with origin/main** (MANDATORY - before pushing)
+5. **Commit and push** (creates or updates PR)
+6. **Monitor PR status** (every 15 seconds until all checks pass)
+7. **Fix immediately** if any checks fail, then resume monitoring
 
 ### Branch Management Requirements
 **CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
@@ -293,19 +294,54 @@ npm run validate
 # Update documentation if needed
 ```
 
+#### Branch Sync Check (REQUIRED BEFORE PUSHING)
+**CRITICAL**: Always check if origin/main has new changes before pushing:
+
+```bash
+# 1. Fetch latest changes from origin/main
+git fetch origin main
+
+# 2. Check if your branch is behind origin/main
+git log --oneline --graph HEAD..origin/main
+
+# 3. If there are new commits in main, merge them:
+if [ $(git rev-list --count HEAD..origin/main) -gt 0 ]; then
+  echo "⚠️ Branch is behind origin/main. Merging latest changes..."
+  git merge origin/main
+
+  # 4. Re-run validation after merge
+  npm run validate
+
+  # 5. Fix any merge conflicts or validation failures
+  echo "✅ Branch now up to date with origin/main"
+else
+  echo "✅ Branch is up to date with origin/main"
+fi
+```
+
+**Why This Step is Critical:**
+- **Prevents workflow failures**: Missing workflow files, CI configuration changes
+- **Avoids broken dependencies**: New packages, version updates, environment changes
+- **Ensures compatibility**: New features or breaking changes in main
+- **Reduces PR conflicts**: Merge conflicts are resolved locally before pushing
+
 #### Commit and Push Workflow
 ```bash
 # 1. Stage your changes
 git add <files>
 
-# 2. Commit with descriptive message
+# 2. Ask permission before committing
+# IMPORTANT: Claude Code must ask user permission before git commit
+# If permission granted, Claude may then push to update the PR
+
+# 3. Commit with descriptive message (only after permission granted)
 git commit -m "descriptive message
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
 
-# 3. Push to feature branch (creates or updates PR)
+# 4. Push to feature branch (after commit permission granted)
 git status              # Quick check - any other modifications?
 git push origin <your-branch-name>
 ```
@@ -368,22 +404,13 @@ gh pr create --title "Brief description" --body "Detailed description"
 
 ### Quality Requirements for All Changes
 
-#### Documentation Updates (Required)
-**Update README.md for:**
-- **New Features**: Add feature description, usage examples, configuration options
-- **New Tools**: Update tool list with descriptions and parameters
-- **Configuration Changes**: Update environment variables, setup instructions
-- **Deployment Changes**: Update deployment options and requirements
-- **Breaking Changes**: Update prerequisites, migration guides, compatibility notes
+#### Documentation Requirements
+**MANDATORY**: All documentation must show **current state only**. Never include status updates, progress indicators, or temporary information in any README.md files, docs/ directory, or .md files.
 
-#### Documentation Validation Checklist
-- [ ] README.md reflects all new features and changes
-- [ ] Code examples are current and functional
-- [ ] Prerequisites and dependencies are accurate
-- [ ] Installation and setup instructions work
-- [ ] Environment variable documentation is complete
-- [ ] Tool descriptions match actual implementation
-- [ ] Links to detailed documentation are correct
+**When updating documentation:**
+- Update for new features, tools, configuration, or deployment changes
+- Ensure code examples work and dependencies are accurate
+- Keep tool descriptions matching actual implementation
 
 ### Examples of Required Tests
 
@@ -445,8 +472,6 @@ gh pr create --title "Brief description" --body "Detailed description"
 - ✅ `test/ci-test.ts` - Automated CI/CD validation
 - ✅ `test/test-mcp.ts` - Automated MCP protocol testing
 - ✅ `tools/test-oauth.js` - Interactive OAuth flow testing (requires browser)
-- ✅ `tools/test-vercel-local.ts` - Manual Vercel mock server
-- ✅ `tools/test-api-direct.ts` - Manual API function debugging
 
 ### Development Workflow Convention:
 - **Automated testing**: Always use `test/` directory and `npm test` commands

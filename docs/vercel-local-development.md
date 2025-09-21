@@ -271,8 +271,6 @@ npm run test:vercel-config
 # Test transport layer
 npm run test:transport
 
-# Direct API testing
-npx tsx test-api-direct.ts
 ```
 
 ### Development Performance

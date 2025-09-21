@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vercel-project": {
+      "type": "http",
+      "url": "https://mcp.vercel.com/jeffrdutton-1331s-projects/mcp-typescript-simple"
+    }
+  }
+}
