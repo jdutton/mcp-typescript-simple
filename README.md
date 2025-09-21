@@ -94,6 +94,12 @@ npm run typecheck
 # Linting
 npm run lint
 
+# Unit tests with coverage
+npm run test:unit
+
+# Integration / CI suite
+npm run test:integration
+
 # Test dual-mode functionality
 npm run test:dual-mode
 ```
@@ -160,6 +166,8 @@ The `test:ci` command runs:
 
 ### Development Testing
 
+Unit tests live under `test/unit/` (mirroring `src/**` paths, e.g. `test/unit/config/environment.test.ts`) and feed `npm run test:unit`; integration suites live under `test/integration/` and are exercised by `npm run test:integration`.
+
 ```bash
 # Individual test commands
 npm run test:mcp        # MCP-specific functionality tests
@@ -174,7 +182,7 @@ npm run build          # Compilation test
 #### Automated MCP Testing
 ```bash
 # Run MCP protocol and tool tests
-npx tsx test/test-mcp.ts
+npx tsx tools/manual/test-mcp.ts
 ```
 
 #### Interactive Testing
@@ -182,7 +190,7 @@ Launch an interactive client to manually test tools:
 
 ```bash
 # Start interactive MCP client
-npx tsx test/interactive-client.ts
+npx tsx tools/interactive-client.ts
 ```
 
 Interactive commands:

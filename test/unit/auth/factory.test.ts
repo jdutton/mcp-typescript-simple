@@ -1,0 +1,60 @@
+import { jest } from '@jest/globals';
+import { OAuthProviderFactory } from '../../../src/auth/factory.js';
+
+const originalEnv = process.env;
+
+jest.mock('../../../src/auth/providers/google-provider.js', () => ({
+  GoogleOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'google', config }))
+}));
+
+jest.mock('../../../src/auth/providers/github-provider.js', () => ({
+  GitHubOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'github', config }))
+}));
+
+jest.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
+  MicrosoftOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'microsoft', config }))
+}));
+
+describe('OAuthProviderFactory', () => {
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    jest.clearAllMocks();
+  });
+
+  it('creates Google provider when credentials are present', () => {
+    process.env.OAUTH_PROVIDER = 'google';
+    process.env.GOOGLE_CLIENT_ID = 'id';
+    process.env.GOOGLE_CLIENT_SECRET = 'secret';
+    process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
+
+    const provider = OAuthProviderFactory.createFromEnvironment();
+
+    expect(provider).toMatchObject({ type: 'google' });
+  });
+
+  it('returns null when provider type is unsupported', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    process.env.OAUTH_PROVIDER = 'unsupported';
+
+    const provider = OAuthProviderFactory.createFromEnvironment();
+
+    expect(provider).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider: unsupported');
+  });
+
+  it('returns null and logs an error when credentials are missing', () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    process.env.OAUTH_PROVIDER = 'github';
+    process.env.GITHUB_CLIENT_ID = '';
+    process.env.GITHUB_CLIENT_SECRET = '';
+
+    const provider = OAuthProviderFactory.createFromEnvironment();
+
+    expect(provider).toBeNull();
+    expect(errorSpy).toHaveBeenCalled();
+  });
+});

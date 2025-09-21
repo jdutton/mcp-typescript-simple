@@ -3,7 +3,9 @@
  */
 
 import { SecretManager } from '../secrets/types.js';
-import { LLMConfig, LLMProvider } from './types.js';
+import { LLMConfig, LLMProvider, ProviderModelMap } from './types.js';
+
+type ProviderConfigMap = LLMConfig['providers'];
 
 export class LLMConfigManager {
   constructor(private secretManager: SecretManager) {}
@@ -65,35 +67,64 @@ export class LLMConfigManager {
     }
   }
 
-  async getProviderConfig(provider: LLMProvider): Promise<{ apiKey: string; defaultModel: string; models: any }> {
+  async getProviderConfig<T extends LLMProvider>(provider: T): Promise<ProviderConfigMap[T]> {
     const config = await this.loadConfig();
     return config.providers[provider];
   }
 
-  async getModelConfig(provider: LLMProvider, model?: string): Promise<{ model: string; maxTokens: number }> {
-    const config = await this.loadConfig();
-    const providerConfig = config.providers[provider];
+  async getModelConfig<T extends LLMProvider>(
+    provider: T,
+    model?: string
+  ): Promise<{ model: ProviderModelMap[T]; maxTokens: number }> {
+    switch (provider) {
+      case 'claude': {
+        const config = await this.getProviderConfig('claude');
+        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['claude'];
+        const modelConfig = config.models[selectedModel];
 
-    // Use provided model, tool default, or provider default
-    const selectedModel = model || providerConfig.defaultModel;
+        if (!modelConfig || !modelConfig.available) {
+          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
+        }
 
-    // Validate model exists for this provider
-    if (!(selectedModel in providerConfig.models)) {
-      throw new Error(`Model '${selectedModel}' not available for provider '${provider}'`);
+        return {
+          model: selectedModel as ProviderModelMap[T],
+          maxTokens: modelConfig.maxTokens
+        };
+      }
+
+      case 'openai': {
+        const config = await this.getProviderConfig('openai');
+        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['openai'];
+        const modelConfig = config.models[selectedModel];
+
+        if (!modelConfig || !modelConfig.available) {
+          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
+        }
+
+        return {
+          model: selectedModel as ProviderModelMap[T],
+          maxTokens: modelConfig.maxTokens
+        };
+      }
+
+      case 'gemini': {
+        const config = await this.getProviderConfig('gemini');
+        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['gemini'];
+        const modelConfig = config.models[selectedModel];
+
+        if (!modelConfig || !modelConfig.available) {
+          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
+        }
+
+        return {
+          model: selectedModel as ProviderModelMap[T],
+          maxTokens: modelConfig.maxTokens
+        };
+      }
+
+      default:
+        throw new Error(`Unsupported provider: ${provider satisfies never}`);
     }
-
-    // Get model configuration safely
-    const modelConfig = (providerConfig.models as any)[selectedModel];
-
-    // Check if model is marked as available
-    if (!modelConfig.available) {
-      throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
-    }
-
-    return {
-      model: selectedModel,
-      maxTokens: modelConfig.maxTokens
-    };
   }
 
   async getAvailableModels(provider: LLMProvider): Promise<string[]> {
@@ -101,8 +132,8 @@ export class LLMConfigManager {
     const providerConfig = config.providers[provider];
 
     return Object.entries(providerConfig.models)
-      .filter(([, config]) => config.available)
-      .map(([model]) => model);
+      .filter(([, modelConfig]) => modelConfig.available)
+      .map(([modelKey]) => modelKey);
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {

@@ -8,6 +8,10 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { LLMManager } from "../llm/manager.js";
+import type { ChatToolInput } from "../tools/llm/chat.js";
+import type { AnalyzeToolInput } from "../tools/llm/analyze.js";
+import type { SummarizeToolInput } from "../tools/llm/summarize.js";
+import type { ExplainToolInput } from "../tools/llm/explain.js";
 
 /**
  * Set up MCP server with tools and handlers
@@ -247,22 +251,22 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
 
         case "chat": {
           const { handleChatTool } = await import('../tools/llm/chat.js');
-          return await handleChatTool(args as any, llmManager);
+          return await handleChatTool(args as ChatToolInput, llmManager);
         }
 
         case "analyze": {
           const { handleAnalyzeTool } = await import('../tools/llm/analyze.js');
-          return await handleAnalyzeTool(args as any, llmManager);
+          return await handleAnalyzeTool(args as AnalyzeToolInput, llmManager);
         }
 
         case "summarize": {
           const { handleSummarizeTool } = await import('../tools/llm/summarize.js');
-          return await handleSummarizeTool(args as any, llmManager);
+          return await handleSummarizeTool(args as SummarizeToolInput, llmManager);
         }
 
         case "explain": {
           const { handleExplainTool } = await import('../tools/llm/explain.js');
-          return await handleExplainTool(args as any, llmManager);
+          return await handleExplainTool(args as ExplainToolInput, llmManager);
         }
 
         default:

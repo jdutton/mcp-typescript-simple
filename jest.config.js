@@ -18,5 +18,12 @@ export default {
     'src/**/*.ts',
     '!src/**/*.d.ts'
   ],
-  passWithNoTests: true
+  coverageThreshold: {
+    global: {
+      statements: 18,
+      branches: 8,
+      functions: 16,
+      lines: 18
+    }
+  }
 };
