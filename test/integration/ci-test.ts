@@ -234,7 +234,7 @@ class CITestRunner {
   private async testVercelConfiguration(): Promise<void> {
     try {
       // Run Vercel configuration tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/vercel-config-test.ts');
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/vercel-config-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Vercel configuration validation failed: ${stderr}`);
       }
@@ -250,7 +250,7 @@ class CITestRunner {
   private async testTransportLayer(): Promise<void> {
     try {
       // Run transport layer tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/transport-test.ts');
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/transport-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Transport layer validation failed: ${stderr}`);
       }

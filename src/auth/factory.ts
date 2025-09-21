@@ -54,8 +54,12 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
         throw new OAuthProviderError(`Generic OAuth provider not yet implemented`, 'generic');
         // return new GenericOAuthProvider(config as GenericOAuthConfig);
 
-      default:
-        throw new OAuthProviderError(`Unsupported OAuth provider type: ${(config as any).type}`);
+      default: {
+        const unknownConfig = config as { type?: string };
+        throw new OAuthProviderError(
+          `Unsupported OAuth provider type: ${unknownConfig.type ?? 'unknown'}`
+        );
+      }
     }
   }
 

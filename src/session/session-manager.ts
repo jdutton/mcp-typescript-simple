@@ -14,7 +14,7 @@ export interface SessionInfo {
   createdAt: number;
   lastActivity: number;
   authInfo?: AuthInfo;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -40,7 +40,7 @@ export class SessionManager {
   /**
    * Create a new session
    */
-  createSession(authInfo?: AuthInfo, metadata?: Record<string, any>): SessionInfo {
+  createSession(authInfo?: AuthInfo, metadata?: Record<string, unknown>): SessionInfo {
     const sessionId = this.generateSessionId();
     const now = Date.now();
 

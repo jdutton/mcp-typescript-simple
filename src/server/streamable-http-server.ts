@@ -27,6 +27,8 @@ export interface StreamableHttpServerOptions {
   enableJsonResponse?: boolean;
 }
 
+type AuthenticatedRequest = Request & { auth?: AuthInfo };
+
 /**
  * HTTP server that provides Streamable HTTP endpoints with OAuth authentication
  */
@@ -199,7 +201,7 @@ export class MCPStreamableHttpServer {
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => this.sessionManager.generateSessionId(),
           onsessioninitialized: async (sessionId: string) => {
-            const authInfo = (req as any).auth as AuthInfo | undefined;
+            const authInfo = (req as AuthenticatedRequest).auth;
             this.sessionManager.createSession(authInfo);
             console.log(`🔗 New Streamable HTTP session initialized: ${sessionId}`);
           },

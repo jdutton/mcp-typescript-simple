@@ -469,8 +469,8 @@ gh pr create --title "Brief description" --body "Detailed description"
 - **Manual validation tools**: Scripts requiring human verification
 
 ### Examples of `tools/` vs `test/` Classification:
-- ✅ `test/ci-test.ts` - Automated CI/CD validation
-- ✅ `test/test-mcp.ts` - Automated MCP protocol testing
+- ✅ `test/integration/ci-test.ts` - Automated CI/CD validation
+- ✅ `tools/manual/test-mcp.ts` - Automated MCP protocol testing
 - ✅ `tools/test-oauth.js` - Interactive OAuth flow testing (requires browser)
 
 ### Development Workflow Convention:

@@ -3,11 +3,20 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import type { Message, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/messages/messages.js';
 import OpenAI from 'openai';
+import type { ChatCompletion, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { LLMConfigManager } from './config.js';
 import { LLMRequest, LLMResponse, LLMProvider, DEFAULT_TOOL_LLM_MAPPING, isValidModelForProvider, getDefaultModelForProvider, AnyModel } from './types.js';
 import { SecretManager } from '../secrets/types.js';
+
+type AnthropicCreateParams = MessageCreateParamsNonStreaming;
+type AnthropicMessageResponse = Message;
+type OpenAIChatParams = ChatCompletionCreateParamsNonStreaming;
+type OpenAIChatResponse = ChatCompletion;
+type GeminiModel = ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
+type GeminiResponse = Awaited<ReturnType<GeminiModel['generateContent']>>;
 
 export class LLMManager {
   private configManager: LLMConfigManager;
@@ -94,50 +103,60 @@ export class LLMManager {
       const fullConfig = await this.configManager.loadConfig();
       const modelConfig = await this.configManager.getModelConfig(provider, resolvedModel);
       const defaultTemperature = fullConfig.defaultTemperature ?? 0.7;
-      let response: unknown;
+      let rawResponse: unknown;
       let content: string;
 
       if (provider === 'claude') {
-        const messages: Array<{ role: string; content: string }> = [];
-        messages.push({ role: 'user', content: request.message });
+        const anthropicClient = client as Anthropic;
+        const messages: AnthropicCreateParams['messages'] = [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: request.message }]
+          }
+        ];
 
-        const createParams: any = {
+        const createParams: AnthropicCreateParams = {
           model: modelConfig.model,
-          max_tokens: request.maxTokens || modelConfig.maxTokens,
+          max_tokens: request.maxTokens ?? modelConfig.maxTokens,
           temperature: request.temperature ?? defaultTemperature,
-          messages: messages
+          messages
         };
 
-        // Add system prompt as a separate parameter for Claude
         if (request.systemPrompt) {
           createParams.system = request.systemPrompt;
         }
 
-        response = await (client as any).messages.create(createParams);
-        content = (response as any).content[0]?.text || 'No response';
+        const anthropicResponse = await anthropicClient.messages.create(createParams);
+        rawResponse = anthropicResponse;
+        content = this.extractAnthropicText(anthropicResponse) ?? 'No response';
       } else if (provider === 'openai') {
-        const messages: Array<{ role: string; content: string }> = [];
+        const openaiClient = client as OpenAI;
+        const messages: OpenAIChatParams['messages'] = [];
         if (request.systemPrompt) {
           messages.push({ role: 'system', content: request.systemPrompt });
         }
         messages.push({ role: 'user', content: request.message });
 
-        response = await (client as any).chat.completions.create({
+        const openaiParams: OpenAIChatParams = {
           model: modelConfig.model,
-          messages: messages,
           temperature: request.temperature ?? defaultTemperature,
-          max_tokens: request.maxTokens || modelConfig.maxTokens
-        });
-        content = (response as any).choices[0]?.message?.content || 'No response';
-      } else if (provider === 'gemini') {
-        const model = (client as any).getGenerativeModel({ model: modelConfig.model });
-        let prompt = request.message;
-        if (request.systemPrompt) {
-          prompt = `${request.systemPrompt}\n\n${request.message}`;
-        }
+          max_tokens: request.maxTokens ?? modelConfig.maxTokens,
+          messages
+        };
 
-        response = await model.generateContent(prompt);
-        content = (response as any).response.text() || 'No response';
+        const openaiResponse = await openaiClient.chat.completions.create(openaiParams);
+        rawResponse = openaiResponse;
+        content = this.extractOpenAIText(openaiResponse) ?? 'No response';
+      } else if (provider === 'gemini') {
+        const geminiClient = client as GoogleGenerativeAI;
+        const modelInstance: GeminiModel = geminiClient.getGenerativeModel({ model: modelConfig.model });
+        const prompt = request.systemPrompt
+          ? `${request.systemPrompt}\n\n${request.message}`
+          : request.message;
+
+        const geminiResponse = await modelInstance.generateContent(prompt);
+        rawResponse = geminiResponse;
+        content = this.extractGeminiText(geminiResponse) ?? 'No response';
       } else {
         throw new Error(`Unsupported provider: ${provider}`);
       }
@@ -146,7 +165,7 @@ export class LLMManager {
         content,
         provider,
         model: modelConfig.model,
-        usage: (response as any).usage,
+        usage: this.extractUsage(provider, rawResponse),
         responseTime: Date.now() - startTime
       };
 
@@ -224,6 +243,70 @@ export class LLMManager {
       size: this.cache.size,
       providers: this.getAvailableProviders()
     };
+  }
+
+  private extractAnthropicText(response: AnthropicMessageResponse): string | undefined {
+    const firstContent = Array.isArray(response.content) ? response.content[0] : undefined;
+    if (firstContent && typeof firstContent === 'object' && 'text' in firstContent) {
+      const text = (firstContent as { text?: unknown }).text;
+      return typeof text === 'string' ? text : undefined;
+    }
+    return undefined;
+  }
+
+  private extractOpenAIText(response: OpenAIChatResponse): string | undefined {
+    const firstChoice = Array.isArray(response.choices) ? response.choices[0] : undefined;
+    const messageContent = firstChoice?.message?.content;
+    return typeof messageContent === 'string' ? messageContent : undefined;
+  }
+
+  private extractGeminiText(response: GeminiResponse): string | undefined {
+    const text = response?.response?.text();
+    return typeof text === 'string' ? text : undefined;
+  }
+
+  private extractUsage(provider: LLMProvider, response: unknown): LLMResponse['usage'] | undefined {
+    if (typeof response !== 'object' || response === null) {
+      return undefined;
+    }
+
+    if (provider === 'claude') {
+      const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number } }).usage;
+      if (!usage) {
+        return undefined;
+      }
+      return {
+        promptTokens: usage.input_tokens ?? 0,
+        completionTokens: usage.output_tokens ?? 0,
+        totalTokens: usage.total_tokens ?? 0
+      };
+    }
+
+    if (provider === 'openai') {
+      const usage = (response as { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }).usage;
+      if (!usage) {
+        return undefined;
+      }
+      return {
+        promptTokens: usage.prompt_tokens ?? 0,
+        completionTokens: usage.completion_tokens ?? 0,
+        totalTokens: usage.total_tokens ?? 0
+      };
+    }
+
+    if (provider === 'gemini') {
+      const usageMetadata = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
+      if (!usageMetadata) {
+        return undefined;
+      }
+      return {
+        promptTokens: usageMetadata.promptTokenCount ?? 0,
+        completionTokens: usageMetadata.candidatesTokenCount ?? 0,
+        totalTokens: usageMetadata.totalTokenCount ?? 0
+      };
+    }
+
+    return undefined;
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {
