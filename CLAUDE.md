@@ -223,9 +223,10 @@ The CI pipeline includes 10 comprehensive test categories:
 1. **Create feature branch** (never work on main)
 2. **Make your changes**
 3. **Run `npm run validate`** (MANDATORY - must pass)
-4. **Commit and push** (creates or updates PR)
-5. **Monitor PR status** (every 15 seconds until all checks pass)
-6. **Fix immediately** if any checks fail, then resume monitoring
+4. **Check if branch is up to date with origin/main** (MANDATORY - before pushing)
+5. **Commit and push** (creates or updates PR)
+6. **Monitor PR status** (every 15 seconds until all checks pass)
+7. **Fix immediately** if any checks fail, then resume monitoring
 
 ### Branch Management Requirements
 **CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
@@ -292,6 +293,37 @@ npm run validate
 # Ensure all new changes have corresponding tests
 # Update documentation if needed
 ```
+
+#### Branch Sync Check (REQUIRED BEFORE PUSHING)
+**CRITICAL**: Always check if origin/main has new changes before pushing:
+
+```bash
+# 1. Fetch latest changes from origin/main
+git fetch origin main
+
+# 2. Check if your branch is behind origin/main
+git log --oneline --graph HEAD..origin/main
+
+# 3. If there are new commits in main, merge them:
+if [ $(git rev-list --count HEAD..origin/main) -gt 0 ]; then
+  echo "⚠️ Branch is behind origin/main. Merging latest changes..."
+  git merge origin/main
+
+  # 4. Re-run validation after merge
+  npm run validate
+
+  # 5. Fix any merge conflicts or validation failures
+  echo "✅ Branch now up to date with origin/main"
+else
+  echo "✅ Branch is up to date with origin/main"
+fi
+```
+
+**Why This Step is Critical:**
+- **Prevents workflow failures**: Missing workflow files, CI configuration changes
+- **Avoids broken dependencies**: New packages, version updates, environment changes
+- **Ensures compatibility**: New features or breaking changes in main
+- **Reduces PR conflicts**: Merge conflicts are resolved locally before pushing
 
 #### Commit and Push Workflow
 ```bash
