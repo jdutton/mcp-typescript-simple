@@ -300,58 +300,49 @@ npm run validate
 # Update documentation if needed
 ```
 
-#### Simplified Pre-Commit Workflow
+#### Pre-Commit Workflow
 **MANDATORY**: Use the automated pre-commit checker before pushing:
 
 ```bash
-# Complete pre-commit workflow (recommended)
 npm run pre-commit
-
-# This automatically:
-# 1. Checks if your branch is behind origin/main
-# 2. Stops if merge is needed (with clear instructions)
-# 3. Runs full validation if branch is current
-# 4. Provides clear success/failure status
 ```
 
 **If branch sync is needed:**
 ```bash
-# When pre-commit detects branch is behind origin/main:
-git merge origin/main      # Resolve any conflicts manually
+git merge origin/main      # Resolve conflicts manually
 npm run pre-commit         # Continue with validation
 ```
 
-**Manual sync checking (optional):**
+#### Commit and Push Workflow
+
+**Step 1: Validate (MANDATORY)**
 ```bash
-npm run sync-check         # Just check status, no auto-merge
-npm run sync-check -- --check-only  # Check without instructions
+npm run pre-commit      # MUST pass before proceeding
 ```
 
-**Why This Approach is Better:**
-- **Safety first**: Never auto-merges, preserves conflict visibility
-- **Simple commands**: Single npm command instead of complex bash
-- **Clear feedback**: Explicit success/failure signals for Claude Code
-- **Consistent behavior**: Same workflow for all developers
-
-#### Commit and Push Workflow
+**Step 2: Stage Changes**
 ```bash
-# 1. Stage your changes
 git add <files>
+```
 
-# 2. Ask permission before committing
-# IMPORTANT: Claude Code must ask user permission before git commit
-# If permission granted, Claude may then push to update the PR
+**Step 3: Ask Permission (MANDATORY)**
+**CRITICAL**: Claude Code MUST ask user permission before committing:
+- Ask: "Ready to commit these changes?"
+- Only proceed if user explicitly grants permission
+- NEVER auto-commit, even after successful pre-commit validation
 
-# 3. Commit with descriptive message (only after permission granted)
+**Step 4: Commit (Only After Permission)**
+```bash
 git commit -m "descriptive message
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
+```
 
-# 4. Push to feature branch (after commit permission granted)
-git status              # Quick check - any other modifications?
-git push origin <your-branch-name>
+**Step 5: Push (Only After Commit Permission)**
+```bash
+git push origin <branch-name>
 ```
 
 #### Post-Push PR Monitoring (MANDATORY)
