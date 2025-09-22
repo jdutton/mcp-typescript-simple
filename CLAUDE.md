@@ -25,16 +25,22 @@ npm run dev:oauth        # Streamable HTTP mode (with OAuth)
 npm run dev:vercel       # Vercel local development server
 
 # Testing
-npm test                 # Jest unit tests
+npm test                 # Jest unit tests (test/unit/)
+npm run test:unit        # Jest unit tests with coverage
+npm run test:integration # Integration tests (test/integration/)
 npm run test:ci          # Comprehensive CI/CD test suite
-npm run test:mcp         # MCP protocol and tool tests
-npm run test:interactive # Interactive MCP client
+npm run test:mcp         # MCP protocol testing (tools/manual/)
+npm run test:interactive # Interactive MCP client (tools/)
 npm run test:dual-mode   # Dual-mode functionality test
-npm run validate         # Complete validation (typecheck + lint + build + test)
+npm run validate         # Complete validation (unit → integration → build)
 
 # Code quality
 npm run lint             # ESLint code checking
 npm run typecheck        # TypeScript type checking
+
+# Branch management and pre-commit workflow
+npm run sync-check       # Check if branch is behind origin/main (safe, no auto-merge)
+npm run pre-commit       # Complete pre-commit workflow (sync check + validation)
 
 # Development Deployment (Preview Only)
 npm run build            # Build for deployment
@@ -294,56 +300,49 @@ npm run validate
 # Update documentation if needed
 ```
 
-#### Branch Sync Check (REQUIRED BEFORE PUSHING)
-**CRITICAL**: Always check if origin/main has new changes before pushing:
+#### Pre-Commit Workflow
+**MANDATORY**: Use the automated pre-commit checker before pushing:
 
 ```bash
-# 1. Fetch latest changes from origin/main
-git fetch origin main
-
-# 2. Check if your branch is behind origin/main
-git log --oneline --graph HEAD..origin/main
-
-# 3. If there are new commits in main, merge them:
-if [ $(git rev-list --count HEAD..origin/main) -gt 0 ]; then
-  echo "⚠️ Branch is behind origin/main. Merging latest changes..."
-  git merge origin/main
-
-  # 4. Re-run validation after merge
-  npm run validate
-
-  # 5. Fix any merge conflicts or validation failures
-  echo "✅ Branch now up to date with origin/main"
-else
-  echo "✅ Branch is up to date with origin/main"
-fi
+npm run pre-commit
 ```
 
-**Why This Step is Critical:**
-- **Prevents workflow failures**: Missing workflow files, CI configuration changes
-- **Avoids broken dependencies**: New packages, version updates, environment changes
-- **Ensures compatibility**: New features or breaking changes in main
-- **Reduces PR conflicts**: Merge conflicts are resolved locally before pushing
+**If branch sync is needed:**
+```bash
+git merge origin/main      # Resolve conflicts manually
+npm run pre-commit         # Continue with validation
+```
 
 #### Commit and Push Workflow
+
+**Step 1: Validate (MANDATORY)**
 ```bash
-# 1. Stage your changes
+npm run pre-commit      # MUST pass before proceeding
+```
+
+**Step 2: Stage Changes**
+```bash
 git add <files>
+```
 
-# 2. Ask permission before committing
-# IMPORTANT: Claude Code must ask user permission before git commit
-# If permission granted, Claude may then push to update the PR
+**Step 3: Ask Permission (MANDATORY)**
+**CRITICAL**: Claude Code MUST ask user permission before committing:
+- Ask: "Ready to commit these changes?"
+- Only proceed if user explicitly grants permission
+- NEVER auto-commit, even after successful pre-commit validation
 
-# 3. Commit with descriptive message (only after permission granted)
+**Step 4: Commit (Only After Permission)**
+```bash
 git commit -m "descriptive message
 
 🤖 Generated with [Claude Code](https://claude.ai/code)
 
 Co-Authored-By: Claude <noreply@anthropic.com>"
+```
 
-# 4. Push to feature branch (after commit permission granted)
-git status              # Quick check - any other modifications?
-git push origin <your-branch-name>
+**Step 5: Push (Only After Commit Permission)**
+```bash
+git push origin <branch-name>
 ```
 
 #### Post-Push PR Monitoring (MANDATORY)
@@ -469,13 +468,15 @@ gh pr create --title "Brief description" --body "Detailed description"
 - **Manual validation tools**: Scripts requiring human verification
 
 ### Examples of `tools/` vs `test/` Classification:
+- ✅ `test/unit/auth/factory.test.ts` - Unit tests for auth factory
 - ✅ `test/integration/ci-test.ts` - Automated CI/CD validation
-- ✅ `tools/manual/test-mcp.ts` - Automated MCP protocol testing
-- ✅ `tools/test-oauth.js` - Interactive OAuth flow testing (requires browser)
+- ✅ `tools/manual/test-mcp.ts` - Manual MCP protocol testing
+- ✅ `tools/test-oauth.ts` - Interactive OAuth flow testing (requires browser)
 
 ### Development Workflow Convention:
-- **Automated testing**: Always use `test/` directory and `npm test` commands
-- **Manual testing/debugging**: Use `tools/` directory and direct script execution
+- **Unit testing**: Use `test/unit/` directory and `npm run test:unit` command
+- **Integration testing**: Use `test/integration/` directory and `npm run test:integration` command
+- **Manual testing/debugging**: Use `tools/` and `tools/manual/` directories for direct script execution
 - **Documentation**: Reference `tools/` scripts in development guides
 - **CI/CD**: Only `test/` directory files should be run by automated pipelines
 

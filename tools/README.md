@@ -33,9 +33,50 @@ Direct function testing and inspection utilities.
 ### Manual Validation Scripts
 Tools requiring human verification and inspection.
 
-## Available Tool
+## Available Tools
 
-The tools directory now contains **one carefully curated tool** that provides unique value that cannot be replicated through automated testing:
+The tools directory now contains **carefully curated tools** that provide unique value that cannot be replicated through automated testing:
+
+### Branch Sync Management - `sync-check.ts` & `pre-commit-check.ts`
+Smart branch synchronization and pre-commit workflow automation.
+
+**Purpose**: Simplify branch sync checking and pre-commit validation while maintaining safety and conflict visibility
+
+**Usage**:
+```bash
+# Check if branch is behind origin/main (safe, no auto-merge)
+npm run sync-check
+./tools/sync-check.ts
+
+# Check only, minimal output
+npm run sync-check -- --check-only
+
+# Complete pre-commit workflow (sync check + validation)
+npm run pre-commit
+./tools/pre-commit-check.ts
+
+# Skip sync check, only run validation
+npm run pre-commit -- --skip-sync
+```
+
+**Features**:
+- **Safety-first approach**: Never auto-merges, preserves conflict visibility
+- **Clear exit codes**: Success/failure signals for Claude Code integration
+- **Cross-platform compatibility**: Works on Windows, Mac, and Linux
+- **Automated validation**: Runs full typecheck, lint, test, and build pipeline
+- **Explicit instructions**: Tells developers exactly what to do when manual intervention needed
+- **Smart stopping**: Stops workflow when merge conflicts need manual resolution
+
+**Command-Line Options**:
+- `sync-check`:
+  - `--check-only` or `-c` - Check status without providing next-step instructions
+- `pre-commit-check`:
+  - `--skip-sync` or `-s` - Skip branch sync check, only run validation
+
+**Exit Codes**:
+- `0` - Success (up to date or no remote)
+- `1` - Manual action needed (merge required)
+- `2` - Error condition (git issues, validation failures)
 
 ### OAuth Flow Testing - `test-oauth.ts`
 Interactive OAuth authentication flow testing and validation.
@@ -139,6 +180,8 @@ npm run test:transport   # HTTP transport and CORS testing
 ### When to Use These Tools
 
 #### During Feature Development
+- Use `npm run pre-commit` for comprehensive pre-commit validation
+- Use `npm run sync-check` to check branch sync status safely
 - Use `npm run dev:vercel` for authentic Vercel serverless function testing
 - Use `npm run test:mcp` to validate MCP protocol changes
 
@@ -159,6 +202,10 @@ These tools complement the standard development workflow:
 # Standard development
 npm run dev:vercel          # Official Vercel development (recommended)
 
+# Branch sync and pre-commit
+npm run sync-check          # Check branch sync status (safe, no auto-merge)
+npm run pre-commit          # Complete pre-commit workflow
+
 # OAuth testing
 npm run dev:oauth           # Development with OAuth enabled
 ./tools/test-oauth.ts --flow        # Interactive OAuth testing
@@ -169,6 +216,11 @@ npm run test:mcp            # MCP protocol testing
 ```
 
 ## Testing Scenarios
+
+### Branch Sync and Pre-Commit Validation
+1. Check branch status: `npm run sync-check`
+2. Run full pre-commit check: `npm run pre-commit`
+3. If merge needed: `git merge origin/main` then `npm run pre-commit`
 
 ### OAuth Flow Validation
 1. Start with health check: `./tools/test-oauth.ts`

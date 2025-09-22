@@ -203,6 +203,12 @@ export class SessionManager {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
     }
+
+    // Destroy the event store if it exists
+    if (this.eventStore && 'destroy' in this.eventStore) {
+      (this.eventStore as { destroy(): void }).destroy();
+    }
+
     this.clear();
   }
 }
