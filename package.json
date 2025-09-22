@@ -26,6 +26,8 @@
     "test:all": "npm run test:ci",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
+    "sync-check": "npx tsx tools/sync-check.ts",
+    "pre-commit": "npx tsx tools/pre-commit-check.ts",
     "validate": "npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:integration"
   },
   "keywords": [
