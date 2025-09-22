@@ -99,6 +99,16 @@ export interface OAuthTokenResponse {
   user: OAuthUserInfo;
 }
 
+export interface ProviderTokenResponse {
+  access_token?: string;
+  refresh_token?: string;
+  id_token?: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+  [key: string]: unknown;
+}
+
 /**
  * OAuth session data stored during the flow
  */
@@ -203,6 +213,11 @@ export interface OAuthProvider extends OAuthTokenVerifier {
    * Clean up expired sessions and tokens
    */
   cleanup(): void;
+
+  /**
+   * Release resources held by the provider (timers, open handles, etc.)
+   */
+  dispose(): void;
 }
 
 /**

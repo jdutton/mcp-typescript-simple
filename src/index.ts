@@ -184,23 +184,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       // LLM-powered tools
       case "chat": {
-        const { handleChatTool } = await import('./tools/llm/chat.js');
-        return await handleChatTool(args as any, llmManager);
+        const { handleChatTool, parseChatToolInput } = await import('./tools/llm/chat.js');
+        const parsedArgs = parseChatToolInput(args);
+        return await handleChatTool(parsedArgs, llmManager);
       }
 
       case "analyze": {
-        const { handleAnalyzeTool } = await import('./tools/llm/analyze.js');
-        return await handleAnalyzeTool(args as any, llmManager);
+        const { handleAnalyzeTool, parseAnalyzeToolInput } = await import('./tools/llm/analyze.js');
+        const parsedArgs = parseAnalyzeToolInput(args);
+        return await handleAnalyzeTool(parsedArgs, llmManager);
       }
 
       case "summarize": {
-        const { handleSummarizeTool } = await import('./tools/llm/summarize.js');
-        return await handleSummarizeTool(args as any, llmManager);
+        const { handleSummarizeTool, parseSummarizeToolInput } = await import('./tools/llm/summarize.js');
+        const parsedArgs = parseSummarizeToolInput(args);
+        return await handleSummarizeTool(parsedArgs, llmManager);
       }
 
       case "explain": {
-        const { handleExplainTool } = await import('./tools/llm/explain.js');
-        return await handleExplainTool(args as any, llmManager);
+        const { handleExplainTool, parseExplainToolInput } = await import('./tools/llm/explain.js');
+        const parsedArgs = parseExplainToolInput(args);
+        return await handleExplainTool(parsedArgs, llmManager);
       }
 
       default:
@@ -216,12 +220,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     // For other errors, return error content in response
+    const errorPayload = {
+      tool: name,
+      code: 'TOOL_EXECUTION_ERROR',
+      message: errorMessage
+    };
     return {
       content: [
         {
           type: "text",
           text: `Error executing tool '${name}': ${errorMessage}`,
         },
+        {
+          type: 'json',
+          json: { error: errorPayload }
+        }
       ],
     };
   }

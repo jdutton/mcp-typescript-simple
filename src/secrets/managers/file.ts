@@ -53,7 +53,8 @@ export class FileSecretManager implements SecretManager {
       }
       this.loaded = true;
     } catch (error) {
-      throw new Error(`Failed to load ${this.envPath}: ${error}`);
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to load ${this.envPath}: ${message}`);
     }
   }
 }

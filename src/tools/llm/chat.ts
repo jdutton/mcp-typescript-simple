@@ -4,7 +4,14 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+
+type ToolResponse = {
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'json'; json: unknown }
+  >;
+};
 
 export const ChatToolSchema = {
   type: "object",
@@ -36,7 +43,7 @@ export const ChatToolSchema = {
   required: ["message"]
 } as const;
 
-const ChatToolZodSchema = z.object({
+export const ChatToolZodSchema = z.object({
   message: z.string().describe('The message to send to the AI assistant'),
   system_prompt: z.string().optional().describe('Optional system prompt to guide the AI behavior'),
   temperature: z.number().min(0).max(2).optional().describe('Controls randomness (0-2, default 0.7)'),
@@ -46,35 +53,58 @@ const ChatToolZodSchema = z.object({
 
 export type ChatToolInput = z.infer<typeof ChatToolZodSchema>;
 
+export function parseChatToolInput(raw: unknown): ChatToolInput {
+  return ChatToolZodSchema.parse(raw);
+}
+
 export async function handleChatTool(
   input: ChatToolInput,
   llmManager: LLMManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<ToolResponse> {
   try {
     // Get default provider/model for chat tool if not specified
     const toolDefaults = llmManager.getProviderForTool('chat');
+    const provider = input.provider ?? toolDefaults.provider;
+    const model = input.model ?? toolDefaults.model;
+
+    if (model && !isValidModelForProvider(provider, model as AnyModel)) {
+      throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
+    }
 
     const response = await llmManager.complete({
       message: input.message,
       systemPrompt: input.system_prompt,
       temperature: input.temperature,
-      provider: input.provider || toolDefaults.provider,
-      model: (input.model as AnyModel) || toolDefaults.model
+      provider,
+      model: model as AnyModel | undefined
     });
 
     return {
-      content: [{
-        type: 'text',
-        text: response.content
-      }]
+      content: [
+        {
+          type: 'text',
+          text: response.content
+        }
+      ]
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorPayload = {
+      tool: 'chat',
+      code: 'CHAT_TOOL_ERROR',
+      message: errorMessage
+    };
     return {
-      content: [{
-        type: 'text',
-        text: `Error: ${errorMessage}`
-      }]
+      content: [
+        {
+          type: 'text',
+          text: `Error (chat tool): ${errorMessage}`
+        },
+        {
+          type: 'json',
+          json: { error: errorPayload }
+        }
+      ]
     };
   }
 }

@@ -2,21 +2,37 @@ import { jest } from '@jest/globals';
 import { setupMCPServer } from '../../../src/server/mcp-setup.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
-jest.mock('../../../src/tools/llm/chat.js', () => ({
-  handleChatTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'chat' }] }))
-}));
+jest.mock('../../../src/tools/llm/chat.js', () => {
+  const parseChatToolInput = jest.fn(() => ({ message: 'hello' }));
+  return {
+    handleChatTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'chat' }] })),
+    parseChatToolInput
+  };
+});
 
-jest.mock('../../../src/tools/llm/analyze.js', () => ({
-  handleAnalyzeTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'analyze' }] }))
-}));
+jest.mock('../../../src/tools/llm/analyze.js', () => {
+  const parseAnalyzeToolInput = jest.fn(() => ({ text: 'analyze this' }));
+  return {
+    handleAnalyzeTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'analyze' }] })),
+    parseAnalyzeToolInput
+  };
+});
 
-jest.mock('../../../src/tools/llm/summarize.js', () => ({
-  handleSummarizeTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'summarize' }] }))
-}));
+jest.mock('../../../src/tools/llm/summarize.js', () => {
+  const parseSummarizeToolInput = jest.fn(() => ({ text: 'summarize this' }));
+  return {
+    handleSummarizeTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'summarize' }] })),
+    parseSummarizeToolInput
+  };
+});
 
-jest.mock('../../../src/tools/llm/explain.js', () => ({
-  handleExplainTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'explain' }] }))
-}));
+jest.mock('../../../src/tools/llm/explain.js', () => {
+  const parseExplainToolInput = jest.fn(() => ({ topic: 'explain this' }));
+  return {
+    handleExplainTool: jest.fn(async () => ({ content: [{ type: 'text', text: 'explain' }] })),
+    parseExplainToolInput
+  };
+});
 
 describe('setupMCPServer', () => {
   const createServer = () => {
@@ -73,7 +89,8 @@ describe('setupMCPServer', () => {
 
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const response = await callHandler!({ params: { name: 'chat', arguments: { message: 'hello' } } });
-    const { handleChatTool } = await import('../../../src/tools/llm/chat.js');
+    const { handleChatTool, parseChatToolInput } = await import('../../../src/tools/llm/chat.js');
+    expect(parseChatToolInput).toHaveBeenCalledWith({ message: 'hello' });
     expect(handleChatTool).toHaveBeenCalledWith({ message: 'hello' }, llmManager);
     expect(response.content[0].text).toBe('chat');
 

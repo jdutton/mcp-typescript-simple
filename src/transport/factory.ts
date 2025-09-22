@@ -86,21 +86,32 @@ export class SSETransportManager implements TransportManager {
       const sessionId = sseTransport.sessionId;
       this.sseTransports.set(sessionId, sseTransport);
 
-      // Connect the MCP server to this SSE transport
-      await server.connect(sseTransport);
-
-      // Handle connection cleanup
-      sseTransport.onclose = () => {
+      const removeTransport = () => {
         this.sseTransports.delete(sessionId);
+      };
+
+      sseTransport.onclose = () => {
+        removeTransport();
         console.error(`🔌 SSE connection closed: ${sessionId}`);
       };
 
       sseTransport.onerror = (error: Error) => {
         console.error(`❌ SSE connection error for ${sessionId}:`, error);
-        this.sseTransports.delete(sessionId);
+        removeTransport();
       };
 
-      console.error(`🔗 New SSE connection established: ${sessionId}`);
+      try {
+        await server.connect(sseTransport);
+        console.error(`🔗 New SSE connection established: ${sessionId}`);
+      } catch (error) {
+        removeTransport();
+        console.error(`❌ Failed to connect SSE transport ${sessionId}:`, error);
+        try {
+          await sseTransport.close();
+        } catch (closeError) {
+          console.error(`Failed to close SSE transport ${sessionId} after connection error:`, closeError);
+        }
+      }
     });
   }
 
@@ -117,19 +128,32 @@ export class SSETransportManager implements TransportManager {
   }
 
   async stop(): Promise<void> {
+    const errors: Error[] = [];
+
     // Close all SSE connections
     for (const [sessionId, transport] of this.sseTransports) {
       try {
         await transport.close();
       } catch (error) {
         console.error(`Error closing SSE transport ${sessionId}:`, error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }
     this.sseTransports.clear();
 
     // Stop HTTP server
     if (this.httpServer) {
-      await this.httpServer.stop();
+      try {
+        await this.httpServer.stop();
+      } catch (error) {
+        console.error('Error stopping SSE HTTP server:', error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+
+    if (errors.length > 0) {
+      const message = errors.map(err => err.message).join('; ');
+      throw new Error(`Failed to shut down SSE transport manager: ${message}`);
     }
   }
 
@@ -182,21 +206,32 @@ export class StreamableHTTPTransportManager implements TransportManager {
       const sessionId = streamableTransport.sessionId || 'anonymous';
       this.streamableTransports.set(sessionId, streamableTransport);
 
-      // Connect the MCP server to this Streamable HTTP transport
-      await server.connect(streamableTransport);
-
-      // Handle connection cleanup
-      streamableTransport.onclose = () => {
+      const removeTransport = () => {
         this.streamableTransports.delete(sessionId);
+      };
+
+      streamableTransport.onclose = () => {
+        removeTransport();
         console.error(`🔌 Streamable HTTP connection closed: ${sessionId}`);
       };
 
       streamableTransport.onerror = (error: Error) => {
         console.error(`❌ Streamable HTTP connection error for ${sessionId}:`, error);
-        this.streamableTransports.delete(sessionId);
+        removeTransport();
       };
 
-      console.error(`🔗 New Streamable HTTP connection established: ${sessionId}`);
+      try {
+        await server.connect(streamableTransport);
+        console.error(`🔗 New Streamable HTTP connection established: ${sessionId}`);
+      } catch (error) {
+        removeTransport();
+        console.error(`❌ Failed to connect Streamable HTTP transport ${sessionId}:`, error);
+        try {
+          await streamableTransport.close();
+        } catch (closeError) {
+          console.error(`Failed to close Streamable HTTP transport ${sessionId} after connection error:`, closeError);
+        }
+      }
     });
   }
 
@@ -218,19 +253,32 @@ export class StreamableHTTPTransportManager implements TransportManager {
   }
 
   async stop(): Promise<void> {
+    const errors: Error[] = [];
+
     // Close all Streamable HTTP connections
     for (const [sessionId, transport] of this.streamableTransports) {
       try {
         await transport.close();
       } catch (error) {
         console.error(`Error closing Streamable HTTP transport ${sessionId}:`, error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }
     this.streamableTransports.clear();
 
     // Stop HTTP server
     if (this.httpServer) {
-      await this.httpServer.stop();
+      try {
+        await this.httpServer.stop();
+      } catch (error) {
+        console.error('Error stopping Streamable HTTP server:', error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+
+    if (errors.length > 0) {
+      const message = errors.map(err => err.message).join('; ');
+      throw new Error(`Failed to shut down Streamable HTTP transport manager: ${message}`);
     }
   }
 

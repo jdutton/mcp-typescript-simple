@@ -20,7 +20,7 @@ describe('TieredSecretManager', () => {
       getSecret: jest.fn<SecretManager['getSecret']>().mockResolvedValue('value')
     });
 
-    const manager = new TieredSecretManager({ providers: [], cacheEnabled: true, cacheTtl: 60_000 });
+    const manager = new TieredSecretManager({ cacheEnabled: true, cacheTtl: 60_000 });
     (manager as unknown as { providers: SecretManager[] }).providers = [provider];
 
     const first = await manager.getSecret('KEY');
@@ -41,7 +41,7 @@ describe('TieredSecretManager', () => {
       getSecret: jest.fn<SecretManager['getSecret']>().mockResolvedValue('fallback')
     });
 
-    const manager = new TieredSecretManager({ providers: [], cacheEnabled: true });
+    const manager = new TieredSecretManager({ cacheEnabled: true });
     (manager as unknown as { providers: SecretManager[] }).providers = [failingProvider, fallbackProvider];
 
     const value = await manager.getSecret('KEY');
@@ -61,7 +61,7 @@ describe('TieredSecretManager', () => {
       isAvailable: jest.fn<SecretManager['isAvailable']>().mockResolvedValue(false)
     });
 
-    const manager = new TieredSecretManager({ providers: [], cacheEnabled: false });
+    const manager = new TieredSecretManager({ cacheEnabled: false });
     (manager as unknown as { providers: SecretManager[] }).providers = [unavailableProvider];
 
     await expect(manager.getSecret('KEY')).rejects.toThrow(SecretNotFoundError);
@@ -73,11 +73,21 @@ describe('TieredSecretManager', () => {
       getSecret: jest.fn<SecretManager['getSecret']>().mockRejectedValue(new SecretTimeoutError('KEY', 'env', 5))
     });
 
-    const manager = new TieredSecretManager({ providers: [], cacheEnabled: false, timeout: 5 });
+    const manager = new TieredSecretManager({ cacheEnabled: false, timeout: 5 });
     (manager as unknown as { providers: SecretManager[] }).providers = [timeoutProvider];
 
     await expect(manager.getSecret('KEY')).rejects.toThrow(SecretNotFoundError);
     expect(timeoutProvider.getSecret).toHaveBeenCalledTimes(1);
     expect(consoleSpy).toHaveBeenCalled();
+  });
+
+  it('throws when configured providers are unknown', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(
+      () => new TieredSecretManager({ providers: ['unknown'], cacheEnabled: false })
+    ).toThrow('No valid secret providers configured');
+
+    expect(warnSpy).toHaveBeenCalledWith('Unknown secret provider(s): unknown');
   });
 });

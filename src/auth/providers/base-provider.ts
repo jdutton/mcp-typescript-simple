@@ -3,6 +3,8 @@
  */
 
 import { randomBytes, createHash } from 'crypto';
+import { Request, Response } from 'express';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import {
   OAuthProvider,
   OAuthSession,
@@ -11,7 +13,9 @@ import {
   OAuthEndpoints,
   OAuthProviderType,
   OAuthStateError,
-  OAuthTokenError
+  OAuthTokenError,
+  OAuthUserInfo,
+  ProviderTokenResponse
 } from './types.js';
 
 /**
@@ -22,10 +26,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected tokens: Map<string, StoredTokenInfo> = new Map();
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
+  private readonly cleanupTimer: NodeJS.Timeout;
 
   constructor(protected config: OAuthConfig) {
     // Clean up expired sessions and tokens periodically
-    setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
+    this.cleanupTimer = setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
+    if (typeof this.cleanupTimer.unref === 'function') {
+      this.cleanupTimer.unref();
+    }
   }
 
   // Abstract methods that must be implemented by concrete providers
@@ -33,12 +41,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract getProviderName(): string;
   abstract getEndpoints(): OAuthEndpoints;
   abstract getDefaultScopes(): string[];
-  abstract handleAuthorizationRequest(req: any, res: any): Promise<void>;
-  abstract handleAuthorizationCallback(req: any, res: any): Promise<void>;
-  abstract handleTokenRefresh(req: any, res: any): Promise<void>;
-  abstract handleLogout(req: any, res: any): Promise<void>;
-  abstract verifyAccessToken(token: string): Promise<any>;
-  abstract getUserInfo(accessToken: string): Promise<any>;
+  abstract handleAuthorizationRequest(req: Request, res: Response): Promise<void>;
+  abstract handleAuthorizationCallback(req: Request, res: Response): Promise<void>;
+  abstract handleTokenRefresh(req: Request, res: Response): Promise<void>;
+  abstract handleLogout(req: Request, res: Response): Promise<void>;
+  abstract verifyAccessToken(token: string): Promise<AuthInfo>;
+  abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
 
   /**
    * Generate PKCE code verifier and challenge
@@ -169,7 +177,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     code: string,
     codeVerifier: string,
     additionalParams: Record<string, string> = {}
-  ): Promise<any> {
+  ): Promise<ProviderTokenResponse> {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
@@ -198,7 +206,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       );
     }
 
-    return response.json();
+    return response.json() as Promise<ProviderTokenResponse>;
   }
 
   /**
@@ -208,7 +216,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     tokenUrl: string,
     refreshToken: string,
     additionalParams: Record<string, string> = {}
-  ): Promise<any> {
+  ): Promise<ProviderTokenResponse> {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
@@ -235,7 +243,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       );
     }
 
-    return response.json();
+    return response.json() as Promise<ProviderTokenResponse>;
   }
 
   /**
@@ -293,5 +301,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         this.tokens.delete(token);
       }
     }
+  }
+
+  dispose(): void {
+    clearInterval(this.cleanupTimer);
   }
 }

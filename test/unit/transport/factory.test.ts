@@ -1,6 +1,8 @@
 import { jest } from '@jest/globals';
 import { TransportFactory, StdioTransportManager, SSETransportManager, StreamableHTTPTransportManager } from '../../../src/transport/factory.js';
 import { EnvironmentConfig, TransportMode } from '../../../src/config/environment.js';
+import type { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 describe('TransportFactory', () => {
   afterEach(() => {
@@ -46,5 +48,65 @@ describe('TransportFactory', () => {
     expect(transport).toBeInstanceOf(StreamableHTTPTransportManager);
     expect(EnvironmentConfig.getServerConfig).toHaveBeenCalled();
     expect(EnvironmentConfig.getSecurityConfig).toHaveBeenCalled();
+  });
+
+  it('propagates errors when SSE transports fail to close', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const manager = new SSETransportManager({
+      port: 3000,
+      host: 'localhost',
+      endpoint: '/sse',
+      requireAuth: false,
+      allowedOrigins: [],
+      allowedHosts: [],
+      sessionSecret: 'secret'
+    });
+
+    const failingTransport = {
+      close: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('close failed')),
+      sessionId: 'session'
+    } as unknown as SSEServerTransport;
+
+    (manager as unknown as { sseTransports: Map<string, SSEServerTransport> }).sseTransports = new Map([
+      ['session', failingTransport]
+    ]);
+
+    const stopSpy = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    (manager as unknown as { httpServer?: { stop: () => Promise<void> } }).httpServer = { stop: stopSpy } as any;
+
+    const stopPromise = manager.stop();
+    await expect(stopPromise).rejects.toThrow('Failed to shut down SSE transport manager');
+    expect(stopSpy).toHaveBeenCalled();
+  });
+
+  it('propagates errors when Streamable HTTP transports fail to close', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const manager = new StreamableHTTPTransportManager({
+      port: 3000,
+      host: 'localhost',
+      endpoint: '/stream',
+      requireAuth: false,
+      allowedOrigins: [],
+      allowedHosts: [],
+      sessionSecret: 'secret',
+      enableResumability: false,
+      enableJsonResponse: false
+    });
+
+    const failingTransport = {
+      close: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('close failed')),
+      sessionId: 'session'
+    } as unknown as StreamableHTTPServerTransport;
+
+    (manager as unknown as { streamableTransports: Map<string, StreamableHTTPServerTransport> }).streamableTransports = new Map([
+      ['session', failingTransport]
+    ]);
+
+    const stopSpy = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    (manager as unknown as { httpServer?: { stop: () => Promise<void> } }).httpServer = { stop: stopSpy } as any;
+
+    const stopPromise = manager.stop();
+    await expect(stopPromise).rejects.toThrow('Failed to shut down Streamable HTTP transport manager');
+    expect(stopSpy).toHaveBeenCalled();
   });
 });
