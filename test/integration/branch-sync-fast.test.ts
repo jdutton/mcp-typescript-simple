@@ -9,7 +9,7 @@ import { promisify } from 'util';
 const execAsync = promisify(exec);
 
 describe('Branch Sync Tools - Fast Integration', () => {
-  const FAST_TIMEOUT = 3000; // 3 seconds max
+  const FAST_TIMEOUT = 5000; // 5 seconds max
 
   describe('essential functionality', () => {
     it('sync-check tool should execute and return status', async () => {

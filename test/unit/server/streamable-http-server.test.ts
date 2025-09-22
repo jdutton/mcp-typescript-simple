@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 describe('MCPStreamableHttpServer', () => {
   const originalSecurityConfig = EnvironmentConfig.getSecurityConfig;
   const originalIsDevelopment = EnvironmentConfig.isDevelopment;
+  const servers: MCPStreamableHttpServer[] = [];
 
   beforeEach(() => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -28,14 +29,29 @@ describe('MCPStreamableHttpServer', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Clean up all servers to prevent hanging timers
+    for (const server of servers) {
+      try {
+        // Directly call session manager destroy to clean up timers
+        const sessionManager = server.getSessionManager();
+        if (sessionManager) {
+          sessionManager.destroy();
+        }
+        await server.stop();
+      } catch {
+        // Ignore errors during cleanup
+      }
+    }
+    servers.length = 0;
+
     jest.restoreAllMocks();
     EnvironmentConfig.getSecurityConfig = originalSecurityConfig;
     EnvironmentConfig.isDevelopment = originalIsDevelopment;
   });
 
-  const makeServer = (options?: Partial<ConstructorParameters<typeof MCPStreamableHttpServer>[0]>) =>
-    new MCPStreamableHttpServer({
+  const makeServer = (options?: Partial<ConstructorParameters<typeof MCPStreamableHttpServer>[0]>) => {
+    const server = new MCPStreamableHttpServer({
       port: 8081,
       host: '127.0.0.1',
       endpoint: '/stream',
@@ -45,6 +61,9 @@ describe('MCPStreamableHttpServer', () => {
       enableJsonResponse: false,
       ...options
     });
+    servers.push(server);
+    return server;
+  };
 
   it('stops the streamable server via close callback', async () => {
     const server = makeServer();

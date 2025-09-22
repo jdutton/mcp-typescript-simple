@@ -13,10 +13,10 @@
  */
 
 import { execSync } from 'child_process';
+import { BranchSyncChecker, type SyncCheckResult } from './sync-check.js';
 
 // Configuration for validation operations
 const VALIDATION_TIMEOUT = 30000; // 30 seconds timeout for each validation step
-import { BranchSyncChecker, type SyncCheckResult } from './sync-check.js';
 
 class PreCommitChecker {
   private readonly skipSync: boolean;
@@ -25,6 +25,12 @@ class PreCommitChecker {
     this.skipSync = skipSync;
   }
 
+  /**
+   * Run comprehensive pre-commit check workflow
+   *
+   * Performs branch sync checking and code validation.
+   * Stops safely when manual intervention is needed.
+   */
   async runPreCommitCheck(): Promise<void> {
     console.log('🚀 Pre-Commit Check Tool');
     console.log('Ensuring branch sync and code quality before commit\n');
@@ -117,15 +123,15 @@ class PreCommitChecker {
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const skipSync = args.includes('--skip-sync') || args.includes('-s');
+  const args: string[] = process.argv.slice(2);
+  const skipSync: boolean = args.includes('--skip-sync') || args.includes('-s');
 
   const checker = new PreCommitChecker(skipSync);
   await checker.runPreCommitCheck();
 }
 
 // Run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1] as string}`) {
   main().catch((error) => {
     console.error('❌ Unexpected error:', error);
     process.exit(2);

@@ -12,7 +12,7 @@
  * - Cross-platform compatibility
  */
 
-import { execSync, exec } from 'child_process';
+import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
@@ -40,6 +40,11 @@ class BranchSyncChecker {
     this.checkOnly = checkOnly;
   }
 
+  /**
+   * Check if the current branch is synchronized with origin/main
+   *
+   * @returns Promise resolving to sync status information
+   */
   async checkSync(): Promise<SyncCheckResult> {
     try {
       // Get current branch name
@@ -129,6 +134,11 @@ class BranchSyncChecker {
     }
   }
 
+  /**
+   * Print formatted status information to console
+   *
+   * @param result - The sync check result to display
+   */
   printStatus(result: SyncCheckResult): void {
     console.log('\n' + '='.repeat(60));
     console.log('📊 BRANCH SYNC STATUS');
@@ -164,6 +174,12 @@ class BranchSyncChecker {
     console.log('='.repeat(60));
   }
 
+  /**
+   * Get appropriate exit code based on sync result
+   *
+   * @param result - The sync check result
+   * @returns Exit code (0=success, 1=needs merge, 2=error)
+   */
   getExitCode(result: SyncCheckResult): number {
     if (result.error) return 2; // Error condition
     if (!result.hasOriginMain) return 0; // No remote, consider OK
@@ -172,8 +188,8 @@ class BranchSyncChecker {
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const checkOnly = args.includes('--check-only') || args.includes('-c');
+  const args: string[] = process.argv.slice(2);
+  const checkOnly: boolean = args.includes('--check-only') || args.includes('-c');
 
   console.log('🔍 Smart Branch Sync Checker');
   console.log('Safety-first approach: checks status, never auto-merges\n');
@@ -188,7 +204,7 @@ async function main(): Promise<void> {
 }
 
 // Run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.url === `file://${process.argv[1] as string}`) {
   main().catch((error) => {
     console.error('❌ Unexpected error:', error);
     process.exit(2);
