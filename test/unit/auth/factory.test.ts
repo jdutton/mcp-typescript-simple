@@ -4,15 +4,15 @@ import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 const originalEnv = process.env;
 
 jest.mock('../../../src/auth/providers/google-provider.js', () => ({
-  GoogleOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'google', config }))
+  GoogleOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'google', config, dispose: jest.fn() }))
 }));
 
 jest.mock('../../../src/auth/providers/github-provider.js', () => ({
-  GitHubOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'github', config }))
+  GitHubOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'github', config, dispose: jest.fn() }))
 }));
 
 jest.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
-  MicrosoftOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'microsoft', config }))
+  MicrosoftOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'microsoft', config, dispose: jest.fn() }))
 }));
 
 describe('OAuthProviderFactory', () => {
@@ -23,6 +23,11 @@ describe('OAuthProviderFactory', () => {
   afterEach(() => {
     process.env = originalEnv;
     jest.clearAllMocks();
+    try {
+      OAuthProviderFactory.disposeAll();
+    } catch {
+      // Swallow disposal errors in tests to avoid masking assertions; individual tests handle expectations.
+    }
   });
 
   it('creates Google provider when credentials are present', () => {
@@ -56,5 +61,21 @@ describe('OAuthProviderFactory', () => {
 
     expect(provider).toBeNull();
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it('disposes tracked providers via disposeAll', () => {
+    process.env.OAUTH_PROVIDER = 'google';
+    process.env.GOOGLE_CLIENT_ID = 'id';
+    process.env.GOOGLE_CLIENT_SECRET = 'secret';
+    process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
+
+    const provider = OAuthProviderFactory.createFromEnvironment();
+    expect(provider).toBeTruthy();
+
+    const typedProvider = provider as unknown as { dispose: jest.Mock };
+    expect(typedProvider.dispose).not.toHaveBeenCalled();
+
+    OAuthProviderFactory.disposeAll();
+    expect(typedProvider.dispose).toHaveBeenCalled();
   });
 });

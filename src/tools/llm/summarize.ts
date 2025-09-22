@@ -4,7 +4,14 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+
+type ToolResponse = {
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'json'; json: unknown }
+  >;
+};
 
 export const SummarizeToolSchema = z.object({
   text: z.string().describe('The text to summarize'),
@@ -19,10 +26,14 @@ export const SummarizeToolSchema = z.object({
 
 export type SummarizeToolInput = z.infer<typeof SummarizeToolSchema>;
 
+export function parseSummarizeToolInput(raw: unknown): SummarizeToolInput {
+  return SummarizeToolSchema.parse(raw);
+}
+
 export async function handleSummarizeTool(
   input: SummarizeToolInput,
   llmManager: LLMManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<ToolResponse> {
   try {
     const length = input.length || 'medium';
     const format = input.format || 'paragraph';
@@ -49,28 +60,47 @@ export async function handleSummarizeTool(
 
     // Get default provider/model for summarize tool if not specified
     const toolDefaults = llmManager.getProviderForTool('summarize');
+    const provider = input.provider || toolDefaults.provider;
+    const model = input.model ?? toolDefaults.model;
+
+    if (model && !isValidModelForProvider(provider, model as AnyModel)) {
+      throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
+    }
 
     const response = await llmManager.complete({
       message: `Please summarize the following text:\n\n${input.text}`,
       systemPrompt,
       temperature: 0.3, // Lower temperature for consistent summarization
-      provider: input.provider || toolDefaults.provider,
-      model: (input.model as AnyModel) || toolDefaults.model
+      provider,
+      model: model as AnyModel | undefined
     });
 
     return {
-      content: [{
-        type: 'text',
-        text: response.content
-      }]
+      content: [
+        {
+          type: 'text',
+          text: response.content
+        }
+      ]
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorPayload = {
+      tool: 'summarize',
+      code: 'SUMMARIZE_TOOL_ERROR',
+      message: errorMessage
+    };
     return {
-      content: [{
-        type: 'text',
-        text: `Summarization failed: ${errorMessage}`
-      }]
+      content: [
+        {
+          type: 'text',
+          text: `Summarization failed: ${errorMessage}`
+        },
+        {
+          type: 'json',
+          json: { error: errorPayload }
+        }
+      ]
     };
   }
 }

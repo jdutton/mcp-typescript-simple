@@ -4,6 +4,7 @@
 
 import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
+import type { CodeChallengeMethod } from 'google-auth-library/build/src/auth/oauth2client.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { BaseOAuthProvider } from './base-provider.js';
 import {
@@ -82,7 +83,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         scope: session.scopes,
         state,
         code_challenge: codeChallenge,
-        code_challenge_method: 'S256' as any,
+        code_challenge_method: 'S256' as CodeChallengeMethod,
         prompt: 'consent',
       });
 

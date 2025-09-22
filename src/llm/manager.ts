@@ -3,24 +3,48 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { Message, MessageCreateParamsNonStreaming } from '@anthropic-ai/sdk/resources/messages/messages.js';
+import type {
+  Message as AnthropicMessage,
+  MessageCreateParamsNonStreaming,
+  MessageParam as AnthropicMessageParam,
+  TextBlock
+} from '@anthropic-ai/sdk/resources/messages/messages.js';
 import OpenAI from 'openai';
-import type { ChatCompletion, ChatCompletionCreateParamsNonStreaming } from 'openai/resources/chat/completions/completions.js';
+import type {
+  ChatCompletion,
+  ChatCompletionCreateParamsNonStreaming
+} from 'openai/resources/chat/completions/completions.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { GenerateContentRequest, GenerateContentResult } from '@google/generative-ai';
 import { LLMConfigManager } from './config.js';
-import { LLMRequest, LLMResponse, LLMProvider, DEFAULT_TOOL_LLM_MAPPING, isValidModelForProvider, getDefaultModelForProvider, AnyModel } from './types.js';
+import {
+  LLMRequest,
+  LLMResponse,
+  LLMProvider,
+  DEFAULT_TOOL_LLM_MAPPING,
+  isValidModelForProvider,
+  getDefaultModelForProvider,
+  AnyModel,
+  ModelsForProvider
+} from './types.js';
 import { SecretManager } from '../secrets/types.js';
 
-type AnthropicCreateParams = MessageCreateParamsNonStreaming;
-type AnthropicMessageResponse = Message;
-type OpenAIChatParams = ChatCompletionCreateParamsNonStreaming;
-type OpenAIChatResponse = ChatCompletion;
-type GeminiModel = ReturnType<GoogleGenerativeAI['getGenerativeModel']>;
-type GeminiResponse = Awaited<ReturnType<GeminiModel['generateContent']>>;
+type ProviderClientRegistry = {
+  claude: Anthropic;
+  openai: OpenAI;
+  gemini: GoogleGenerativeAI;
+};
+
+type ClaudeRequestParams = MessageCreateParamsNonStreaming;
+type ClaudeResponse = AnthropicMessage;
+type ClaudeMessageParam = AnthropicMessageParam;
+type OpenAIRequestParams = ChatCompletionCreateParamsNonStreaming;
+type OpenAIResponse = ChatCompletion;
+type GeminiResponse = GenerateContentResult;
 
 export class LLMManager {
   private configManager: LLMConfigManager;
-  private clients: Map<LLMProvider, unknown> = new Map();
+  private clients: Partial<ProviderClientRegistry> = {};
   private cache = new Map<string, { response: LLMResponse; expires: Date }>();
 
   constructor(secretManager: SecretManager) {
@@ -36,7 +60,7 @@ export class LLMManager {
         const anthropic = new Anthropic({
           apiKey: config.providers.claude.apiKey,
         });
-        this.clients.set('claude', anthropic);
+        this.clients.claude = anthropic;
         console.log('✅ Claude client initialized');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -50,7 +74,7 @@ export class LLMManager {
         const openai = new OpenAI({
           apiKey: config.providers.openai.apiKey,
         });
-        this.clients.set('openai', openai);
+        this.clients.openai = openai;
         console.log('✅ OpenAI client initialized');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -62,7 +86,7 @@ export class LLMManager {
     if (config.providers.gemini.apiKey) {
       try {
         const genAI = new GoogleGenerativeAI(config.providers.gemini.apiKey);
-        this.clients.set('gemini', genAI);
+        this.clients.gemini = genAI;
         console.log('✅ Gemini client initialized');
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -70,21 +94,16 @@ export class LLMManager {
       }
     }
 
-    if (this.clients.size === 0) {
+    if (this.getAvailableProviders().length === 0) {
       throw new Error('No LLM clients could be initialized - check your API keys');
     }
 
-    console.log(`🤖 LLM Manager initialized with ${this.clients.size} provider(s)`);
+    console.log(`🤖 LLM Manager initialized with ${this.getAvailableProviders().length} provider(s)`);
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
     const startTime = Date.now();
     const provider = request.provider || await this.getDefaultProvider();
-    const client = this.clients.get(provider);
-
-    if (!client) {
-      throw new Error(`LLM provider '${provider}' not available`);
-    }
 
     // Resolve model selection with validation
     const resolvedModel = await this.resolveModel(provider, request.model);
@@ -103,73 +122,16 @@ export class LLMManager {
       const fullConfig = await this.configManager.loadConfig();
       const modelConfig = await this.configManager.getModelConfig(provider, resolvedModel);
       const defaultTemperature = fullConfig.defaultTemperature ?? 0.7;
-      let rawResponse: unknown;
-      let content: string;
 
-      if (provider === 'claude') {
-        const anthropicClient = client as Anthropic;
-        const messages: AnthropicCreateParams['messages'] = [
-          {
-            role: 'user',
-            content: [{ type: 'text', text: request.message }]
-          }
-        ];
-
-        const createParams: AnthropicCreateParams = {
-          model: modelConfig.model,
-          max_tokens: request.maxTokens ?? modelConfig.maxTokens,
-          temperature: request.temperature ?? defaultTemperature,
-          messages
-        };
-
-        if (request.systemPrompt) {
-          createParams.system = request.systemPrompt;
-        }
-
-        const anthropicResponse = await anthropicClient.messages.create(createParams);
-        rawResponse = anthropicResponse;
-        content = this.extractAnthropicText(anthropicResponse) ?? 'No response';
-      } else if (provider === 'openai') {
-        const openaiClient = client as OpenAI;
-        const messages: OpenAIChatParams['messages'] = [];
-        if (request.systemPrompt) {
-          messages.push({ role: 'system', content: request.systemPrompt });
-        }
-        messages.push({ role: 'user', content: request.message });
-
-        const openaiParams: OpenAIChatParams = {
-          model: modelConfig.model,
-          temperature: request.temperature ?? defaultTemperature,
-          max_tokens: request.maxTokens ?? modelConfig.maxTokens,
-          messages
-        };
-
-        const openaiResponse = await openaiClient.chat.completions.create(openaiParams);
-        rawResponse = openaiResponse;
-        content = this.extractOpenAIText(openaiResponse) ?? 'No response';
-      } else if (provider === 'gemini') {
-        const geminiClient = client as GoogleGenerativeAI;
-        const modelInstance: GeminiModel = geminiClient.getGenerativeModel({ model: modelConfig.model });
-        const prompt = request.systemPrompt
-          ? `${request.systemPrompt}\n\n${request.message}`
-          : request.message;
-
-        const geminiResponse = await modelInstance.generateContent(prompt);
-        rawResponse = geminiResponse;
-        content = this.extractGeminiText(geminiResponse) ?? 'No response';
-      } else {
-        throw new Error(`Unsupported provider: ${provider}`);
-      }
-
-      const llmResponse: LLMResponse = {
-        content,
+      const llmResponse = await this.dispatchRequest(
         provider,
-        model: modelConfig.model,
-        usage: this.extractUsage(provider, rawResponse),
-        responseTime: Date.now() - startTime
-      };
+        request,
+        modelConfig.model,
+        modelConfig.maxTokens,
+        defaultTemperature,
+        startTime
+      );
 
-      // Cache the response
       this.setCachedResponse(cacheKey, llmResponse);
 
       return llmResponse;
@@ -201,31 +163,39 @@ export class LLMManager {
   /**
    * Resolve the model to use for a request
    */
-  private async resolveModel(provider: LLMProvider, requestedModel?: AnyModel): Promise<string> {
-    // If a model is explicitly requested, validate it
+  private async resolveModel<T extends LLMProvider>(
+    provider: T,
+    requestedModel?: AnyModel
+  ): Promise<ModelsForProvider<T>> {
     if (requestedModel) {
       if (!isValidModelForProvider(provider, requestedModel)) {
         throw new Error(`Model '${requestedModel}' is not valid for provider '${provider}'`);
       }
-      return requestedModel;
+      return requestedModel as ModelsForProvider<T>;
     }
 
-    // Fall back to provider default
-    return getDefaultModelForProvider(provider);
+    const defaultModel = getDefaultModelForProvider(provider);
+    if (!isValidModelForProvider(provider, defaultModel)) {
+      throw new Error(`Default model '${defaultModel}' is not valid for provider '${provider}'`);
+    }
+
+    return defaultModel as ModelsForProvider<T>;
   }
 
   /**
    * Check if a provider is available
    */
   isProviderAvailable(provider: LLMProvider): boolean {
-    return this.clients.has(provider);
+    return Boolean(this.clients[provider]);
   }
 
   /**
    * Get list of available providers
    */
   getAvailableProviders(): LLMProvider[] {
-    return Array.from(this.clients.keys());
+    return (Object.keys(this.clients) as LLMProvider[]).filter(
+      (provider) => Boolean(this.clients[provider])
+    );
   }
 
   /**
@@ -245,68 +215,234 @@ export class LLMManager {
     };
   }
 
-  private extractAnthropicText(response: AnthropicMessageResponse): string | undefined {
-    const firstContent = Array.isArray(response.content) ? response.content[0] : undefined;
-    if (firstContent && typeof firstContent === 'object' && 'text' in firstContent) {
-      const text = (firstContent as { text?: unknown }).text;
-      return typeof text === 'string' ? text : undefined;
-    }
-    return undefined;
-  }
-
-  private extractOpenAIText(response: OpenAIChatResponse): string | undefined {
-    const firstChoice = Array.isArray(response.choices) ? response.choices[0] : undefined;
-    const messageContent = firstChoice?.message?.content;
-    return typeof messageContent === 'string' ? messageContent : undefined;
-  }
-
-  private extractGeminiText(response: GeminiResponse): string | undefined {
-    const text = response?.response?.text();
-    return typeof text === 'string' ? text : undefined;
-  }
-
-  private extractUsage(provider: LLMProvider, response: unknown): LLMResponse['usage'] | undefined {
-    if (typeof response !== 'object' || response === null) {
-      return undefined;
+  private async dispatchRequest<T extends LLMProvider>(
+    provider: T,
+    request: LLMRequest,
+    model: ModelsForProvider<T>,
+    maxTokens: number,
+    defaultTemperature: number,
+    startTime: number
+  ): Promise<LLMResponse> {
+    if (!isValidModelForProvider(provider, model)) {
+      throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
     }
 
     if (provider === 'claude') {
-      const usage = (response as { usage?: { input_tokens?: number; output_tokens?: number; total_tokens?: number } }).usage;
-      if (!usage) {
-        return undefined;
-      }
-      return {
-        promptTokens: usage.input_tokens ?? 0,
-        completionTokens: usage.output_tokens ?? 0,
-        totalTokens: usage.total_tokens ?? 0
-      };
+      return this.completeWithClaude(
+        this.requireClient('claude'),
+        request,
+        model as ModelsForProvider<'claude'>,
+        maxTokens,
+        defaultTemperature,
+        startTime
+      );
     }
 
     if (provider === 'openai') {
-      const usage = (response as { usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } }).usage;
-      if (!usage) {
-        return undefined;
-      }
-      return {
-        promptTokens: usage.prompt_tokens ?? 0,
-        completionTokens: usage.completion_tokens ?? 0,
-        totalTokens: usage.total_tokens ?? 0
-      };
+      return this.completeWithOpenAI(
+        this.requireClient('openai'),
+        request,
+        model as ModelsForProvider<'openai'>,
+        maxTokens,
+        defaultTemperature,
+        startTime
+      );
     }
 
     if (provider === 'gemini') {
-      const usageMetadata = (response as { usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; totalTokenCount?: number } }).usageMetadata;
-      if (!usageMetadata) {
-        return undefined;
-      }
-      return {
-        promptTokens: usageMetadata.promptTokenCount ?? 0,
-        completionTokens: usageMetadata.candidatesTokenCount ?? 0,
-        totalTokens: usageMetadata.totalTokenCount ?? 0
-      };
+      return this.completeWithGemini(
+        this.requireClient('gemini'),
+        request,
+        model as ModelsForProvider<'gemini'>,
+        maxTokens,
+        defaultTemperature,
+        startTime
+      );
     }
 
-    return undefined;
+    return this.assertNever(provider);
+  }
+
+  private requireClient<T extends LLMProvider>(provider: T): ProviderClientRegistry[T] {
+    const client = this.clients[provider];
+    if (!client) {
+      throw new Error(`LLM provider '${provider}' not available`);
+    }
+    return client;
+  }
+
+  private assertNever(value: never): never {
+    throw new Error(`Unsupported provider: ${String(value)}`);
+  }
+
+  private async completeWithClaude(
+    client: ProviderClientRegistry['claude'],
+    request: LLMRequest,
+    model: ModelsForProvider<'claude'>,
+    maxTokens: number,
+    defaultTemperature: number,
+    startTime: number
+  ): Promise<LLMResponse> {
+    const messages: ClaudeMessageParam[] = [
+      {
+        role: 'user',
+        content: [{ type: 'text', text: request.message }]
+      }
+    ];
+
+    const createParams: ClaudeRequestParams = {
+      model,
+      max_tokens: request.maxTokens ?? maxTokens,
+      temperature: request.temperature ?? defaultTemperature,
+      messages,
+      stream: false
+    };
+
+    if (request.systemPrompt) {
+      createParams.system = request.systemPrompt;
+    }
+
+    const response = await client.messages.create(createParams);
+    const content = this.extractClaudeText(response);
+    const usage = this.buildUsageFromClaude(response);
+
+    return this.buildResponse('claude', model, content, usage, startTime);
+  }
+
+  private async completeWithOpenAI(
+    client: ProviderClientRegistry['openai'],
+    request: LLMRequest,
+    model: ModelsForProvider<'openai'>,
+    maxTokens: number,
+    defaultTemperature: number,
+    startTime: number
+  ): Promise<LLMResponse> {
+    const messages: OpenAIRequestParams['messages'] = [];
+
+    if (request.systemPrompt) {
+      messages?.push({ role: 'system', content: request.systemPrompt });
+    }
+
+    messages?.push({ role: 'user', content: request.message });
+
+    const payload: OpenAIRequestParams = {
+      model,
+      messages,
+      temperature: request.temperature ?? defaultTemperature,
+      max_tokens: request.maxTokens ?? maxTokens,
+      stream: false
+    };
+
+    const response = await client.chat.completions.create(payload);
+
+    const content = response.choices[0]?.message?.content ?? 'No response';
+    const usage = this.buildUsageFromOpenAI(response);
+
+    return this.buildResponse('openai', model, content, usage, startTime);
+  }
+
+  private async completeWithGemini(
+    client: ProviderClientRegistry['gemini'],
+    request: LLMRequest,
+    model: ModelsForProvider<'gemini'>,
+    maxTokens: number,
+    defaultTemperature: number,
+    startTime: number
+  ): Promise<LLMResponse> {
+    const modelInstance = client.getGenerativeModel({ model });
+    const prompt = request.systemPrompt
+      ? `${request.systemPrompt}\n\n${request.message}`
+      : request.message;
+
+    const payload: GenerateContentRequest = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }]
+        }
+      ],
+      generationConfig: {
+        temperature: request.temperature ?? defaultTemperature,
+        maxOutputTokens: request.maxTokens ?? maxTokens
+      }
+    };
+
+    const response = await modelInstance.generateContent(payload);
+
+    const content = response.response?.text() ?? 'No response';
+    const usage = this.buildUsageFromGemini(response);
+
+    return this.buildResponse('gemini', model, content, usage, startTime);
+  }
+
+  private extractClaudeText(response: ClaudeResponse): string {
+    const textBlock = response.content.find(
+      (block): block is TextBlock => block.type === 'text'
+    );
+
+    if (textBlock && typeof textBlock.text === 'string') {
+      return textBlock.text;
+    }
+
+    return 'No response';
+  }
+
+  private buildUsageFromClaude(response: ClaudeResponse): LLMResponse['usage'] {
+    const usage = response.usage;
+    if (!usage) {
+      return undefined;
+    }
+
+    const promptTokens = usage.input_tokens ?? 0;
+    const completionTokens = usage.output_tokens ?? 0;
+
+    return {
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens
+    };
+  }
+
+  private buildUsageFromOpenAI(response: OpenAIResponse): LLMResponse['usage'] {
+    const usage = response.usage;
+    if (!usage) {
+      return undefined;
+    }
+
+    return {
+      promptTokens: usage.prompt_tokens ?? 0,
+      completionTokens: usage.completion_tokens ?? 0,
+      totalTokens: usage.total_tokens ?? (usage.prompt_tokens ?? 0) + (usage.completion_tokens ?? 0)
+    };
+  }
+
+  private buildUsageFromGemini(response: GeminiResponse): LLMResponse['usage'] {
+    const usage = response.response?.usageMetadata;
+    if (!usage) {
+      return undefined;
+    }
+
+    return {
+      promptTokens: usage.promptTokenCount ?? 0,
+      completionTokens: usage.candidatesTokenCount ?? 0,
+      totalTokens: usage.totalTokenCount ?? (usage.promptTokenCount ?? 0) + (usage.candidatesTokenCount ?? 0)
+    };
+  }
+
+  private buildResponse(
+    provider: LLMProvider,
+    model: AnyModel,
+    content: string,
+    usage: LLMResponse['usage'] | undefined,
+    startTime: number
+  ): LLMResponse {
+    return {
+      content,
+      provider,
+      model,
+      usage,
+      responseTime: Date.now() - startTime
+    };
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {
@@ -314,7 +450,7 @@ export class LLMManager {
     return config.defaultProvider;
   }
 
-  private async getCacheKey(request: LLMRequest, provider: LLMProvider, model: string): Promise<string> {
+  private async getCacheKey(request: LLMRequest, provider: LLMProvider, model: AnyModel): Promise<string> {
     const fullConfig = await this.configManager.loadConfig();
     const defaultTemperature = fullConfig.defaultTemperature ?? 0.7;
 

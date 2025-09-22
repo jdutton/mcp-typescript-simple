@@ -100,7 +100,8 @@ export class TieredSecretManager implements SecretManager {
   }
 
   private initializeProviders(): void {
-    // Initialize providers based on configuration
+    const unknownProviders: string[] = [];
+
     for (const providerName of this.config.providers) {
       switch (providerName) {
         case 'environment':
@@ -110,8 +111,17 @@ export class TieredSecretManager implements SecretManager {
           this.providers.push(new FileSecretManager());
           break;
         default:
-          console.warn(`Unknown secret provider: ${providerName}`);
+          unknownProviders.push(providerName);
       }
+    }
+
+    if (unknownProviders.length > 0) {
+      console.warn(`Unknown secret provider(s): ${unknownProviders.join(', ')}`);
+    }
+
+    if (this.providers.length === 0) {
+      const configured = this.config.providers.length > 0 ? this.config.providers.join(', ') : '(none)';
+      throw new Error(`No valid secret providers configured. Received: ${configured}`);
     }
   }
 
@@ -142,12 +152,24 @@ export class TieredSecretManager implements SecretManager {
     key: string,
     provider: string
   ): Promise<T> {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => {
+    return await new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
         reject(new SecretTimeoutError(key, provider, timeout));
       }, timeout);
-    });
 
-    return Promise.race([promise, timeoutPromise]);
+      if (typeof timer.unref === 'function') {
+        timer.unref();
+      }
+
+      promise
+        .then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
   }
 }

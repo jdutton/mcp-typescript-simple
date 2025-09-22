@@ -24,6 +24,8 @@ import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
  */
 export class OAuthProviderFactory implements IOAuthProviderFactory {
   private static instance: OAuthProviderFactory | null = null;
+  private static shutdownHookRegistered = false;
+  private readonly activeProviders = new Set<OAuthProvider>();
 
   /**
    * Get singleton instance of the factory
@@ -41,13 +43,13 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   createProvider(config: OAuthConfig): OAuthProvider {
     switch (config.type) {
       case 'google':
-        return new GoogleOAuthProvider(config as GoogleOAuthConfig);
+        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig));
 
       case 'github':
-        return new GitHubOAuthProvider(config as GitHubOAuthConfig);
+        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig));
 
       case 'microsoft':
-        return new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig);
+        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig));
 
       case 'generic':
         // TODO: Implement Generic provider
@@ -55,10 +57,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
         // return new GenericOAuthProvider(config as GenericOAuthConfig);
 
       default: {
-        const unknownConfig = config as { type?: string };
-        throw new OAuthProviderError(
-          `Unsupported OAuth provider type: ${unknownConfig.type ?? 'unknown'}`
-        );
+        const { type } = config as { type?: string };
+        return this.throwUnsupportedProvider(type ?? 'unknown', config as never);
       }
     }
   }
@@ -73,6 +73,78 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       'microsoft',
       // 'generic'      // TODO: Implement
     ];
+  }
+
+  private throwUnsupportedProvider(type: string, configExhaustive: never): never {
+    void configExhaustive;
+    throw new OAuthProviderError(`Unsupported OAuth provider type: ${String(type)}`, type);
+  }
+
+  private registerProvider<T extends OAuthProvider>(provider: T): T {
+    this.activeProviders.add(provider);
+    this.ensureShutdownHook();
+    return provider;
+  }
+
+  private ensureShutdownHook(): void {
+    if (OAuthProviderFactory.shutdownHookRegistered) {
+      return;
+    }
+
+    process.once('exit', () => {
+      try {
+        this.disposeAll();
+      } catch (error) {
+        console.error('Failed to dispose OAuth providers on exit:', error);
+      }
+    });
+
+    OAuthProviderFactory.shutdownHookRegistered = true;
+  }
+
+  disposeProvider(provider: OAuthProvider): void {
+    if (!this.activeProviders.delete(provider)) {
+      return;
+    }
+
+    try {
+      provider.dispose();
+    } catch (error) {
+      console.error('Failed to dispose OAuth provider:', error);
+    }
+  }
+
+  disposeAll(): void {
+    const errors: Error[] = [];
+
+    for (const provider of this.activeProviders) {
+      try {
+        provider.dispose();
+      } catch (error) {
+        console.error('Failed to dispose OAuth provider:', error);
+        errors.push(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+
+    this.activeProviders.clear();
+
+    if (errors.length > 0) {
+      const message = errors.map(err => err.message).join('; ');
+      throw new Error(`One or more OAuth providers failed to dispose: ${message}`);
+    }
+  }
+
+  static disposeProvider(provider: OAuthProvider): void {
+    OAuthProviderFactory.getInstance().disposeProvider(provider);
+  }
+
+  static disposeAll(): void {
+    try {
+      OAuthProviderFactory.getInstance().disposeAll();
+    } catch (error) {
+      // Surface aggregated disposal errors to callers but ensure shutdown hook references reset
+      throw error;
+    }
   }
 
   /**

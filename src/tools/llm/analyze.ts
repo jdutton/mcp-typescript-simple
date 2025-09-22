@@ -4,7 +4,14 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+
+type ToolResponse = {
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'json'; json: unknown }
+  >;
+};
 
 export const AnalyzeToolSchema = z.object({
   text: z.string().describe('The text to analyze'),
@@ -17,10 +24,14 @@ export const AnalyzeToolSchema = z.object({
 
 export type AnalyzeToolInput = z.infer<typeof AnalyzeToolSchema>;
 
+export function parseAnalyzeToolInput(raw: unknown): AnalyzeToolInput {
+  return AnalyzeToolSchema.parse(raw);
+}
+
 export async function handleAnalyzeTool(
   input: AnalyzeToolInput,
   llmManager: LLMManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<ToolResponse> {
   try {
     const analysisType = input.analysis_type || 'comprehensive';
 
@@ -39,28 +50,47 @@ export async function handleAnalyzeTool(
 
     // Get default provider/model for analyze tool if not specified
     const toolDefaults = llmManager.getProviderForTool('analyze');
+    const provider = input.provider || toolDefaults.provider;
+    const model = input.model ?? toolDefaults.model;
+
+    if (model && !isValidModelForProvider(provider, model as AnyModel)) {
+      throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
+    }
 
     const response = await llmManager.complete({
       message: `Please analyze the following text:\n\n${input.text}`,
       systemPrompt,
       temperature: 0.3, // Lower temperature for more analytical consistency
-      provider: input.provider || toolDefaults.provider,
-      model: (input.model as AnyModel) || toolDefaults.model
+      provider,
+      model: model as AnyModel | undefined
     });
 
     return {
-      content: [{
-        type: 'text',
-        text: response.content
-      }]
+      content: [
+        {
+          type: 'text',
+          text: response.content
+        }
+      ]
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorPayload = {
+      tool: 'analyze',
+      code: 'ANALYZE_TOOL_ERROR',
+      message: errorMessage
+    };
     return {
-      content: [{
-        type: 'text',
-        text: `Analysis failed: ${errorMessage}`
-      }]
+      content: [
+        {
+          type: 'text',
+          text: `Analysis failed: ${errorMessage}`
+        },
+        {
+          type: 'json',
+          json: { error: errorPayload }
+        }
+      ]
     };
   }
 }

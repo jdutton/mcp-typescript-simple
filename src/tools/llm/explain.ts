@@ -4,7 +4,14 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+
+type ToolResponse = {
+  content: Array<
+    | { type: 'text'; text: string }
+    | { type: 'json'; json: unknown }
+  >;
+};
 
 export const ExplainToolSchema = z.object({
   topic: z.string().describe('The topic, concept, or code to explain'),
@@ -18,10 +25,14 @@ export const ExplainToolSchema = z.object({
 
 export type ExplainToolInput = z.infer<typeof ExplainToolSchema>;
 
+export function parseExplainToolInput(raw: unknown): ExplainToolInput {
+  return ExplainToolSchema.parse(raw);
+}
+
 export async function handleExplainTool(
   input: ExplainToolInput,
   llmManager: LLMManager
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<ToolResponse> {
   try {
     const level = input.level || 'intermediate';
     const includeExamples = input.include_examples !== false;
@@ -46,28 +57,47 @@ export async function handleExplainTool(
 
     // Get default provider/model for explain tool if not specified
     const toolDefaults = llmManager.getProviderForTool('explain');
+    const provider = input.provider || toolDefaults.provider;
+    const model = input.model ?? toolDefaults.model;
+
+    if (model && !isValidModelForProvider(provider, model as AnyModel)) {
+      throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
+    }
 
     const response = await llmManager.complete({
       message: `Please explain: ${input.topic}`,
       systemPrompt,
       temperature: 0.4, // Balanced creativity and consistency
-      provider: input.provider || toolDefaults.provider,
-      model: (input.model as AnyModel) || toolDefaults.model
+      provider,
+      model: model as AnyModel | undefined
     });
 
     return {
-      content: [{
-        type: 'text',
-        text: response.content
-      }]
+      content: [
+        {
+          type: 'text',
+          text: response.content
+        }
+      ]
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorPayload = {
+      tool: 'explain',
+      code: 'EXPLAIN_TOOL_ERROR',
+      message: errorMessage
+    };
     return {
-      content: [{
-        type: 'text',
-        text: `Explanation failed: ${errorMessage}`
-      }]
+      content: [
+        {
+          type: 'text',
+          text: `Explanation failed: ${errorMessage}`
+        },
+        {
+          type: 'json',
+          json: { error: errorPayload }
+        }
+      ]
     };
   }
 }

@@ -3,7 +3,7 @@
  */
 
 import { SecretManager } from '../secrets/types.js';
-import { LLMConfig, LLMProvider, ProviderModelMap } from './types.js';
+import { LLMConfig, LLMProvider, ProviderModelMap, ModelsForProvider } from './types.js';
 
 type ProviderConfigMap = LLMConfig['providers'];
 
@@ -11,14 +11,40 @@ export class LLMConfigManager {
   constructor(private secretManager: SecretManager) {}
 
   async loadConfig(): Promise<LLMConfig> {
-    try {
-      const [claudeKey, openaiKey, geminiKey] = await Promise.all([
-        this.secretManager.getSecret('ANTHROPIC_API_KEY'),
-        this.secretManager.getSecret('OPENAI_API_KEY'),
-        this.secretManager.getSecret('GOOGLE_API_KEY')
-      ]);
+    const secretResults = await Promise.allSettled([
+      this.secretManager.getSecret('ANTHROPIC_API_KEY'),
+      this.secretManager.getSecret('OPENAI_API_KEY'),
+      this.secretManager.getSecret('GOOGLE_API_KEY')
+    ]);
 
-      const defaultProvider = await this.getDefaultProvider();
+    const [claudeResult, openaiResult, geminiResult] = secretResults;
+
+    const secretErrors: string[] = [];
+
+    const claudeKey = this.extractSecret(claudeResult, 'ANTHROPIC_API_KEY', secretErrors);
+    const openaiKey = this.extractSecret(openaiResult, 'OPENAI_API_KEY', secretErrors);
+    const geminiKey = this.extractSecret(geminiResult, 'GOOGLE_API_KEY', secretErrors);
+
+    if (secretErrors.length > 0) {
+      console.warn('Missing or invalid LLM API keys:', secretErrors.join('; '));
+    }
+
+    const emptyKeys: string[] = [];
+    if (!claudeKey) {
+      emptyKeys.push('ANTHROPIC_API_KEY');
+    }
+    if (!openaiKey) {
+      emptyKeys.push('OPENAI_API_KEY');
+    }
+    if (!geminiKey) {
+      emptyKeys.push('GOOGLE_API_KEY');
+    }
+
+    if (emptyKeys.length > 0) {
+      console.warn('Missing LLM API key values:', emptyKeys.join(', '));
+    }
+
+    const defaultProvider = await this.getDefaultProvider();
 
       return {
         defaultProvider,
@@ -61,10 +87,20 @@ export class LLMConfigManager {
         cacheTtl: 5 * 60 * 1000, // 5 minutes
         maxRetries: 2
       };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Failed to load LLM configuration: ${errorMessage}`);
+  }
+
+  private extractSecret(
+    result: PromiseSettledResult<string>,
+    key: string,
+    errors: string[]
+  ): string {
+    if (result.status === 'fulfilled') {
+      return result.value;
     }
+
+    const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+    errors.push(`${key}: ${reason}`);
+    return '';
   }
 
   async getProviderConfig<T extends LLMProvider>(provider: T): Promise<ProviderConfigMap[T]> {
@@ -74,66 +110,33 @@ export class LLMConfigManager {
 
   async getModelConfig<T extends LLMProvider>(
     provider: T,
-    model?: string
+    model?: ModelsForProvider<T>
   ): Promise<{ model: ProviderModelMap[T]; maxTokens: number }> {
-    switch (provider) {
-      case 'claude': {
-        const config = await this.getProviderConfig('claude');
-        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['claude'];
-        const modelConfig = config.models[selectedModel];
+    const providerConfig = await this.getProviderConfig(provider);
+    const selectedModel = (model ?? providerConfig.defaultModel) as ProviderModelMap[T];
+    const modelsForProvider = providerConfig.models as Record<ModelsForProvider<T>, { maxTokens: number; available: boolean }>;
+    const modelConfig = modelsForProvider[selectedModel];
 
-        if (!modelConfig || !modelConfig.available) {
-          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
-        }
-
-        return {
-          model: selectedModel as ProviderModelMap[T],
-          maxTokens: modelConfig.maxTokens
-        };
-      }
-
-      case 'openai': {
-        const config = await this.getProviderConfig('openai');
-        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['openai'];
-        const modelConfig = config.models[selectedModel];
-
-        if (!modelConfig || !modelConfig.available) {
-          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
-        }
-
-        return {
-          model: selectedModel as ProviderModelMap[T],
-          maxTokens: modelConfig.maxTokens
-        };
-      }
-
-      case 'gemini': {
-        const config = await this.getProviderConfig('gemini');
-        const selectedModel = (model ?? config.defaultModel) as ProviderModelMap['gemini'];
-        const modelConfig = config.models[selectedModel];
-
-        if (!modelConfig || !modelConfig.available) {
-          throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
-        }
-
-        return {
-          model: selectedModel as ProviderModelMap[T],
-          maxTokens: modelConfig.maxTokens
-        };
-      }
-
-      default:
-        throw new Error(`Unsupported provider: ${provider satisfies never}`);
+    if (!modelConfig) {
+      throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
     }
+
+    if (!modelConfig.available) {
+      throw new Error(`Model '${selectedModel}' is not available for provider '${provider}'`);
+    }
+
+    return {
+      model: selectedModel,
+      maxTokens: modelConfig.maxTokens
+    };
   }
 
   async getAvailableModels(provider: LLMProvider): Promise<string[]> {
-    const config = await this.loadConfig();
-    const providerConfig = config.providers[provider];
+    const providerConfig = await this.getProviderConfig(provider);
 
     return Object.entries(providerConfig.models)
-      .filter(([, modelConfig]) => modelConfig.available)
-      .map(([modelKey]) => modelKey);
+      .filter(([, config]) => config.available)
+      .map(([model]) => model);
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {
@@ -154,13 +157,27 @@ export class LLMConfigManager {
       const config = await this.loadConfig();
 
       // Check that at least one provider has a valid API key
-      const hasValidProvider = Object.values(config.providers).some(
-        provider => provider.apiKey && provider.apiKey.length > 0
-      );
+      const missingProviders: string[] = [];
+      let hasValidProvider = false;
+
+      for (const [providerName, provider] of Object.entries(config.providers)) {
+        const normalizedKey = provider.apiKey?.trim?.() ?? '';
+        const hasKey = normalizedKey.length > 0;
+
+        if (hasKey) {
+          hasValidProvider = true;
+        } else {
+          missingProviders.push(providerName);
+        }
+      }
 
       if (!hasValidProvider) {
         console.error('No valid LLM providers configured - need at least one API key');
         return false;
+      }
+
+      if (missingProviders.length > 0) {
+        console.warn(`Missing API keys for provider(s): ${missingProviders.join(', ')}`);
       }
 
       return true;
