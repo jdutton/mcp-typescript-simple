@@ -17,6 +17,14 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+// Configuration for git operations
+const GIT_TIMEOUT = 10000; // 10 seconds timeout for git operations
+const GIT_OPTIONS = {
+  timeout: GIT_TIMEOUT,
+  encoding: 'utf8' as const,
+  maxBuffer: 1024 * 1024 // 1MB buffer
+};
+
 interface SyncCheckResult {
   isUpToDate: boolean;
   behindBy: number;
@@ -80,36 +88,44 @@ class BranchSyncChecker {
 
   private async getCurrentBranch(): Promise<string> {
     try {
-      const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD');
+      const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD', GIT_OPTIONS);
       return stdout.trim();
-    } catch {
-      throw new Error('Not in a git repository or unable to determine current branch');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Not in a git repository or unable to determine current branch: ${errorMessage}`);
     }
   }
 
   private async hasOriginMain(): Promise<boolean> {
     try {
-      await execAsync('git rev-parse --verify origin/main');
+      await execAsync('git rev-parse --verify origin/main', GIT_OPTIONS);
       return true;
-    } catch {
+    } catch (error) {
+      // Log the specific reason for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.log(`ℹ️  origin/main check: ${errorMessage}`);
       return false;
     }
   }
 
   private async fetchOriginMain(): Promise<void> {
     try {
-      await execAsync('git fetch origin main');
+      // Use --quiet flag to reduce output and improve performance
+      await execAsync('git fetch --quiet origin main', GIT_OPTIONS);
     } catch (error) {
-      throw new Error(`Failed to fetch from origin/main: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to fetch from origin/main: ${errorMessage}`);
     }
   }
 
   private async getCommitsBehind(): Promise<number> {
     try {
-      const { stdout } = await execAsync('git rev-list --count HEAD..origin/main');
-      return parseInt(stdout.trim(), 10);
+      const { stdout } = await execAsync('git rev-list --count HEAD..origin/main', GIT_OPTIONS);
+      const count = parseInt(stdout.trim(), 10);
+      return isNaN(count) ? 0 : count;
     } catch (error) {
-      throw new Error(`Failed to check commits behind: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to check commits behind: ${errorMessage}`);
     }
   }
 

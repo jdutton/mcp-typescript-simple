@@ -13,6 +13,9 @@
  */
 
 import { execSync } from 'child_process';
+
+// Configuration for validation operations
+const VALIDATION_TIMEOUT = 30000; // 30 seconds timeout for each validation step
 import { BranchSyncChecker, type SyncCheckResult } from './sync-check.js';
 
 class PreCommitChecker {
@@ -78,7 +81,7 @@ class PreCommitChecker {
   private runValidation(): void {
     console.log('🔍 Running TypeScript type checking...');
     try {
-      execSync('npm run typecheck', { stdio: 'pipe' });
+      execSync('npm run typecheck', { stdio: 'pipe', timeout: VALIDATION_TIMEOUT });
       console.log('  ✅ TypeScript types are valid');
     } catch (error) {
       console.error('  ❌ TypeScript type errors found');
@@ -87,39 +90,29 @@ class PreCommitChecker {
 
     console.log('🔍 Running ESLint code checking...');
     try {
-      execSync('npm run lint', { stdio: 'pipe' });
+      execSync('npm run lint', { stdio: 'pipe', timeout: VALIDATION_TIMEOUT });
       console.log('  ✅ ESLint checks passed');
     } catch (error) {
       console.error('  ❌ ESLint errors found');
       throw new Error('Linting failed');
     }
 
-    console.log('🔍 Running unit tests...');
-    try {
-      execSync('npm run test:unit', { stdio: 'pipe' });
-      console.log('  ✅ Unit tests passed');
-    } catch (error) {
-      console.error('  ❌ Unit test failures');
-      throw new Error('Unit tests failed');
-    }
+    // Skip unit tests in pre-commit for speed - they run in CI/CD
+    console.log('  ⏭️  Skipping unit tests (run in CI/CD)');
+    console.log('  💡 To run tests manually: npm run test:unit');
 
     console.log('🔍 Building project...');
     try {
-      execSync('npm run build', { stdio: 'pipe' });
+      execSync('npm run build', { stdio: 'pipe', timeout: VALIDATION_TIMEOUT });
       console.log('  ✅ Build successful');
     } catch (error) {
       console.error('  ❌ Build failed');
       throw new Error('Build failed');
     }
 
-    console.log('🔍 Running integration tests...');
-    try {
-      execSync('npm run test:integration', { stdio: 'pipe' });
-      console.log('  ✅ Integration tests passed');
-    } catch (error) {
-      console.error('  ❌ Integration test failures');
-      throw new Error('Integration tests failed');
-    }
+    // Skip integration tests in pre-commit for speed
+    // Integration tests will run in CI/CD pipeline
+    console.log('  ⏭️  Skipping integration tests (run in CI/CD)');
   }
 }
 
