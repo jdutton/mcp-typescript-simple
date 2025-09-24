@@ -29,7 +29,7 @@ export class Logger {
     return messageLevelIndex >= currentLevelIndex;
   }
 
-  private sanitizeForProduction(message: string, data?: any): { message: string; data?: any } {
+  private sanitizeForProduction(message: string, data?: unknown): { message: string; data?: unknown } {
     if (!this.isProduction) {
       return { message, data };
     }
@@ -50,15 +50,19 @@ export class Logger {
     return { message: sanitizedMessage, data: sanitizedData };
   }
 
-  private sanitizeObject(obj: any): any {
+  private sanitizeObject(obj: unknown): unknown {
     if (typeof obj !== 'object' || obj === null) {
       return obj;
     }
 
-    const sanitized: any = Array.isArray(obj) ? [] : {};
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeObject(item));
+    }
+
+    const sanitized: Record<string, unknown> = {};
     const sensitiveKeys = ['password', 'secret', 'token', 'key', 'auth', 'credential'];
 
-    for (const [key, value] of Object.entries(obj)) {
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       const lowerKey = key.toLowerCase();
 
       if (sensitiveKeys.some(sensitiveKey => lowerKey.includes(sensitiveKey))) {
@@ -73,7 +77,7 @@ export class Logger {
     return sanitized;
   }
 
-  debug(message: string, data?: any): void {
+  debug(message: string, data?: unknown): void {
     if (!this.shouldLog('debug')) return;
 
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
@@ -84,7 +88,7 @@ export class Logger {
     }
   }
 
-  info(message: string, data?: any): void {
+  info(message: string, data?: unknown): void {
     if (!this.shouldLog('info')) return;
 
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
@@ -95,7 +99,7 @@ export class Logger {
     }
   }
 
-  warn(message: string, data?: any): void {
+  warn(message: string, data?: unknown): void {
     if (!this.shouldLog('warn')) return;
 
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
@@ -106,7 +110,7 @@ export class Logger {
     }
   }
 
-  error(message: string, error?: Error | any): void {
+  error(message: string, error?: Error | unknown): void {
     if (!this.shouldLog('error')) return;
 
     const { message: sanitizedMessage } = this.sanitizeForProduction(message);
@@ -126,19 +130,19 @@ export class Logger {
   }
 
   // OAuth-specific logging methods
-  oauthDebug(message: string, data?: any): void {
+  oauthDebug(message: string, data?: unknown): void {
     this.debug(`[OAuth] ${message}`, data);
   }
 
-  oauthInfo(message: string, data?: any): void {
+  oauthInfo(message: string, data?: unknown): void {
     this.info(`[OAuth] ${message}`, data);
   }
 
-  oauthWarn(message: string, data?: any): void {
+  oauthWarn(message: string, data?: unknown): void {
     this.warn(`[OAuth] ${message}`, data);
   }
 
-  oauthError(message: string, error?: Error | any): void {
+  oauthError(message: string, error?: Error | unknown): void {
     this.error(`[OAuth] ${message}`, error);
   }
 }
