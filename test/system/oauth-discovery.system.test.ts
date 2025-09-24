@@ -16,23 +16,37 @@ import {
   getCurrentEnvironment,
   describeSystemTest,
   isLocalEnvironment,
-  expectsCorsHeaders
+  expectsCorsHeaders,
+  isSTDIOEnvironment
 } from './utils.js';
 
 describeSystemTest('OAuth Discovery', () => {
-  let client: AxiosInstance;
   const environment = getCurrentEnvironment();
+
+  // Skip HTTP tests entirely in STDIO mode
+  if (isSTDIOEnvironment(environment)) {
+    it('should skip HTTP tests in STDIO mode', () => {
+      console.log('ℹ️  HTTP tests skipped for environment: STDIO transport mode (npm run dev:stdio)');
+    });
+    return;
+  }
+
+  let client: AxiosInstance;
 
   beforeAll(async () => {
     client = createHttpClient();
 
-    // For local environments, wait for server to be ready
     if (isLocalEnvironment(environment)) {
+      // For other local environments, wait for external server to be ready
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
       }
     }
+  });
+
+  afterAll(async () => {
+    // Server cleanup handled at suite level
   });
 
   describe('Discovery Endpoint Availability', () => {

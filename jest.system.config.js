@@ -23,7 +23,10 @@ export default {
   maxConcurrency: 1,
   // Separate coverage reporting for system tests
   coverageDirectory: 'coverage/system',
-  // System test specific setup
+  // Global setup and teardown for HTTP server management
+  globalSetup: '<rootDir>/test/system/jest-global-setup.ts',
+  globalTeardown: '<rootDir>/test/system/jest-global-teardown.ts',
+  // System test specific setup (test utilities only, no server management)
   setupFilesAfterEnv: ['<rootDir>/test/system/setup.ts'],
   // Clear mocks between tests to ensure clean state
   clearMocks: true,

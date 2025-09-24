@@ -4,6 +4,9 @@
 
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
+// Re-export types for use in other test files
+export type { AxiosInstance, AxiosResponse };
+
 export interface TestEnvironment {
   name: string;
   baseUrl: string;
@@ -18,8 +21,13 @@ export const TEST_ENVIRONMENTS: Record<string, TestEnvironment> = {
   },
   'express:ci': {
     name: 'express:ci',
-    baseUrl: 'http://localhost:3001',
+    baseUrl: `http://localhost:${process.env.HTTP_TEST_PORT || '3001'}`,
     description: 'Express HTTP server for CI testing (npm run dev:http:ci)'
+  },
+  stdio: {
+    name: 'stdio',
+    baseUrl: 'stdio://localhost',
+    description: 'STDIO transport mode (npm run dev:stdio)'
   },
   'vercel:local': {
     name: 'vercel:local',
@@ -304,6 +312,7 @@ export function conditionalDescribe(condition: boolean, name: string, fn: () => 
 export function isLocalEnvironment(environment: TestEnvironment): boolean {
   return environment.name === 'express' ||
          environment.name === 'express:ci' ||
+         environment.name === 'stdio' ||
          environment.name === 'vercel:local' ||
          environment.name === 'docker';
 }
@@ -314,6 +323,14 @@ export function isProductionEnvironment(environment: TestEnvironment): boolean {
 
 export function isVercelEnvironment(environment: TestEnvironment): boolean {
   return environment.name.startsWith('vercel:');
+}
+
+export function isSTDIOEnvironment(environment: TestEnvironment): boolean {
+  return environment.name === 'stdio';
+}
+
+export function isHTTPEnvironment(environment: TestEnvironment): boolean {
+  return !isSTDIOEnvironment(environment);
 }
 
 /**
@@ -331,8 +348,9 @@ export function expectsCorsHeaders(environment: TestEnvironment): boolean {
 
   // For CI environment, we simulate cross-origin by adding Origin header from port 3000
   if (environment.name === 'express:ci') {
-    // Server is on 3001, client simulates origin from 3000 = cross-origin
-    return serverPort === '3001';
+    // Server is on test port, client simulates origin from 3000 = cross-origin
+    const testPort = process.env.HTTP_TEST_PORT || '3001';
+    return serverPort === testPort;
   }
 
   // For production/preview Vercel deployments, expect CORS headers
