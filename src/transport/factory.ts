@@ -15,6 +15,8 @@ import {
   StreamableHTTPTransportOptions
 } from "./types.js";
 import { MCPStreamableHttpServer } from "../server/streamable-http-server.js";
+import { LLMManager } from "../llm/manager.js";
+import { setupMCPServer } from "../server/mcp-setup.js";
 
 /**
  * Transport manager for stdio mode (development)
@@ -25,7 +27,8 @@ export class StdioTransportManager implements TransportManager {
 
   constructor(private options: StdioTransportOptions) {}
 
-  async initialize(server: Server): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async initialize(server: Server, _llmManager?: LLMManager): Promise<void> {
     this.server = server;
     this.transport = new StdioServerTransport();
   }
@@ -59,14 +62,15 @@ export class StdioTransportManager implements TransportManager {
  * Transport manager for Streamable HTTP mode (modern production with OAuth)
  */
 export class StreamableHTTPTransportManager implements TransportManager {
-  private server?: Server;
   private httpServer?: MCPStreamableHttpServer;
   private streamableTransports: Map<string, StreamableHTTPServerTransport> = new Map();
+  private llmManager?: LLMManager;
 
   constructor(private options: StreamableHTTPTransportOptions) {}
 
-  async initialize(server: Server): Promise<void> {
-    this.server = server;
+  async initialize(server: Server, llmManager?: LLMManager): Promise<void> {
+    // Store LLM manager for creating new server instances
+    this.llmManager = llmManager;
 
     // Create HTTP server with OAuth support and Streamable HTTP transport
     this.httpServer = new MCPStreamableHttpServer({
@@ -104,7 +108,27 @@ export class StreamableHTTPTransportManager implements TransportManager {
       };
 
       try {
-        await server.connect(streamableTransport);
+        // Create a fresh MCP server instance for each transport
+        // This is the correct approach since each HTTP request needs its own server
+        console.log(`🆕 Creating new MCP server instance for transport: ${sessionId}`);
+        const transportServer = new Server(
+          {
+            name: "mcp-typescript-simple",
+            version: "1.0.0",
+          },
+          {
+            capabilities: {
+              tools: {},
+            },
+          }
+        );
+
+        // Set up the server with tools and handlers
+        if (this.llmManager) {
+          await setupMCPServer(transportServer, this.llmManager);
+        }
+
+        await transportServer.connect(streamableTransport);
         console.error(`🔗 New Streamable HTTP connection established: ${sessionId}`);
       } catch (error) {
         removeTransport();

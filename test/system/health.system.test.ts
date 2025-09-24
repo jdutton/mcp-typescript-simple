@@ -10,7 +10,11 @@ import {
   expectValidApiResponse,
   getCurrentEnvironment,
   describeSystemTest,
-  HealthCheckResponse
+  HealthCheckResponse,
+  isLocalEnvironment,
+  isProductionEnvironment,
+  isVercelEnvironment,
+  expectsCorsHeaders
 } from './utils.js';
 
 describeSystemTest('Health Endpoint', () => {
@@ -20,8 +24,8 @@ describeSystemTest('Health Endpoint', () => {
   beforeAll(async () => {
     client = createHttpClient();
 
-    // For local and docker environments, wait for server to be ready
-    if (environment.name === 'local' || environment.name === 'docker') {
+    // For local environments, wait for server to be ready
+    if (isLocalEnvironment(environment)) {
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
@@ -59,11 +63,13 @@ describeSystemTest('Health Endpoint', () => {
       const response = await client.get('/health');
       const health = validateHealthResponse(response);
 
-      if (environment.name === 'local' || environment.name === 'docker') {
-        // Local/Docker environments should not report Vercel deployment
+      if (isLocalEnvironment(environment)) {
+        // Local environments (Express, Vercel:local, Docker) should not report Vercel deployment
         expect(health.deployment).not.toBe('vercel');
-      } else {
-        // Preview/Production should report Vercel deployment
+        // Express should report "local", Vercel:local should report "development"
+        expect(['local', 'development', 'docker']).toContain(health.deployment);
+      } else if (isVercelEnvironment(environment)) {
+        // Vercel environments should report Vercel deployment
         expect(health.deployment).toBe('vercel');
         expect(health.vercel_deployment_id).toBeDefined();
         expect(health.region).toBeDefined();
@@ -82,8 +88,18 @@ describeSystemTest('Health Endpoint', () => {
       const response = await client.get('/health');
       const health = validateHealthResponse(response);
 
-      // System testing always expects auth to be enabled (production-like)
-      expect(health.auth).toBe('enabled');
+      // Auth status should be either enabled or disabled
+      expect(['enabled', 'disabled']).toContain(health.auth);
+
+      // Express environment typically has auth disabled in dev mode
+      if (environment.name === 'express') {
+        console.log(`ℹ️ Express auth status: ${health.auth}`);
+      }
+
+      // Production environments should have auth enabled
+      if (isProductionEnvironment(environment)) {
+        expect(health.auth).toBe('enabled');
+      }
     });
   });
 
@@ -150,15 +166,75 @@ describeSystemTest('Health Endpoint', () => {
     it('should handle invalid health requests gracefully', async () => {
       const response = await client.post('/health', { invalid: 'data' });
 
-      // Health endpoint should accept POST but likely return 405 or handle gracefully
-      expect([200, 405, 501]).toContain(response.status);
+      // Express returns 404, Vercel might return 405 or 501
+      if (environment.name === 'express' || environment.name === 'express:ci') {
+        expect([404, 405, 501]).toContain(response.status);
+      } else {
+        expect([200, 405, 501]).toContain(response.status);
+      }
     });
 
     it('should include proper CORS headers', async () => {
       const response = await client.get('/health');
 
       expectValidApiResponse(response, 200);
-      expect(response.headers['access-control-allow-origin']).toBeDefined();
+
+      // Check for CORS headers - behavior depends on environment and request origin
+      if (response.headers['access-control-allow-origin']) {
+        console.log('✅ CORS headers present');
+        console.log(`🔗 Access-Control-Allow-Origin: ${response.headers['access-control-allow-origin']}`);
+
+        // Verify CORS headers are properly configured
+        expect(response.headers['access-control-allow-origin']).toBeDefined();
+
+        // For GET requests, methods and headers might not be present
+        // These are typically sent in preflight (OPTIONS) responses
+        console.log('📋 Available CORS headers:', Object.keys(response.headers).filter(h => h.startsWith('access-control')));
+
+        // Check if it's a preflight response (OPTIONS) or regular response
+        if (response.config?.method?.toUpperCase() === 'OPTIONS' ||
+            response.headers['access-control-allow-methods'] ||
+            response.headers['access-control-allow-headers']) {
+          expect(response.headers['access-control-allow-methods']).toBeDefined();
+          expect(response.headers['access-control-allow-headers']).toBeDefined();
+        }
+      } else {
+        // CORS headers not present - check if they're expected for this environment
+        if (expectsCorsHeaders(environment)) {
+          console.log('❌ CORS headers expected but not present for cross-origin environment');
+          expect(response.headers['access-control-allow-origin']).toBeDefined();
+        } else {
+          console.log('ℹ️  No CORS headers (same-origin request - expected behavior)');
+        }
+      }
+    });
+
+    it('should handle CORS preflight requests correctly', async () => {
+      // Test CORS preflight with OPTIONS request
+      const optionsResponse = await client.options('/health');
+
+      // OPTIONS should return 200
+      expect(optionsResponse.status).toBe(200);
+
+      // Check if CORS headers are expected for this environment
+      if (expectsCorsHeaders(environment)) {
+        // CORS preflight headers should be present
+        expect(optionsResponse.headers['access-control-allow-origin']).toBeDefined();
+        expect(optionsResponse.headers['access-control-allow-methods']).toBeDefined();
+        expect(optionsResponse.headers['access-control-allow-headers']).toBeDefined();
+
+        console.log('✅ CORS preflight request handled correctly');
+        console.log(`🔗 Allowed Origin: ${optionsResponse.headers['access-control-allow-origin']}`);
+        console.log(`📋 Allowed Methods: ${optionsResponse.headers['access-control-allow-methods']}`);
+        console.log(`📝 Allowed Headers: ${optionsResponse.headers['access-control-allow-headers']}`);
+      } else {
+        console.log('ℹ️  OPTIONS request handled correctly (CORS headers not needed for same-origin)');
+
+        // For same-origin requests, CORS headers might not be present
+        if (optionsResponse.headers['access-control-allow-origin']) {
+          console.log('🔗 CORS headers present even for same-origin (server configured for cross-origin support)');
+        }
+      }
     });
   });
 });

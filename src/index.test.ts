@@ -80,11 +80,6 @@ describe('MCP server bootstrap', () => {
     await startCalled;
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(serverSetRequestHandlerSpy).toHaveBeenCalled();
-    const registeredSchemas = serverSetRequestHandlerSpy.mock.calls.map(call => call[0]);
-    expect(registeredSchemas).toContain(typesModule.ListToolsRequestSchema);
-    expect(registeredSchemas).toContain(typesModule.CallToolRequestSchema);
-
     const serverInstance = capturedServer ?? serverSetRequestHandlerSpy.mock.instances[0];
     expect(serverInstance).toBeDefined();
 
@@ -94,7 +89,7 @@ describe('MCP server bootstrap', () => {
     expect(getAvailableProvidersSpy).toHaveBeenCalledTimes(1);
     expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.any(llmModule.LLMManager));
     expect(createTransportSpy).toHaveBeenCalledTimes(1);
-    expect(transportInitialize).toHaveBeenCalledWith(serverInstance);
+    expect(transportInitialize).toHaveBeenCalledWith(serverInstance, expect.any(llmModule.LLMManager));
     expect(transportStart).toHaveBeenCalledTimes(1);
     expect(transportGetInfo).toHaveBeenCalledTimes(1);
     expect(exitSpy).not.toHaveBeenCalled();

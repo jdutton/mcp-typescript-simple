@@ -18,6 +18,9 @@ System tests verify that the deployed application works correctly in real enviro
 - **`health.system.test.ts`** - Health endpoint and deployment validation
 - **`auth.system.test.ts`** - Authentication and OAuth configuration
 - **`mcp.system.test.ts`** - MCP protocol compliance and functionality
+- **`mcp-oauth-compliance.system.test.ts`** - OAuth-enabled MCP protocol compliance
+- **`mcp-session-state.system.test.ts`** - MCP session state management validation
+- **`oauth-discovery.system.test.ts`** - OAuth discovery endpoint validation
 - **`tools.system.test.ts`** - Tool execution and LLM integration
 - **`utils.ts`** - Shared utilities and test helpers
 - **`setup.ts`** - Global test configuration and setup

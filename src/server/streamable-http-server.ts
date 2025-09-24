@@ -39,6 +39,7 @@ export class MCPStreamableHttpServer {
   private oauthProvider?: OAuthProvider;
   private sessionManager: SessionManager;
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
+  private sessionTransports: Map<string, StreamableHTTPServerTransport> = new Map();
 
   constructor(private options: StreamableHttpServerOptions) {
     this.app = express();
@@ -231,10 +232,10 @@ export class MCPStreamableHttpServer {
 
       // Check OAuth credentials availability
       const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentialsLegacy(oauthProvider);
+      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProvider);
 
       // Check LLM providers
-      const llmProviders = EnvironmentConfig.checkLLMProvidersLegacy();
+      const llmProviders = EnvironmentConfig.checkLLMProviders();
 
       res.json({
         status: 'healthy',
@@ -408,6 +409,7 @@ export class MCPStreamableHttpServer {
             transport_capabilities: ['stdio', 'streamable_http'],
             tool_discovery_endpoint: `${baseUrl}${this.options.endpoint}`,
             supported_tool_types: ['function', 'text_generation', 'analysis'],
+            scopes_supported: ['mcp:read', 'mcp:write'],
             session_management: {
               resumability_supported: this.options.enableResumability || false
             },
@@ -630,12 +632,66 @@ export class MCPStreamableHttpServer {
         };
 
     // Streamable HTTP endpoint (GET, POST, DELETE)
-    const mcpHandler = async (req: Request, res: Response) => {
+    const mcpHandler = async (req: Request, res: Response): Promise<void> => {
       const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
 
       try {
         console.log(`🔗 [${requestId}] MCP Handler: Starting Streamable HTTP processing`);
         console.log(`🔧 [${requestId}] Method: ${req.method} | Auth Required: ${this.options.requireAuth}`);
+
+        // Handle DELETE method for session cleanup
+        if (req.method === 'DELETE') {
+          const sessionId = req.headers['mcp-session-id'] as string;
+
+          if (!sessionId) {
+            console.log(`⚠️ [${requestId}] DELETE request missing mcp-session-id header`);
+            res.status(400).json({
+              error: 'Bad Request',
+              message: 'DELETE requests require mcp-session-id header',
+              requestId: requestId,
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+
+          console.log(`🗑️  [${requestId}] Session cleanup requested for: ${sessionId}`);
+
+          // Check if session exists
+          if (this.sessionTransports.has(sessionId)) {
+            const transport = this.sessionTransports.get(sessionId)!;
+
+            try {
+              // Close the transport
+              await transport.close();
+              console.log(`🔌 [${requestId}] Transport closed for session: ${sessionId}`);
+            } catch (error) {
+              console.error(`❌ [${requestId}] Error closing transport for session ${sessionId}:`, error);
+            }
+
+            // Remove from session maps
+            this.sessionTransports.delete(sessionId);
+            this.sessionManager.closeSession(sessionId);
+
+            console.log(`✅ [${requestId}] Session ${sessionId} successfully cleaned up`);
+            res.status(200).json({
+              message: 'Session successfully terminated',
+              sessionId: sessionId,
+              requestId: requestId,
+              timestamp: new Date().toISOString()
+            });
+            return;
+          } else {
+            console.log(`⚠️ [${requestId}] Session ${sessionId} not found or already cleaned up`);
+            res.status(404).json({
+              error: 'Session Not Found',
+              message: `Session ${sessionId} not found or already terminated`,
+              sessionId: sessionId,
+              requestId: requestId,
+              timestamp: new Date().toISOString()
+            });
+            return;
+          }
+        }
 
         // Log JSON-RPC details for POST requests
         if (req.method === 'POST' && req.body) {
@@ -666,8 +722,18 @@ export class MCPStreamableHttpServer {
           }
         }
 
-        // Create Streamable HTTP transport for this request
-        const transport = new StreamableHTTPServerTransport({
+        // Check for existing session ID in header
+        const existingSessionId = req.headers['mcp-session-id'] as string;
+        let transport: StreamableHTTPServerTransport;
+
+        if (existingSessionId && this.sessionTransports.has(existingSessionId)) {
+          // Reuse existing transport for session
+          transport = this.sessionTransports.get(existingSessionId)!;
+          console.log(`♻️  [${requestId}] Reusing existing transport for session: ${existingSessionId}`);
+        } else {
+          // Create new Streamable HTTP transport for new session
+          console.log(`🆕 [${requestId}] Creating new transport for session: ${existingSessionId || 'new'}`);
+          transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => {
             const sessionId = this.sessionManager.generateSessionId();
             console.log(`🔑 [${requestId}] Generated session ID: ${sessionId}`);
@@ -682,6 +748,10 @@ export class MCPStreamableHttpServer {
               console.log(`🎫 [${requestId}] Session Auth Details - Client: ${authInfo.clientId}, Scopes: ${authInfo.scopes?.join(', ') || 'none'}`);
             }
 
+            // Store transport in session map for reuse
+            this.sessionTransports.set(sessionId, transport);
+            console.log(`💾 [${requestId}] Stored transport for session: ${sessionId}`);
+
             try {
               this.sessionManager.createSession(authInfo);
               const stats = this.sessionManager.getStats();
@@ -692,6 +762,10 @@ export class MCPStreamableHttpServer {
           },
           onsessionclosed: async (sessionId: string) => {
             console.log(`🔌 [${requestId}] Streamable HTTP session closed: ${sessionId}`);
+
+            // Remove transport from session map
+            this.sessionTransports.delete(sessionId);
+            console.log(`🗑️  [${requestId}] Removed transport for session: ${sessionId}`);
 
             try {
               this.sessionManager.closeSession(sessionId);
@@ -709,6 +783,7 @@ export class MCPStreamableHttpServer {
           allowedOrigins: this.options.allowedOrigins,
           enableDnsRebindingProtection: !!(this.options.allowedHosts || this.options.allowedOrigins),
         });
+        }
 
         console.log(`📡 [${requestId}] Handling request with Streamable HTTP transport`);
 
@@ -791,6 +866,9 @@ export class MCPStreamableHttpServer {
         res.write = originalWrite;
         res.end = originalEnd;
 
+        // Function completes successfully
+        return;
+
       } catch (error) {
         console.error(`❌ [${requestId}] Streamable HTTP request error:`, error);
         console.error(`🔍 [${requestId}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
@@ -849,8 +927,8 @@ export class MCPStreamableHttpServer {
     const metricsHandler = (req: Request, res: Response) => {
       const sessionStats = this.sessionManager.getStats();
       const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentialsLegacy(oauthProvider);
-      const llmProviders = EnvironmentConfig.checkLLMProvidersLegacy();
+      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProvider);
+      const llmProviders = EnvironmentConfig.checkLLMProviders();
 
       const metrics = {
         timestamp: new Date().toISOString(),

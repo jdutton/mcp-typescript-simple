@@ -46,6 +46,7 @@ export interface MCPProtectedResourceMetadata extends ProtectedResourceMetadata 
   transport_capabilities: string[];
   tool_discovery_endpoint?: string;
   supported_tool_types?: string[];
+  scopes_supported?: string[];
   session_management?: {
     resumability_supported: boolean;
     session_timeout_seconds?: number;
@@ -146,6 +147,7 @@ export class OAuthDiscoveryMetadata {
         'text_generation',
         'analysis'
       ],
+      scopes_supported: ['mcp:read', 'mcp:write'],
       session_management: {
         resumability_supported: this.options.enableResumability || false,
         session_timeout_seconds: this.options.sessionTimeoutSeconds
