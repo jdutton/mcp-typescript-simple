@@ -2,32 +2,20 @@
  * LLM configuration management
  */
 
-import { SecretManager } from '../secrets/types.js';
+import { EnvironmentConfig } from '../config/environment.js';
 import { LLMConfig, LLMProvider, ProviderModelMap, ModelsForProvider } from './types.js';
 
 type ProviderConfigMap = LLMConfig['providers'];
 
 export class LLMConfigManager {
-  constructor(private secretManager: SecretManager) {}
+  constructor() {}
 
   async loadConfig(): Promise<LLMConfig> {
-    const secretResults = await Promise.allSettled([
-      this.secretManager.getSecret('ANTHROPIC_API_KEY'),
-      this.secretManager.getSecret('OPENAI_API_KEY'),
-      this.secretManager.getSecret('GOOGLE_API_KEY')
-    ]);
+    const env = EnvironmentConfig.get();
 
-    const [claudeResult, openaiResult, geminiResult] = secretResults;
-
-    const secretErrors: string[] = [];
-
-    const claudeKey = this.extractSecret(claudeResult, 'ANTHROPIC_API_KEY', secretErrors);
-    const openaiKey = this.extractSecret(openaiResult, 'OPENAI_API_KEY', secretErrors);
-    const geminiKey = this.extractSecret(geminiResult, 'GOOGLE_API_KEY', secretErrors);
-
-    if (secretErrors.length > 0) {
-      console.warn('Missing or invalid LLM API keys:', secretErrors.join('; '));
-    }
+    const claudeKey = env.ANTHROPIC_API_KEY || '';
+    const openaiKey = env.OPENAI_API_KEY || '';
+    const geminiKey = env.GOOGLE_API_KEY || '';
 
     const emptyKeys: string[] = [];
     if (!claudeKey) {
@@ -89,19 +77,6 @@ export class LLMConfigManager {
       };
   }
 
-  private extractSecret(
-    result: PromiseSettledResult<string>,
-    key: string,
-    errors: string[]
-  ): string {
-    if (result.status === 'fulfilled') {
-      return result.value;
-    }
-
-    const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
-    errors.push(`${key}: ${reason}`);
-    return '';
-  }
 
   async getProviderConfig<T extends LLMProvider>(provider: T): Promise<ProviderConfigMap[T]> {
     const config = await this.loadConfig();
@@ -140,13 +115,11 @@ export class LLMConfigManager {
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {
-    try {
-      const defaultProvider = await this.secretManager.getSecret('LLM_DEFAULT_PROVIDER');
-      if (['claude', 'openai', 'gemini'].includes(defaultProvider)) {
-        return defaultProvider as LLMProvider;
-      }
-    } catch {
-      // If not specified, fall back to default
+    const env = EnvironmentConfig.get();
+    const defaultProvider = env.LLM_DEFAULT_PROVIDER || process.env.LLM_DEFAULT_PROVIDER;
+
+    if (defaultProvider && ['claude', 'openai', 'gemini'].includes(defaultProvider)) {
+      return defaultProvider as LLMProvider;
     }
 
     return 'claude'; // Default to Claude Haiku for speed

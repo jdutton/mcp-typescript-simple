@@ -218,7 +218,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       console.error('Microsoft token refresh error:', error);
       res.status(401).json({
         error: 'Failed to refresh token',
-        details: error instanceof Error ? error.message : String(error)
+        message: error instanceof Error ? error.message : String(error)
       });
     }
   }

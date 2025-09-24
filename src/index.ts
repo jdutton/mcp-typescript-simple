@@ -7,8 +7,7 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
-// Import secret management and LLM components
-import { TieredSecretManager } from "./secrets/tiered-manager.js";
+// Import LLM components
 import { LLMManager } from "./llm/manager.js";
 
 // Import new transport system
@@ -16,9 +15,8 @@ import { EnvironmentConfig } from "./config/environment.js";
 import { TransportFactory } from "./transport/factory.js";
 import { setupMCPServer } from "./server/mcp-setup.js";
 
-// Initialize secret manager and LLM manager
-const secretManager = new TieredSecretManager();
-const llmManager = new LLMManager(secretManager);
+// Initialize LLM manager
+const llmManager = new LLMManager();
 
 const server = new Server(
   {
@@ -248,6 +246,9 @@ async function main() {
 
     console.error(`🚀 Starting MCP TypeScript Simple server in ${mode} mode`);
     console.error(`📊 Environment: ${config.NODE_ENV}`);
+
+    // Log configuration for debugging
+    EnvironmentConfig.logConfiguration();
 
     // Initialize LLM manager (gracefully handle missing API keys)
     try {

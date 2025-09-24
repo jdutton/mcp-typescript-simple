@@ -1,6 +1,6 @@
 # MCP TypeScript Simple
 
-A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection** and **dual-mode operation** (STDIO + SSE with OAuth).
+A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection** and **dual-mode operation** (STDIO + Streamable HTTP with OAuth).
 
 ## Key Features
 
@@ -13,7 +13,7 @@ A production-ready MCP (Model Context Protocol) server built with TypeScript fea
 
 ### 🚀 **Dual-Mode Operation**
 - **STDIO Mode**: Traditional stdin/stdout for development and Claude Desktop
-- **SSE Mode**: Server-Sent Events with HTTP endpoints for web applications
+- **Streamable HTTP Mode**: HTTP endpoints with streaming support for web applications
 - **OAuth Authentication**: Secure Google OAuth integration for production
 - **Development Bypass**: Easy auth bypass for local development
 - **Claude Code Ready**: Full compatibility with Claude Code integration
@@ -68,12 +68,12 @@ cp .env.example .env
 npm install
 
 # STDIO Mode (traditional MCP - recommended for development)
-npm run dev
+npm run dev:stdio
 
-# SSE Mode (for web development - no auth)
-npm run dev:sse
+# Streamable HTTP Mode (for web development - no auth)
+npm run dev:http
 
-# SSE Mode (with OAuth - requires Google credentials)
+# Streamable HTTP Mode (with OAuth - requires Google credentials)
 npm run dev:oauth
 
 # Vercel Serverless Development (test as serverless functions)
@@ -85,8 +85,8 @@ npm run build
 # Production STDIO mode
 npm start
 
-# Production SSE mode
-npm run start:sse
+# Production Streamable HTTP mode
+npm run start:http
 
 # Type checking
 npm run typecheck
@@ -105,7 +105,7 @@ npm run test:dual-mode
 ```
 
 #### Development Guides
-- 📘 **Traditional Development**: Use the commands above for STDIO/SSE modes
+- 📘 **Traditional Development**: Use the commands above for STDIO/Streamable HTTP modes
 - 🛠️ **[Vercel Local Development](./docs/vercel-local-development.md)** - Complete guide for developing with Vercel locally
 - 🏗️ **[System Architecture](./docs/architecture.md)** - Detailed architecture overview with diagrams
 - 🚀 **[Dual-Mode Operation Guide](./docs/dual-mode-guide.md)** - Understanding STDIO and HTTP transport modes
@@ -142,6 +142,37 @@ tsconfig.json       # TypeScript configuration
 ```
 
 ## Testing
+
+### Testing Strategy
+
+This project uses a comprehensive testing approach with multiple layers:
+
+- **Unit Tests**: Individual component testing (`test/unit/`)
+- **Integration Tests**: Component interaction testing (`test/integration/`)
+- **System Tests**: End-to-end deployment validation (`test/system/`)
+
+### System Testing
+End-to-end system tests validate the complete deployed application. See [test/system/README.md](test/system/README.md) for detailed documentation.
+
+```bash
+# Run against local development server
+npm run test:system:local
+
+# Run against Docker container
+npm run test:system:docker
+
+# Run against Vercel preview deployment
+npm run test:system:preview
+
+# Run against production deployment
+npm run test:system:production
+```
+
+System tests cover:
+- **Health & Configuration**: Deployment validation and environment detection
+- **Authentication**: OAuth provider configuration and security
+- **MCP Protocol**: JSON-RPC compliance and tool discovery
+- **Tool Functionality**: Basic tools and LLM integration testing
 
 ### CI/CD Testing (Regression Testing)
 **Primary command for GitHub Actions and automated testing:**
@@ -186,20 +217,50 @@ npx tsx tools/manual/test-mcp.ts
 ```
 
 #### Interactive Testing
-Launch an interactive client to manually test tools:
+
+##### Local STDIO Client
+Launch an interactive client to test tools locally:
 
 ```bash
-# Start interactive MCP client
+# Start interactive MCP client (STDIO mode)
 npx tsx tools/interactive-client.ts
 ```
 
-Interactive commands:
+##### Remote HTTP Client
+Connect to remote MCP servers using Bearer token authentication:
+
+```bash
+# Basic usage
+npx tsx tools/remote-http-client.ts --url http://localhost:3000/mcp --token your-bearer-token
+
+# With verbose logging
+npx tsx tools/remote-http-client.ts --url http://localhost:3000/mcp --token your-token --verbose
+
+# Debug mode with full request/response logging
+npx tsx tools/remote-http-client.ts --url http://localhost:3000/mcp --token your-token --debug
+
+# Non-interactive mode (for scripting)
+npx tsx tools/remote-http-client.ts --url http://localhost:3000/mcp --token your-token --no-interactive
+```
+
+**Remote HTTP Client Features:**
+- 🔐 Bearer token authentication (bypasses OAuth flows)
+- 📊 Comprehensive logging with multiple debug levels
+- 🔍 Error analysis with debugging hints and categorization
+- 🛠️ Interactive tool discovery and execution
+- ⏱️ Request/response correlation and timing
+- 🔒 Secure token display (automatic masking)
+- 📡 Full MCP protocol compliance
+- 🌐 Works with any remote HTTP MCP server
+
+##### Interactive Commands (Both Clients)
 - `help` - Show available commands and discovered tools
 - `list` - List all available tools dynamically
 - `describe <tool>` - Show detailed tool information with parameters
 - `<tool-name> <args>` - Call any discovered tool directly
 - `call <tool> <json-args>` - Call tools with JSON arguments
 - `raw <json>` - Send raw JSON-RPC requests
+- `debug [on|off]` - Toggle debug logging (HTTP client only)
 - `quit` - Exit the client
 
 The interactive client dynamically discovers all available MCP tools and provides context-aware help and parameter guidance.

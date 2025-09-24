@@ -2,6 +2,7 @@ import { MCPStreamableHttpServer } from '../../../src/server/streamable-http-ser
 import { EnvironmentConfig } from '../../../src/config/environment.js';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import request from 'supertest';
 
 describe('MCPStreamableHttpServer', () => {
   const originalSecurityConfig = EnvironmentConfig.getSecurityConfig;
@@ -24,7 +25,8 @@ describe('MCPStreamableHttpServer', () => {
         handleAuthorizationRequest: jest.fn(),
         handleAuthorizationCallback: jest.fn(),
         handleTokenRefresh: jest.fn(),
-        handleLogout: jest.fn()
+        handleLogout: jest.fn(),
+        verifyAccessToken: jest.fn().mockRejectedValue(new Error('Invalid or missing token'))
       })
     });
   });
@@ -92,5 +94,110 @@ describe('MCPStreamableHttpServer', () => {
     const manager = server.getSessionManager();
     expect(manager).toBeDefined();
     expect(manager.getStats()).toHaveProperty('activeSessions');
+  });
+
+  it('logs accept header when present', async () => {
+    const server = makeServer();
+    await server.initialize();
+    const app = server.getApp();
+
+    const consoleSpy = jest.spyOn(console, 'log');
+
+    await request(app)
+      .get('/health')
+      .set('Accept', 'application/json')
+      .expect(200);
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Accept: application\/json/));
+  });
+
+  it('logs large request body with truncation', async () => {
+    const server = makeServer({ endpoint: '/mcp' });
+    await server.initialize();
+    const app = server.getApp();
+
+    const consoleSpy = jest.spyOn(console, 'log');
+    const largeBody = { data: 'x'.repeat(2000) }; // Large body over 1000 chars
+
+    await request(app)
+      .post('/mcp')
+      .send(largeBody); // Don't care about status, just that it logs
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Request Body:.*truncated/));
+  });
+
+  it('logs small request body without truncation', async () => {
+    const server = makeServer({ endpoint: '/mcp' });
+    await server.initialize();
+    const app = server.getApp();
+
+    const consoleSpy = jest.spyOn(console, 'log');
+    const smallBody = { data: 'small' };
+
+    await request(app)
+      .post('/mcp')
+      .send(smallBody); // Don't care about status, just that it logs
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Request Body:.*"data":"small"/));
+    expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/truncated/));
+  });
+
+  it('tests specific server configuration options', async () => {
+    // Test server with different middleware paths
+    const server = makeServer({
+      endpoint: '/custom-mcp',
+      enableResumability: true,
+      enableJsonResponse: true
+    });
+    await server.initialize();
+    const app = server.getApp();
+
+    const consoleSpy = jest.spyOn(console, 'log');
+
+    // Test a request that will go through different code paths
+    await request(app)
+      .get('/health')
+      .set('User-Agent', 'Test Agent');
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/User-Agent: Test Agent/));
+  });
+
+  it('returns 401 when MCP endpoint requires auth but no token provided', async () => {
+    const server = makeServer({
+      endpoint: '/mcp',
+      requireAuth: true
+    });
+
+    await server.initialize();
+    const app = server.getApp();
+
+    const response = await request(app)
+      .post('/mcp')
+      .send({ test: 'data' });
+
+    expect(response.status).toBe(401);
+    expect(response.headers['www-authenticate']).toBeDefined();
+    expect(response.body).toMatchObject({
+      error: expect.any(String)
+    });
+  });
+
+  it('returns 503 when MCP endpoint does not require auth but no handler available', async () => {
+    const server = makeServer({
+      endpoint: '/mcp',
+      requireAuth: false
+    });
+    await server.initialize();
+    const app = server.getApp();
+
+    const response = await request(app)
+      .post('/mcp')
+      .send({ test: 'data' });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({
+      error: 'Service temporarily unavailable',
+      message: 'MCP server handler not initialized'
+    });
   });
 });

@@ -78,6 +78,13 @@ jobs:
     - name: Validate Vercel build (dry run)
       run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN || 'dummy-token' }} || echo "Vercel validation completed (no token provided)"
 
+  # system-test:
+  #   name: System Testing
+  #   runs-on: ubuntu-latest
+  #   needs: [test, vercel]
+  #   # DISABLED: System testing needs reliability improvements
+  #   # See GitHub issue for re-enablement plan
+
   docker:
     name: Docker Build
     runs-on: ubuntu-latest

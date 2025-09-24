@@ -2,7 +2,6 @@ import { jest } from '@jest/globals';
 import { LLMManager } from '../../../src/llm/manager.js';
 import { LLMConfigManager } from '../../../src/llm/config.js';
 import type { LLMConfig, LLMProvider } from '../../../src/llm/types.js';
-import type { SecretManager } from '../../../src/secrets/types.js';
 
 const baseConfig: LLMConfig = {
   defaultProvider: 'claude',
@@ -44,17 +43,6 @@ const baseConfig: LLMConfig = {
   maxRetries: 2
 };
 
-const createSecretManager = (): SecretManager => ({
-  async getSecret() {
-    return '';
-  },
-  async isAvailable() {
-    return true;
-  },
-  getName() {
-    return 'test-secret-manager';
-  }
-});
 
 const setupConfigSpies = (config: LLMConfig = baseConfig) => {
   jest.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
@@ -79,7 +67,7 @@ afterEach(() => {
 describe('LLMManager', () => {
   const createManager = () => {
     setupConfigSpies();
-    return new LLMManager(createSecretManager());
+    return new LLMManager();
   };
 
   it('initializes clients based on config and caches completions', async () => {
@@ -158,7 +146,7 @@ describe('LLMManager error handling', () => {
   });
 
   it('falls back to Claude when the requested provider fails', async () => {
-    const manager = new LLMManager(createSecretManager());
+    const manager = new LLMManager();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -206,7 +194,7 @@ describe('LLMManager error handling', () => {
   });
 
   it('throws a descriptive error when fallback provider is unavailable', async () => {
-    const manager = new LLMManager(createSecretManager());
+    const manager = new LLMManager();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -230,7 +218,7 @@ describe('LLMManager error handling', () => {
   });
 
   it('surfaces errors from Claude when no fallback is available', async () => {
-    const manager = new LLMManager(createSecretManager());
+    const manager = new LLMManager();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
 

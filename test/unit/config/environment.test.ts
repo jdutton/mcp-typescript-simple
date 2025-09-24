@@ -1,4 +1,4 @@
-import { EnvironmentConfig, TransportMode } from '../../../src/config/environment.js';
+import { EnvironmentConfig, TransportMode, ConfigurationStatus } from '../../../src/config/environment.js';
 
 describe('EnvironmentConfig', () => {
   const managedKeys = [
@@ -11,6 +11,9 @@ describe('EnvironmentConfig', () => {
     'ALLOWED_HOSTS',
     'SESSION_SECRET',
     'NODE_ENV',
+    'ANTHROPIC_API_KEY',
+    'OPENAI_API_KEY',
+    'GOOGLE_API_KEY',
   ];
 
   const originalValues: Record<string, string | undefined> = {};
@@ -56,7 +59,7 @@ describe('EnvironmentConfig', () => {
     expect(config.NODE_ENV).toBe('development');
 
     expect(EnvironmentConfig.getTransportMode()).toBe(TransportMode.STDIO);
-    expect(EnvironmentConfig.shouldSkipAuth()).toBe(true); // development defaults to skipping auth
+    expect(EnvironmentConfig.shouldSkipAuth()).toBe(false); // MCP_DEV_SKIP_AUTH defaults to false
 
     const security = EnvironmentConfig.getSecurityConfig();
     expect(security.requireHttps).toBe(false);
@@ -66,7 +69,7 @@ describe('EnvironmentConfig', () => {
   });
 
   test('parses provided environment variables into strongly typed configuration', () => {
-    process.env.MCP_MODE = 'sse';
+    process.env.MCP_MODE = 'streamable_http';
     process.env.MCP_DEV_SKIP_AUTH = 'false';
     process.env.HTTP_PORT = '4100';
     process.env.HTTP_HOST = '0.0.0.0';
@@ -79,7 +82,7 @@ describe('EnvironmentConfig', () => {
     EnvironmentConfig.reset();
 
     const config = EnvironmentConfig.get();
-    expect(config.MCP_MODE).toBe('sse');
+    expect(config.MCP_MODE).toBe('streamable_http');
     expect(config.MCP_DEV_SKIP_AUTH).toBe(false);
     expect(config.HTTP_PORT).toBe(4100);
     expect(config.HTTP_HOST).toBe('0.0.0.0');
@@ -89,7 +92,7 @@ describe('EnvironmentConfig', () => {
     const serverConfig = EnvironmentConfig.getServerConfig();
     expect(serverConfig.port).toBe(4100);
     expect(serverConfig.host).toBe('0.0.0.0');
-    expect(serverConfig.mode).toBe(TransportMode.SSE);
+    expect(serverConfig.mode).toBe(TransportMode.STREAMABLE_HTTP);
 
     const security = EnvironmentConfig.getSecurityConfig();
     expect(security.requireHttps).toBe(true);
@@ -102,5 +105,76 @@ describe('EnvironmentConfig', () => {
       'two.example'
     ]);
     expect(security.sessionSecret).toBe('super-secret');
+  });
+
+  describe('Secret Status Reporting', () => {
+    it('correctly identifies configured OAuth secrets', () => {
+      const originalEnv = { ...process.env };
+
+      // Set Google OAuth credentials
+      process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
+      process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
+      process.env.OAUTH_PROVIDER = 'google';
+
+      // Reset the singleton to force reload
+      EnvironmentConfig.reset();
+
+      const status = EnvironmentConfig.getConfigurationStatus();
+
+      // Should correctly identify Google OAuth credentials as configured
+      expect(status.secrets.configured).toContain('GOOGLE_CLIENT_ID');
+      expect(status.secrets.configured).toContain('GOOGLE_CLIENT_SECRET');
+      expect(status.secrets.missing).not.toContain('GOOGLE_CLIENT_ID');
+      expect(status.secrets.missing).not.toContain('GOOGLE_CLIENT_SECRET');
+
+      // Restore original environment
+      process.env = originalEnv;
+      EnvironmentConfig.reset();
+    });
+
+    it('correctly identifies missing OAuth secrets', () => {
+      const originalEnv = { ...process.env };
+
+      // Clear OAuth credentials
+      delete process.env.GOOGLE_CLIENT_ID;
+      delete process.env.GOOGLE_CLIENT_SECRET;
+
+      // Reset the singleton to force reload
+      EnvironmentConfig.reset();
+
+      const status = EnvironmentConfig.getConfigurationStatus();
+
+      // Should correctly identify Google OAuth credentials as missing
+      expect(status.secrets.configured).not.toContain('GOOGLE_CLIENT_ID');
+      expect(status.secrets.configured).not.toContain('GOOGLE_CLIENT_SECRET');
+      expect(status.secrets.missing).toContain('GOOGLE_CLIENT_ID');
+      expect(status.secrets.missing).toContain('GOOGLE_CLIENT_SECRET');
+
+      // Restore original environment
+      process.env = originalEnv;
+      EnvironmentConfig.reset();
+    });
+
+    it('correctly reports SESSION_SECRET as missing only when using default value', () => {
+      const originalEnv = { ...process.env };
+
+      // Test with default value - should be missing
+      delete process.env.SESSION_SECRET;
+      EnvironmentConfig.reset();
+      let status = EnvironmentConfig.getConfigurationStatus();
+      expect(status.secrets.missing).toContain('SESSION_SECRET');
+      expect(status.secrets.configured).not.toContain('SESSION_SECRET');
+
+      // Test with custom value - should be configured
+      process.env.SESSION_SECRET = 'my-custom-secret';
+      EnvironmentConfig.reset();
+      status = EnvironmentConfig.getConfigurationStatus();
+      expect(status.secrets.configured).toContain('SESSION_SECRET');
+      expect(status.secrets.missing).not.toContain('SESSION_SECRET');
+
+      // Restore original environment
+      process.env = originalEnv;
+      EnvironmentConfig.reset();
+    });
   });
 });

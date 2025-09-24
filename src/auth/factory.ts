@@ -18,6 +18,7 @@ import { GoogleOAuthProvider } from './providers/google-provider.js';
 import { GitHubOAuthProvider } from './providers/github-provider.js';
 import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
 // import { GenericOAuthProvider } from './providers/generic-provider.js';
+import { EnvironmentConfig } from '../config/environment.js';
 
 /**
  * Factory for creating OAuth provider instances
@@ -157,7 +158,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   /**
    * Create provider from environment configuration
    */
-  static createFromEnvironment(): OAuthProvider | null {
+  static async createFromEnvironment(): Promise<OAuthProvider | null> {
     const factory = OAuthProviderFactory.getInstance();
 
     // Try to detect which provider is configured
@@ -171,7 +172,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     try {
       switch (providerType) {
         case 'google':
-          return factory.createGoogleProvider();
+          return await factory.createGoogleProvider();
 
         case 'github':
           return factory.createGitHubProvider();
@@ -194,36 +195,48 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   /**
    * Create Google OAuth provider from environment
    */
-  private createGoogleProvider(): OAuthProvider {
-    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.OAUTH_GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || process.env.OAUTH_GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || process.env.OAUTH_GOOGLE_REDIRECT_URI;
+  private async createGoogleProvider(): Promise<OAuthProvider> {
+    try {
+      const env = EnvironmentConfig.get();
+      const clientId = env.GOOGLE_CLIENT_ID;
+      const clientSecret = env.GOOGLE_CLIENT_SECRET;
+      const redirectUri = env.GOOGLE_REDIRECT_URI || this.getDefaultRedirectUri('google');
 
-    if (!clientId || !clientSecret) {
+      if (!clientId || !clientSecret) {
+        throw new OAuthProviderError(
+          'Google OAuth credentials missing. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file or environment variables.',
+          'google'
+        );
+      }
+
+      const config: GoogleOAuthConfig = {
+        type: 'google',
+        clientId,
+        clientSecret,
+        redirectUri: redirectUri || this.getDefaultRedirectUri('google'),
+        scopes: this.getScopesFromEnv('GOOGLE_SCOPES') || ['openid', 'email', 'profile'],
+      };
+
+      return this.createProvider(config);
+    } catch (error) {
+      if (error instanceof OAuthProviderError) {
+        throw error;
+      }
       throw new OAuthProviderError(
-        'Google OAuth credentials missing. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables.',
+        `Failed to load Google OAuth credentials: ${error instanceof Error ? error.message : String(error)}`,
         'google'
       );
     }
-
-    const config: GoogleOAuthConfig = {
-      type: 'google',
-      clientId,
-      clientSecret,
-      redirectUri: redirectUri || this.getDefaultRedirectUri('google'),
-      scopes: this.getScopesFromEnv('GOOGLE_SCOPES') || ['openid', 'email', 'profile'],
-    };
-
-    return this.createProvider(config);
   }
 
   /**
    * Create GitHub OAuth provider from environment
    */
   private createGitHubProvider(): OAuthProvider {
-    const clientId = process.env.GITHUB_CLIENT_ID || process.env.OAUTH_GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET || process.env.OAUTH_GITHUB_CLIENT_SECRET;
-    const redirectUri = process.env.GITHUB_REDIRECT_URI || process.env.OAUTH_GITHUB_REDIRECT_URI;
+    const env = EnvironmentConfig.get();
+    const clientId = env.GITHUB_CLIENT_ID;
+    const clientSecret = env.GITHUB_CLIENT_SECRET;
+    const redirectUri = env.GITHUB_REDIRECT_URI;
 
     if (!clientId || !clientSecret) {
       throw new OAuthProviderError(
@@ -247,10 +260,11 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
    * Create Microsoft OAuth provider from environment
    */
   private createMicrosoftProvider(): OAuthProvider {
-    const clientId = process.env.MICROSOFT_CLIENT_ID || process.env.OAUTH_MICROSOFT_CLIENT_ID;
-    const clientSecret = process.env.MICROSOFT_CLIENT_SECRET || process.env.OAUTH_MICROSOFT_CLIENT_SECRET;
-    const redirectUri = process.env.MICROSOFT_REDIRECT_URI || process.env.OAUTH_MICROSOFT_REDIRECT_URI;
-    const tenantId = process.env.MICROSOFT_TENANT_ID || process.env.OAUTH_MICROSOFT_TENANT_ID;
+    const env = EnvironmentConfig.get();
+    const clientId = env.MICROSOFT_CLIENT_ID;
+    const clientSecret = env.MICROSOFT_CLIENT_SECRET;
+    const redirectUri = env.MICROSOFT_REDIRECT_URI;
+    const tenantId = env.MICROSOFT_TENANT_ID;
 
     if (!clientId || !clientSecret) {
       throw new OAuthProviderError(
@@ -275,14 +289,15 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
    * Create Generic OAuth provider from environment
    */
   private createGenericProvider(): OAuthProvider {
-    const clientId = process.env.OAUTH_CLIENT_ID;
-    const clientSecret = process.env.OAUTH_CLIENT_SECRET;
-    const redirectUri = process.env.OAUTH_REDIRECT_URI;
-    const authorizationUrl = process.env.OAUTH_AUTHORIZATION_URL;
-    const tokenUrl = process.env.OAUTH_TOKEN_URL;
-    const userInfoUrl = process.env.OAUTH_USER_INFO_URL;
-    const revocationUrl = process.env.OAUTH_REVOCATION_URL;
-    const providerName = process.env.OAUTH_PROVIDER_NAME || 'Custom OAuth Provider';
+    const env = EnvironmentConfig.get();
+    const clientId = env.OAUTH_CLIENT_ID;
+    const clientSecret = env.OAUTH_CLIENT_SECRET;
+    const redirectUri = env.OAUTH_REDIRECT_URI;
+    const authorizationUrl = env.OAUTH_AUTHORIZATION_URL;
+    const tokenUrl = env.OAUTH_TOKEN_URL;
+    const userInfoUrl = env.OAUTH_USER_INFO_URL;
+    const revocationUrl = env.OAUTH_REVOCATION_URL;
+    const providerName = env.OAUTH_PROVIDER_NAME || 'Custom OAuth Provider';
 
     if (!clientId || !clientSecret || !authorizationUrl || !tokenUrl || !userInfoUrl) {
       throw new OAuthProviderError(

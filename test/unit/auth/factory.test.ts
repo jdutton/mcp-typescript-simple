@@ -30,46 +30,46 @@ describe('OAuthProviderFactory', () => {
     }
   });
 
-  it('creates Google provider when credentials are present', () => {
+  it('creates Google provider when credentials are present', async () => {
     process.env.OAUTH_PROVIDER = 'google';
     process.env.GOOGLE_CLIENT_ID = 'id';
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
     process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
 
-    const provider = OAuthProviderFactory.createFromEnvironment();
+    const provider = await OAuthProviderFactory.createFromEnvironment();
 
     expect(provider).toMatchObject({ type: 'google' });
   });
 
-  it('returns null when provider type is unsupported', () => {
+  it('returns null when provider type is unsupported', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     process.env.OAUTH_PROVIDER = 'unsupported';
 
-    const provider = OAuthProviderFactory.createFromEnvironment();
+    const provider = await OAuthProviderFactory.createFromEnvironment();
 
     expect(provider).toBeNull();
     expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider: unsupported');
   });
 
-  it('returns null and logs an error when credentials are missing', () => {
+  it('returns null and logs an error when credentials are missing', async () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     process.env.OAUTH_PROVIDER = 'github';
     process.env.GITHUB_CLIENT_ID = '';
     process.env.GITHUB_CLIENT_SECRET = '';
 
-    const provider = OAuthProviderFactory.createFromEnvironment();
+    const provider = await OAuthProviderFactory.createFromEnvironment();
 
     expect(provider).toBeNull();
     expect(errorSpy).toHaveBeenCalled();
   });
 
-  it('disposes tracked providers via disposeAll', () => {
+  it('disposes tracked providers via disposeAll', async () => {
     process.env.OAUTH_PROVIDER = 'google';
     process.env.GOOGLE_CLIENT_ID = 'id';
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
     process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
 
-    const provider = OAuthProviderFactory.createFromEnvironment();
+    const provider = await OAuthProviderFactory.createFromEnvironment();
     expect(provider).toBeTruthy();
 
     const typedProvider = provider as unknown as { dispose: jest.Mock };

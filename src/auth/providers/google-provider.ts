@@ -24,9 +24,11 @@ import {
  */
 export class GoogleOAuthProvider extends BaseOAuthProvider {
   private oauth2Client: OAuth2Client;
+  protected config: GoogleOAuthConfig; // Override with specific config type
 
   constructor(config: GoogleOAuthConfig) {
     super(config);
+    this.config = config; // Explicitly set the properly typed config
 
     this.oauth2Client = new OAuth2Client(
       config.clientId,
@@ -61,15 +63,39 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationRequest(req: Request, res: Response): Promise<void> {
     try {
-      const { codeVerifier, codeChallenge } = this.generatePKCE();
-      const state = this.generateState();
+      console.log(`[Google OAuth] Starting authorization request...`);
+      console.log(`[Google OAuth] Query parameters:`, req.query);
+
+      // Extract parameters from MCP Inspector's request
+      const clientRedirectUri = req.query.redirect_uri as string;
+      const clientCodeChallenge = req.query.code_challenge as string;
+      const clientCodeChallengeMethod = req.query.code_challenge_method as string;
+      const clientState = req.query.state as string;
+      const clientId = req.query.client_id as string;
+
+      // Use MCP Inspector's parameters if provided, otherwise generate our own
+      const state = clientState || this.generateState();
+      let codeVerifier = '';
+      let codeChallenge = clientCodeChallenge || '';
+
+      // If no client code challenge provided, generate our own PKCE pair
+      if (!clientCodeChallenge) {
+        const pkce = this.generatePKCE();
+        codeVerifier = pkce.codeVerifier;
+        codeChallenge = pkce.codeChallenge;
+      }
+      // If client provided challenge, we don't have the verifier (client keeps it)
+
+      console.log(`[Google OAuth] Using state: ${state.substring(0, 8)}...`);
+      console.log(`[Google OAuth] Using code challenge: ${codeChallenge.substring(0, 8)}...`);
 
       // Store session data
       const session: OAuthSession = {
         state,
-        codeVerifier,
+        codeVerifier, // Empty if using client's challenge, populated if we generated it
         codeChallenge,
         redirectUri: this.config.redirectUri,
+        clientRedirectUri,
         scopes: this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes(),
         provider: 'google',
         expiresAt: Date.now() + this.SESSION_TIMEOUT,
@@ -77,16 +103,19 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       this.storeSession(state, session);
 
-      // Generate authorization URL
+      // Generate authorization URL using MCP Inspector's parameters but our redirect URI
       const authUrl = this.oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: session.scopes,
         state,
         code_challenge: codeChallenge,
-        code_challenge_method: 'S256' as CodeChallengeMethod,
+        code_challenge_method: (clientCodeChallengeMethod || 'S256') as CodeChallengeMethod,
         prompt: 'consent',
+        redirect_uri: this.config.redirectUri, // Use our registered redirect URI
       });
 
+      console.log(`[Google OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
+      console.log(`[Google OAuth] Redirecting to Google...`);
       res.redirect(authUrl);
     } catch (error) {
       console.error('Google OAuth authorization error:', error);
@@ -99,7 +128,10 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationCallback(req: Request, res: Response): Promise<void> {
     try {
+      console.log(`[Google OAuth] Handling authorization callback...`);
       const { code, state, error } = req.query;
+
+      console.log(`[Google OAuth] Callback received - code: ${code ? 'present' : 'missing'}, state: ${state ? (state as string).substring(0, 8) + '...' : 'missing'}, error: ${error || 'none'}`);
 
       if (error) {
         console.error('Google OAuth error:', error);
@@ -108,13 +140,34 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
+        console.log(`[Google OAuth] ❌ Missing required parameters - code: ${!!code}, state: ${!!state}`);
         res.status(400).json({ error: 'Missing authorization code or state' });
         return;
       }
 
       // Validate session
+      console.log(`[Google OAuth] Validating state: ${state.substring(0, 8)}...`);
       const session = this.validateState(state);
 
+      // If we have a client redirect URI (e.g., from MCP Inspector), redirect back to it
+      // with the authorization code so the client can do the token exchange
+      if (session.clientRedirectUri) {
+        console.log(`[Google OAuth] Redirecting back to client: ${session.clientRedirectUri}`);
+        console.log(`[Google OAuth] Client will handle token exchange with code_verifier`);
+
+        // Build redirect URL with authorization code (OAuth standard flow)
+        const redirectUrl = new URL(session.clientRedirectUri);
+        redirectUrl.searchParams.set('code', code);
+        redirectUrl.searchParams.set('state', state);
+
+        // Clean up session since we're done with this flow
+        this.removeSession(state);
+
+        res.redirect(redirectUrl.toString());
+        return;
+      }
+
+      // For direct server usage (not MCP Inspector), do the token exchange ourselves
       // Exchange authorization code for tokens
       const { tokens } = await this.oauth2Client.getToken({
         code,
@@ -162,7 +215,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       // Clean up session
       this.removeSession(state);
 
-      // Return token response
+      // Fallback: Return token response as JSON for direct API usage
       const response: OAuthTokenResponse = {
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token || undefined,
@@ -175,10 +228,20 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      res.status(500).json({
-        error: 'Authorization failed',
-        details: error instanceof Error ? error.message : String(error)
-      });
+
+      // Provide more user-friendly error messages
+      if (error instanceof Error && error.name === 'OAuthStateError') {
+        res.status(400).json({
+          error: 'oauth_state_error',
+          error_description: error.message,
+          retry_suggestion: 'Please start the OAuth flow again by visiting /auth/google'
+        });
+      } else {
+        res.status(500).json({
+          error: 'Authorization failed',
+          details: error instanceof Error ? error.message : String(error)
+        });
+      }
     }
   }
 
@@ -237,7 +300,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       console.error('Google token refresh error:', error);
       res.status(401).json({
         error: 'Failed to refresh token',
-        details: error instanceof Error ? error.message : String(error)
+        message: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -265,9 +328,13 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
+      console.log(`[Google OAuth] Verifying token: ${token.substring(0, 8)}...${token.substring(token.length - 8)}`);
+
       // Check our local token store first
+      console.log(`[Google OAuth] Checking local token store first...`);
       const tokenInfo = this.getToken(token);
       if (tokenInfo) {
+        console.log(`[Google OAuth] ✅ Found token in local storage, using cached info`);
         return {
           token,
           clientId: this.config.clientId,
@@ -281,30 +348,198 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       // If not in local store, verify with Google
-      this.oauth2Client.setCredentials({ access_token: token });
-      const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
+      console.log(`[Google OAuth] Token not in local store, verifying with Google API...`);
 
-      if (!tokenInfo_google.sub || !tokenInfo_google.email) {
-        throw new OAuthTokenError('Invalid token payload', 'google');
+      let userInfo: { sub: string; email: string; scopes?: string[]; expiry_date?: number };
+
+      try {
+        // Try tokeninfo endpoint first
+        console.log(`[Google OAuth] Trying getTokenInfo method...`);
+        this.oauth2Client.setCredentials({ access_token: token });
+        const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
+
+        console.log(`[Google OAuth] ✅ getTokenInfo successful`);
+        console.log(`[Google OAuth] Token info: sub=${tokenInfo_google.sub}, email=${tokenInfo_google.email}`);
+
+        if (!tokenInfo_google.sub || !tokenInfo_google.email) {
+          throw new Error('Invalid token payload from getTokenInfo');
+        }
+
+        userInfo = {
+          sub: tokenInfo_google.sub,
+          email: tokenInfo_google.email,
+          scopes: tokenInfo_google.scopes,
+          expiry_date: tokenInfo_google.expiry_date
+        };
+
+      } catch (tokenInfoError) {
+        console.log(`[Google OAuth] getTokenInfo failed, trying userinfo endpoint as fallback...`);
+        console.log(`[Google OAuth] TokenInfo error:`, tokenInfoError instanceof Error ? tokenInfoError.message : tokenInfoError);
+
+        try {
+          // Fallback to userinfo endpoint
+          const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
+          }
+
+          const userData = await response.json();
+          console.log(`[Google OAuth] ✅ Userinfo endpoint successful`);
+          console.log(`[Google OAuth] User data: id=${userData.id}, email=${userData.email}`);
+
+          if (!userData.id || !userData.email) {
+            throw new Error('Invalid user data from userinfo endpoint');
+          }
+
+          userInfo = {
+            sub: userData.id,
+            email: userData.email,
+            scopes: ['openid', 'email', 'profile'], // Default scopes for userinfo
+          };
+
+        } catch (userInfoError) {
+          console.log(`[Google OAuth] ❌ Both verification methods failed`);
+          throw userInfoError;
+        }
       }
 
-      return {
+      const authInfo = {
         token,
         clientId: this.config.clientId,
-        scopes: tokenInfo_google.scopes || [],
-        expiresAt: tokenInfo_google.expiry_date ? Math.floor(tokenInfo_google.expiry_date / 1000) : undefined,
+        scopes: userInfo.scopes || ['openid', 'email', 'profile'],
+        expiresAt: userInfo.expiry_date ? Math.floor(userInfo.expiry_date / 1000) : undefined,
         extra: {
           userInfo: {
-            sub: tokenInfo_google.sub,
-            email: tokenInfo_google.email,
+            sub: userInfo.sub,
+            email: userInfo.email,
             provider: 'google',
           },
         },
       };
 
+      console.log(`[Google OAuth] ✅ Returning auth info for user: ${userInfo.email}`);
+      return authInfo;
+
     } catch (error) {
-      console.error('Google token verification error:', error);
+      console.error('[Google OAuth] ❌ Token verification failed:', error);
+      if (error instanceof Error) {
+        console.error('[Google OAuth] Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 5).join('\n')
+        });
+      }
       throw new OAuthTokenError('Invalid or expired token', 'google');
+    }
+  }
+
+  /**
+   * Handle token exchange from form data (for /token endpoint)
+   */
+  async handleTokenExchange(req: Request, res: Response): Promise<void> {
+    try {
+      console.log(`[Google OAuth] Handling token exchange from form data...`);
+      const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
+
+      if (grant_type !== 'authorization_code') {
+        res.status(400).json({
+          error: 'unsupported_grant_type',
+          error_description: 'Only authorization_code grant type is supported'
+        });
+        return;
+      }
+
+      if (!code) {
+        res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Missing required parameter: code'
+        });
+        return;
+      }
+
+      console.log(`[Google OAuth] Using code_verifier from client: ${code_verifier.substring(0, 8)}...`);
+      console.log(`[Google OAuth] Using redirect_uri: ${this.config.redirectUri}`);
+
+      // Exchange authorization code for tokens using Google OAuth client
+      // Use our configured redirect_uri (which was used in authorization request)
+      // Use the code_verifier provided by MCP Inspector
+      const { tokens } = await this.oauth2Client.getToken({
+        code,
+        codeVerifier: code_verifier, // Use MCP Inspector's code_verifier
+        redirect_uri: this.config.redirectUri, // Use our registered redirect URI
+      });
+
+      if (!tokens.access_token) {
+        throw new OAuthTokenError('No access token received', 'google');
+      }
+
+      // Get user information from ID token
+      const ticket = await this.oauth2Client.verifyIdToken({
+        idToken: tokens.id_token || '',
+        audience: this.config.clientId,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload || !payload.sub || !payload.email) {
+        throw new OAuthProviderError('Invalid ID token payload', 'google');
+      }
+
+      // Create user info
+      const userInfo: OAuthUserInfo = {
+        sub: payload.sub,
+        email: payload.email,
+        name: payload.name || payload.email,
+        picture: payload.picture,
+        provider: 'google',
+        providerData: payload,
+      };
+
+      // Store token information
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || undefined,
+        idToken: tokens.id_token || undefined,
+        expiresAt: tokens.expiry_date || (Date.now() + 3600 * 1000),
+        userInfo,
+        provider: 'google',
+        scopes: ['openid', 'email', 'profile'], // Default scopes for token exchange
+      };
+
+      this.storeToken(tokens.access_token, tokenInfo);
+
+      // Return standard OAuth token response
+      const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);
+      const response: OAuthTokenResponse = {
+        access_token: tokens.access_token,
+        token_type: 'Bearer',
+        expires_in: expiresIn,
+        refresh_token: tokens.refresh_token || undefined,
+        scope: tokenInfo.scopes.join(' '), // Add scope as required by OAuth spec
+        user: userInfo,
+      };
+
+      // Remove undefined fields to clean up response
+      Object.keys(response).forEach(key => {
+        if (response[key as keyof typeof response] === undefined) {
+          delete response[key as keyof typeof response];
+        }
+      });
+
+      console.log(`[Google OAuth] ✅ Token exchange successful for user: ${userInfo.email}`);
+      console.log(`[Google OAuth] Sending response to client:`, JSON.stringify(response, null, 2));
+      res.json(response);
+
+    } catch (error) {
+      console.error('Google OAuth token exchange error:', error);
+      res.status(400).json({
+        error: 'invalid_grant',
+        error_description: error instanceof Error ? error.message : 'Token exchange failed'
+      });
     }
   }
 

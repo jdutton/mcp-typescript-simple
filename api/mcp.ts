@@ -5,9 +5,9 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { TieredSecretManager } from "../build/secrets/tiered-manager.js";
 import { LLMManager } from "../build/llm/manager.js";
 import { setupMCPServer } from "../build/server/mcp-setup.js";
+import { EnvironmentConfig } from "../build/config/environment.js";
 
 // Global instances for reuse across function invocations
 let serverInstance: Server | null = null;
@@ -23,9 +23,8 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
 
   console.log('🚀 Initializing MCP server for Vercel...');
 
-  // Initialize secret manager and LLM manager
-  const secretManager = new TieredSecretManager();
-  const llmManager = new LLMManager(secretManager);
+  // Initialize LLM manager
+  const llmManager = new LLMManager();
 
   // Initialize LLM manager (gracefully handle missing API keys)
   try {
@@ -102,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       onsessionclosed: async (sessionId: string) => {
         console.log(`🔌 Streamable HTTP session closed: ${sessionId}`);
       },
-      enableJsonResponse: false, // Use streaming for better UX
+      enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT, // Enable JSON responses for legacy client compatibility (e.g., MCP Inspector)
       eventStore: undefined, // For now, disable resumability in serverless
       allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
       allowedHosts: process.env.ALLOWED_HOSTS?.split(','),

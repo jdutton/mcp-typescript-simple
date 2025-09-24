@@ -1,5 +1,5 @@
 /**
- * Transport layer types and interfaces for dual-mode MCP server
+ * Transport layer types and interfaces for MCP server
  */
 
 // import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -15,15 +15,6 @@ export interface StdioTransportOptions {
   // This interface is reserved for future configuration options
 }
 
-export interface SSETransportOptions {
-  port: number;
-  host: string;
-  endpoint: string;
-  requireAuth: boolean;
-  allowedOrigins?: string[];
-  allowedHosts?: string[];
-  sessionSecret: string;
-}
 
 export interface StreamableHTTPTransportOptions {
   port: number;
@@ -37,7 +28,7 @@ export interface StreamableHTTPTransportOptions {
   enableJsonResponse?: boolean;
 }
 
-export type TransportOptions = StdioTransportOptions | SSETransportOptions | StreamableHTTPTransportOptions;
+export type TransportOptions = StdioTransportOptions | StreamableHTTPTransportOptions;
 
 /**
  * Interface for transport lifecycle management

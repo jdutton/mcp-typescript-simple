@@ -1,75 +1,62 @@
 import { jest } from '@jest/globals';
 import { LLMConfigManager } from '../../../src/llm/config.js';
 import type { LLMConfig } from '../../../src/llm/types.js';
-import type { SecretManager } from '../../../src/secrets/types.js';
-
-const createSecretManager = (overrides: Partial<SecretManager> = {}): SecretManager => ({
-  getSecret: jest.fn<SecretManager['getSecret']>().mockResolvedValue(''),
-  isAvailable: jest.fn<SecretManager['isAvailable']>().mockResolvedValue(true),
-  getName: () => 'mock-secret-manager',
-  ...overrides
-});
+import { EnvironmentConfig } from '../../../src/config/environment.js';
 
 describe('LLMConfigManager', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('uses claude as default provider when LLM_DEFAULT_PROVIDER secret is missing', async () => {
-    const secretManager = createSecretManager({
-      getSecret: jest.fn<SecretManager['getSecret']>()
-        .mockResolvedValueOnce('anthropic-key')
-        .mockResolvedValueOnce('openai-key')
-        .mockResolvedValueOnce('gemini-key')
-        .mockRejectedValueOnce(new Error('missing default provider'))
-    });
+  it('uses claude as default provider when LLM_DEFAULT_PROVIDER is not set', async () => {
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: 'anthropic-key',
+      OPENAI_API_KEY: 'openai-key',
+      GOOGLE_API_KEY: 'gemini-key',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
 
-    const manager = new LLMConfigManager(secretManager);
+    const manager = new LLMConfigManager();
     const config = await manager.loadConfig();
 
     expect(config.defaultProvider).toBe('claude');
-    expect(secretManager.getSecret).toHaveBeenCalledWith('LLM_DEFAULT_PROVIDER');
+    expect(envSpy).toHaveBeenCalled();
   });
 
   it('returns false from validateConfig when all provider keys are empty', async () => {
-    const secretManager = createSecretManager({
-      getSecret: jest.fn<SecretManager['getSecret']>()
-        .mockResolvedValueOnce('')
-        .mockResolvedValueOnce('')
-        .mockResolvedValueOnce('')
-        .mockRejectedValueOnce(new Error('missing default provider'))
-    });
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: '',
+      GOOGLE_API_KEY: '',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
 
-    const manager = new LLMConfigManager(secretManager);
+    const manager = new LLMConfigManager();
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     await expect(manager.validateConfig()).resolves.toBe(false);
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(envSpy).toHaveBeenCalled();
   });
 
-  it('logs warnings and continues when some secrets fail to load', async () => {
+  it('logs warnings and continues when some API keys are missing', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const secretManager = createSecretManager({
-      getSecret: jest.fn<SecretManager['getSecret']>()
-        .mockRejectedValueOnce(new Error('anthropic missing'))
-        .mockResolvedValueOnce('openai-key')
-        .mockRejectedValueOnce(new Error('gemini missing'))
-        .mockRejectedValueOnce(new Error('default missing'))
-    });
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: '',
+      OPENAI_API_KEY: 'openai-key',
+      GOOGLE_API_KEY: '',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
 
-    const manager = new LLMConfigManager(secretManager);
+    const manager = new LLMConfigManager();
     const config = await manager.loadConfig();
 
     expect(config.providers.claude.apiKey).toBe('');
     expect(config.providers.openai.apiKey).toBe('openai-key');
     expect(config.providers.gemini.apiKey).toBe('');
-    const warnMessages = warnSpy.mock.calls.reduce<string[]>((acc, call) => {
-      call.forEach(arg => acc.push(String(arg)));
-      return acc;
-    }, []);
-    expect(warnMessages.some(msg => msg.includes('Missing or invalid LLM API keys:'))).toBe(true);
-    expect(warnMessages.some(msg => msg.includes('Missing LLM API key values:'))).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith('Missing LLM API key values:', 'ANTHROPIC_API_KEY, GOOGLE_API_KEY');
+    expect(envSpy).toHaveBeenCalled();
   });
 
   it('validates config and warns when some providers lack keys', async () => {
@@ -115,7 +102,7 @@ describe('LLMConfigManager', () => {
     };
 
     const loadConfigSpy = jest.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
-    const manager = new LLMConfigManager(createSecretManager());
+    const manager = new LLMConfigManager();
 
     await expect(manager.validateConfig()).resolves.toBe(true);
     expect(loadConfigSpy).toHaveBeenCalledTimes(1);
@@ -130,22 +117,28 @@ describe('LLMConfigManager', () => {
   });
 
   it('throws when requesting a model that does not exist for the provider', async () => {
-    const secretManager = createSecretManager({
-      getSecret: jest.fn<SecretManager['getSecret']>().mockResolvedValue('key')
-    });
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: 'key',
+      OPENAI_API_KEY: 'key',
+      GOOGLE_API_KEY: 'key',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
 
-    const manager = new LLMConfigManager(secretManager);
+    const manager = new LLMConfigManager();
 
     await expect(manager.getModelConfig('openai', 'nonexistent' as never))
       .rejects.toThrow("Model 'nonexistent' is not available for provider 'openai'");
   });
 
   it('throws when the selected model is marked unavailable even if defined', async () => {
-    const secretManager = createSecretManager({
-      getSecret: jest.fn<SecretManager['getSecret']>().mockResolvedValue('key')
-    });
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: 'key',
+      OPENAI_API_KEY: 'key',
+      GOOGLE_API_KEY: 'key',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
 
-    const manager = new LLMConfigManager(secretManager);
+    const manager = new LLMConfigManager();
     const baseConfig = await manager.loadConfig();
     const defaultModel = baseConfig.providers.openai.defaultModel;
     baseConfig.providers.openai.models[defaultModel].available = false;

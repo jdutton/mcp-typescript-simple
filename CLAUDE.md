@@ -19,8 +19,8 @@ npm install
 npm run build
 
 # Development modes
-npm run dev              # STDIO mode (recommended for MCP development)
-npm run dev:sse          # Streamable HTTP mode (no auth)
+npm run dev:stdio        # STDIO mode (recommended for MCP development)
+npm run dev:http         # Streamable HTTP mode (no auth)
 npm run dev:oauth        # Streamable HTTP mode (with OAuth)
 npm run dev:vercel       # Vercel local development server
 
@@ -102,8 +102,8 @@ npm run dev:vercel       # Local Vercel development server
 
 ### Local Development
 ```bash
-npm run dev              # STDIO mode for MCP clients
-npm run dev:sse          # HTTP mode without authentication
+npm run dev:stdio        # STDIO mode for MCP clients
+npm run dev:http         # HTTP mode without authentication
 npm run dev:oauth        # HTTP mode with OAuth
 ```
 

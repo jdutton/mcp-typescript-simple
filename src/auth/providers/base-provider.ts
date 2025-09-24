@@ -48,6 +48,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract verifyAccessToken(token: string): Promise<AuthInfo>;
   abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
 
+
   /**
    * Generate PKCE code verifier and challenge
    */
@@ -71,18 +72,45 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Store OAuth session data
    */
   protected storeSession(state: string, session: OAuthSession): void {
+    console.log(`[OAuth Debug] Storing session for state: ${state}, expires: ${new Date(session.expiresAt).toISOString()}`);
     this.sessions.set(state, session);
+    console.log(`[OAuth Debug] Total sessions stored: ${this.sessions.size}`);
   }
 
   /**
    * Retrieve OAuth session data
    */
   protected getSession(state: string): OAuthSession | undefined {
+    console.log(`[OAuth Debug] Looking up session for state: ${state.substring(0, 8)}...`);
+    console.log(`[OAuth Debug] Total sessions in store: ${this.sessions.size}`);
+
+    // List all stored session states for debugging
+    if (this.sessions.size > 0) {
+      const storedStates = Array.from(this.sessions.keys()).map(s => s.substring(0, 8) + '...');
+      console.log(`[OAuth Debug] Stored session states: ${storedStates.join(', ')}`);
+    }
+
     const session = this.sessions.get(state);
-    if (session && session.expiresAt < Date.now()) {
+
+    if (!session) {
+      console.log(`[OAuth Debug] ❌ Session not found for state: ${state.substring(0, 8)}...`);
+      return undefined;
+    }
+
+    const now = Date.now();
+    const isExpired = session.expiresAt < now;
+
+    console.log(`[OAuth Debug] Session found - expires: ${new Date(session.expiresAt).toISOString()}`);
+    console.log(`[OAuth Debug] Current time: ${new Date(now).toISOString()}`);
+    console.log(`[OAuth Debug] Is expired: ${isExpired}`);
+
+    if (isExpired) {
+      console.log(`[OAuth Debug] ❌ Session expired, removing from storage`);
       this.sessions.delete(state);
       return undefined;
     }
+
+    console.log(`[OAuth Debug] ✅ Session valid, returning session info`);
     return session;
   }
 
@@ -97,18 +125,44 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Store token information
    */
   protected storeToken(accessToken: string, tokenInfo: StoredTokenInfo): void {
+    console.log(`[OAuth Debug] Storing token for provider: ${this.getProviderType()}`);
+    console.log(`[OAuth Debug] Token key: ${accessToken.substring(0, 8)}...${accessToken.substring(accessToken.length - 8)}`);
+    console.log(`[OAuth Debug] Token expires: ${new Date(tokenInfo.expiresAt).toISOString()}`);
+    console.log(`[OAuth Debug] User: ${tokenInfo.userInfo.email}`);
     this.tokens.set(accessToken, tokenInfo);
+    console.log(`[OAuth Debug] Total tokens stored: ${this.tokens.size}`);
   }
 
   /**
    * Retrieve token information
    */
   protected getToken(accessToken: string): StoredTokenInfo | undefined {
+    console.log(`[OAuth Debug] Looking up token for provider: ${this.getProviderType()}`);
+    console.log(`[OAuth Debug] Token key: ${accessToken.substring(0, 8)}...${accessToken.substring(accessToken.length - 8)}`);
+    console.log(`[OAuth Debug] Total tokens in store: ${this.tokens.size}`);
+
     const tokenInfo = this.tokens.get(accessToken);
-    if (tokenInfo && tokenInfo.expiresAt - this.TOKEN_BUFFER <= Date.now()) {
+
+    if (!tokenInfo) {
+      console.log(`[OAuth Debug] ❌ Token not found in local storage`);
+      return undefined;
+    }
+
+    const now = Date.now();
+    const expiresAt = tokenInfo.expiresAt - this.TOKEN_BUFFER;
+    const isExpired = expiresAt <= now;
+
+    console.log(`[OAuth Debug] Token found - expires: ${new Date(tokenInfo.expiresAt).toISOString()}`);
+    console.log(`[OAuth Debug] Current time: ${new Date(now).toISOString()}`);
+    console.log(`[OAuth Debug] Is expired: ${isExpired}`);
+
+    if (isExpired) {
+      console.log(`[OAuth Debug] ❌ Token expired, removing from storage`);
       this.tokens.delete(accessToken);
       return undefined;
     }
+
+    console.log(`[OAuth Debug] ✅ Token valid, returning stored info`);
     return tokenInfo;
   }
 
@@ -135,15 +189,37 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Validate OAuth state parameter
    */
   protected validateState(state: string): OAuthSession {
+    console.log(`[OAuth Debug] Validating state parameter for provider: ${this.getProviderType()}`);
+    console.log(`[OAuth Debug] Incoming state: ${state.substring(0, 8)}...`);
+
     if (!state) {
+      console.log(`[OAuth Debug] ❌ Missing state parameter`);
       throw new OAuthStateError('Missing state parameter', this.getProviderType());
     }
 
     const session = this.getSession(state);
     if (!session) {
-      throw new OAuthStateError('Invalid or expired state parameter', this.getProviderType());
+      // Log context to help debug: could be expired session, server restart, or malicious request
+      console.warn(`[OAuth Debug] ❌ OAuth state validation failed: state=${state.substring(0, 8)}..., sessions=${this.sessions.size}, provider=${this.getProviderType()}`);
+
+      // Additional debugging: check if there are any sessions stored and their ages
+      if (this.sessions.size > 0) {
+        const now = Date.now();
+        console.warn(`[OAuth Debug] Current stored sessions:`);
+        for (const [storedState, storedSession] of this.sessions) {
+          const ageMinutes = Math.floor((now - (storedSession.expiresAt - this.SESSION_TIMEOUT)) / 60000);
+          const remainingMinutes = Math.floor((storedSession.expiresAt - now) / 60000);
+          console.warn(`[OAuth Debug]   - State: ${storedState.substring(0, 8)}..., Age: ${ageMinutes}min, Remaining: ${remainingMinutes}min`);
+        }
+      }
+
+      throw new OAuthStateError(
+        'Invalid or expired state parameter. This could be due to browser caching, multiple tabs, or server restart. Please try the authentication flow again.',
+        this.getProviderType()
+      );
     }
 
+    console.log(`[OAuth Debug] ✅ State validation successful`);
     return session;
   }
 

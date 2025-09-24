@@ -22,6 +22,7 @@ type MockResponse = Response & {
   statusCode?: number;
   jsonPayload?: unknown;
   redirectUrl?: string;
+  headers?: Record<string, string>;
 };
 
 const createMockResponse = (): MockResponse => {
@@ -29,7 +30,10 @@ const createMockResponse = (): MockResponse => {
     statusCode?: number;
     jsonPayload?: unknown;
     redirectUrl?: string;
-  } = {};
+    headers?: Record<string, string>;
+  } = {
+    headers: {}
+  };
 
   data.status = jest.fn((code: number) => {
     data.statusCode = code;
@@ -45,6 +49,12 @@ const createMockResponse = (): MockResponse => {
       data.redirectUrl = maybeUrl ?? '';
     } else {
       data.redirectUrl = statusOrUrl;
+    }
+    return data as Response;
+  });
+  data.set = jest.fn((name: string, value?: string | string[]) => {
+    if (data.headers && typeof value === 'string') {
+      data.headers[name] = value;
     }
     return data as Response;
   });
@@ -244,7 +254,9 @@ describe('MicrosoftOAuthProvider', () => {
     const res = createMockResponse();
 
     await provider.handleTokenRefresh({
-      body: { refresh_token: 'unknown' }
+      body: { refresh_token: 'unknown' },
+      headers: { host: 'localhost:3000' },
+      secure: false
     } as unknown as Request, res);
 
     expect(res.status).toHaveBeenCalledWith(401);
