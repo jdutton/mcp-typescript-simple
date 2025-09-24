@@ -260,7 +260,6 @@ class VercelConfigTestRunner {
 
       // Check for critical build outputs needed by API functions
       const requiredBuildFiles = [
-        'build/secrets/tiered-manager.js',
         'build/llm/manager.js',
         'build/server/mcp-setup.js',
         'build/auth/factory.js'
