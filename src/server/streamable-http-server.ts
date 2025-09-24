@@ -84,15 +84,17 @@ export class MCPStreamableHttpServer {
       crossOriginEmbedderPolicy: false, // Required for streaming
     }));
 
-    // CORS configuration
+    // CORS configuration with configurable origins
+    const defaultOrigins = [
+      'http://localhost:3000',
+      'http://localhost:8080',
+      'http://127.0.0.1:3000',
+      'http://localhost:6274', // MCP Inspector default port
+      'http://localhost:6273', // Alternative MCP Inspector port
+    ];
+
     const corsOptions: cors.CorsOptions = {
-      origin: this.options.allowedOrigins || [
-        'http://localhost:3000',
-        'http://localhost:8080',
-        'http://127.0.0.1:3000',
-        'http://localhost:6274', // MCP Inspector default port
-        'http://localhost:6273', // Alternative MCP Inspector port
-      ],
+      origin: this.options.allowedOrigins || defaultOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: [

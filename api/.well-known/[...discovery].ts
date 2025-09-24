@@ -11,9 +11,10 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../../build/auth/factory.js';
 import { createOAuthDiscoveryMetadata } from '../../build/auth/discovery-metadata.js';
+import type { OAuthProvider } from '../../build/auth/providers/types.js';
 
 // Global OAuth provider instance for reuse
-let oauthProviderInstance: any = null;
+let oauthProviderInstance: OAuthProvider | null = null;
 
 /**
  * Initialize OAuth provider for serverless environment
@@ -134,7 +135,7 @@ async function handleAuthorizationServerMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: any
+  oauthProvider: OAuthProvider | null
 ): Promise<void> {
   if (!oauthProvider) {
     res.json({
@@ -162,7 +163,7 @@ async function handleProtectedResourceMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: any
+  oauthProvider: OAuthProvider | null
 ): Promise<void> {
   if (!oauthProvider) {
     res.json({
@@ -191,7 +192,7 @@ async function handleMCPProtectedResourceMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: any
+  oauthProvider: OAuthProvider | null
 ): Promise<void> {
   if (!oauthProvider) {
     res.json({
@@ -225,7 +226,7 @@ async function handleOpenIDConnectConfiguration(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: any
+  oauthProvider: OAuthProvider | null
 ): Promise<void> {
   if (!oauthProvider) {
     res.json({
