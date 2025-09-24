@@ -10,7 +10,6 @@ import {
   expectValidApiResponse,
   getCurrentEnvironment,
   describeSystemTest,
-  HealthCheckResponse,
   isLocalEnvironment,
   isProductionEnvironment,
   isVercelEnvironment,

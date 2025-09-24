@@ -260,7 +260,7 @@ export class STDIOTestClient {
             pending.resolve(response);
           }
         }
-      } catch (error) {
+      } catch {
         // Not JSON or not a valid response - might be server logs
         // Only log if it looks like an actual message and not startup noise
         if (trimmedLine.length > 0 && !trimmedLine.includes('MCP TypeScript Simple')) {
@@ -277,10 +277,10 @@ export class STDIOTestClient {
     this.isStarted = false;
 
     // Reject all pending requests
-    for (const [id, { reject, timer }] of this.pendingRequests) {
+    this.pendingRequests.forEach(({ reject, timer }) => {
       clearTimeout(timer);
       reject(new Error('Server connection lost'));
-    }
+    });
     this.pendingRequests.clear();
 
     // Kill server process if still running

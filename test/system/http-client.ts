@@ -184,7 +184,7 @@ export class HTTPTestClient {
             pids.forEach(pid => {
               try {
                 process.kill(parseInt(pid), 'SIGTERM');
-              } catch (e) {
+              } catch {
                 // Process might already be dead, ignore
               }
             });
@@ -195,7 +195,7 @@ export class HTTPTestClient {
               pids.forEach(pid => {
                 try {
                   process.kill(parseInt(pid), 'SIGKILL');
-                } catch (e) {
+                } catch {
                   // Process might already be dead, ignore
                 }
               });

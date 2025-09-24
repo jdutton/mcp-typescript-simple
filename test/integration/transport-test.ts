@@ -52,11 +52,11 @@ class TransportTestRunner {
       // Test that our API correctly handles content-type negotiation
       // This addresses the 406 error we found in local testing
 
-      const { createServer } = await import('http');
+      const { createServer: _createServer } = await import('http');
       const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
       const { StreamableHTTPServerTransport } = await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
-      const server = new Server({
+      const _server = new Server({
         name: 'test-server',
         version: '1.0.0'
       }, {
@@ -72,12 +72,12 @@ class TransportTestRunner {
       ];
 
       for (const acceptHeader of validHeaders) {
-        const transport = new StreamableHTTPServerTransport({
+        const _transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: () => 'test-session'
         });
 
         // Create mock request with proper accept header
-        const mockReq = {
+        const _mockReq = {
           method: 'POST',
           url: '/mcp',
           headers: {
@@ -101,7 +101,7 @@ class TransportTestRunner {
           // We can't fully test without a real response object,
           // but we can verify the transport accepts the configuration
           console.log(`   ✓ Accept header validated: ${acceptHeader}`);
-        } catch (error) {
+        } catch {
           throw new Error(`Transport rejected valid accept header: ${acceptHeader}`);
         }
       }

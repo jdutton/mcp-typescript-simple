@@ -53,7 +53,7 @@ describeSystemTest('MCP Protocol System', () => {
   }
 
   let client: AxiosInstance;
-  let mcpInitialized = false;
+  let _mcpInitialized = false;
 
   beforeAll(async () => {
     client = createHttpClient();
@@ -90,7 +90,7 @@ describeSystemTest('MCP Protocol System', () => {
       });
 
       if (response.status === 200) {
-        mcpInitialized = true;
+        _mcpInitialized = true;
         console.log('✅ MCP session initialized for test suite');
       } else {
         console.log('❌ MCP session initialization failed:', response.status, response.data);
@@ -601,7 +601,7 @@ describeSystemTest('MCP Protocol System', () => {
       }
 
       // All valid requests should succeed
-      validResponses.forEach((response, index) => {
+      validResponses.forEach((response) => {
         expect(response.jsonrpc).toBe('2.0');
         expect(response.result).toBeDefined();
       });

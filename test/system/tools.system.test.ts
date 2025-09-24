@@ -546,7 +546,7 @@ describeSystemTest('Tools Execution System', () => {
       };
 
       try {
-        const response = await sendMCPRequest(request);
+        const _response = await sendMCPRequest(request);
         const responseTime = Date.now() - startTime;
 
         console.log(`⏱️ LLM tool response time: ${responseTime}ms`);

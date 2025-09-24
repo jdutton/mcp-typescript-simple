@@ -34,7 +34,7 @@
     "test:system:docker": "TEST_ENV=docker npm run test:system",
     "test:system:parallel": "npx tsx tools/parallel-system-tests.ts",
     "test:all": "npm run test:ci",
-    "lint": "eslint src/**/*.ts",
+    "lint": "eslint src/**/*.ts test/**/*.ts tools/**/*.ts",
     "typecheck": "tsc --noEmit",
     "sync-check": "npx tsx tools/sync-check.ts",
     "pre-commit": "npx tsx tools/pre-commit-check.ts",

@@ -11,8 +11,6 @@ import { AxiosInstance } from 'axios';
 import {
   createHttpClient,
   waitForServer,
-  expectValidApiResponse,
-  expectErrorResponse,
   getCurrentEnvironment,
   describeSystemTest,
   isLocalEnvironment,

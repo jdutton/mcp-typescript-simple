@@ -119,7 +119,7 @@ export async function waitForServer(client: AxiosInstance, maxAttempts = 10, del
         console.log(`✅ Server is ready at ${environment.baseUrl}`);
         return true;
       }
-    } catch (error) {
+    } catch {
       console.log(`⏳ Attempt ${attempt}/${maxAttempts} failed, retrying in ${delayMs}ms...`);
     }
 
@@ -260,7 +260,7 @@ async function discoverEndpoints(client: AxiosInstance): Promise<Record<string, 
 async function tryGet(client: AxiosInstance, path: string): Promise<AxiosResponse | null> {
   try {
     return await client.get(path);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -296,7 +296,7 @@ export async function discoverOAuthEndpoints(client: AxiosInstance, oauthProvide
 async function tryOptions(client: AxiosInstance, path: string): Promise<AxiosResponse | null> {
   try {
     return await client.options(path);
-  } catch (error) {
+  } catch {
     return null;
   }
 }

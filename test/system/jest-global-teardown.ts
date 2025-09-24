@@ -94,7 +94,7 @@ export default async function globalTeardown(): Promise<void> {
           // If we reach here, process still exists, force kill
           console.log('⚠️  Jest Global Teardown: Force killing HTTP server...');
           process.kill(serverPid, 'SIGKILL');
-        } catch (e) {
+        } catch {
           // Process already dead, that's fine
         }
 
