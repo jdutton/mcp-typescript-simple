@@ -257,7 +257,7 @@ Streaming Response:                                          │
 ### Local Development
 ```bash
 # Traditional STDIO mode
-npm run dev
+npm run dev:stdio
 
 # Streamable HTTP mode (no auth)
 npm run dev:sse

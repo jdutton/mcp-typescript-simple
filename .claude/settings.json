@@ -40,6 +40,7 @@
       "Bash(npm run test:*)",
       "Bash(npm run test:ci:*)",
       "Bash(npm run test:integration:*)",
+      "Bash(npm run test:system:*)",
       "Bash(npm run test:unit:*)",
       "Bash(npm run typecheck:*)",
       "Bash(npm run validate:*)",

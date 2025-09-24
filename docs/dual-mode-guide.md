@@ -12,15 +12,15 @@ This MCP server now supports **dual-mode operation**:
 ### STDIO Mode (Default)
 ```bash
 # Development mode - traditional MCP
-npm run dev
+npm run dev:stdio
 # OR explicitly set mode
-MCP_MODE=stdio npm run dev
+MCP_MODE=stdio npm run dev:stdio
 ```
 
 ### SSE Mode (Development)
 ```bash
 # SSE mode without authentication (for testing)
-MCP_MODE=sse MCP_DEV_SKIP_AUTH=true npm run dev
+MCP_MODE=sse MCP_DEV_SKIP_AUTH=true npm run dev:stdio
 ```
 
 ### SSE Mode (Production)
@@ -157,7 +157,7 @@ npx tsx examples/test-dual-mode.ts
 #### STDIO Mode
 ```bash
 # Terminal 1: Start server
-MCP_MODE=stdio npm run dev
+MCP_MODE=stdio npm run dev:stdio
 
 # Terminal 2: Test with interactive client
 npx tsx test/interactive-client.ts
@@ -166,7 +166,7 @@ npx tsx test/interactive-client.ts
 #### SSE Mode
 ```bash
 # Terminal 1: Start server
-MCP_MODE=sse MCP_DEV_SKIP_AUTH=true npm run dev
+MCP_MODE=sse MCP_DEV_SKIP_AUTH=true npm run dev:stdio
 
 # Terminal 2: Test endpoints
 curl http://localhost:3000/health
@@ -225,7 +225,7 @@ EXPOSE 8080
 
 ```bash
 # Enable verbose logging
-DEBUG=mcp:* MCP_MODE=sse npm run dev
+DEBUG=mcp:* MCP_MODE=sse npm run dev:stdio
 ```
 
 ## 📚 Examples

@@ -17,7 +17,7 @@ async function initializeOAuthProvider() {
   }
 
   try {
-    const provider = OAuthProviderFactory.createFromEnvironment();
+    const provider = await OAuthProviderFactory.createFromEnvironment();
     if (!provider) {
       throw new Error('OAuth provider could not be created from environment configuration');
     }
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, mcp-protocol-version, mcp-session-id, Accept, User-Agent');
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {

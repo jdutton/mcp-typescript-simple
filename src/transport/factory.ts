@@ -1,11 +1,10 @@
 /**
- * Transport factory for creating stdio, SSE, and streamable_http transport managers
- * Supports modes: stdio, sse, streamable_http
+ * Transport factory for creating stdio and streamable_http transport managers
+ * Supports modes: stdio, streamable_http
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { TransportMode, EnvironmentConfig } from "../config/environment.js";
 import {
@@ -13,10 +12,8 @@ import {
   TransportFactory as ITransportFactory,
   TransportOptions,
   StdioTransportOptions,
-  SSETransportOptions,
   StreamableHTTPTransportOptions
 } from "./types.js";
-import { MCPHttpServer } from "../server/http-server.js";
 import { MCPStreamableHttpServer } from "../server/streamable-http-server.js";
 
 /**
@@ -57,123 +54,6 @@ export class StdioTransportManager implements TransportManager {
   }
 }
 
-/**
- * Transport manager for SSE mode (production with OAuth)
- */
-export class SSETransportManager implements TransportManager {
-  private server?: Server;
-  private httpServer?: MCPHttpServer;
-  private sseTransports: Map<string, SSEServerTransport> = new Map();
-
-  constructor(private options: SSETransportOptions) {}
-
-  async initialize(server: Server): Promise<void> {
-    this.server = server;
-
-    // Create HTTP server with OAuth support
-    this.httpServer = new MCPHttpServer({
-      port: this.options.port,
-      host: this.options.host,
-      endpoint: this.options.endpoint,
-      requireAuth: this.options.requireAuth,
-      allowedOrigins: this.options.allowedOrigins,
-      allowedHosts: this.options.allowedHosts,
-      sessionSecret: this.options.sessionSecret,
-    });
-
-    // Configure HTTP server to handle SSE connections
-    this.httpServer.onSSEConnection(async (sseTransport: SSEServerTransport) => {
-      const sessionId = sseTransport.sessionId;
-      this.sseTransports.set(sessionId, sseTransport);
-
-      const removeTransport = () => {
-        this.sseTransports.delete(sessionId);
-      };
-
-      sseTransport.onclose = () => {
-        removeTransport();
-        console.error(`🔌 SSE connection closed: ${sessionId}`);
-      };
-
-      sseTransport.onerror = (error: Error) => {
-        console.error(`❌ SSE connection error for ${sessionId}:`, error);
-        removeTransport();
-      };
-
-      try {
-        await server.connect(sseTransport);
-        console.error(`🔗 New SSE connection established: ${sessionId}`);
-      } catch (error) {
-        removeTransport();
-        console.error(`❌ Failed to connect SSE transport ${sessionId}:`, error);
-        try {
-          await sseTransport.close();
-        } catch (closeError) {
-          console.error(`Failed to close SSE transport ${sessionId} after connection error:`, closeError);
-        }
-      }
-    });
-  }
-
-  async start(): Promise<void> {
-    if (!this.httpServer) {
-      throw new Error('HTTP server not initialized');
-    }
-
-    await this.httpServer.start();
-
-    const authMode = this.options.requireAuth ? 'with OAuth authentication' : 'without authentication (dev mode)';
-    console.error(`🚀 MCP TypeScript Simple server running on ${this.options.host}:${this.options.port} ${authMode}`);
-    console.error(`🔗 SSE endpoint: ${this.options.endpoint}`);
-  }
-
-  async stop(): Promise<void> {
-    const errors: Error[] = [];
-
-    // Close all SSE connections
-    for (const [sessionId, transport] of this.sseTransports) {
-      try {
-        await transport.close();
-      } catch (error) {
-        console.error(`Error closing SSE transport ${sessionId}:`, error);
-        errors.push(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-    this.sseTransports.clear();
-
-    // Stop HTTP server
-    if (this.httpServer) {
-      try {
-        await this.httpServer.stop();
-      } catch (error) {
-        console.error('Error stopping SSE HTTP server:', error);
-        errors.push(error instanceof Error ? error : new Error(String(error)));
-      }
-    }
-
-    if (errors.length > 0) {
-      const message = errors.map(err => err.message).join('; ');
-      throw new Error(`Failed to shut down SSE transport manager: ${message}`);
-    }
-  }
-
-  getInfo(): string {
-    const authMode = this.options.requireAuth ? 'with OAuth' : 'dev mode';
-    return `Server-Sent Events on ${this.options.host}:${this.options.port} (${authMode})`;
-  }
-
-  getMode(): TransportMode {
-    return TransportMode.SSE;
-  }
-
-  getConnectionCount(): number {
-    return this.sseTransports.size;
-  }
-
-  getConnectedSessions(): string[] {
-    return Array.from(this.sseTransports.keys());
-  }
-}
 
 /**
  * Transport manager for Streamable HTTP mode (modern production with OAuth)
@@ -200,6 +80,9 @@ export class StreamableHTTPTransportManager implements TransportManager {
       enableResumability: this.options.enableResumability,
       enableJsonResponse: this.options.enableJsonResponse,
     });
+
+    // Initialize async components (OAuth)
+    await this.httpServer.initialize();
 
     // Configure HTTP server to handle Streamable HTTP connections
     this.httpServer.onStreamableHTTPTransport(async (streamableTransport: StreamableHTTPServerTransport) => {
@@ -318,8 +201,6 @@ export class TransportFactory implements ITransportFactory {
       case TransportMode.STDIO:
         return new StdioTransportManager(options as StdioTransportOptions);
 
-      case TransportMode.SSE:
-        return new SSETransportManager(options as SSETransportOptions);
 
       case TransportMode.STREAMABLE_HTTP:
         return new StreamableHTTPTransportManager(options as StreamableHTTPTransportOptions);
@@ -347,19 +228,6 @@ export class TransportFactory implements ITransportFactory {
       case TransportMode.STDIO:
         return factory.createTransport(mode, {});
 
-      case TransportMode.SSE:
-        const serverConfig = EnvironmentConfig.getServerConfig();
-        const securityConfig = EnvironmentConfig.getSecurityConfig();
-
-        return factory.createTransport(mode, {
-          port: serverConfig.port,
-          host: serverConfig.host,
-          endpoint: '/mcp/sse',
-          requireAuth: !EnvironmentConfig.shouldSkipAuth(),
-          allowedOrigins: securityConfig.allowedOrigins,
-          allowedHosts: securityConfig.allowedHosts,
-          sessionSecret: securityConfig.sessionSecret,
-        });
 
       case TransportMode.STREAMABLE_HTTP:
         const streamableServerConfig = EnvironmentConfig.getServerConfig();
@@ -374,7 +242,7 @@ export class TransportFactory implements ITransportFactory {
           allowedHosts: streamableSecurityConfig.allowedHosts,
           sessionSecret: streamableSecurityConfig.sessionSecret,
           enableResumability: true, // Enable resumability by default
-          enableJsonResponse: false, // Use SSE streaming by default
+          enableJsonResponse: true, // Use JSON responses for HTTP clients
         });
 
       default:

@@ -117,6 +117,7 @@ export interface OAuthSession {
   codeVerifier: string;
   codeChallenge: string;
   redirectUri: string;
+  clientRedirectUri?: string; // Original client redirect URI (e.g., MCP Inspector)
   scopes: string[];
   provider: OAuthProviderType;
   expiresAt: number;

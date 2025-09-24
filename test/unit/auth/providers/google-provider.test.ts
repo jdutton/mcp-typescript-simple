@@ -36,6 +36,7 @@ type MockResponse = Response & {
   statusCode?: number;
   jsonPayload?: unknown;
   redirectUrl?: string;
+  headers?: Record<string, string>;
 };
 
 const createMockResponse = (): MockResponse => {
@@ -43,7 +44,10 @@ const createMockResponse = (): MockResponse => {
     statusCode?: number;
     jsonPayload?: unknown;
     redirectUrl?: string;
-  } = {};
+    headers?: Record<string, string>;
+  } = {
+    headers: {}
+  };
 
   data.status = jest.fn((code: number) => {
     data.statusCode = code;
@@ -59,6 +63,12 @@ const createMockResponse = (): MockResponse => {
       data.redirectUrl = maybeUrl ?? '';
     } else {
       data.redirectUrl = statusOrUrl;
+    }
+    return data as Response;
+  });
+  data.set = jest.fn((name: string, value?: string | string[]) => {
+    if (data.headers && typeof value === 'string') {
+      data.headers[name] = value;
     }
     return data as Response;
   });
@@ -83,7 +93,8 @@ describe('GoogleOAuthProvider', () => {
       .mockReturnValue('state123');
 
     const res = createMockResponse();
-    await provider.handleAuthorizationRequest({} as Request, res);
+    const req = { query: {} } as Request;  // Add query object to prevent undefined errors
+    await provider.handleAuthorizationRequest(req, res);
 
     expect(mockGenerateAuthUrl).toHaveBeenCalledWith({
       access_type: 'offline',
@@ -91,7 +102,8 @@ describe('GoogleOAuthProvider', () => {
       state: 'state123',
       code_challenge: 'challenge',
       code_challenge_method: 'S256',
-      prompt: 'consent'
+      prompt: 'consent',
+      redirect_uri: baseConfig.redirectUri
     });
     expect(res.redirect).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth?state=state123');
 
@@ -260,7 +272,9 @@ describe('GoogleOAuthProvider', () => {
     const res = createMockResponse();
 
     await provider.handleTokenRefresh({
-      body: { refresh_token: 'missing-token' }
+      body: { refresh_token: 'missing-token' },
+      headers: { host: 'localhost:3000' },
+      secure: false
     } as unknown as Request, res);
 
     expect(res.status).toHaveBeenCalledWith(401);

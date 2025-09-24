@@ -27,7 +27,6 @@ import {
   AnyModel,
   ModelsForProvider
 } from './types.js';
-import { SecretManager } from '../secrets/types.js';
 
 type ProviderClientRegistry = {
   claude: Anthropic;
@@ -47,8 +46,8 @@ export class LLMManager {
   private clients: Partial<ProviderClientRegistry> = {};
   private cache = new Map<string, { response: LLMResponse; expires: Date }>();
 
-  constructor(secretManager: SecretManager) {
-    this.configManager = new LLMConfigManager(secretManager);
+  constructor() {
+    this.configManager = new LLMConfigManager();
   }
 
   async initialize(): Promise<void> {
