@@ -7,17 +7,32 @@
  * - Cross-platform consistency (local vs Vercel)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { startTestServer, stopTestServer } from './setup.js';
-import { makeRequest } from './utils.js';
+import { AxiosInstance } from 'axios';
+import {
+  createHttpClient,
+  waitForServer,
+  expectValidApiResponse,
+  expectErrorResponse,
+  getCurrentEnvironment,
+  describeSystemTest,
+  isLocalEnvironment,
+  expectsCorsHeaders
+} from './utils.js';
 
-describe('OAuth Discovery System Tests', () => {
+describeSystemTest('OAuth Discovery', () => {
+  let client: AxiosInstance;
+  const environment = getCurrentEnvironment();
+
   beforeAll(async () => {
-    await startTestServer();
-  });
+    client = createHttpClient();
 
-  afterAll(async () => {
-    await stopTestServer();
+    // For local environments, wait for server to be ready
+    if (isLocalEnvironment(environment)) {
+      const isReady = await waitForServer(client);
+      if (!isReady) {
+        throw new Error(`Server not ready at ${environment.baseUrl}`);
+      }
+    }
   });
 
   describe('Discovery Endpoint Availability', () => {
@@ -29,25 +44,25 @@ describe('OAuth Discovery System Tests', () => {
     ];
 
     it.each(discoveryEndpoints)('should respond to %s', async (endpoint) => {
-      const response = await makeRequest('GET', endpoint);
+      const response = await client.get(endpoint);
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/application\/json/);
     });
 
     it('should return 404 for unknown discovery endpoints', async () => {
-      const response = await makeRequest('GET', '/.well-known/non-existent');
+      const response = await client.get('/.well-known/non-existent');
       expect(response.status).toBe(404);
     });
 
     it('should not allow non-GET methods on discovery endpoints', async () => {
-      const response = await makeRequest('POST', '/.well-known/oauth-authorization-server');
+      const response = await client.post('/.well-known/oauth-authorization-server');
       expect([405, 404]).toContain(response.status); // Either method not allowed or not found
     });
   });
 
   describe('Authorization Server Metadata Compliance', () => {
     it('should return RFC 8414 compliant authorization server metadata', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
       expect(response.status).toBe(200);
 
       const metadata = response.data;
@@ -75,7 +90,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should include proper token endpoint authentication methods', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
       const metadata = response.data;
 
       if (!metadata.error) {
@@ -85,7 +100,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should include PKCE support', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
       const metadata = response.data;
 
       if (!metadata.error) {
@@ -96,7 +111,7 @@ describe('OAuth Discovery System Tests', () => {
 
   describe('Protected Resource Metadata Compliance', () => {
     it('should return RFC 9728 compliant protected resource metadata', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource');
+      const response = await client.get('/.well-known/oauth-protected-resource');
       expect(response.status).toBe(200);
 
       const metadata = response.data;
@@ -120,7 +135,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should include proper resource documentation', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource');
+      const response = await client.get('/.well-known/oauth-protected-resource');
       const metadata = response.data;
 
       expect(metadata.resource_documentation).toMatch(/\/docs$/);
@@ -129,7 +144,7 @@ describe('OAuth Discovery System Tests', () => {
 
   describe('MCP Protected Resource Metadata', () => {
     it('should return MCP-specific metadata with required fields', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource/mcp');
+      const response = await client.get('/.well-known/oauth-protected-resource/mcp');
       expect(response.status).toBe(200);
 
       const metadata = response.data;
@@ -152,7 +167,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should include both STDIO and HTTP transport capabilities for local server', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource/mcp');
+      const response = await client.get('/.well-known/oauth-protected-resource/mcp');
       const metadata = response.data;
 
       // Local server should support both transports
@@ -163,7 +178,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should provide appropriate tool types', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource/mcp');
+      const response = await client.get('/.well-known/oauth-protected-resource/mcp');
       const metadata = response.data;
 
       const expectedToolTypes = ['function', 'text_generation', 'analysis'];
@@ -175,7 +190,7 @@ describe('OAuth Discovery System Tests', () => {
 
   describe('OpenID Connect Discovery', () => {
     it('should return OpenID Connect Discovery compliant metadata', async () => {
-      const response = await makeRequest('GET', '/.well-known/openid-configuration');
+      const response = await client.get('/.well-known/openid-configuration');
       expect(response.status).toBe(200);
 
       const metadata = response.data;
@@ -197,7 +212,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should include proper claims support', async () => {
-      const response = await makeRequest('GET', '/.well-known/openid-configuration');
+      const response = await client.get('/.well-known/openid-configuration');
       const metadata = response.data;
 
       if (!metadata.message && metadata.claims_supported) {
@@ -217,12 +232,12 @@ describe('OAuth Discovery System Tests', () => {
       ];
 
       const responses = await Promise.all(
-        endpoints.map(endpoint => makeRequest('GET', endpoint))
+        endpoints.map(endpoint => client.get(endpoint))
       );
 
       const issuers = responses
-        .map(response => response.data.issuer)
-        .filter(issuer => issuer && !issuer.includes('OAuth not configured'));
+        .map((response: any) => response.data.issuer)
+        .filter((issuer: any) => issuer && !issuer.includes('OAuth not configured'));
 
       if (issuers.length > 1) {
         // All issuers should be the same
@@ -237,10 +252,10 @@ describe('OAuth Discovery System Tests', () => {
       ];
 
       const responses = await Promise.all(
-        endpoints.map(endpoint => makeRequest('GET', endpoint))
+        endpoints.map(endpoint => client.get(endpoint))
       );
 
-      const resources = responses.map(response => response.data.resource);
+      const resources = responses.map((response: any) => response.data.resource);
 
       // All resource URLs should be the same
       expect(new Set(resources).size).toBe(1);
@@ -250,7 +265,7 @@ describe('OAuth Discovery System Tests', () => {
   describe('Error Handling and Graceful Degradation', () => {
     it('should handle OAuth not configured gracefully', async () => {
       // Test that endpoints return meaningful responses even when OAuth is not configured
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
 
       if (response.data.error === 'OAuth not configured') {
         expect(response.data.message).toContain('OAuth provider not available');
@@ -259,7 +274,7 @@ describe('OAuth Discovery System Tests', () => {
     });
 
     it('should provide MCP metadata even without OAuth', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-protected-resource/mcp');
+      const response = await client.get('/.well-known/oauth-protected-resource/mcp');
 
       // MCP metadata should always be available
       expect(response.data.mcp_version).toBe('1.18.0');
@@ -269,14 +284,20 @@ describe('OAuth Discovery System Tests', () => {
 
   describe('Security Headers and Best Practices', () => {
     it('should include appropriate CORS headers', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
 
       // Check for CORS headers that allow discovery from other origins
-      expect(response.headers).toHaveProperty('access-control-allow-origin');
+      if (expectsCorsHeaders(environment)) {
+        expect(response.headers).toHaveProperty('access-control-allow-origin');
+        console.log('✅ CORS headers present for cross-origin discovery');
+      } else {
+        console.log('ℹ️  CORS headers not required for same-origin discovery');
+        // For same-origin, CORS headers are optional but may still be present
+      }
     });
 
     it('should use HTTPS in production-like environments', async () => {
-      const response = await makeRequest('GET', '/.well-known/oauth-authorization-server');
+      const response = await client.get('/.well-known/oauth-authorization-server');
       const metadata = response.data;
 
       // In production, all URLs should use HTTPS

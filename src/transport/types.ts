@@ -5,6 +5,7 @@
 // import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { TransportMode } from "../config/environment.js";
+import { LLMManager } from "../llm/manager.js";
 
 /**
  * Configuration options for different transport types
@@ -37,7 +38,7 @@ export interface TransportManager {
   /**
    * Initialize the transport with the given MCP server
    */
-  initialize(server: Server): Promise<void>;
+  initialize(server: Server, llmManager?: LLMManager): Promise<void>;
 
   /**
    * Start the transport and begin accepting connections

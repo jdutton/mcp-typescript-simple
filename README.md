@@ -125,20 +125,34 @@ docker run mcp-typescript-simple
 
 ```
 src/
-  index.ts          # Main MCP server implementation
+├── index.ts                    # Main MCP server implementation
+├── auth/                       # OAuth authentication system
+├── config/                     # Environment and configuration management
+├── llm/                        # Multi-LLM provider integration
+├── server/                     # HTTP and MCP server implementations
+├── session/                    # Session management
+├── tools/                      # MCP tool implementations
+└── transport/                  # Transport layer abstractions
+api/                            # Vercel serverless functions
+├── mcp.ts                      # Main MCP protocol endpoint
+├── health.ts                   # Health check and status
+├── auth.ts                     # OAuth authentication endpoints
+└── admin.ts                    # Administration and metrics
 test/
-  ci-test.ts        # Comprehensive CI/CD test suite
-  test-mcp.ts       # MCP protocol and tool tests
-  simple-test.ts    # Simple automated test suite
-  interactive-client.ts # Interactive testing client
-  test-interactive.ts # Interactive client tester
-.github/workflows/
-  ci.yml            # GitHub Actions CI/CD pipeline
-build/              # Compiled TypeScript output
-Dockerfile          # Container configuration
-eslint.config.js    # ESLint configuration
-package.json        # Dependencies and scripts
-tsconfig.json       # TypeScript configuration
+├── unit/                       # Unit tests (mirrors src/ structure)
+├── integration/                # Integration tests
+└── system/                     # End-to-end system tests
+tools/                          # Manual development and testing utilities
+├── interactive-client.ts       # Interactive MCP client
+├── remote-http-client.ts       # Remote HTTP MCP client
+├── test-oauth.ts               # OAuth flow testing
+└── manual/                     # Manual testing scripts
+docs/                           # Deployment and architecture documentation
+examples/                       # Usage examples and demonstrations
+.github/workflows/              # GitHub Actions CI/CD pipeline
+build/                          # Compiled TypeScript output
+Dockerfile                      # Container configuration
+vercel.json                     # Vercel deployment configuration
 ```
 
 ## Testing

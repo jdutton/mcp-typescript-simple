@@ -235,7 +235,7 @@ export class EnvironmentConfig {
     console.error(`🤖 LLM Providers: ${llmProviders.length > 0 ? '✅ ' + llmProviders.join(', ') : '❌ none configured'}`);
   }
 
-  private static checkOAuthCredentials(provider: string): boolean {
+  static checkOAuthCredentials(provider: string): boolean {
     const status = this.getConfigurationStatus();
     switch (provider) {
       case 'google':
@@ -255,7 +255,7 @@ export class EnvironmentConfig {
     }
   }
 
-  private static checkLLMProviders(): string[] {
+  static checkLLMProviders(): string[] {
     const status = this.getConfigurationStatus();
     const providers: string[] = [];
 
@@ -311,14 +311,6 @@ export class EnvironmentConfig {
     };
   }
 
-  // Legacy methods for backward compatibility
-  static checkOAuthCredentialsLegacy(provider: string): boolean {
-    return this.checkOAuthCredentials(provider);
-  }
-
-  static checkLLMProvidersLegacy(): string[] {
-    return this.checkLLMProviders();
-  }
 
   static getServerConfig() {
     const env = this.get();

@@ -13,6 +13,9 @@ yarn-error.log*
 
 # Environment variables
 .env
+.env.google
+.env.microsoft
+.env.github
 .env.local
 .env.development.local
 .env.test.local

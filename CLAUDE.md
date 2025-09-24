@@ -143,6 +143,16 @@ npm run dev:vercel        # Local Vercel development server
 - `OAUTH_PROVIDER` - google, github, microsoft, generic
 - Provider-specific client ID/secret pairs
 
+## Session State Management Limitations
+
+**CRITICAL for Claude Code Development**: The StreamableHTTPServerTransport has important limitations:
+
+- **In-memory only**: Session transports cannot be serialized or persisted to external storage
+- **Single-instance**: Each server instance maintains its own session storage
+- **Development impact**: When testing/debugging, restarting the server loses all active sessions
+
+**For comprehensive deployment architecture and scaling patterns, see [docs/session-management.md](docs/session-management.md)**
+
 ## Testing Strategy
 
 This project requires **comprehensive test coverage** for all features and bug fixes. When developing new features or fixing bugs, you MUST add corresponding tests.

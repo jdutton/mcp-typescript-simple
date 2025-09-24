@@ -75,6 +75,54 @@ curl -X POST http://localhost:3000/mcp \
   -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}'
 ```
 
+#### MCP Session Cleanup Endpoint
+- **Endpoint**: `DELETE /mcp`
+- **Description**: Cleanup and terminate an active MCP session
+- **Authentication**: OAuth Bearer token required (dev mode: uses `mcp-session-id` header)
+- **Headers**:
+  - `mcp-session-id`: Session ID to terminate (required)
+- **Response**: JSON confirmation of session termination
+
+**Example Request**:
+```bash
+curl -X DELETE http://localhost:3000/mcp \
+  -H "Authorization: Bearer <access_token>" \
+  -H "mcp-session-id: <session-uuid>"
+```
+
+**Example Success Response (200)**:
+```json
+{
+  "message": "Session successfully terminated",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "requestId": "req_1642251296789",
+  "timestamp": "2024-01-15T12:34:56.789Z"
+}
+```
+
+**Example Error Responses**:
+
+**400 Bad Request** - Missing session ID:
+```json
+{
+  "error": "Bad Request",
+  "message": "DELETE requests require mcp-session-id header",
+  "requestId": "req_1642251296789",
+  "timestamp": "2024-01-15T12:34:56.789Z"
+}
+```
+
+**404 Not Found** - Session not found:
+```json
+{
+  "error": "Session Not Found",
+  "message": "Session 550e8400-e29b-41d4-a716-446655440000 not found or already terminated",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "requestId": "req_1642251296789",
+  "timestamp": "2024-01-15T12:34:56.789Z"
+}
+```
+
 #### OAuth Authentication Endpoints
 
 ##### Authorization (Login)
