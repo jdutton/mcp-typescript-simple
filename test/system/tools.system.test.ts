@@ -8,7 +8,9 @@ import {
   waitForServer,
   expectValidApiResponse,
   getCurrentEnvironment,
-  describeSystemTest
+  describeSystemTest,
+  isSTDIOEnvironment,
+  isLocalEnvironment
 } from './utils.js';
 
 interface MCPRequest {
@@ -30,16 +32,25 @@ interface MCPResponse {
 }
 
 describeSystemTest('Tools Execution System', () => {
+  const environment = getCurrentEnvironment();
+
+  // Skip HTTP tests entirely in STDIO mode
+  if (isSTDIOEnvironment(environment)) {
+    it('should skip HTTP tools tests in STDIO mode', () => {
+      console.log('ℹ️  HTTP tools tests skipped for environment: STDIO transport mode (npm run dev:stdio)');
+    });
+    return;
+  }
+
   let client: AxiosInstance;
   let availableTools: string[] = [];
   let llmProvidersAvailable: string[] = [];
-  const environment = getCurrentEnvironment();
 
   beforeAll(async () => {
     client = createHttpClient();
 
-    // For local and docker environments, wait for server to be ready
-    if (environment.name === 'local' || environment.name === 'docker') {
+    if (isLocalEnvironment(environment) && environment.name !== 'stdio') {
+      // For other HTTP local environments, wait for external server to be ready
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
@@ -48,6 +59,10 @@ describeSystemTest('Tools Execution System', () => {
 
     // Discover available tools and LLM providers
     await discoverCapabilities();
+  });
+
+  afterAll(async () => {
+    // Server cleanup handled at suite level
   });
 
   async function discoverCapabilities() {
@@ -531,7 +546,7 @@ describeSystemTest('Tools Execution System', () => {
       };
 
       try {
-        const response = await sendMCPRequest(request);
+        const _response = await sendMCPRequest(request);
         const responseTime = Date.now() - startTime;
 
         console.log(`⏱️ LLM tool response time: ${responseTime}ms`);

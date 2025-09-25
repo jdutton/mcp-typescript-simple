@@ -127,7 +127,7 @@ describe('MCP Session State Management System Tests', () => {
         method: 'GET',
         headers: { 'Accept': 'text/event-stream' }
       });
-    } catch (error) {
+    } catch {
       throw new Error('Failed to start test server');
     }
   }, 15000);

@@ -32,15 +32,22 @@ npm run test:ci          # Comprehensive CI/CD test suite
 npm run test:mcp         # MCP protocol testing (tools/manual/)
 npm run test:interactive # Interactive MCP client (tools/)
 npm run test:dual-mode   # Dual-mode functionality test
+
+# System Testing (test/system/)
+npm run test:system:stdio    # STDIO transport mode system tests
+npm run test:system:express  # Express HTTP server system tests
+npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
+
 npm run validate         # Complete validation (unit → integration → build)
 
 # Code quality
 npm run lint             # ESLint code checking
 npm run typecheck        # TypeScript type checking
 
-# Branch management and pre-commit workflow
-npm run sync-check       # Check if branch is behind origin/main (safe, no auto-merge)
-npm run pre-commit       # Complete pre-commit workflow (sync check + validation)
+# Branch management and PR workflow
+npm run sync-check              # Check if branch is behind origin/main (safe, no auto-merge)
+npm run pre-commit              # Complete pre-commit workflow (sync check + validation)
+npm run post-pr-merge-cleanup   # Clean up merged branches after PR merge (switches to main, deletes merged branches)
 
 # Development Deployment (Preview Only)
 npm run build            # Build for deployment

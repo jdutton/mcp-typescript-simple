@@ -9,7 +9,8 @@ import {
   expectValidApiResponse,
   getCurrentEnvironment,
   describeSystemTest,
-  isLocalEnvironment
+  isLocalEnvironment,
+  isSTDIOEnvironment
 } from './utils.js';
 
 interface MCPRequest {
@@ -41,15 +42,24 @@ interface MCPTool {
 }
 
 describeSystemTest('MCP Protocol System', () => {
-  let client: AxiosInstance;
-  let mcpInitialized = false;
   const environment = getCurrentEnvironment();
+
+  // Skip HTTP tests entirely in STDIO mode
+  if (isSTDIOEnvironment(environment)) {
+    it('should skip HTTP MCP tests in STDIO mode', () => {
+      console.log('ℹ️  HTTP MCP tests skipped for environment: STDIO transport mode (npm run dev:stdio)');
+    });
+    return;
+  }
+
+  let client: AxiosInstance;
+  let _mcpInitialized = false;
 
   beforeAll(async () => {
     client = createHttpClient();
 
-    // For local environments, wait for server to be ready
     if (isLocalEnvironment(environment)) {
+      // For other local environments, wait for external server to be ready
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
@@ -80,7 +90,7 @@ describeSystemTest('MCP Protocol System', () => {
       });
 
       if (response.status === 200) {
-        mcpInitialized = true;
+        _mcpInitialized = true;
         console.log('✅ MCP session initialized for test suite');
       } else {
         console.log('❌ MCP session initialization failed:', response.status, response.data);
@@ -88,6 +98,10 @@ describeSystemTest('MCP Protocol System', () => {
     } catch (error) {
       console.log('❌ MCP session initialization error:', error);
     }
+  });
+
+  afterAll(async () => {
+    // Server cleanup handled at suite level
   });
 
   async function sendMCPRequest(request: MCPRequest): Promise<MCPResponse | null> {
@@ -587,7 +601,7 @@ describeSystemTest('MCP Protocol System', () => {
       }
 
       // All valid requests should succeed
-      validResponses.forEach((response, index) => {
+      validResponses.forEach((response) => {
         expect(response.jsonrpc).toBe('2.0');
         expect(response.result).toBeDefined();
       });

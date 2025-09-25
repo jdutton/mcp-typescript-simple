@@ -1,7 +1,3 @@
-/**
- * System tests for authentication and OAuth configuration
- */
-
 import { AxiosInstance } from 'axios';
 import {
   createHttpClient,
@@ -17,19 +13,24 @@ import {
   ServerCapabilities,
   isLocalEnvironment,
   isProductionEnvironment,
-  isVercelEnvironment
+  isSTDIOEnvironment
 } from './utils.js';
 
 describeSystemTest('Authentication System', () => {
-  let client: AxiosInstance;
-  let capabilities: ServerCapabilities;
+
   const environment = getCurrentEnvironment();
+
+  // Only run HTTP-based tests in HTTP environments
+  conditionalDescribe(!isSTDIOEnvironment(environment), 'HTTP Transport Tests', () => {
+let client: AxiosInstance;
+  let capabilities: ServerCapabilities;
+
 
   beforeAll(async () => {
     client = createHttpClient();
 
-    // For local environments, wait for server to be ready
     if (isLocalEnvironment(environment)) {
+      // For other local environments, wait for external server to be ready
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
@@ -48,6 +49,10 @@ describeSystemTest('Authentication System', () => {
     if (!capabilities.hasAuth) {
       console.log('⏭️  Auth is disabled - most auth tests will be skipped');
     }
+  });
+
+  afterAll(async () => {
+    // Server cleanup handled at suite level
   });
 
   describe('Auth Endpoint Availability', () => {
@@ -286,4 +291,14 @@ describeSystemTest('Authentication System', () => {
       }
     });
   });
+
+  }); // End HTTP Transport Tests
+
+  // Skip message for STDIO environments
+  if (isSTDIOEnvironment(environment)) {
+    test('HTTP tests skipped - in STDIO environment', () => {
+      console.log(`ℹ️  HTTP tests skipped for environment: ${environment.description}`);
+      expect(true).toBe(true);
+    });
+  }
 });
