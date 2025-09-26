@@ -60,20 +60,14 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationRequest(req: Request, res: Response): Promise<void> {
     try {
-      const { codeVerifier, codeChallenge } = this.generatePKCE();
-      const state = this.generateState();
+      // Extract MCP Inspector client parameters
+      const { clientRedirectUri, clientCodeChallenge } = this.extractClientParameters(req);
 
-      // Store session data
-      const session: OAuthSession = {
-        state,
-        codeVerifier,
-        codeChallenge,
-        redirectUri: this.config.redirectUri,
-        scopes: this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes(),
-        provider: 'microsoft',
-        expiresAt: Date.now() + this.SESSION_TIMEOUT,
-      };
+      // Setup PKCE parameters (handles both client and server-generated codes)
+      const { state, codeVerifier, codeChallenge } = this.setupPKCE(clientCodeChallenge);
 
+      // Create OAuth session with client redirect support
+      const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri);
       this.storeSession(state, session);
 
       // Build authorization URL
@@ -84,6 +78,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         session.scopes
       );
 
+      console.log(`[Microsoft OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
+      console.log(`[Microsoft OAuth] Redirecting to Microsoft...`);
       res.redirect(authUrl);
     } catch (error) {
       console.error('Microsoft OAuth authorization error:', error);
@@ -110,7 +106,13 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       }
 
       // Validate session
+      console.log(`[Microsoft OAuth] Validating state: ${state.substring(0, 8)}...`);
       const session = this.validateState(state);
+
+      // Handle client redirect flow (returns true if redirect was handled)
+      if (this.handleClientRedirect(session, code, state, res)) {
+        return;
+      }
 
       // Exchange authorization code for tokens
       const tokenData = await this.exchangeCodeForTokens(
@@ -160,6 +162,72 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       res.status(500).json({
         error: 'Authorization failed',
         details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Handle token exchange from form data (for /token endpoint)
+   * Implements OAuth 2.0 Authorization Code Grant (RFC 6749 Section 4.1.3)
+   * Used by standard OAuth clients for PKCE token exchange (RFC 7636)
+   */
+  async handleTokenExchange(req: Request, res: Response): Promise<void> {
+    try {
+      // Common validation for token exchange requests
+      const validation = this.validateTokenExchangeRequest(req, res);
+      if (!validation.isValid) {
+        return; // Response already sent by validation
+      }
+
+      const { code, code_verifier } = validation;
+
+      // Exchange authorization code for tokens using Microsoft OAuth
+      // Use our configured redirect_uri (which was used in authorization request)
+      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
+      const tokenData = await this.exchangeCodeForTokens(
+        this.MICROSOFT_TOKEN_URL,
+        code!,
+        code_verifier! // Use client's code_verifier for PKCE
+      );
+
+      if (!tokenData.access_token) {
+        throw new OAuthTokenError('No access token received', 'microsoft');
+      }
+
+      // Get user information from Microsoft Graph API
+      const userInfo = await this.fetchMicrosoftUserInfo(tokenData.access_token);
+
+      // Store token information (for server-side tracking)
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || undefined,
+        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+        userInfo,
+        provider: 'microsoft',
+        scopes: tokenData.scope?.split(' ') || [],
+      };
+
+      this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
+      const response: OAuthTokenResponse = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        id_token: tokenData.id_token,
+        expires_in: tokenData.expires_in || 3600,
+        token_type: 'Bearer',
+        scope: tokenData.scope,
+        user: userInfo,
+      };
+
+      console.log(`[Microsoft OAuth] ✅ Token exchange successful for user: ${userInfo.name}`);
+      res.json(response);
+
+    } catch (error) {
+      console.error('[Microsoft OAuth] Token exchange error:', error);
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error)
       });
     }
   }
@@ -313,37 +381,64 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
    */
   private async fetchMicrosoftUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
+      console.log('🔍 Fetching Microsoft user info with token:', accessToken.substring(0, 10) + '...');
+
+      // Get user profile from Microsoft Graph API
       const userResponse = await fetch(this.MICROSOFT_USER_URL, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Accept': 'application/json',
+          'User-Agent': 'MCP-TypeScript-Server',
         },
       });
 
+      console.log('📡 Microsoft Graph API response status:', userResponse.status, userResponse.statusText);
+
       if (!userResponse.ok) {
+        const errorBody = await userResponse.text();
+        console.error('❌ Microsoft Graph API error response:', errorBody);
         throw new OAuthProviderError(
-          `Failed to fetch user profile: ${userResponse.status}`,
+          `Failed to fetch user profile: ${userResponse.status} ${userResponse.statusText} - ${errorBody}`,
           'microsoft'
         );
       }
 
       const userData = await userResponse.json();
+      console.log('👤 Microsoft user data received:', {
+        id: userData.id,
+        mail: userData.mail,
+        userPrincipalName: userData.userPrincipalName,
+        displayName: userData.displayName,
+        email_preference: userData.mail ? 'mail' : 'userPrincipalName'
+      });
 
-      if (!userData.id || !userData.mail && !userData.userPrincipalName) {
+      if (!userData.id || (!userData.mail && !userData.userPrincipalName)) {
+        console.error('❌ Incomplete user data from Microsoft:', userData);
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
+      const email = userData.mail || userData.userPrincipalName;
+      console.log('📧 Selected email:', email);
+
       return {
         sub: userData.id,
-        email: userData.mail || userData.userPrincipalName,
+        email: email,
         name: userData.displayName || userData.userPrincipalName,
         provider: 'microsoft',
         providerData: userData,
       };
 
     } catch (error) {
-      console.error('Microsoft fetchUserInfo error:', error);
-      throw new OAuthProviderError('Failed to fetch user information from Microsoft', 'microsoft');
+      console.error('❌ Microsoft fetchUserInfo error:', error);
+
+      // Provide more specific error information
+      if (error instanceof OAuthProviderError) {
+        throw error; // Re-throw our own errors
+      }
+
+      // For other errors, provide more context
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new OAuthProviderError(`Failed to fetch user information from Microsoft: ${errorMessage}`, 'microsoft');
     }
   }
 

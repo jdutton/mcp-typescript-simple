@@ -263,6 +263,76 @@ export class MCPStreamableHttpServer {
     // Register health endpoints for both standalone and Vercel deployments
     this.app.get('/health', healthHandler);
 
+    // Debug endpoint for GitHub OAuth troubleshooting
+    this.app.get('/debug/github-oauth', async (req: Request, res: Response) => {
+      try {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+
+        if (!token) {
+          res.status(400).json({
+            error: 'Missing Authorization header',
+            message: 'Provide Authorization: Bearer YOUR_TOKEN header'
+          });
+          return;
+        }
+
+        console.log('🔍 Debug: Testing GitHub API access with token:', token.substring(0, 10) + '...');
+
+        // Test GitHub user API
+        const userResponse = await fetch('https://api.github.com/user', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'MCP-TypeScript-Server-Debug',
+          },
+        });
+
+        const userData = userResponse.ok ? await userResponse.json() : await userResponse.text();
+
+        // Test GitHub emails API
+        const emailResponse = await fetch('https://api.github.com/user/emails', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'MCP-TypeScript-Server-Debug',
+          },
+        });
+
+        const emailData = emailResponse.ok ? await emailResponse.json() : await emailResponse.text();
+
+        res.json({
+          debug_info: {
+            timestamp: new Date().toISOString(),
+            token_preview: token.substring(0, 10) + '...',
+          },
+          github_user_api: {
+            status: userResponse.status,
+            status_text: userResponse.statusText,
+            headers: Object.fromEntries(userResponse.headers.entries()),
+            data: userData
+          },
+          github_emails_api: {
+            status: emailResponse.status,
+            status_text: emailResponse.statusText,
+            headers: Object.fromEntries(emailResponse.headers.entries()),
+            data: emailData
+          },
+          oauth_provider_info: this.oauthProvider ? {
+            type: this.oauthProvider.getProviderType(),
+            name: this.oauthProvider.getProviderName(),
+            endpoints: this.oauthProvider.getEndpoints()
+          } : 'No OAuth provider configured'
+        });
+
+      } catch (error) {
+        console.error('Debug endpoint error:', error);
+        res.status(500).json({
+          error: 'Debug test failed',
+          message: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+
     // OAuth discovery endpoints (available even without OAuth enabled)
     this.setupOAuthDiscoveryRoutes();
 
@@ -491,7 +561,14 @@ export class MCPStreamableHttpServer {
     // Create OAuth provider from environment
     const provider = await OAuthProviderFactory.createFromEnvironment();
     if (!provider) {
-      throw new Error('OAuth provider could not be created from environment configuration');
+      const env = EnvironmentConfig.get();
+      const providerType = env.OAUTH_PROVIDER;
+
+      if (!providerType) {
+        throw new Error('OAuth authentication is required but no OAuth provider is configured. Set OAUTH_PROVIDER environment variable (google, github, or microsoft) and provide the corresponding credentials.');
+      } else {
+        throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
+      }
     }
     this.oauthProvider = provider;
 
@@ -531,7 +608,9 @@ export class MCPStreamableHttpServer {
     };
     this.app.get(endpoints.callbackEndpoint, callbackHandler);
 
-    // Universal OAuth token handler (supports both JSON and form data)
+    // Universal OAuth 2.0 token handler (RFC 6749 Section 3.2)
+    // Implements OAuth 2.0 Token Endpoint for authorization_code and refresh_token grants
+    // Supports both JSON and form data (RFC 6749 Section 4.1.3 and 6.1)
     const universalTokenHandler = async (req: Request, res: Response) => {
       try {
         console.log(`[OAuth Debug] Universal token handler - Content-Type: ${req.headers['content-type']}`);
@@ -540,9 +619,10 @@ export class MCPStreamableHttpServer {
         // Extract parameters (works for both form data and JSON)
         const { grant_type, refresh_token } = req.body;
 
-        // Determine operation based on grant_type
+        // Determine operation based on grant_type (RFC 6749 Section 4.1.3)
         if (grant_type === 'authorization_code') {
-          // Authorization code exchange - delegate to provider's handleTokenExchange
+          // Authorization Code Grant token exchange (RFC 6749 Section 4.1.3)
+          // Supports PKCE (RFC 7636) - delegate to provider's handleTokenExchange
           if (this.oauthProvider && 'handleTokenExchange' in this.oauthProvider) {
             // Type assertion for providers that implement handleTokenExchange
             const provider = this.oauthProvider as OAuthProvider & {
@@ -556,9 +636,10 @@ export class MCPStreamableHttpServer {
             });
           }
         } else if (grant_type === 'refresh_token' || refresh_token) {
-          // Token refresh - delegate to provider's handleTokenRefresh
+          // Refresh Token Grant (RFC 6749 Section 6) - delegate to provider's handleTokenRefresh
           await this.oauthProvider!.handleTokenRefresh(req, res);
         } else {
+          // Invalid grant type (RFC 6749 Section 5.2)
           res.status(400).json({
             error: 'unsupported_grant_type',
             error_description: 'Supported grant types: authorization_code, refresh_token'
@@ -577,7 +658,7 @@ export class MCPStreamableHttpServer {
     // Use universal handler for both provider-specific refresh endpoint and generic token endpoint
     this.app.post(endpoints.refreshEndpoint, universalTokenHandler);
 
-    // Generic OAuth token endpoint (uses same universal handler)
+    // Generic OAuth 2.0 token endpoint (RFC 6749 Section 3.2) - uses same universal handler
     this.app.post('/token', universalTokenHandler);
 
     // Logout endpoint

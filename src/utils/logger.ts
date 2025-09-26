@@ -50,13 +50,26 @@ export class Logger {
     return { message: sanitizedMessage, data: sanitizedData };
   }
 
-  private sanitizeObject(obj: unknown): unknown {
+  private sanitizeObject(obj: unknown, visited?: WeakSet<object>): unknown {
     if (typeof obj !== 'object' || obj === null) {
       return obj;
     }
 
+    // Initialize visited set on first call
+    if (!visited) {
+      visited = new WeakSet();
+    }
+
+    // Check for circular reference
+    if (visited.has(obj as object)) {
+      return '[Circular Reference]';
+    }
+
+    // Mark current object as visited
+    visited.add(obj as object);
+
     if (Array.isArray(obj)) {
-      return obj.map(item => this.sanitizeObject(item));
+      return obj.map(item => this.sanitizeObject(item, visited));
     }
 
     const sanitized: Record<string, unknown> = {};
@@ -68,7 +81,7 @@ export class Logger {
       if (sensitiveKeys.some(sensitiveKey => lowerKey.includes(sensitiveKey))) {
         sanitized[key] = '[REDACTED]';
       } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = this.sanitizeObject(value);
+        sanitized[key] = this.sanitizeObject(value, visited);
       } else {
         sanitized[key] = value;
       }

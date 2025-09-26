@@ -359,6 +359,165 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
+   * Extract MCP Inspector client parameters from authorization request
+   * Common pattern across all OAuth providers for MCP Inspector compatibility
+   */
+  protected extractClientParameters(req: Request): {
+    clientRedirectUri?: string;
+    clientCodeChallenge?: string;
+    clientCodeChallengeMethod?: string;
+    clientState?: string;
+    clientId?: string;
+  } {
+    const providerName = this.getProviderName();
+    console.log(`[${providerName} OAuth] Starting authorization request...`);
+    console.log(`[${providerName} OAuth] Query parameters:`, req.query);
+
+    return {
+      clientRedirectUri: req.query.redirect_uri as string,
+      clientCodeChallenge: req.query.code_challenge as string,
+      clientCodeChallengeMethod: req.query.code_challenge_method as string,
+      clientState: req.query.state as string,
+      clientId: req.query.client_id as string,
+    };
+  }
+
+  /**
+   * Setup PKCE parameters for authorization request
+   * Handles both client-provided and server-generated PKCE codes
+   */
+  protected setupPKCE(clientCodeChallenge?: string): {
+    state: string;
+    codeVerifier: string;
+    codeChallenge: string;
+  } {
+    const providerName = this.getProviderName();
+    const state = this.generateState();
+    let codeVerifier = '';
+    let codeChallenge = clientCodeChallenge || '';
+
+    // If no client code challenge provided, generate our own PKCE pair
+    if (!clientCodeChallenge) {
+      const pkce = this.generatePKCE();
+      codeVerifier = pkce.codeVerifier;
+      codeChallenge = pkce.codeChallenge;
+    }
+    // If client provided challenge, we don't have the verifier (client keeps it)
+
+    console.log(`[${providerName} OAuth] Using state: ${state.substring(0, 8)}...`);
+    console.log(`[${providerName} OAuth] Using code challenge: ${codeChallenge.substring(0, 8)}...`);
+
+    return { state, codeVerifier, codeChallenge };
+  }
+
+  /**
+   * Handle client redirect flow for MCP Inspector compatibility
+   * Returns true if client redirect was handled, false if should continue with normal flow
+   */
+  protected handleClientRedirect(
+    session: OAuthSession,
+    code: string,
+    state: string,
+    res: Response
+  ): boolean {
+    const providerName = this.getProviderName();
+
+    if (session.clientRedirectUri) {
+      console.log(`[${providerName} OAuth] Redirecting back to client: ${session.clientRedirectUri}`);
+      console.log(`[${providerName} OAuth] Client will handle token exchange with code_verifier`);
+
+      // Build redirect URL with authorization code (OAuth standard flow)
+      const redirectUrl = new URL(session.clientRedirectUri);
+      redirectUrl.searchParams.set('code', code);
+      redirectUrl.searchParams.set('state', state);
+
+      // Clean up session since we're done with this flow
+      this.removeSession(state);
+
+      res.redirect(redirectUrl.toString());
+      return true; // Indicates redirect was handled
+    }
+
+    return false; // Continue with normal flow
+  }
+
+  /**
+   * Common validation for token exchange requests (RFC 6749 Section 4.1.3)
+   * Used by handleTokenExchange implementations across all providers
+   */
+  protected validateTokenExchangeRequest(req: Request, res: Response): {
+    isValid: boolean;
+    grant_type?: string;
+    code?: string;
+    code_verifier?: string;
+    client_id?: string;
+    redirect_uri?: string;
+  } {
+    const providerName = this.getProviderName();
+    console.log(`[${providerName} OAuth] Handling token exchange from form data...`);
+
+    const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
+
+    // Validate grant_type (RFC 6749 Section 4.1.3)
+    if (grant_type !== 'authorization_code') {
+      res.status(400).json({
+        error: 'unsupported_grant_type',
+        error_description: 'Only authorization_code grant type is supported'
+      });
+      return { isValid: false };
+    }
+
+    // Validate required parameters (RFC 6749 Section 4.1.3)
+    if (!code) {
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'Missing required parameter: code'
+      });
+      return { isValid: false };
+    }
+
+    console.log(`[${providerName} OAuth] Using code_verifier from client: ${code_verifier?.substring(0, 8)}...`);
+    console.log(`[${providerName} OAuth] Using redirect_uri: ${this.config.redirectUri}`);
+
+    return {
+      isValid: true,
+      grant_type,
+      code,
+      code_verifier,
+      client_id,
+      redirect_uri
+    };
+  }
+
+  /**
+   * Create a complete OAuth session with client redirect support
+   */
+  protected createOAuthSession(
+    state: string,
+    codeVerifier: string,
+    codeChallenge: string,
+    clientRedirectUri?: string,
+    customScopes?: string[]
+  ): OAuthSession {
+    const providerName = this.getProviderName();
+
+    if (clientRedirectUri) {
+      console.log(`[${providerName} OAuth] Client redirect URI: ${clientRedirectUri}`);
+    }
+
+    return {
+      state,
+      codeVerifier, // Empty if using client's challenge, populated if we generated it
+      codeChallenge,
+      redirectUri: this.config.redirectUri,
+      clientRedirectUri, // Store MCP Inspector's redirect URI
+      scopes: customScopes || (this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes()),
+      provider: this.getProviderType(),
+      expiresAt: Date.now() + this.SESSION_TIMEOUT,
+    };
+  }
+
+  /**
    * Clean up expired sessions and tokens
    */
   cleanup(): void {

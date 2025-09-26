@@ -25,10 +25,10 @@ export default {
   ],
   coverageThreshold: {
     global: {
-      statements: 55,
-      branches: 42, // Adjusted for new logger utility without tests
-      functions: 45,
-      lines: 55
+      statements: 70, // Increased from 55 to reflect 71.33% achieved
+      branches: 55,   // Increased from 42 to reflect 57.53% achieved
+      functions: 70,  // Increased from 45 to reflect 73.49% achieved
+      lines: 70       // Increased from 55 to reflect 71.72% achieved
     }
   }
 };
