@@ -120,21 +120,61 @@ export GITHUB_SCOPES="user:email,read:user"
 
 ### 🏢 Microsoft Azure AD OAuth Setup
 
-**1. Create Azure AD Application:**
+**1. Create Microsoft Azure AD Application:**
+
+**Step 1: Access Azure Portal**
 - Go to [Azure Portal](https://portal.azure.com/)
-- Navigate to Azure Active Directory → App registrations
-- Click "New registration"
-- Set Redirect URI: `http://localhost:3000/auth/microsoft/callback`
-- Note down Application (client) ID and create a client secret
+- Sign in with your Microsoft account (personal or work/school)
+
+**Step 2: Navigate to App Registrations**
+- In the left sidebar, search for and select **"Azure Active Directory"**
+- Under "Manage", click **"App registrations"**
+- Click **"+ New registration"**
+
+**Step 3: Configure Application Settings**
+- **Name**: "MCP TypeScript Server (Development)"
+- **Supported account types**: Choose based on your needs:
+  - *Accounts in this organizational directory only* - Single tenant
+  - *Accounts in any organizational directory* - Multi-tenant organizations only
+  - *Accounts in any organizational directory and personal Microsoft accounts* - Multi-tenant + personal (recommended for development)
+- **Redirect URI**:
+  - Platform: **Web**
+  - URI: `http://localhost:3000/auth/microsoft/callback`
+- Click **"Register"**
+
+**Step 4: Configure API Permissions**
+- In your app registration, go to **"API permissions"**
+- Click **"+ Add a permission"**
+- Select **"Microsoft Graph"**
+- Choose **"Delegated permissions"**
+- Add these permissions:
+  - ✅ `openid` - Sign users in
+  - ✅ `profile` - View users' basic profile
+  - ✅ `email` - View users' email address
+  - ✅ `User.Read` - Read user profile
+- Click **"Add permissions"**
+
+**Step 5: Create Client Secret**
+- Go to **"Certificates & secrets"**
+- Under "Client secrets", click **"+ New client secret"**
+- Description: "MCP Development Secret"
+- Expires: Choose appropriate duration (6 months recommended for development)
+- Click **"Add"**
+- **IMPORTANT**: Copy the secret value immediately - you won't be able to see it again!
+
+**Step 6: Note Your Application Details**
+- Go to **"Overview"** and copy:
+  - **Application (client) ID** - This is your `MICROSOFT_CLIENT_ID`
+  - **Directory (tenant) ID** - This is your `MICROSOFT_TENANT_ID` (optional)
 
 **2. Environment Variables:**
 ```bash
 export OAUTH_PROVIDER=microsoft
-export MICROSOFT_CLIENT_ID=your_azure_app_id
-export MICROSOFT_CLIENT_SECRET=your_azure_client_secret
+export MICROSOFT_CLIENT_ID=your_application_client_id
+export MICROSOFT_CLIENT_SECRET=your_client_secret_value
 export MICROSOFT_REDIRECT_URI=http://localhost:3000/auth/microsoft/callback
 # Optional: Tenant ID (defaults to 'common' for multi-tenant)
-export MICROSOFT_TENANT_ID=your_tenant_id
+export MICROSOFT_TENANT_ID=common
 # Optional: Custom scopes (defaults to 'openid profile email')
 export MICROSOFT_SCOPES="openid,profile,email,User.Read"
 ```

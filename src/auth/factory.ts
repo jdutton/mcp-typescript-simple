@@ -161,11 +161,16 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   static async createFromEnvironment(): Promise<OAuthProvider | null> {
     const factory = OAuthProviderFactory.getInstance();
 
-    // Try to detect which provider is configured
-    const providerType = process.env.OAUTH_PROVIDER as OAuthProviderType || 'google';
+    // Check if OAuth provider is configured
+    const providerType = process.env.OAUTH_PROVIDER as OAuthProviderType;
+
+    if (!providerType) {
+      console.warn('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
+      return null;
+    }
 
     if (!factory.isProviderSupported(providerType)) {
-      console.warn(`Unsupported OAuth provider: ${providerType}`);
+      console.warn(`Unsupported OAuth provider: ${providerType}. Supported providers: ${factory.getSupportedProviders().join(', ')}`);
       return null;
     }
 

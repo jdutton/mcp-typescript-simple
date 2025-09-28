@@ -63,47 +63,17 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationRequest(req: Request, res: Response): Promise<void> {
     try {
-      console.log(`[Google OAuth] Starting authorization request...`);
-      console.log(`[Google OAuth] Query parameters:`, req.query);
+      // Extract MCP Inspector client parameters
+      const { clientRedirectUri, clientCodeChallenge, clientCodeChallengeMethod } = this.extractClientParameters(req);
 
-      // Extract parameters from MCP Inspector's request
-      const clientRedirectUri = req.query.redirect_uri as string;
-      const clientCodeChallenge = req.query.code_challenge as string;
-      const clientCodeChallengeMethod = req.query.code_challenge_method as string;
-      const clientState = req.query.state as string;
-      const clientId = req.query.client_id as string;
+      // Setup PKCE parameters (handles both client and server-generated codes)
+      const { state, codeVerifier, codeChallenge } = this.setupPKCE(clientCodeChallenge);
 
-      // Use MCP Inspector's parameters if provided, otherwise generate our own
-      const state = clientState || this.generateState();
-      let codeVerifier = '';
-      let codeChallenge = clientCodeChallenge || '';
-
-      // If no client code challenge provided, generate our own PKCE pair
-      if (!clientCodeChallenge) {
-        const pkce = this.generatePKCE();
-        codeVerifier = pkce.codeVerifier;
-        codeChallenge = pkce.codeChallenge;
-      }
-      // If client provided challenge, we don't have the verifier (client keeps it)
-
-      console.log(`[Google OAuth] Using state: ${state.substring(0, 8)}...`);
-      console.log(`[Google OAuth] Using code challenge: ${codeChallenge.substring(0, 8)}...`);
-
-      // Store session data
-      const session: OAuthSession = {
-        state,
-        codeVerifier, // Empty if using client's challenge, populated if we generated it
-        codeChallenge,
-        redirectUri: this.config.redirectUri,
-        clientRedirectUri,
-        scopes: this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes(),
-        provider: 'google',
-        expiresAt: Date.now() + this.SESSION_TIMEOUT,
-      };
-
+      // Create OAuth session with client redirect support
+      const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri);
       this.storeSession(state, session);
 
-      // Generate authorization URL using MCP Inspector's parameters but our redirect URI
+      // Generate authorization URL using Google's OAuth client (different from base method)
       const authUrl = this.oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: session.scopes,
@@ -128,10 +98,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationCallback(req: Request, res: Response): Promise<void> {
     try {
-      console.log(`[Google OAuth] Handling authorization callback...`);
       const { code, state, error } = req.query;
-
-      console.log(`[Google OAuth] Callback received - code: ${code ? 'present' : 'missing'}, state: ${state ? (state as string).substring(0, 8) + '...' : 'missing'}, error: ${error || 'none'}`);
 
       if (error) {
         console.error('Google OAuth error:', error);
@@ -140,7 +107,6 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
-        console.log(`[Google OAuth] ❌ Missing required parameters - code: ${!!code}, state: ${!!state}`);
         res.status(400).json({ error: 'Missing authorization code or state' });
         return;
       }
@@ -149,21 +115,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       console.log(`[Google OAuth] Validating state: ${state.substring(0, 8)}...`);
       const session = this.validateState(state);
 
-      // If we have a client redirect URI (e.g., from MCP Inspector), redirect back to it
-      // with the authorization code so the client can do the token exchange
-      if (session.clientRedirectUri) {
-        console.log(`[Google OAuth] Redirecting back to client: ${session.clientRedirectUri}`);
-        console.log(`[Google OAuth] Client will handle token exchange with code_verifier`);
-
-        // Build redirect URL with authorization code (OAuth standard flow)
-        const redirectUrl = new URL(session.clientRedirectUri);
-        redirectUrl.searchParams.set('code', code);
-        redirectUrl.searchParams.set('state', state);
-
-        // Clean up session since we're done with this flow
-        this.removeSession(state);
-
-        res.redirect(redirectUrl.toString());
+      // Handle client redirect flow (returns true if redirect was handled)
+      if (this.handleClientRedirect(session, code, state, res)) {
         return;
       }
 
@@ -440,37 +393,25 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
   /**
    * Handle token exchange from form data (for /token endpoint)
+   * Implements OAuth 2.0 Authorization Code Grant (RFC 6749 Section 4.1.3)
+   * Used by standard OAuth clients for PKCE token exchange (RFC 7636)
    */
   async handleTokenExchange(req: Request, res: Response): Promise<void> {
     try {
-      console.log(`[Google OAuth] Handling token exchange from form data...`);
-      const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
-
-      if (grant_type !== 'authorization_code') {
-        res.status(400).json({
-          error: 'unsupported_grant_type',
-          error_description: 'Only authorization_code grant type is supported'
-        });
-        return;
+      // Common validation for token exchange requests
+      const validation = this.validateTokenExchangeRequest(req, res);
+      if (!validation.isValid) {
+        return; // Response already sent by validation
       }
 
-      if (!code) {
-        res.status(400).json({
-          error: 'invalid_request',
-          error_description: 'Missing required parameter: code'
-        });
-        return;
-      }
+      const { code, code_verifier } = validation;
 
-      console.log(`[Google OAuth] Using code_verifier from client: ${code_verifier.substring(0, 8)}...`);
-      console.log(`[Google OAuth] Using redirect_uri: ${this.config.redirectUri}`);
-
-      // Exchange authorization code for tokens using Google OAuth client
+      // Exchange authorization code for tokens using Google OAuth
       // Use our configured redirect_uri (which was used in authorization request)
-      // Use the code_verifier provided by MCP Inspector
+      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
       const { tokens } = await this.oauth2Client.getToken({
-        code,
-        codeVerifier: code_verifier, // Use MCP Inspector's code_verifier
+        code: code!,
+        codeVerifier: code_verifier!, // Use client's code_verifier for PKCE
         redirect_uri: this.config.redirectUri, // Use our registered redirect URI
       });
 
@@ -512,7 +453,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       this.storeToken(tokens.access_token, tokenInfo);
 
-      // Return standard OAuth token response
+      // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);
       const response: OAuthTokenResponse = {
         access_token: tokens.access_token,
@@ -536,9 +477,9 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
     } catch (error) {
       console.error('Google OAuth token exchange error:', error);
-      res.status(400).json({
-        error: 'invalid_grant',
-        error_description: error instanceof Error ? error.message : 'Token exchange failed'
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error)
       });
     }
   }

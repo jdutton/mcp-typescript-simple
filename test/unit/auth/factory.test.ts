@@ -41,6 +41,16 @@ describe('OAuthProviderFactory', () => {
     expect(provider).toMatchObject({ type: 'google' });
   });
 
+  it('returns null when no OAuth provider is configured', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    delete process.env.OAUTH_PROVIDER;
+
+    const provider = await OAuthProviderFactory.createFromEnvironment();
+
+    expect(provider).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
+  });
+
   it('returns null when provider type is unsupported', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
     process.env.OAUTH_PROVIDER = 'unsupported';
@@ -48,7 +58,7 @@ describe('OAuthProviderFactory', () => {
     const provider = await OAuthProviderFactory.createFromEnvironment();
 
     expect(provider).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider: unsupported');
+    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider: unsupported. Supported providers: google, github, microsoft');
   });
 
   it('returns null and logs an error when credentials are missing', async () => {

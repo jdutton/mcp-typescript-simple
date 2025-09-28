@@ -20,7 +20,7 @@ export const ConfigurationSchema = z.object({
   HTTP_HOST: z.string().default('localhost'),
 
   // OAuth provider configuration
-  OAUTH_PROVIDER: z.enum(['google', 'github', 'microsoft', 'generic']).default('google'),
+  OAUTH_PROVIDER: z.enum(['google', 'github', 'microsoft', 'generic']).optional(),
 
   // Legacy client compatibility
   MCP_LEGACY_CLIENT_SUPPORT: z.boolean().default(true),
@@ -110,7 +110,7 @@ export class EnvironmentConfig {
       HTTP_HOST: process.env.HTTP_HOST || 'localhost',
 
       // OAuth provider selection
-      OAUTH_PROVIDER: process.env.OAUTH_PROVIDER || 'google',
+      OAUTH_PROVIDER: process.env.OAUTH_PROVIDER,
 
       // Google OAuth
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -227,15 +227,20 @@ export class EnvironmentConfig {
 
     // OAuth provider validation
     const oauthProvider = status.configuration.OAUTH_PROVIDER;
-    const hasOAuthCredentials = this.checkOAuthCredentials(oauthProvider);
-    console.error(`🔑 OAuth (${oauthProvider}): ${hasOAuthCredentials ? '✅ configured' : '❌ missing credentials'}`);
+    if (oauthProvider) {
+      const hasOAuthCredentials = this.checkOAuthCredentials(oauthProvider);
+      console.error(`🔑 OAuth (${oauthProvider}): ${hasOAuthCredentials ? '✅ configured' : '❌ missing credentials'}`);
+    } else {
+      console.error('🔑 OAuth: ❌ no provider configured');
+    }
 
     // LLM provider validation
     const llmProviders = this.checkLLMProviders();
     console.error(`🤖 LLM Providers: ${llmProviders.length > 0 ? '✅ ' + llmProviders.join(', ') : '❌ none configured'}`);
   }
 
-  static checkOAuthCredentials(provider: string): boolean {
+  static checkOAuthCredentials(provider: string | undefined): boolean {
+    if (!provider) return false;
     const status = this.getConfigurationStatus();
     switch (provider) {
       case 'google':
