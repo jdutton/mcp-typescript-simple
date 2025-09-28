@@ -402,11 +402,19 @@ export class MCPStreamableHttpServer {
       return `${protocol}://${host}`;
     };
 
+    // Helper to set anti-caching headers for OAuth endpoints per RFC 6749 and RFC 9700
+    const setAntiCachingHeaders = (res: Response): void => {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    };
+
     // OAuth 2.0 Authorization Server Metadata (RFC 8414)
     this.app.get('/.well-known/oauth-authorization-server', async (req: Request, res: Response) => {
       try {
         if (!this.oauthProvider) {
           // Return minimal metadata indicating OAuth is not configured
+          setAntiCachingHeaders(res);
           res.json({
             error: 'OAuth not configured',
             message: 'OAuth provider not available. Configure OAuth credentials to enable authentication.',
@@ -423,9 +431,11 @@ export class MCPStreamableHttpServer {
         });
 
         const metadata = discoveryMetadata.generateAuthorizationServerMetadata();
+        setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
         console.error('OAuth authorization server metadata error:', error);
+        setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate authorization server metadata',
           message: error instanceof Error ? error.message : 'Unknown error'
@@ -438,6 +448,7 @@ export class MCPStreamableHttpServer {
       try {
         if (!this.oauthProvider) {
           // Return minimal metadata indicating OAuth is not configured
+          setAntiCachingHeaders(res);
           res.json({
             resource: getBaseUrl(req),
             authorization_servers: [],
@@ -455,9 +466,11 @@ export class MCPStreamableHttpServer {
         });
 
         const metadata = discoveryMetadata.generateProtectedResourceMetadata();
+        setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
         console.error('OAuth protected resource metadata error:', error);
+        setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate protected resource metadata',
           message: error instanceof Error ? error.message : 'Unknown error'
@@ -472,6 +485,7 @@ export class MCPStreamableHttpServer {
 
         if (!this.oauthProvider) {
           // Return MCP metadata even without OAuth configured
+          setAntiCachingHeaders(res);
           res.json({
             resource: baseUrl,
             authorization_servers: [],
@@ -494,9 +508,11 @@ export class MCPStreamableHttpServer {
         });
 
         const metadata = discoveryMetadata.generateMCPProtectedResourceMetadata();
+        setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
         console.error('MCP protected resource metadata error:', error);
+        setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate MCP protected resource metadata',
           message: error instanceof Error ? error.message : 'Unknown error'
@@ -509,6 +525,7 @@ export class MCPStreamableHttpServer {
       try {
         if (!this.oauthProvider) {
           // Return minimal OpenID Connect metadata indicating OAuth is not configured
+          setAntiCachingHeaders(res);
           res.json({
             issuer: getBaseUrl(req),
             authorization_endpoint: `${getBaseUrl(req)}/auth/login`,
@@ -528,9 +545,11 @@ export class MCPStreamableHttpServer {
         });
 
         const metadata = discoveryMetadata.generateOpenIDConnectConfiguration();
+        setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
         console.error('OpenID Connect configuration error:', error);
+        setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate OpenID Connect configuration',
           message: error instanceof Error ? error.message : 'Unknown error'
@@ -541,6 +560,7 @@ export class MCPStreamableHttpServer {
     // 404 handler for unknown discovery endpoints
     this.app.use('/.well-known', (req: Request, res: Response) => {
       // If we get here, none of the specific endpoints matched
+      setAntiCachingHeaders(res);
       res.status(404).json({
         error: 'Discovery endpoint not found',
         message: `The discovery endpoint '${req.path}' was not found on this server.`,
@@ -722,247 +742,312 @@ export class MCPStreamableHttpServer {
 
         // Handle DELETE method for session cleanup
         if (req.method === 'DELETE') {
-          const sessionId = req.headers['mcp-session-id'] as string;
-
-          if (!sessionId) {
-            console.log(`⚠️ [${requestId}] DELETE request missing mcp-session-id header`);
-            res.status(400).json({
-              error: 'Bad Request',
-              message: 'DELETE requests require mcp-session-id header',
-              requestId: requestId,
-              timestamp: new Date().toISOString()
-            });
-            return;
-          }
-
-          console.log(`🗑️  [${requestId}] Session cleanup requested for: ${sessionId}`);
-
-          // Check if session exists
-          if (this.sessionTransports.has(sessionId)) {
-            const transport = this.sessionTransports.get(sessionId)!;
-
-            try {
-              // Close the transport
-              await transport.close();
-              console.log(`🔌 [${requestId}] Transport closed for session: ${sessionId}`);
-            } catch (error) {
-              console.error(`❌ [${requestId}] Error closing transport for session ${sessionId}:`, error);
-            }
-
-            // Remove from session maps
-            this.sessionTransports.delete(sessionId);
-            this.sessionManager.closeSession(sessionId);
-
-            console.log(`✅ [${requestId}] Session ${sessionId} successfully cleaned up`);
-            res.status(200).json({
-              message: 'Session successfully terminated',
-              sessionId: sessionId,
-              requestId: requestId,
-              timestamp: new Date().toISOString()
-            });
-            return;
-          } else {
-            console.log(`⚠️ [${requestId}] Session ${sessionId} not found or already cleaned up`);
-            res.status(404).json({
-              error: 'Session Not Found',
-              message: `Session ${sessionId} not found or already terminated`,
-              sessionId: sessionId,
-              requestId: requestId,
-              timestamp: new Date().toISOString()
-            });
-            return;
-          }
+          await this.handleSessionCleanup(req, res, requestId);
+          return;
         }
 
         // Log JSON-RPC details for POST requests
-        if (req.method === 'POST' && req.body) {
-          try {
-            const jsonrpcRequest = req.body;
-            if (jsonrpcRequest.jsonrpc && jsonrpcRequest.method) {
-              console.log(`📋 [${requestId}] JSON-RPC Method: ${jsonrpcRequest.method} | ID: ${jsonrpcRequest.id} | Version: ${jsonrpcRequest.jsonrpc}`);
+        this.logJsonRpcRequest(req, requestId);
 
-              if (jsonrpcRequest.params) {
-                if (jsonrpcRequest.method === 'initialize') {
-                  console.log(`🚀 [${requestId}] Initialize Request - Protocol: ${jsonrpcRequest.params.protocolVersion}`);
-                  console.log(`🎯 [${requestId}] Client Info: ${JSON.stringify(jsonrpcRequest.params.clientInfo)}`);
-                  console.log(`⚙️ [${requestId}] Capabilities: ${JSON.stringify(jsonrpcRequest.params.capabilities)}`);
-                } else if (jsonrpcRequest.method === 'tools/list') {
-                  console.log(`🛠️ [${requestId}] Tools List Request`);
-                } else if (jsonrpcRequest.method === 'tools/call') {
-                  console.log(`🔧 [${requestId}] Tool Call: ${jsonrpcRequest.params.name}`);
-                  console.log(`📝 [${requestId}] Tool Args: ${JSON.stringify(jsonrpcRequest.params.arguments)}`);
-                } else {
-                  console.log(`📦 [${requestId}] Params: ${JSON.stringify(jsonrpcRequest.params).substring(0, 200)}${JSON.stringify(jsonrpcRequest.params).length > 200 ? '...' : ''}`);
-                }
-              }
-            } else {
-              console.log(`⚠️ [${requestId}] Non-JSON-RPC request body detected`);
-            }
-          } catch (error) {
-            console.log(`❌ [${requestId}] Failed to parse JSON-RPC request: ${error}`);
-          }
-        }
-
-        // Check for existing session ID in header
-        const existingSessionId = req.headers['mcp-session-id'] as string;
-        let transport: StreamableHTTPServerTransport;
-
-        if (existingSessionId && this.sessionTransports.has(existingSessionId)) {
-          // Reuse existing transport for session
-          transport = this.sessionTransports.get(existingSessionId)!;
-          console.log(`♻️  [${requestId}] Reusing existing transport for session: ${existingSessionId}`);
-        } else {
-          // Create new Streamable HTTP transport for new session
-          console.log(`🆕 [${requestId}] Creating new transport for session: ${existingSessionId || 'new'}`);
-          transport = new StreamableHTTPServerTransport({
-          sessionIdGenerator: () => {
-            const sessionId = this.sessionManager.generateSessionId();
-            console.log(`🔑 [${requestId}] Generated session ID: ${sessionId}`);
-            return sessionId;
-          },
-          onsessioninitialized: async (sessionId: string) => {
-            const authInfo = (req as AuthenticatedRequest).auth;
-            console.log(`🔗 [${requestId}] New Streamable HTTP session initialized: ${sessionId}`);
-            console.log(`👤 [${requestId}] Auth Status: ${authInfo ? 'authenticated' : 'anonymous'}`);
-
-            if (authInfo) {
-              console.log(`🎫 [${requestId}] Session Auth Details - Client: ${authInfo.clientId}, Scopes: ${authInfo.scopes?.join(', ') || 'none'}`);
-            }
-
-            // Store transport in session map for reuse
-            this.sessionTransports.set(sessionId, transport);
-            console.log(`💾 [${requestId}] Stored transport for session: ${sessionId}`);
-
-            try {
-              this.sessionManager.createSession(authInfo);
-              const stats = this.sessionManager.getStats();
-              console.log(`📊 [${requestId}] Session Stats - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
-            } catch (error) {
-              console.error(`❌ [${requestId}] Failed to create session: ${error}`);
-            }
-          },
-          onsessionclosed: async (sessionId: string) => {
-            console.log(`🔌 [${requestId}] Streamable HTTP session closed: ${sessionId}`);
-
-            // Remove transport from session map
-            this.sessionTransports.delete(sessionId);
-            console.log(`🗑️  [${requestId}] Removed transport for session: ${sessionId}`);
-
-            try {
-              this.sessionManager.closeSession(sessionId);
-              const stats = this.sessionManager.getStats();
-              console.log(`📊 [${requestId}] Session Stats After Close - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
-            } catch (error) {
-              console.error(`❌ [${requestId}] Failed to close session: ${error}`);
-            }
-          },
-          enableJsonResponse: this.options.enableJsonResponse ?? EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT, // Enable JSON responses for legacy client compatibility
-          eventStore: this.options.enableResumability
-            ? EventStoreFactory.createEventStore('memory')
-            : undefined,
-          allowedHosts: this.options.allowedHosts,
-          allowedOrigins: this.options.allowedOrigins,
-          enableDnsRebindingProtection: !!(this.options.allowedHosts || this.options.allowedOrigins),
-        });
-        }
+        // Get or create transport for the session
+        const transport = await this.getOrCreateTransport(req, requestId);
 
         console.log(`📡 [${requestId}] Handling request with Streamable HTTP transport`);
 
-        // Add detailed response monitoring
-        let responseDataCaptured = false;
+        // Set up response monitoring
+        const { originalWrite, originalEnd, responseDataCaptured } = this.setupResponseMonitoring(res, requestId);
 
-        // Hook into the underlying HTTP response to capture what the transport writes
-        const originalWrite = res.write;
-        const originalEnd = res.end;
+        // Connect transport to MCP server
+        await this.connectTransportToServer(transport, requestId);
 
-        res.write = function(chunk: unknown, encodingOrCallback?: BufferEncoding | ((error: Error | null | undefined) => void), cb?: (error: Error | null | undefined) => void): boolean {
-          console.log(`✍️ [${requestId}] Transport writing to response: ${chunk ? chunk.toString().substring(0, 200) : 'empty'}${chunk && chunk.toString().length > 200 ? '...' : ''}`);
-          responseDataCaptured = true;
-          return originalWrite.call(this, chunk, encodingOrCallback as never, cb);
-        };
+        // Process the request
+        await this.processTransportRequest(transport, req, res, requestId);
 
-        res.end = function(chunkOrCallback?: unknown | (() => void), encodingOrCallback?: BufferEncoding | (() => void), cb?: () => void): typeof res {
-          console.log(`🏁 [${requestId}] Transport ending response: ${chunkOrCallback && typeof chunkOrCallback !== 'function' ? chunkOrCallback.toString().substring(0, 200) : 'no final chunk'}${chunkOrCallback && typeof chunkOrCallback !== 'function' && chunkOrCallback.toString().length > 200 ? '...' : ''}`);
-          responseDataCaptured = true;
-          return originalEnd.call(this, chunkOrCallback, encodingOrCallback as never, cb);
-        };
-
-        // Connect every transport to the MCP server - this is how Streamable HTTP is supposed to work
-        if (this.streamableTransportHandler) {
-          console.log(`🔌 [${requestId}] Connecting transport to MCP server handler`);
-
-          const mcpHandlerPromise = this.streamableTransportHandler(transport);
-          console.log(`⏳ [${requestId}] MCP server handler started...`);
-
-          // Add timeout for MCP handler
-          const mcpTimeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('MCP server handler timeout after 30s')), 30000);
-          });
-
-          try {
-            await Promise.race([mcpHandlerPromise, mcpTimeoutPromise]);
-            console.log(`🎯 [${requestId}] MCP server handler completed - transport now connected to server`);
-          } catch (error) {
-            console.error(`❌ [${requestId}] MCP server handler error:`, error);
-            throw error;
-          }
-        } else {
-          console.log(`⚠️ [${requestId}] No MCP server handler available - this will cause the request to hang!`);
-
-          // If no handler is available, we should send an error response
-          if (!res.headersSent) {
-            console.log(`📤 [${requestId}] Sending 'no handler' error response`);
-            res.status(503).json({
-              error: 'Service temporarily unavailable',
-              message: 'MCP server handler not initialized',
-              requestId
-            });
-          }
-          return; // Don't continue with handleRequest if no handler
-        }
-
-        // Now handle the request with the transport (which is connected to the MCP server)
-        console.log(`🔍 [${requestId}] Before transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
-
-        const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
-        console.log(`⏳ [${requestId}] Transport.handleRequest started...`);
-
-        // Add timeout to detect hanging
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Transport handleRequest timeout after 30s')), 30000);
-        });
-
-        try {
-          await Promise.race([transportPromise, timeoutPromise]);
-          console.log(`✅ [${requestId}] Transport handled request successfully`);
-        } catch (error) {
-          console.error(`❌ [${requestId}] Transport handleRequest error:`, error);
-          throw error;
-        }
-
-        console.log(`🔍 [${requestId}] After transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
-        console.log(`📊 [${requestId}] Response data captured: ${responseDataCaptured}`);
+        console.log(`📊 [${requestId}] Response data captured: ${responseDataCaptured.captured}`);
 
         // Restore original methods
         res.write = originalWrite;
         res.end = originalEnd;
-
-        // Function completes successfully
-        return;
 
       } catch (error) {
         console.error(`❌ [${requestId}] Streamable HTTP request error:`, error);
         console.error(`🔍 [${requestId}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
 
         if (!res.headersSent) {
-          console.log(`📤 [${requestId}] Sending error response: 500`);
-          res.status(500).json({ error: 'Failed to process Streamable HTTP request' });
+          const statusCode = (error as Error & { statusCode?: number }).statusCode || 500;
+          console.log(`📤 [${requestId}] Sending error response: ${statusCode}`);
+
+          if (statusCode === 503) {
+            res.status(503).json({
+              error: 'Service temporarily unavailable',
+              message: 'MCP server handler not initialized',
+              requestId
+            });
+          } else {
+            res.status(500).json({ error: 'Failed to process Streamable HTTP request' });
+          }
         } else {
           console.log(`⚠️ [${requestId}] Response already sent, cannot send error response`);
         }
       }
     };
     this.app.all(this.options.endpoint, authMiddleware, mcpHandler);
+  }
+
+  /**
+   * Handle DELETE requests for session cleanup
+   */
+  private async handleSessionCleanup(req: Request, res: Response, requestId: string): Promise<void> {
+    const sessionId = req.headers['mcp-session-id'] as string;
+
+    if (!sessionId) {
+      console.log(`⚠️ [${requestId}] DELETE request missing mcp-session-id header`);
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'DELETE requests require mcp-session-id header',
+        requestId: requestId,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    console.log(`🗑️  [${requestId}] Session cleanup requested for: ${sessionId}`);
+
+    if (this.sessionTransports.has(sessionId)) {
+      const transport = this.sessionTransports.get(sessionId)!;
+
+      try {
+        await transport.close();
+        console.log(`🔌 [${requestId}] Transport closed for session: ${sessionId}`);
+      } catch (error) {
+        console.error(`❌ [${requestId}] Error closing transport for session ${sessionId}:`, error);
+      }
+
+      this.sessionTransports.delete(sessionId);
+      this.sessionManager.closeSession(sessionId);
+
+      console.log(`✅ [${requestId}] Session ${sessionId} successfully cleaned up`);
+      res.status(200).json({
+        message: 'Session successfully terminated',
+        sessionId: sessionId,
+        requestId: requestId,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log(`⚠️ [${requestId}] Session ${sessionId} not found or already cleaned up`);
+      res.status(404).json({
+        error: 'Session Not Found',
+        message: `Session ${sessionId} not found or already terminated`,
+        sessionId: sessionId,
+        requestId: requestId,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  /**
+   * Log JSON-RPC request details for debugging
+   */
+  private logJsonRpcRequest(req: Request, requestId: string): void {
+    if (req.method === 'POST' && req.body) {
+      try {
+        const jsonrpcRequest = req.body;
+        if (jsonrpcRequest.jsonrpc && jsonrpcRequest.method) {
+          console.log(`📋 [${requestId}] JSON-RPC Method: ${jsonrpcRequest.method} | ID: ${jsonrpcRequest.id} | Version: ${jsonrpcRequest.jsonrpc}`);
+
+          if (jsonrpcRequest.params) {
+            if (jsonrpcRequest.method === 'initialize') {
+              console.log(`🚀 [${requestId}] Initialize Request - Protocol: ${jsonrpcRequest.params.protocolVersion}`);
+              console.log(`🎯 [${requestId}] Client Info: ${JSON.stringify(jsonrpcRequest.params.clientInfo)}`);
+              console.log(`⚙️ [${requestId}] Capabilities: ${JSON.stringify(jsonrpcRequest.params.capabilities)}`);
+            } else if (jsonrpcRequest.method === 'tools/list') {
+              console.log(`🛠️ [${requestId}] Tools List Request`);
+            } else if (jsonrpcRequest.method === 'tools/call') {
+              console.log(`🔧 [${requestId}] Tool Call: ${jsonrpcRequest.params.name}`);
+              console.log(`📝 [${requestId}] Tool Args: ${JSON.stringify(jsonrpcRequest.params.arguments)}`);
+            } else {
+              console.log(`📦 [${requestId}] Params: ${JSON.stringify(jsonrpcRequest.params).substring(0, 200)}${JSON.stringify(jsonrpcRequest.params).length > 200 ? '...' : ''}`);
+            }
+          }
+        } else {
+          console.log(`⚠️ [${requestId}] Non-JSON-RPC request body detected`);
+        }
+      } catch (error) {
+        console.log(`❌ [${requestId}] Failed to parse JSON-RPC request: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Get existing transport or create a new one for the session
+   */
+  private async getOrCreateTransport(req: Request, requestId: string): Promise<StreamableHTTPServerTransport> {
+    const existingSessionId = req.headers['mcp-session-id'] as string;
+
+    if (existingSessionId && this.sessionTransports.has(existingSessionId)) {
+      console.log(`♻️  [${requestId}] Reusing existing transport for session: ${existingSessionId}`);
+      return this.sessionTransports.get(existingSessionId)!;
+    }
+
+    console.log(`🆕 [${requestId}] Creating new transport for session: ${existingSessionId || 'new'}`);
+    const transport = this.createNewTransport(req, requestId);
+
+    // Store transport for future session reuse (will be updated with actual sessionId in handleSessionInitialized)
+    if (existingSessionId) {
+      this.sessionTransports.set(existingSessionId, transport);
+    }
+
+    return transport;
+  }
+
+  /**
+   * Create a new StreamableHTTPServerTransport
+   */
+  private createNewTransport(req: Request, requestId: string): StreamableHTTPServerTransport {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => {
+        const sessionId = this.sessionManager.generateSessionId();
+        console.log(`🔑 [${requestId}] Generated session ID: ${sessionId}`);
+        return sessionId;
+      },
+      onsessioninitialized: async (sessionId: string) => {
+        // Store transport with the actual generated session ID
+        this.sessionTransports.set(sessionId, transport);
+        console.log(`💾 [${requestId}] Stored transport for session: ${sessionId}`);
+        await this.handleSessionInitialized(req, sessionId, requestId);
+      },
+      onsessionclosed: async (sessionId: string) => {
+        await this.handleSessionClosed(sessionId, requestId);
+      },
+      enableJsonResponse: this.options.enableJsonResponse ?? EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
+      eventStore: this.options.enableResumability
+        ? EventStoreFactory.createEventStore('memory')
+        : undefined,
+      allowedHosts: this.options.allowedHosts,
+      allowedOrigins: this.options.allowedOrigins,
+      enableDnsRebindingProtection: !!(this.options.allowedHosts || this.options.allowedOrigins),
+    });
+
+    return transport;
+  }
+
+  /**
+   * Handle session initialization
+   */
+  private async handleSessionInitialized(req: Request, sessionId: string, requestId: string): Promise<void> {
+    const authInfo = (req as AuthenticatedRequest).auth;
+    console.log(`🔗 [${requestId}] New Streamable HTTP session initialized: ${sessionId}`);
+    console.log(`👤 [${requestId}] Auth Status: ${authInfo ? 'authenticated' : 'anonymous'}`);
+
+    if (authInfo) {
+      console.log(`🎫 [${requestId}] Session Auth Details - Client: ${authInfo.clientId}, Scopes: ${authInfo.scopes?.join(', ') || 'none'}`);
+    }
+
+    try {
+      this.sessionManager.createSession(authInfo);
+      const stats = this.sessionManager.getStats();
+      console.log(`📊 [${requestId}] Session Stats - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
+    } catch (error) {
+      console.error(`❌ [${requestId}] Failed to create session: ${error}`);
+    }
+  }
+
+  /**
+   * Handle session closure
+   */
+  private async handleSessionClosed(sessionId: string, requestId: string): Promise<void> {
+    console.log(`🔌 [${requestId}] Streamable HTTP session closed: ${sessionId}`);
+
+    this.sessionTransports.delete(sessionId);
+    console.log(`🗑️  [${requestId}] Removed transport for session: ${sessionId}`);
+
+    try {
+      this.sessionManager.closeSession(sessionId);
+      const stats = this.sessionManager.getStats();
+      console.log(`📊 [${requestId}] Session Stats After Close - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
+    } catch (error) {
+      console.error(`❌ [${requestId}] Failed to close session: ${error}`);
+    }
+  }
+
+  /**
+   * Set up response monitoring to capture transport output
+   */
+  private setupResponseMonitoring(res: Response, requestId: string): {
+    originalWrite: typeof res.write;
+    originalEnd: typeof res.end;
+    responseDataCaptured: { captured: boolean };
+  } {
+    const responseDataCaptured = { captured: false };
+    const originalWrite = res.write;
+    const originalEnd = res.end;
+
+    res.write = function(chunk: unknown, encodingOrCallback?: BufferEncoding | ((error: Error | null | undefined) => void), cb?: (error: Error | null | undefined) => void): boolean {
+      console.log(`✍️ [${requestId}] Transport writing to response: ${chunk ? chunk.toString().substring(0, 200) : 'empty'}${chunk && chunk.toString().length > 200 ? '...' : ''}`);
+      responseDataCaptured.captured = true;
+      return originalWrite.call(this, chunk, encodingOrCallback as never, cb);
+    };
+
+    res.end = function(chunkOrCallback?: unknown | (() => void), encodingOrCallback?: BufferEncoding | (() => void), cb?: () => void): typeof res {
+      console.log(`🏁 [${requestId}] Transport ending response: ${chunkOrCallback && typeof chunkOrCallback !== 'function' ? chunkOrCallback.toString().substring(0, 200) : 'no final chunk'}${chunkOrCallback && typeof chunkOrCallback !== 'function' && chunkOrCallback.toString().length > 200 ? '...' : ''}`);
+      responseDataCaptured.captured = true;
+      return originalEnd.call(this, chunkOrCallback, encodingOrCallback as never, cb);
+    };
+
+    return { originalWrite, originalEnd, responseDataCaptured };
+  }
+
+  /**
+   * Connect transport to MCP server handler
+   */
+  private async connectTransportToServer(transport: StreamableHTTPServerTransport, requestId: string): Promise<void> {
+    if (!this.streamableTransportHandler) {
+      console.log(`⚠️ [${requestId}] No MCP server handler available - this will cause the request to hang!`);
+      const error = new Error('MCP server handler not initialized') as Error & { statusCode: number };
+      error.statusCode = 503;
+      throw error;
+    }
+
+    console.log(`🔌 [${requestId}] Connecting transport to MCP server handler`);
+
+    const mcpHandlerPromise = this.streamableTransportHandler(transport);
+    console.log(`⏳ [${requestId}] MCP server handler started...`);
+
+    const mcpTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('MCP server handler timeout after 30s')), 30000);
+    });
+
+    try {
+      await Promise.race([mcpHandlerPromise, mcpTimeoutPromise]);
+      console.log(`🎯 [${requestId}] MCP server handler completed - transport now connected to server`);
+    } catch (error) {
+      console.error(`❌ [${requestId}] MCP server handler error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process the request using the transport
+   */
+  private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
+    console.log(`🔍 [${requestId}] Before transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
+
+    const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
+    console.log(`⏳ [${requestId}] Transport.handleRequest started...`);
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Transport handleRequest timeout after 30s')), 30000);
+    });
+
+    try {
+      await Promise.race([transportPromise, timeoutPromise]);
+      console.log(`✅ [${requestId}] Transport handled request successfully`);
+    } catch (error) {
+      console.error(`❌ [${requestId}] Transport handleRequest error:`, error);
+      throw error;
+    }
+
+    console.log(`🔍 [${requestId}] After transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
   }
 
   /**

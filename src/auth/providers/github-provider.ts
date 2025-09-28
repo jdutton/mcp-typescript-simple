@@ -76,9 +76,11 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       console.log(`[GitHub OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
       console.log(`[GitHub OAuth] Redirecting to GitHub...`);
+      this.setAntiCachingHeaders(res);
       res.redirect(authUrl);
     } catch (error) {
       console.error('GitHub OAuth authorization error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Failed to initiate authorization' });
     }
   }
@@ -92,11 +94,13 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       if (error) {
         console.error('GitHub OAuth error:', error);
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Authorization failed', details: error });
         return;
       }
 
       if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing authorization code or state' });
         return;
       }
@@ -149,10 +153,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         user: userInfo,
       };
 
+      this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
       console.error('GitHub OAuth callback error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'Authorization failed',
         details: error instanceof Error ? error.message : String(error)
@@ -214,10 +220,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       };
 
       console.log(`[GitHub OAuth] ✅ Token exchange successful for user: ${userInfo.name}`);
+      this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
       console.error('[GitHub OAuth] Token exchange error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error)
@@ -236,22 +244,26 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const { access_token } = req.body;
 
       if (!access_token || typeof access_token !== 'string') {
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing access token' });
         return;
       }
 
       const isValid = await this.isTokenValid(access_token);
       if (!isValid) {
+        this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Token is no longer valid' });
         return;
       }
 
       const tokenInfo = this.getToken(access_token);
       if (!tokenInfo) {
+        this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Token not found' });
         return;
       }
 
+      this.setAntiCachingHeaders(res);
       res.json({
         access_token: access_token,
         expires_in: Math.floor((tokenInfo.expiresAt - Date.now()) / 1000),
@@ -260,6 +272,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
     } catch (error) {
       console.error('GitHub token refresh error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(401).json({
         error: 'Failed to refresh token',
         message: error instanceof Error ? error.message : String(error)
@@ -278,9 +291,11 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         this.removeToken(token);
       }
 
+      this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
       console.error('GitHub logout error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
   }

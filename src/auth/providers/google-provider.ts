@@ -86,9 +86,11 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       console.log(`[Google OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
       console.log(`[Google OAuth] Redirecting to Google...`);
+      this.setAntiCachingHeaders(res);
       res.redirect(authUrl);
     } catch (error) {
       console.error('Google OAuth authorization error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Failed to initiate authorization' });
     }
   }
@@ -102,11 +104,13 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       if (error) {
         console.error('Google OAuth error:', error);
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Authorization failed', details: error });
         return;
       }
 
       if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing authorization code or state' });
         return;
       }
@@ -177,6 +181,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         user: userInfo,
       };
 
+      this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
@@ -184,12 +189,14 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Provide more user-friendly error messages
       if (error instanceof Error && error.name === 'OAuthStateError') {
+        this.setAntiCachingHeaders(res);
         res.status(400).json({
           error: 'oauth_state_error',
           error_description: error.message,
           retry_suggestion: 'Please start the OAuth flow again by visiting /auth/google'
         });
       } else {
+        this.setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Authorization failed',
           details: error instanceof Error ? error.message : String(error)
@@ -206,6 +213,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const { refresh_token } = req.body;
 
       if (!refresh_token || typeof refresh_token !== 'string') {
+        this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
         return;
       }
@@ -213,6 +221,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       // Find token info by refresh token
       const tokenData = this.findTokenByRefreshToken(refresh_token);
       if (!tokenData) {
+        this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Invalid refresh token' });
         return;
       }
@@ -247,10 +256,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         token_type: 'Bearer',
       };
 
+      this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
       console.error('Google token refresh error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(401).json({
         error: 'Failed to refresh token',
         message: error instanceof Error ? error.message : String(error)
@@ -269,9 +280,11 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         this.removeToken(token);
       }
 
+      this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
       console.error('Google logout error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
   }
@@ -473,10 +486,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       console.log(`[Google OAuth] ✅ Token exchange successful for user: ${userInfo.email}`);
       console.log(`[Google OAuth] Sending response to client:`, JSON.stringify(response, null, 2));
+      this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
       console.error('Google OAuth token exchange error:', error);
+      this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error)

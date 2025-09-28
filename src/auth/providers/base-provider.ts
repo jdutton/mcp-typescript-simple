@@ -5,6 +5,7 @@
 import { randomBytes, createHash } from 'crypto';
 import { Request, Response } from 'express';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { EnvironmentConfig } from '../../config/environment.js';
 import {
   OAuthProvider,
   OAuthSession,
@@ -36,6 +37,35 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     }
   }
 
+  /**
+   * Log debug information with environment-aware verbosity
+   * Reduces sensitive data exposure in production
+   */
+  protected logDebug(message: string, sensitiveData?: Record<string, unknown>): void {
+    const isProduction = EnvironmentConfig.isProduction();
+
+    if (isProduction) {
+      // Production: minimal logging, no sensitive data
+      console.log(`[OAuth] ${message}`);
+    } else {
+      // Development: detailed logging with sensitive data redacted
+      if (sensitiveData) {
+        const redactedData: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(sensitiveData)) {
+          if (typeof value === 'string' && value.length > 16) {
+            // Redact long strings that might be tokens
+            redactedData[key] = `${value.substring(0, 8)}...${value.substring(value.length - 8)}`;
+          } else {
+            redactedData[key] = value;
+          }
+        }
+        console.log(`[OAuth Debug] ${message}`, redactedData);
+      } else {
+        console.log(`[OAuth Debug] ${message}`);
+      }
+    }
+  }
+
   // Abstract methods that must be implemented by concrete providers
   abstract getProviderType(): OAuthProviderType;
   abstract getProviderName(): string;
@@ -48,6 +78,15 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract verifyAccessToken(token: string): Promise<AuthInfo>;
   abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
 
+  /**
+   * Set anti-caching headers for OAuth responses per RFC 6749 and RFC 9700
+   * These headers prevent sensitive OAuth data from being cached
+   */
+  protected setAntiCachingHeaders(res: Response): void {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
 
   /**
    * Generate PKCE code verifier and challenge
@@ -72,45 +111,54 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Store OAuth session data
    */
   protected storeSession(state: string, session: OAuthSession): void {
-    console.log(`[OAuth Debug] Storing session for state: ${state}, expires: ${new Date(session.expiresAt).toISOString()}`);
+    this.logDebug(
+      `Storing session for provider: ${this.getProviderType()}`,
+      {
+        statePrefix: state.substring(0, 8),
+        expires: new Date(session.expiresAt).toISOString(),
+        totalSessions: this.sessions.size + 1
+      }
+    );
     this.sessions.set(state, session);
-    console.log(`[OAuth Debug] Total sessions stored: ${this.sessions.size}`);
   }
 
   /**
    * Retrieve OAuth session data
    */
   protected getSession(state: string): OAuthSession | undefined {
-    console.log(`[OAuth Debug] Looking up session for state: ${state.substring(0, 8)}...`);
-    console.log(`[OAuth Debug] Total sessions in store: ${this.sessions.size}`);
-
-    // List all stored session states for debugging
-    if (this.sessions.size > 0) {
-      const storedStates = Array.from(this.sessions.keys()).map(s => s.substring(0, 8) + '...');
-      console.log(`[OAuth Debug] Stored session states: ${storedStates.join(', ')}`);
-    }
-
     const session = this.sessions.get(state);
 
     if (!session) {
-      console.log(`[OAuth Debug] ❌ Session not found for state: ${state.substring(0, 8)}...`);
+      this.logDebug(
+        `Session not found`,
+        {
+          statePrefix: state.substring(0, 8),
+          totalSessions: this.sessions.size,
+          provider: this.getProviderType()
+        }
+      );
       return undefined;
     }
 
     const now = Date.now();
     const isExpired = session.expiresAt < now;
 
-    console.log(`[OAuth Debug] Session found - expires: ${new Date(session.expiresAt).toISOString()}`);
-    console.log(`[OAuth Debug] Current time: ${new Date(now).toISOString()}`);
-    console.log(`[OAuth Debug] Is expired: ${isExpired}`);
+    this.logDebug(
+      `Session lookup result`,
+      {
+        statePrefix: state.substring(0, 8),
+        expires: new Date(session.expiresAt).toISOString(),
+        isExpired,
+        provider: this.getProviderType()
+      }
+    );
 
     if (isExpired) {
-      console.log(`[OAuth Debug] ❌ Session expired, removing from storage`);
+      this.logDebug(`Session expired, removing from storage`);
       this.sessions.delete(state);
       return undefined;
     }
 
-    console.log(`[OAuth Debug] ✅ Session valid, returning session info`);
     return session;
   }
 
@@ -125,26 +173,34 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Store token information
    */
   protected storeToken(accessToken: string, tokenInfo: StoredTokenInfo): void {
-    console.log(`[OAuth Debug] Storing token for provider: ${this.getProviderType()}`);
-    console.log(`[OAuth Debug] Token key: ${accessToken.substring(0, 8)}...${accessToken.substring(accessToken.length - 8)}`);
-    console.log(`[OAuth Debug] Token expires: ${new Date(tokenInfo.expiresAt).toISOString()}`);
-    console.log(`[OAuth Debug] User: ${tokenInfo.userInfo.email}`);
+    this.logDebug(
+      `Token stored successfully`,
+      {
+        provider: this.getProviderType(),
+        tokenKey: accessToken,
+        expires: new Date(tokenInfo.expiresAt).toISOString(),
+        userEmail: tokenInfo.userInfo.email,
+        totalTokens: this.tokens.size + 1
+      }
+    );
     this.tokens.set(accessToken, tokenInfo);
-    console.log(`[OAuth Debug] Total tokens stored: ${this.tokens.size}`);
   }
 
   /**
    * Retrieve token information
    */
   protected getToken(accessToken: string): StoredTokenInfo | undefined {
-    console.log(`[OAuth Debug] Looking up token for provider: ${this.getProviderType()}`);
-    console.log(`[OAuth Debug] Token key: ${accessToken.substring(0, 8)}...${accessToken.substring(accessToken.length - 8)}`);
-    console.log(`[OAuth Debug] Total tokens in store: ${this.tokens.size}`);
-
     const tokenInfo = this.tokens.get(accessToken);
 
     if (!tokenInfo) {
-      console.log(`[OAuth Debug] ❌ Token not found in local storage`);
+      this.logDebug(
+        `Token not found in local storage`,
+        {
+          provider: this.getProviderType(),
+          tokenKey: accessToken,
+          totalTokens: this.tokens.size
+        }
+      );
       return undefined;
     }
 
@@ -152,17 +208,22 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const expiresAt = tokenInfo.expiresAt - this.TOKEN_BUFFER;
     const isExpired = expiresAt <= now;
 
-    console.log(`[OAuth Debug] Token found - expires: ${new Date(tokenInfo.expiresAt).toISOString()}`);
-    console.log(`[OAuth Debug] Current time: ${new Date(now).toISOString()}`);
-    console.log(`[OAuth Debug] Is expired: ${isExpired}`);
+    this.logDebug(
+      `Token lookup result`,
+      {
+        provider: this.getProviderType(),
+        tokenKey: accessToken,
+        expires: new Date(tokenInfo.expiresAt).toISOString(),
+        isExpired
+      }
+    );
 
     if (isExpired) {
-      console.log(`[OAuth Debug] ❌ Token expired, removing from storage`);
+      this.logDebug(`Token expired, removing from storage`);
       this.tokens.delete(accessToken);
       return undefined;
     }
 
-    console.log(`[OAuth Debug] ✅ Token valid, returning stored info`);
     return tokenInfo;
   }
 
@@ -189,29 +250,29 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Validate OAuth state parameter
    */
   protected validateState(state: string): OAuthSession {
-    console.log(`[OAuth Debug] Validating state parameter for provider: ${this.getProviderType()}`);
-    console.log(`[OAuth Debug] Incoming state: ${state.substring(0, 8)}...`);
+    this.logDebug(
+      `Validating state parameter`,
+      {
+        provider: this.getProviderType(),
+        statePrefix: state?.substring(0, 8)
+      }
+    );
 
     if (!state) {
-      console.log(`[OAuth Debug] ❌ Missing state parameter`);
       throw new OAuthStateError('Missing state parameter', this.getProviderType());
     }
 
     const session = this.getSession(state);
     if (!session) {
-      // Log context to help debug: could be expired session, server restart, or malicious request
-      console.warn(`[OAuth Debug] ❌ OAuth state validation failed: state=${state.substring(0, 8)}..., sessions=${this.sessions.size}, provider=${this.getProviderType()}`);
-
-      // Additional debugging: check if there are any sessions stored and their ages
-      if (this.sessions.size > 0) {
-        const now = Date.now();
-        console.warn(`[OAuth Debug] Current stored sessions:`);
-        for (const [storedState, storedSession] of this.sessions) {
-          const ageMinutes = Math.floor((now - (storedSession.expiresAt - this.SESSION_TIMEOUT)) / 60000);
-          const remainingMinutes = Math.floor((storedSession.expiresAt - now) / 60000);
-          console.warn(`[OAuth Debug]   - State: ${storedState.substring(0, 8)}..., Age: ${ageMinutes}min, Remaining: ${remainingMinutes}min`);
+      // Log context for debugging in development only
+      this.logDebug(
+        `OAuth state validation failed`,
+        {
+          statePrefix: state.substring(0, 8),
+          sessionsCount: this.sessions.size,
+          provider: this.getProviderType()
         }
-      }
+      );
 
       throw new OAuthStateError(
         'Invalid or expired state parameter. This could be due to browser caching, multiple tabs, or server restart. Please try the authentication flow again.',
@@ -434,6 +495,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // Clean up session since we're done with this flow
       this.removeSession(state);
 
+      this.setAntiCachingHeaders(res);
       res.redirect(redirectUrl.toString());
       return true; // Indicates redirect was handled
     }
