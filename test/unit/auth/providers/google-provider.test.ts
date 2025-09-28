@@ -78,6 +78,12 @@ const createMockResponse = (): MockResponse => {
     }
     return data as Response;
   });
+  data.setHeader = jest.fn((name: string, value: string | string[]) => {
+    if (data.headers && typeof value === 'string') {
+      data.headers[name] = value;
+    }
+    return data as Response;
+  });
 
   return data as MockResponse;
 };

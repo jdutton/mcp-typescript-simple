@@ -294,4 +294,79 @@ describe('GitHub OAuth Integration', () => {
       }
     });
   });
+
+  describe('Security Headers (RFC 9700)', () => {
+    it('should include anti-caching headers on authorization requests', async () => {
+      const response = await request(app)
+        .get('/auth/github')
+        .query({ redirect_uri: 'http://localhost:3000/callback' });
+
+      // RFC 9700 OAuth 2.0 Security Best Current Practice
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['cache-control']).toContain('must-revalidate');
+      expect(response.headers['cache-control']).toContain('private');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+    });
+
+    it('should include anti-caching headers on callback responses', async () => {
+      // Mock GitHub token exchange
+      nock('https://github.com')
+        .post('/login/oauth/access_token')
+        .reply(200, {
+          access_token: 'gho_test_token',
+          token_type: 'bearer',
+          scope: 'user:email'
+        });
+
+      // Mock GitHub user API
+      nock('https://api.github.com')
+        .get('/user')
+        .reply(200, {
+          id: 12345,
+          login: 'testuser',
+          name: 'Test User',
+          email: 'test@example.com'
+        });
+
+      const response = await request(app)
+        .get('/auth/github/callback')
+        .query({
+          code: 'test_code',
+          state: 'test_state_12345'
+        });
+
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+    });
+
+    it('should include anti-caching headers on error responses', async () => {
+      const response = await request(app)
+        .get('/auth/github/callback')
+        .query({
+          error: 'access_denied',
+          error_description: 'User denied access'
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+    });
+
+    it('should include anti-caching headers on logout responses', async () => {
+      const response = await request(app)
+        .post('/auth/github/logout')
+        .set('Authorization', 'Bearer test_token');
+
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+    });
+  });
 });

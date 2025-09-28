@@ -308,6 +308,41 @@ describeSystemTest('OAuth Discovery', () => {
       }
     });
 
+    it('should include anti-caching headers on all discovery endpoints', async () => {
+      const discoveryEndpoints = [
+        '/.well-known/oauth-authorization-server',
+        '/.well-known/oauth-protected-resource',
+        '/.well-known/oauth-protected-resource/mcp',
+        '/.well-known/openid-configuration',
+      ];
+
+      for (const endpoint of discoveryEndpoints) {
+        const response = await client.get(endpoint);
+
+        // RFC 9700 OAuth 2.0 Security Best Current Practice
+        // Section 4.2.4: Authorization servers should set Cache-Control header to no-store
+        expect(response.headers['cache-control']).toContain('no-store');
+        expect(response.headers['cache-control']).toContain('no-cache');
+        expect(response.headers['cache-control']).toContain('must-revalidate');
+        expect(response.headers['cache-control']).toContain('private');
+
+        // Additional anti-caching headers for backwards compatibility
+        expect(response.headers['pragma']).toBe('no-cache');
+        expect(response.headers['expires']).toBe('0');
+      }
+    });
+
+    it('should include anti-caching headers on 404 discovery responses', async () => {
+      const response = await client.get('/.well-known/non-existent');
+      expect(response.status).toBe(404);
+
+      // Even error responses should have anti-caching headers
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.headers['cache-control']).toContain('no-cache');
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+    });
+
     it('should use HTTPS in production-like environments', async () => {
       const response = await client.get('/.well-known/oauth-authorization-server');
       const metadata = response.data;
