@@ -1,0 +1,55 @@
+version: '3.9'
+
+services:
+  # Grafana OTEL-LGTM stack for local development
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    container_name: mcp-otel-lgtm
+    ports:
+      - "3100:3000"    # Grafana UI (avoiding conflict with MCP server on 3000)
+      - "4317:4317"    # OTLP gRPC receiver
+      - "4318:4318"    # OTLP HTTP receiver
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - otel-lgtm-data:/var/lib/grafana
+    networks:
+      - mcp-observability
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Standalone MCP server for testing with observability
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-otel
+    ports:
+      - "3000:3000"    # MCP HTTP server
+    environment:
+      - NODE_ENV=development
+      - MCP_MODE=streamable_http
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318
+      - OTEL_SERVICE_NAME=mcp-typescript-simple
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=dev,deployment.environment=docker
+    depends_on:
+      otel-lgtm:
+        condition: service_healthy
+    networks:
+      - mcp-observability
+    profiles:
+      - full-stack  # Only start with: docker-compose --profile full-stack up
+
+volumes:
+  otel-lgtm-data:
+    driver: local
+
+networks:
+  mcp-observability:
+    driver: bridge

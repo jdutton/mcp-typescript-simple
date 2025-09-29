@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// Initialize observability FIRST - must be before other imports for auto-instrumentation
+import { initializeObservability } from "./observability/index.js";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 // Import LLM components
@@ -27,6 +30,9 @@ const server = new Server(
 
 async function main() {
   try {
+    // Initialize observability first
+    await initializeObservability();
+
     // Load environment configuration
     const config = EnvironmentConfig.get();
     const mode = EnvironmentConfig.getTransportMode();

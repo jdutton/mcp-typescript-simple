@@ -8,6 +8,7 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Multi-LLM integration**: Claude, OpenAI, and Gemini with type-safe provider selection
 - **Vercel serverless deployment**: Ready for production deployment as serverless functions
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
+- **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design
 
 ## Development Commands
 
@@ -48,6 +49,14 @@ npm run typecheck        # TypeScript type checking
 npm run sync-check              # Check if branch is behind origin/main (safe, no auto-merge)
 npm run pre-commit              # Complete pre-commit workflow (sync check + validation)
 npm run post-pr-merge-cleanup   # Clean up merged branches after PR merge (switches to main, deletes merged branches)
+
+# Observability and Development Monitoring
+npm run otel:start              # Start Grafana OTEL-LGTM stack (port 3100)
+npm run otel:stop               # Stop observability stack
+npm run otel:ui                 # Open Grafana dashboard (http://localhost:3100)
+npm run dev:with-otel           # Start MCP server with observability
+npm run otel:test               # Send test telemetry data
+npm run otel:validate           # Validate OTEL setup and connectivity
 
 # Development Deployment (Preview Only)
 npm run build            # Build for deployment
@@ -237,6 +246,10 @@ The CI pipeline includes 10 comprehensive test categories:
 10. Docker Build
 
 **ALL tests must pass** before code can be merged. No exceptions.
+
+## Security Requirements
+
+**CRITICAL**: Never log PII at source. Session IDs (UUIDs) are safe - they contain no personal data.
 
 ## Development Workflow
 
