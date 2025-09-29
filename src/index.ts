@@ -13,6 +13,9 @@ import { EnvironmentConfig } from "./config/environment.js";
 import { TransportFactory } from "./transport/factory.js";
 import { setupMCPServer } from "./server/mcp-setup.js";
 
+// Import structured logger
+import { logger } from "./utils/logger.js";
+
 // Initialize LLM manager
 const llmManager = new LLMManager();
 
@@ -34,8 +37,10 @@ async function main() {
     const config = EnvironmentConfig.get();
     const mode = EnvironmentConfig.getTransportMode();
 
-    console.error(`🚀 Starting MCP TypeScript Simple server in ${mode} mode`);
-    console.error(`📊 Environment: ${config.NODE_ENV}`);
+    logger.info(`Starting MCP TypeScript Simple server in ${mode} mode`, {
+      mode,
+      environment: config.NODE_ENV
+    });
 
     // Log configuration for debugging
     EnvironmentConfig.logConfiguration();
@@ -45,8 +50,10 @@ async function main() {
       await llmManager.initialize();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("⚠️  LLM initialization failed - LLM tools will be unavailable:", errorMessage);
-      console.error("💡 To enable LLM tools, set API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY");
+      logger.warn("LLM initialization failed - LLM tools will be unavailable", {
+        error: errorMessage,
+        suggestion: "Set API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY"
+      });
     }
 
     // Setup MCP server with shared logic (used by both regular server and serverless functions)
@@ -62,24 +69,22 @@ async function main() {
     await transportManager.start();
 
     // Display status information
-    console.error(`🔗 Transport: ${transportManager.getInfo()}`);
-
     const availableProviders = llmManager.getAvailableProviders();
-    if (availableProviders.length > 0) {
-      console.error(`🤖 LLM providers available: ${availableProviders.join(", ")}`);
-    } else {
-      console.error("📝 Basic tools only (no LLM providers configured)");
-    }
+    logger.info("MCP server ready", {
+      transport: transportManager.getInfo(),
+      llmProviders: availableProviders.length > 0 ? availableProviders : null,
+      basicToolsOnly: availableProviders.length === 0
+    });
 
     // Handle graceful shutdown
     const handleShutdown = async (signal: string) => {
-      console.error(`\n⚠️  Received ${signal}, shutting down gracefully...`);
+      logger.info("Received shutdown signal, shutting down gracefully", { signal });
       try {
         await transportManager.stop();
-        console.error("✅ Server stopped successfully");
+        logger.info("Server stopped successfully");
         process.exit(0);
       } catch (error) {
-        console.error("❌ Error during shutdown:", error);
+        logger.error("Error during shutdown", error);
         process.exit(1);
       }
     };
@@ -88,12 +93,12 @@ async function main() {
     process.on('SIGTERM', () => handleShutdown('SIGTERM'));
 
   } catch (error) {
-    console.error("❌ Server startup failed:", error);
+    logger.error("Server startup failed", error);
     process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error("Server error:", error);
+  logger.error("Unhandled server error", error);
   process.exit(1);
 });

@@ -4,6 +4,7 @@
 
 import { EnvironmentConfig } from '../config/environment.js';
 import { LLMConfig, LLMProvider, ProviderModelMap, ModelsForProvider } from './types.js';
+import { logger } from '../utils/logger.js';
 
 type ProviderConfigMap = LLMConfig['providers'];
 
@@ -29,7 +30,7 @@ export class LLMConfigManager {
     }
 
     if (emptyKeys.length > 0) {
-      console.warn('Missing LLM API key values:', emptyKeys.join(', '));
+      logger.warn('Missing LLM API key values', { missingKeys: emptyKeys });
     }
 
     const defaultProvider = await this.getDefaultProvider();
@@ -145,18 +146,18 @@ export class LLMConfigManager {
       }
 
       if (!hasValidProvider) {
-        console.error('No valid LLM providers configured - need at least one API key');
+        logger.error('No valid LLM providers configured - need at least one API key');
         return false;
       }
 
       if (missingProviders.length > 0) {
-        console.warn(`Missing API keys for provider(s): ${missingProviders.join(', ')}`);
+        logger.warn('Missing API keys for providers', { missingProviders });
       }
 
       return true;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('LLM configuration validation failed:', errorMessage);
+      logger.error('LLM configuration validation failed', { error: errorMessage });
       return false;
     }
   }

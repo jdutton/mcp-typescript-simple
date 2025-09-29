@@ -19,6 +19,7 @@ import { GitHubOAuthProvider } from './providers/github-provider.js';
 import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
 // import { GenericOAuthProvider } from './providers/generic-provider.js';
 import { EnvironmentConfig } from '../config/environment.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Factory for creating OAuth provider instances
@@ -96,7 +97,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       try {
         this.disposeAll();
       } catch (error) {
-        console.error('Failed to dispose OAuth providers on exit:', error);
+        logger.error('Failed to dispose OAuth providers on exit', error);
       }
     });
 
@@ -111,7 +112,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     try {
       provider.dispose();
     } catch (error) {
-      console.error('Failed to dispose OAuth provider:', error);
+      logger.error('Failed to dispose OAuth provider', error);
     }
   }
 
@@ -122,7 +123,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       try {
         provider.dispose();
       } catch (error) {
-        console.error('Failed to dispose OAuth provider:', error);
+        logger.error('Failed to dispose OAuth provider', error);
         errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }
@@ -165,12 +166,15 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     const providerType = process.env.OAUTH_PROVIDER as OAuthProviderType;
 
     if (!providerType) {
-      console.warn('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
+      logger.oauthWarn('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
       return null;
     }
 
     if (!factory.isProviderSupported(providerType)) {
-      console.warn(`Unsupported OAuth provider: ${providerType}. Supported providers: ${factory.getSupportedProviders().join(', ')}`);
+      logger.oauthWarn('Unsupported OAuth provider', {
+        provider: providerType,
+        supportedProviders: factory.getSupportedProviders()
+      });
       return null;
     }
 
@@ -192,7 +196,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
           return null;
       }
     } catch (error) {
-      console.error('Failed to create OAuth provider from environment:', error);
+      logger.oauthError('Failed to create OAuth provider from environment', error);
       return null;
     }
   }

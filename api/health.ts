@@ -3,6 +3,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { logger } from '../build/utils/logger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -62,7 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json(healthData);
 
   } catch (error) {
-    console.error('Health check error:', error);
+    logger.error("Health check error", error);
     if (!res.headersSent) {
       res.status(500).json({
         status: 'unhealthy',

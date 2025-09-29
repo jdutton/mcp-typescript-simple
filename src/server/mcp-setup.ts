@@ -8,6 +8,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { LLMManager } from "../llm/manager.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Set up MCP server with tools and handlers
@@ -274,7 +275,7 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Tool execution error for ${name}:`, errorMessage);
+      logger.error("Tool execution error", { tool: name, error: errorMessage });
 
       // For unknown tools, let the error bubble up to MCP framework
       if (errorMessage.includes('Unknown tool')) {

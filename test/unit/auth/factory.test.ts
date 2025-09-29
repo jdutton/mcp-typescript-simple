@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
+import { logger } from '../../../src/utils/logger.js';
 
 const originalEnv = process.env;
 
@@ -42,7 +43,7 @@ describe('OAuthProviderFactory', () => {
   });
 
   it('returns null when no OAuth provider is configured', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
     delete process.env.OAUTH_PROVIDER;
 
     const provider = await OAuthProviderFactory.createFromEnvironment();
@@ -52,17 +53,19 @@ describe('OAuthProviderFactory', () => {
   });
 
   it('returns null when provider type is unsupported', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
     process.env.OAUTH_PROVIDER = 'unsupported';
 
     const provider = await OAuthProviderFactory.createFromEnvironment();
 
     expect(provider).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider: unsupported. Supported providers: google, github, microsoft');
+    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider', expect.objectContaining({
+      provider: 'unsupported'
+    }));
   });
 
   it('returns null and logs an error when credentials are missing', async () => {
-    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const errorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
     process.env.OAUTH_PROVIDER = 'github';
     process.env.GITHUB_CLIENT_ID = '';
     process.env.GITHUB_CLIENT_SECRET = '';

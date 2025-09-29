@@ -5,6 +5,7 @@ import type {
   OAuthSession,
   StoredTokenInfo
 } from '../../../../src/auth/providers/types.js';
+import { logger } from '../../../../src/utils/logger.js';
 
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -106,8 +107,8 @@ describe('MicrosoftOAuthProvider', () => {
     const res = createMockResponse();
 
     // Mock console.error to avoid error output during testing
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+    const consoleLogSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
     await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -182,7 +183,7 @@ describe('MicrosoftOAuthProvider', () => {
 
   it('returns 500 when authorization callback lacks access token', async () => {
     const provider = createProvider();
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
     (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
@@ -299,8 +300,8 @@ describe('MicrosoftOAuthProvider', () => {
         statusText: 'Error'
       }));
 
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleWarnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
+    const consoleErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
     const res = createMockResponse();
     await provider.handleLogout({
@@ -319,7 +320,7 @@ describe('MicrosoftOAuthProvider', () => {
   it('throws when Microsoft user profile cannot be retrieved', async () => {
     const provider = createProvider();
 
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
     fetchMock.mockResolvedValueOnce(new Response('forbidden', {
       status: 403,

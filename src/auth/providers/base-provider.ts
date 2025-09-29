@@ -18,6 +18,7 @@ import {
   OAuthUserInfo,
   ProviderTokenResponse
 } from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -46,7 +47,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     if (isProduction) {
       // Production: minimal logging, no sensitive data
-      console.log(`[OAuth] ${message}`);
+      logger.oauthInfo(message);
     } else {
       // Development: detailed logging with sensitive data redacted
       if (sensitiveData) {
@@ -59,9 +60,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
             redactedData[key] = value;
           }
         }
-        console.log(`[OAuth Debug] ${message}`, redactedData);
+        logger.oauthDebug(message, redactedData);
       } else {
-        console.log(`[OAuth Debug] ${message}`);
+        logger.oauthDebug(message);
       }
     }
   }
@@ -280,7 +281,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       );
     }
 
-    console.log(`[OAuth Debug] ✅ State validation successful`);
+    logger.oauthDebug('State validation successful');
     return session;
   }
 
@@ -431,8 +432,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     clientId?: string;
   } {
     const providerName = this.getProviderName();
-    console.log(`[${providerName} OAuth] Starting authorization request...`);
-    console.log(`[${providerName} OAuth] Query parameters:`, req.query);
+    logger.oauthDebug('Starting authorization request', { provider: providerName });
+    logger.oauthDebug('Query parameters', { provider: providerName, query: req.query });
 
     return {
       clientRedirectUri: req.query.redirect_uri as string,
@@ -465,8 +466,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     }
     // If client provided challenge, we don't have the verifier (client keeps it)
 
-    console.log(`[${providerName} OAuth] Using state: ${state.substring(0, 8)}...`);
-    console.log(`[${providerName} OAuth] Using code challenge: ${codeChallenge.substring(0, 8)}...`);
+    logger.oauthDebug('Using state', { provider: providerName, statePrefix: state.substring(0, 8) });
+    logger.oauthDebug('Using code challenge', { provider: providerName, codeChallengePrefix: codeChallenge.substring(0, 8) });
 
     return { state, codeVerifier, codeChallenge };
   }
@@ -484,8 +485,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
 
     if (session.clientRedirectUri) {
-      console.log(`[${providerName} OAuth] Redirecting back to client: ${session.clientRedirectUri}`);
-      console.log(`[${providerName} OAuth] Client will handle token exchange with code_verifier`);
+      logger.oauthInfo('Redirecting back to client', {
+        provider: providerName,
+        clientRedirectUri: session.clientRedirectUri
+      });
+      logger.oauthDebug('Client will handle token exchange with code_verifier', { provider: providerName });
 
       // Build redirect URL with authorization code (OAuth standard flow)
       const redirectUrl = new URL(session.clientRedirectUri);
@@ -516,7 +520,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     redirect_uri?: string;
   } {
     const providerName = this.getProviderName();
-    console.log(`[${providerName} OAuth] Handling token exchange from form data...`);
+    logger.oauthDebug('Handling token exchange from form data', { provider: providerName });
 
     const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
 
@@ -538,8 +542,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       return { isValid: false };
     }
 
-    console.log(`[${providerName} OAuth] Using code_verifier from client: ${code_verifier?.substring(0, 8)}...`);
-    console.log(`[${providerName} OAuth] Using redirect_uri: ${this.config.redirectUri}`);
+    logger.oauthDebug('Using code_verifier from client', {
+      provider: providerName,
+      codeVerifierPrefix: code_verifier?.substring(0, 8)
+    });
+    logger.oauthDebug('Using redirect_uri', { provider: providerName, redirectUri: this.config.redirectUri });
 
     return {
       isValid: true,
@@ -564,7 +571,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
 
     if (clientRedirectUri) {
-      console.log(`[${providerName} OAuth] Client redirect URI: ${clientRedirectUri}`);
+      logger.oauthDebug('Client redirect URI', { provider: providerName, clientRedirectUri });
     }
 
     return {

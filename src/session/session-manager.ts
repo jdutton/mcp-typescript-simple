@@ -5,6 +5,7 @@
 import { randomUUID } from 'crypto';
 import { EventStore } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Session information stored by the session manager
@@ -54,7 +55,7 @@ export class SessionManager {
 
     this.sessions.set(sessionId, sessionInfo);
 
-    console.log(`📋 Created new session: ${sessionId}`);
+    logger.debug("Created new session", { sessionId });
     return sessionInfo;
   }
 
@@ -117,7 +118,7 @@ export class SessionManager {
     this.sessions.delete(sessionId);
 
     if (existed) {
-      console.log(`📋 Closed session: ${sessionId}`);
+      logger.debug("Closed session", { sessionId });
     }
 
     return existed;
@@ -184,7 +185,7 @@ export class SessionManager {
     }
 
     if (expiredSessions.length > 0) {
-      console.log(`🧹 Cleaned up ${expiredSessions.length} expired sessions`);
+      logger.debug("Cleaned up expired sessions", { count: expiredSessions.length });
     }
   }
 

@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { LLMConfigManager } from '../../../src/llm/config.js';
 import type { LLMConfig } from '../../../src/llm/types.js';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
+import { logger } from '../../../src/utils/logger.js';
 
 describe('LLMConfigManager', () => {
   afterEach(() => {
@@ -32,16 +33,16 @@ describe('LLMConfigManager', () => {
     } as any);
 
     const manager = new LLMConfigManager();
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
+    const loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     await expect(manager.validateConfig()).resolves.toBe(false);
-    expect(consoleErrorSpy).toHaveBeenCalled();
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    expect(loggerErrorSpy).toHaveBeenCalled();
+    expect(loggerWarnSpy).toHaveBeenCalled();
     expect(envSpy).toHaveBeenCalled();
   });
 
   it('logs warnings and continues when some API keys are missing', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: 'openai-key',
@@ -55,12 +56,14 @@ describe('LLMConfigManager', () => {
     expect(config.providers.claude.apiKey).toBe('');
     expect(config.providers.openai.apiKey).toBe('openai-key');
     expect(config.providers.gemini.apiKey).toBe('');
-    expect(warnSpy).toHaveBeenCalledWith('Missing LLM API key values:', 'ANTHROPIC_API_KEY, GOOGLE_API_KEY');
+    expect(warnSpy).toHaveBeenCalledWith('Missing LLM API key values', expect.objectContaining({
+      missingKeys: expect.arrayContaining(['ANTHROPIC_API_KEY', 'GOOGLE_API_KEY'])
+    }));
     expect(envSpy).toHaveBeenCalled();
   });
 
   it('validates config and warns when some providers lack keys', async () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
     const config: LLMConfig = {
       defaultProvider: 'claude',
       providers: {
@@ -107,13 +110,10 @@ describe('LLMConfigManager', () => {
     await expect(manager.validateConfig()).resolves.toBe(true);
     expect(loadConfigSpy).toHaveBeenCalledTimes(1);
 
-    const warnMessages = warnSpy.mock.calls.flatMap((call) => call.map((arg) => String(arg)));
-    expect(warnSpy).toHaveBeenCalled();
-    expect(
-      warnMessages.some((message) => message.includes('Missing API keys for provider(s):'))
-    ).toBe(true);
-    expect(warnMessages.join(' ')).toContain('openai');
-    expect(warnMessages.join(' ')).toContain('gemini');
+    // The logger now logs structured data objects instead of concatenated strings
+    expect(warnSpy).toHaveBeenCalledWith('Missing API keys for providers', expect.objectContaining({
+      missingProviders: expect.arrayContaining(['openai', 'gemini'])
+    }));
   });
 
   it('throws when requesting a model that does not exist for the provider', async () => {

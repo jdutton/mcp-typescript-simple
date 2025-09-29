@@ -1,5 +1,6 @@
 import { jest } from '@jest/globals';
 import { setupMCPServer } from '../../../src/server/mcp-setup.js';
+import { logger } from '../../../src/utils/logger.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 jest.mock('../../../src/tools/llm/chat.js', () => {
@@ -87,7 +88,7 @@ describe('setupMCPServer', () => {
     const callHandler = server.setRequestHandler.mock.calls.find(([schema]) => schema === CallToolRequestSchema)?.[1] as ((req: any) => Promise<any>) | undefined;
     expect(callHandler).toBeDefined();
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
     const response = await callHandler!({ params: { name: 'chat', arguments: { message: 'hello' } } });
     const { handleChatTool, parseChatToolInput } = await import('../../../src/tools/llm/chat.js');
     expect(parseChatToolInput).toHaveBeenCalledWith({ message: 'hello' });
@@ -95,6 +96,6 @@ describe('setupMCPServer', () => {
     expect(response.content[0].text).toBe('chat');
 
     await expect(callHandler!({ params: { name: 'unknown', arguments: {} } })).rejects.toThrow('Unknown tool');
-    expect(consoleErrorSpy).toHaveBeenCalled();
+    expect(loggerErrorSpy).toHaveBeenCalled();
   });
 });

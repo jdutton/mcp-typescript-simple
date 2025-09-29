@@ -18,6 +18,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Google OAuth provider implementation
@@ -84,12 +85,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         redirect_uri: this.config.redirectUri, // Use our registered redirect URI
       });
 
-      console.log(`[Google OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
-      console.log(`[Google OAuth] Redirecting to Google...`);
+      logger.oauthDebug('Generated auth URL', { provider: 'google', statePrefix: state.substring(0, 8) });
+      logger.oauthInfo('Redirecting to Google', { provider: 'google' });
       this.setAntiCachingHeaders(res);
       res.redirect(authUrl);
     } catch (error) {
-      console.error('Google OAuth authorization error:', error);
+      logger.oauthError('Google OAuth authorization error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Failed to initiate authorization' });
     }
@@ -103,7 +104,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const { code, state, error } = req.query;
 
       if (error) {
-        console.error('Google OAuth error:', error);
+        logger.oauthError('Google OAuth error', { error });
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Authorization failed', details: error });
         return;
@@ -116,7 +117,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       // Validate session
-      console.log(`[Google OAuth] Validating state: ${state.substring(0, 8)}...`);
+      logger.oauthDebug('Validating state', { provider: 'google', statePrefix: state.substring(0, 8) });
       const session = this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
@@ -185,7 +186,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       res.json(response);
 
     } catch (error) {
-      console.error('Google OAuth callback error:', error);
+      logger.oauthError('Google OAuth callback error', error);
 
       // Provide more user-friendly error messages
       if (error instanceof Error && error.name === 'OAuthStateError') {
@@ -260,7 +261,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       res.json(response);
 
     } catch (error) {
-      console.error('Google token refresh error:', error);
+      logger.oauthError('Google token refresh error', error);
       this.setAntiCachingHeaders(res);
       res.status(401).json({
         error: 'Failed to refresh token',
@@ -283,7 +284,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
-      console.error('Google logout error:', error);
+      logger.oauthError('Google logout error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -294,13 +295,17 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
-      console.log(`[Google OAuth] Verifying token: ${token.substring(0, 8)}...${token.substring(token.length - 8)}`);
+      logger.oauthDebug('Verifying token', {
+        provider: 'google',
+        tokenPrefix: token.substring(0, 8),
+        tokenSuffix: token.substring(token.length - 8)
+      });
 
       // Check our local token store first
-      console.log(`[Google OAuth] Checking local token store first...`);
+      logger.oauthDebug('Checking local token store first', { provider: 'google' });
       const tokenInfo = this.getToken(token);
       if (tokenInfo) {
-        console.log(`[Google OAuth] ✅ Found token in local storage, using cached info`);
+        logger.oauthDebug('Found token in local storage, using cached info', { provider: 'google' });
         return {
           token,
           clientId: this.config.clientId,
@@ -314,18 +319,22 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       // If not in local store, verify with Google
-      console.log(`[Google OAuth] Token not in local store, verifying with Google API...`);
+      logger.oauthDebug('Token not in local store, verifying with Google API', { provider: 'google' });
 
       let userInfo: { sub: string; email: string; scopes?: string[]; expiry_date?: number };
 
       try {
         // Try tokeninfo endpoint first
-        console.log(`[Google OAuth] Trying getTokenInfo method...`);
+        logger.oauthDebug('Trying getTokenInfo method', { provider: 'google' });
         this.oauth2Client.setCredentials({ access_token: token });
         const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
 
-        console.log(`[Google OAuth] ✅ getTokenInfo successful`);
-        console.log(`[Google OAuth] Token info: sub=${tokenInfo_google.sub}, email=${tokenInfo_google.email}`);
+        logger.oauthDebug('getTokenInfo successful', { provider: 'google' });
+        logger.oauthDebug('Token info', {
+          provider: 'google',
+          sub: tokenInfo_google.sub,
+          email: tokenInfo_google.email
+        });
 
         if (!tokenInfo_google.sub || !tokenInfo_google.email) {
           throw new Error('Invalid token payload from getTokenInfo');
@@ -339,8 +348,11 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         };
 
       } catch (tokenInfoError) {
-        console.log(`[Google OAuth] getTokenInfo failed, trying userinfo endpoint as fallback...`);
-        console.log(`[Google OAuth] TokenInfo error:`, tokenInfoError instanceof Error ? tokenInfoError.message : tokenInfoError);
+        logger.oauthDebug('getTokenInfo failed, trying userinfo endpoint as fallback', { provider: 'google' });
+        logger.oauthDebug('TokenInfo error', {
+          provider: 'google',
+          error: tokenInfoError instanceof Error ? tokenInfoError.message : tokenInfoError
+        });
 
         try {
           // Fallback to userinfo endpoint
@@ -355,8 +367,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
           }
 
           const userData = await response.json();
-          console.log(`[Google OAuth] ✅ Userinfo endpoint successful`);
-          console.log(`[Google OAuth] User data: id=${userData.id}, email=${userData.email}`);
+          logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
+          logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
 
           if (!userData.id || !userData.email) {
             throw new Error('Invalid user data from userinfo endpoint');
@@ -369,7 +381,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
           };
 
         } catch (userInfoError) {
-          console.log(`[Google OAuth] ❌ Both verification methods failed`);
+          logger.oauthError('Both verification methods failed', { provider: 'google' });
           throw userInfoError;
         }
       }
@@ -388,13 +400,13 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         },
       };
 
-      console.log(`[Google OAuth] ✅ Returning auth info for user: ${userInfo.email}`);
+      logger.oauthDebug('Returning auth info for user', { provider: 'google', email: userInfo.email });
       return authInfo;
 
     } catch (error) {
-      console.error('[Google OAuth] ❌ Token verification failed:', error);
+      logger.oauthError('Token verification failed', error);
       if (error instanceof Error) {
-        console.error('[Google OAuth] Error details:', {
+        logger.oauthError('Error details', {
           name: error.name,
           message: error.message,
           stack: error.stack?.split('\n').slice(0, 5).join('\n')
@@ -484,13 +496,13 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         }
       });
 
-      console.log(`[Google OAuth] ✅ Token exchange successful for user: ${userInfo.email}`);
-      console.log(`[Google OAuth] Sending response to client:`, JSON.stringify(response, null, 2));
+      logger.oauthInfo('Token exchange successful', { provider: 'google', userEmail: userInfo.email });
+      logger.oauthDebug('Sending response to client', { provider: 'google', response: JSON.stringify(response, null, 2) });
       this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
-      console.error('Google OAuth token exchange error:', error);
+      logger.oauthError('Google OAuth token exchange error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
@@ -533,7 +545,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       };
 
     } catch (error) {
-      console.error('Google getUserInfo error:', error);
+      logger.oauthError('Google getUserInfo error', error);
       throw new OAuthProviderError('Failed to get user information', 'google');
     }
   }

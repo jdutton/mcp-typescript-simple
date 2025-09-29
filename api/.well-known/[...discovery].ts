@@ -12,6 +12,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../../build/auth/factory.js';
 import { createOAuthDiscoveryMetadata } from '../../build/auth/discovery-metadata.js';
 import type { OAuthProvider } from '../../build/auth/providers/types.js';
+import { logger } from '../../build/utils/logger.js';
 
 // Global OAuth provider instance for reuse
 let oauthProviderInstance: OAuthProvider | null = null;
@@ -28,11 +29,11 @@ async function initializeOAuthProvider() {
     const provider = await OAuthProviderFactory.createFromEnvironment();
     if (provider) {
       oauthProviderInstance = provider;
-      console.log(`🔐 OAuth provider initialized: ${provider.getProviderType()}`);
+      logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
     }
     return provider;
   } catch (error) {
-    console.error('Failed to initialize OAuth provider:', error);
+    logger.error("Failed to initialize OAuth provider", error);
     return null;
   }
 }
@@ -79,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { discovery } = req.query;
     const discoveryPath = Array.isArray(discovery) ? discovery.join('/') : discovery || '';
 
-    console.log(`📡 OAuth discovery request: /${discoveryPath}`);
+    logger.debug("OAuth discovery request received", { path: `/${discoveryPath}` });
 
     const baseUrl = getBaseUrl(req);
     const oauthProvider = await initializeOAuthProvider();
@@ -117,7 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
   } catch (error) {
-    console.error('❌ OAuth discovery endpoint error:', error);
+    logger.error("OAuth discovery endpoint error", error);
 
     if (!res.headersSent) {
       res.status(500).json({

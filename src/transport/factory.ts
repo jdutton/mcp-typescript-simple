@@ -17,6 +17,7 @@ import {
 import { MCPStreamableHttpServer } from "../server/streamable-http-server.js";
 import { LLMManager } from "../llm/manager.js";
 import { setupMCPServer } from "../server/mcp-setup.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Transport manager for stdio mode (development)
@@ -39,7 +40,7 @@ export class StdioTransportManager implements TransportManager {
     }
 
     await this.server.connect(this.transport);
-    console.error("🚀 MCP TypeScript Simple server running on stdio");
+    logger.info("MCP TypeScript Simple server running on stdio");
   }
 
   async stop(): Promise<void> {
@@ -99,18 +100,18 @@ export class StreamableHTTPTransportManager implements TransportManager {
 
       streamableTransport.onclose = () => {
         removeTransport();
-        console.error(`🔌 Streamable HTTP connection closed: ${sessionId}`);
+        logger.info("Streamable HTTP connection closed", { sessionId });
       };
 
       streamableTransport.onerror = (error: Error) => {
-        console.error(`❌ Streamable HTTP connection error for ${sessionId}:`, error);
+        logger.error("Streamable HTTP connection error", { sessionId, error });
         removeTransport();
       };
 
       try {
         // Create a fresh MCP server instance for each transport
         // This is the correct approach since each HTTP request needs its own server
-        console.log(`🆕 Creating new MCP server instance for transport: ${sessionId}`);
+        logger.debug("Creating new MCP server instance for transport", { sessionId });
         const transportServer = new Server(
           {
             name: "mcp-typescript-simple",
@@ -129,14 +130,14 @@ export class StreamableHTTPTransportManager implements TransportManager {
         }
 
         await transportServer.connect(streamableTransport);
-        console.error(`🔗 New Streamable HTTP connection established: ${sessionId}`);
+        logger.info("New Streamable HTTP connection established", { sessionId });
       } catch (error) {
         removeTransport();
-        console.error(`❌ Failed to connect Streamable HTTP transport ${sessionId}:`, error);
+        logger.error("Failed to connect Streamable HTTP transport", { sessionId, error });
         try {
           await streamableTransport.close();
         } catch (closeError) {
-          console.error(`Failed to close Streamable HTTP transport ${sessionId} after connection error:`, closeError);
+          logger.error("Failed to close Streamable HTTP transport after connection error", { sessionId, error: closeError });
         }
       }
     });
@@ -153,10 +154,14 @@ export class StreamableHTTPTransportManager implements TransportManager {
     const features = [];
     if (this.options.enableResumability) features.push('resumability');
     if (this.options.enableJsonResponse) features.push('JSON responses');
-    const featureStr = features.length > 0 ? ` (${features.join(', ')})` : '';
 
-    console.error(`🚀 MCP TypeScript Simple server running on ${this.options.host}:${this.options.port} ${authMode}`);
-    console.error(`🔗 Streamable HTTP endpoint: ${this.options.endpoint}${featureStr}`);
+    logger.info("MCP TypeScript Simple server running", {
+      host: this.options.host,
+      port: this.options.port,
+      authMode,
+      endpoint: this.options.endpoint,
+      features
+    });
   }
 
   async stop(): Promise<void> {
@@ -167,7 +172,7 @@ export class StreamableHTTPTransportManager implements TransportManager {
       try {
         await transport.close();
       } catch (error) {
-        console.error(`Error closing Streamable HTTP transport ${sessionId}:`, error);
+        logger.error("Error closing Streamable HTTP transport", { sessionId, error });
         errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }
@@ -178,7 +183,7 @@ export class StreamableHTTPTransportManager implements TransportManager {
       try {
         await this.httpServer.stop();
       } catch (error) {
-        console.error('Error stopping Streamable HTTP server:', error);
+        logger.error('Error stopping Streamable HTTP server', error);
         errors.push(error instanceof Error ? error : new Error(String(error)));
       }
     }

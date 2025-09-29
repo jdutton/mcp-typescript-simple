@@ -71,6 +71,7 @@ describe('Observability Initialization', () => {
     jest.clearAllMocks();
     jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'debug').mockImplementation();
+    jest.spyOn(console, 'warn').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
     mockDetectRuntime.mockReturnValue('nodejs');
   });
@@ -85,17 +86,17 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(console.debug).toHaveBeenCalledWith('Initializing observability', {
+      // Check for warning about using register.ts instead
+      expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('[OTEL] Warning: initializeObservability() called in Node.js runtime'));
+
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Late initialization (runtime-based)', {
         environment: 'development',
         runtime: 'nodejs',
         service: 'test-service'
       });
 
-      expect(mockInitializeInstrumentation).toHaveBeenCalled();
       expect(mockInitializeMetrics).toHaveBeenCalled();
-
-
-      expect(console.debug).toHaveBeenCalledWith('Full Node.js observability initialized');
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Metrics initialized (tracing should be via register.ts)');
 
       // Should not initialize edge instrumentation
       expect(mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
@@ -107,22 +108,21 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(console.debug).toHaveBeenCalledWith('Observability disabled');
-      expect(mockInitializeInstrumentation).not.toHaveBeenCalled();
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Observability disabled');
       expect(mockInitializeMetrics).not.toHaveBeenCalled();
       expect(mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
     });
 
     it('should handle initialization errors gracefully', async () => {
       mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
-      mockInitializeInstrumentation.mockImplementationOnce(() => {
-        throw new Error('Instrumentation failed');
+      mockInitializeMetrics.mockImplementationOnce(() => {
+        throw new Error('Metrics failed');
       });
 
       await expect(initializeObservability()).resolves.not.toThrow();
 
       expect(console.error).toHaveBeenCalledWith(
-        'Failed to initialize observability:',
+        '[OTEL] Failed to initialize observability:',
         expect.any(Error)
       );
     });
@@ -135,7 +135,7 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(console.debug).toHaveBeenCalledWith('Initializing observability', {
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Late initialization (runtime-based)', {
         environment: 'development',
         runtime: 'edge',
         service: 'test-service'
@@ -143,10 +143,10 @@ describe('Observability Initialization', () => {
 
       expect(mockInitializeEdgeInstrumentation).toHaveBeenCalled();
 
-      expect(console.debug).toHaveBeenCalledWith('Edge runtime observability initialized');
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Edge runtime observability initialized');
 
-      // Should not initialize Node.js instrumentation
-      expect(mockInitializeInstrumentation).not.toHaveBeenCalled();
+      // Should not initialize Node.js metrics (Edge uses different approach)
+      expect(mockInitializeMetrics).not.toHaveBeenCalled();
     });
 
     it('should handle Edge initialization errors', async () => {
@@ -159,7 +159,7 @@ describe('Observability Initialization', () => {
       await expect(initializeObservability()).resolves.not.toThrow();
 
       expect(console.error).toHaveBeenCalledWith(
-        'Failed to initialize observability:',
+        '[OTEL] Failed to initialize observability:',
         expect.any(Error)
       );
     });
@@ -187,13 +187,12 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(console.debug).toHaveBeenCalledWith('Initializing observability', {
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Late initialization (runtime-based)', {
         environment: 'production',
         runtime: 'nodejs',
         service: 'test-service'
       });
 
-      expect(mockInitializeInstrumentation).toHaveBeenCalled();
       expect(mockInitializeMetrics).toHaveBeenCalled();
 
     });
@@ -210,8 +209,7 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(console.debug).toHaveBeenCalledWith('Observability disabled');
-      expect(mockInitializeInstrumentation).not.toHaveBeenCalled();
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Observability disabled');
       expect(mockInitializeMetrics).not.toHaveBeenCalled();
     });
   });
@@ -234,7 +232,7 @@ describe('Observability Initialization', () => {
       await expect(initializeObservability()).resolves.not.toThrow();
 
       expect(console.error).toHaveBeenCalledWith(
-        'Failed to initialize observability:',
+        '[OTEL] Failed to initialize observability:',
         expect.any(Error)
       );
     });
@@ -257,7 +255,7 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(mockInitializeInstrumentation).toHaveBeenCalled();
+      expect(mockInitializeMetrics).toHaveBeenCalled();
     });
 
     it('should handle console-only configuration', async () => {
@@ -276,8 +274,8 @@ describe('Observability Initialization', () => {
 
       await initializeObservability();
 
-      expect(mockInitializeInstrumentation).toHaveBeenCalled();
-      expect(console.debug).toHaveBeenCalledWith('Full Node.js observability initialized');
+      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(console.debug).toHaveBeenCalledWith('[OTEL] Metrics initialized (tracing should be via register.ts)');
     });
   });
 });

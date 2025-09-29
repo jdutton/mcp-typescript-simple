@@ -8,6 +8,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { LLMManager } from "../build/llm/manager.js";
 import { setupMCPServer } from "../build/server/mcp-setup.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
+import { logger } from "../build/utils/logger.js";
 
 // Global instances for reuse across function invocations
 let serverInstance: Server | null = null;
@@ -21,7 +22,7 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
     return { server: serverInstance, llmManager: llmManagerInstance };
   }
 
-  console.log('🚀 Initializing MCP server for Vercel...');
+  logger.info("Initializing MCP server for Vercel");
 
   // Initialize LLM manager
   const llmManager = new LLMManager();
@@ -29,10 +30,14 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
   // Initialize LLM manager (gracefully handle missing API keys)
   try {
     await llmManager.initialize();
-    console.log(`🤖 LLM providers available: ${llmManager.getAvailableProviders().join(", ")}`);
+    logger.info("LLM providers initialized", {
+      providers: llmManager.getAvailableProviders()
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn("⚠️ LLM initialization failed - LLM tools will be unavailable:", errorMessage);
+    logger.warn("LLM initialization failed - LLM tools will be unavailable", {
+      error: errorMessage
+    });
   }
 
   // Create MCP server
@@ -55,7 +60,7 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
   serverInstance = server;
   llmManagerInstance = llmManager;
 
-  console.log('✅ MCP server initialized successfully');
+  logger.info("MCP server initialized successfully");
   return { server, llmManager };
 }
 
@@ -67,7 +72,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    console.log(`📡 [${requestId}] MCP request: ${req.method} ${req.url} from ${req.headers['user-agent'] || 'unknown'}`);
+    logger.debug("MCP serverless request received", {
+      requestId,
+      method: req.method,
+      url: req.url,
+      userAgent: req.headers['user-agent'] || 'unknown'
+    });
 
     // Set CORS headers for browser requests
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -77,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
-      console.log(`✅ [${requestId}] CORS preflight handled`);
+      logger.debug("CORS preflight handled", { requestId });
       res.status(200).end();
       return;
     }
@@ -96,10 +106,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       },
       onsessioninitialized: async (sessionId: string) => {
-        console.log(`🔗 New Streamable HTTP session initialized: ${sessionId}`);
+        logger.info("Streamable HTTP session initialized", { sessionId });
       },
       onsessionclosed: async (sessionId: string) => {
-        console.log(`🔌 Streamable HTTP session closed: ${sessionId}`);
+        logger.info("Streamable HTTP session closed", { sessionId });
       },
       enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT, // Enable JSON responses for legacy client compatibility (e.g., MCP Inspector)
       eventStore: undefined, // For now, disable resumability in serverless
@@ -115,11 +125,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await server.connect(transport);
 
     const duration = Date.now() - startTime;
-    console.log(`✅ [${requestId}] MCP request completed in ${duration}ms`);
+    logger.debug("MCP request completed", { requestId, duration });
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(`❌ [${requestId}] MCP serverless function error after ${duration}ms:`, error);
+    logger.error("MCP serverless function error", {
+      requestId,
+      duration,
+      error
+    });
 
     if (!res.headersSent) {
       res.status(500).json({

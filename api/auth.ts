@@ -4,6 +4,7 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../build/auth/factory.js';
+import { logger } from '../build/utils/logger.js';
 
 // Global OAuth provider instance for reuse
 let oauthProviderInstance: any = null;
@@ -23,10 +24,10 @@ async function initializeOAuthProvider() {
     }
 
     oauthProviderInstance = provider;
-    console.log(`🔐 OAuth provider initialized: ${provider.getProviderType()}`);
+    logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
     return provider;
   } catch (error) {
-    console.error('Failed to initialize OAuth provider:', error);
+    logger.error("Failed to initialize OAuth provider", error);
     throw error;
   }
 }
@@ -51,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Remove 'api' and 'auth' from path segments to get the actual OAuth path
     const oauthPath = '/' + pathSegments.slice(2).join('/');
 
-    console.log(`📡 OAuth request: ${req.method} ${oauthPath}`);
+    logger.debug("OAuth request received", { method: req.method, path: oauthPath });
 
     // Initialize OAuth provider
     const oauthProvider = await initializeOAuthProvider();
@@ -61,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath === endpoints.authEndpoint || oauthPath.startsWith('/google') || oauthPath.startsWith('/github') || oauthPath.startsWith('/microsoft') || oauthPath.startsWith('/oauth')) {
       // Authorization endpoint
       if (req.method === 'GET') {
-        console.log('🚀 Handling OAuth authorization request');
+        logger.debug("Handling OAuth authorization request");
         await oauthProvider.handleAuthorizationRequest(req, res);
         return;
       }
@@ -70,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath.includes('/callback')) {
       // Callback endpoint
       if (req.method === 'GET') {
-        console.log('🔄 Handling OAuth callback');
+        logger.debug("Handling OAuth callback");
         await oauthProvider.handleAuthorizationCallback(req, res);
         return;
       }
@@ -79,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath.includes('/refresh')) {
       // Token refresh endpoint
       if (req.method === 'POST') {
-        console.log('🔄 Handling token refresh');
+        logger.debug("Handling token refresh");
         await oauthProvider.handleTokenRefresh(req, res);
         return;
       }
@@ -88,7 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath.includes('/logout')) {
       // Logout endpoint
       if (req.method === 'POST') {
-        console.log('👋 Handling logout');
+        logger.debug("Handling logout");
         await oauthProvider.handleLogout(req, res);
         return;
       }
@@ -102,7 +103,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('❌ OAuth endpoint error:', error);
+    logger.error("OAuth endpoint error", error);
 
     if (!res.headersSent) {
       res.status(500).json({

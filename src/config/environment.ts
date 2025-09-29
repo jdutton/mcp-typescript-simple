@@ -3,6 +3,7 @@
  */
 
 import { z } from 'zod';
+import { logger } from '../utils/logger.js';
 
 export enum TransportMode {
   STDIO = 'stdio',
@@ -160,7 +161,7 @@ export class EnvironmentConfig {
       this._configStatus = this.analyzeConfiguration(env);
       return this._instance;
     } catch (error) {
-      console.error('❌ Environment configuration validation failed:', error);
+      logger.error('Environment configuration validation failed', error);
       throw new Error('Invalid environment configuration');
     }
   }
@@ -217,26 +218,35 @@ export class EnvironmentConfig {
   static logConfiguration(): void {
     const status = this.getConfigurationStatus();
 
-    console.error('📊 Configuration:');
-    console.error(JSON.stringify(status.configuration, null, 2));
+    logger.info('Configuration loaded', { configuration: status.configuration });
 
-    console.error('🔐 Secrets Status:');
-    console.error(`  • Total secrets: ${status.secrets.total}`);
-    console.error(`  • Configured: ${status.secrets.configured.length} (${status.secrets.configured.join(', ') || 'none'})`);
-    console.error(`  • Missing: ${status.secrets.missing.length} (${status.secrets.missing.join(', ') || 'none'})`);
+    logger.info('Secrets Status', {
+      totalSecrets: status.secrets.total,
+      configuredCount: status.secrets.configured.length,
+      configured: status.secrets.configured.join(', ') || 'none',
+      missingCount: status.secrets.missing.length,
+      missing: status.secrets.missing.join(', ') || 'none'
+    });
 
     // OAuth provider validation
     const oauthProvider = status.configuration.OAUTH_PROVIDER;
     if (oauthProvider) {
       const hasOAuthCredentials = this.checkOAuthCredentials(oauthProvider);
-      console.error(`🔑 OAuth (${oauthProvider}): ${hasOAuthCredentials ? '✅ configured' : '❌ missing credentials'}`);
+      logger.info('OAuth configuration status', {
+        provider: oauthProvider,
+        configured: hasOAuthCredentials
+      });
     } else {
-      console.error('🔑 OAuth: ❌ no provider configured');
+      logger.warn('OAuth: no provider configured');
     }
 
     // LLM provider validation
     const llmProviders = this.checkLLMProviders();
-    console.error(`🤖 LLM Providers: ${llmProviders.length > 0 ? '✅ ' + llmProviders.join(', ') : '❌ none configured'}`);
+    if (llmProviders.length > 0) {
+      logger.info('LLM Providers configured', { providers: llmProviders });
+    } else {
+      logger.warn('LLM Providers: none configured');
+    }
   }
 
   static checkOAuthCredentials(provider: string | undefined): boolean {
