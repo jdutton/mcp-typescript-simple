@@ -38,7 +38,8 @@ export class ObservabilityLogger {
         options: {
           colorize: true,
           translateTime: 'HH:MM:ss',
-          ignore: 'pid,hostname'
+          ignore: 'pid,hostname',
+          destination: 2 // Output to stderr (fd 2) instead of stdout
         }
       });
     }
