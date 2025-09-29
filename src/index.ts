@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-// Initialize observability FIRST - must be before other imports for auto-instrumentation
-import { initializeObservability } from "./observability/index.js";
+// NOTE: Observability is initialized via --import flag in package.json (see dev:http script)
+// This ensures auto-instrumentation hooks are registered before any modules load
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
@@ -30,9 +30,6 @@ const server = new Server(
 
 async function main() {
   try {
-    // Initialize observability first
-    await initializeObservability();
-
     // Load environment configuration
     const config = EnvironmentConfig.get();
     const mode = EnvironmentConfig.getTransportMode();

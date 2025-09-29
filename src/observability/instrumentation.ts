@@ -1,5 +1,13 @@
 /**
- * OpenTelemetry instrumentation setup
+ * OpenTelemetry instrumentation setup (LEGACY)
+ *
+ * @deprecated This file is kept for backward compatibility and edge cases only.
+ *
+ * For Node.js applications, use src/observability/register.ts with --import flag instead.
+ * This ensures auto-instrumentation hooks are registered BEFORE any modules load.
+ *
+ * See package.json scripts (dev:http, dev:oauth, etc.) for correct usage.
+ *
  * Node.js runtime only - conditional loading for Vercel compatibility
  */
 
@@ -13,8 +21,10 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { getObservabilityConfig, detectRuntime } from './config.js';
 
@@ -64,11 +74,25 @@ export function initializeInstrumentation(): void {
       headers: {}
     });
 
+    // Configure metric exporter
+    const metricExporter = new OTLPMetricExporter({
+      url: `${config.exporters.otlp.endpoint}/v1/metrics`,
+      headers: {}
+    });
+
     // Initialize SDK
     sdk = new NodeSDK({
       resource,
-      spanProcessor: new BatchSpanProcessor(traceExporter),
+      spanProcessor: new BatchSpanProcessor(traceExporter, {
+        maxQueueSize: 2048,
+        maxExportBatchSize: 512,
+        scheduledDelayMillis: config.environment === 'development' ? 5000 : 30000
+      }),
       logRecordProcessor: new BatchLogRecordProcessor(logExporter),
+      metricReader: new PeriodicExportingMetricReader({
+        exporter: metricExporter,
+        exportIntervalMillis: config.environment === 'development' ? 10000 : 60000
+      }),
       instrumentations: [
         getNodeAutoInstrumentations({
           // Disable some instrumentations to reduce overhead
