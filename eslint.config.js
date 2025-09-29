@@ -4,6 +4,10 @@ import typescriptParser from '@typescript-eslint/parser';
 export default [
   {
     files: ['src/**/*.ts'],
+    ignores: [
+      'src/observability/**/*.ts', // Observability infrastructure uses console for bootstrap logging
+      'src/utils/logger.ts' // Logger infrastructure file
+    ],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -21,7 +25,8 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-function-return-type': 'off',
       'prefer-const': 'error',
-      'no-var': 'error'
+      'no-var': 'error',
+      'no-console': 'error' // No console methods allowed - use structured logger instead
     }
   },
   {

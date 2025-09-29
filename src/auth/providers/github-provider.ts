@@ -16,6 +16,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -74,12 +75,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         session.scopes
       );
 
-      console.log(`[GitHub OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
-      console.log(`[GitHub OAuth] Redirecting to GitHub...`);
+      logger.oauthDebug('Generated auth URL', { provider: 'github', statePrefix: state.substring(0, 8) });
+      logger.oauthInfo('Redirecting to GitHub', { provider: 'github' });
       this.setAntiCachingHeaders(res);
       res.redirect(authUrl);
     } catch (error) {
-      console.error('GitHub OAuth authorization error:', error);
+      logger.oauthError('GitHub OAuth authorization error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Failed to initiate authorization' });
     }
@@ -93,7 +94,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const { code, state, error } = req.query;
 
       if (error) {
-        console.error('GitHub OAuth error:', error);
+        logger.oauthError('GitHub OAuth error', { error });
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Authorization failed', details: error });
         return;
@@ -106,7 +107,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       }
 
       // Validate session
-      console.log(`[GitHub OAuth] Validating state: ${state.substring(0, 8)}...`);
+      logger.oauthDebug('Validating state', { provider: 'github', statePrefix: state.substring(0, 8) });
       const session = this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
@@ -157,7 +158,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       res.json(response);
 
     } catch (error) {
-      console.error('GitHub OAuth callback error:', error);
+      logger.oauthError('GitHub OAuth callback error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'Authorization failed',
@@ -219,12 +220,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         user: userInfo,
       };
 
-      console.log(`[GitHub OAuth] ✅ Token exchange successful for user: ${userInfo.name}`);
+      logger.oauthInfo('Token exchange successful', { provider: 'github', userName: userInfo.name });
       this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
-      console.error('[GitHub OAuth] Token exchange error:', error);
+      logger.oauthError('Token exchange error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
@@ -271,7 +272,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       });
 
     } catch (error) {
-      console.error('GitHub token refresh error:', error);
+      logger.oauthError('GitHub token refresh error', error);
       this.setAntiCachingHeaders(res);
       res.status(401).json({
         error: 'Failed to refresh token',
@@ -294,7 +295,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
-      console.error('GitHub logout error:', error);
+      logger.oauthError('GitHub logout error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -334,7 +335,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       };
 
     } catch (error) {
-      console.error('GitHub token verification error:', error);
+      logger.oauthError('GitHub token verification error', error);
       throw new OAuthTokenError('Invalid or expired token', 'github');
     }
   }
@@ -354,7 +355,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       return await this.fetchGitHubUserInfo(accessToken);
 
     } catch (error) {
-      console.error('GitHub getUserInfo error:', error);
+      logger.oauthError('GitHub getUserInfo error', error);
       throw new OAuthProviderError('Failed to get user information', 'github');
     }
   }
@@ -364,7 +365,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
    */
   private async fetchGitHubUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
-      console.log('🔍 Fetching GitHub user info with token:', accessToken.substring(0, 10) + '...');
+      logger.oauthDebug('Fetching GitHub user info', { tokenPrefix: accessToken.substring(0, 10) });
 
       // Get user profile
       const userResponse = await fetch(this.GITHUB_USER_URL, {
@@ -375,11 +376,11 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         },
       });
 
-      console.log('📡 GitHub user API response status:', userResponse.status, userResponse.statusText);
+      logger.oauthDebug('GitHub user API response', { status: userResponse.status, statusText: userResponse.statusText });
 
       if (!userResponse.ok) {
         const errorBody = await userResponse.text();
-        console.error('❌ GitHub user API error response:', errorBody);
+        logger.oauthError('GitHub user API error response', { errorBody });
         throw new OAuthProviderError(
           `Failed to fetch user profile: ${userResponse.status} ${userResponse.statusText} - ${errorBody}`,
           'github'
@@ -387,20 +388,20 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       }
 
       const userData = await userResponse.json();
-      console.log('👤 GitHub user data received:', {
+      logger.oauthDebug('GitHub user data received', {
         login: userData.login,
         id: userData.id,
         name: userData.name,
         email: userData.email,
-        private_email: userData.email === null ? 'private' : 'public'
+        isPrivate: userData.email === null
       });
 
       // Get user emails (needed for primary email)
       let primaryEmail = userData.email;
-      console.log('📧 Initial email from user profile:', primaryEmail || 'null (private)');
+      logger.oauthDebug('Initial email from user profile', { email: primaryEmail || 'private' });
 
       if (!primaryEmail) {
-        console.log('🔍 Fetching user emails from /user/emails endpoint...');
+        logger.oauthDebug('Fetching user emails from /user/emails endpoint');
         try {
           const emailResponse = await fetch(this.GITHUB_USER_EMAIL_URL, {
             headers: {
@@ -410,28 +411,30 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
             },
           });
 
-          console.log('📧 GitHub emails API response status:', emailResponse.status, emailResponse.statusText);
+          logger.oauthDebug('GitHub emails API response', { status: emailResponse.status, statusText: emailResponse.statusText });
 
           if (emailResponse.ok) {
             const emails = await emailResponse.json();
-            console.log('📧 Available emails:', emails.map((e: any) => ({ email: e.email, primary: e.primary, verified: e.verified })));
+            logger.oauthDebug('Available emails', {
+              emails: emails.map((e: any) => ({ email: e.email, primary: e.primary, verified: e.verified }))
+            });
 
             const primary = emails.find((email: any) => email.primary && email.verified);
             const fallback = emails.find((email: any) => email.verified);
             primaryEmail = primary?.email || fallback?.email || emails[0]?.email;
 
-            console.log('📧 Selected email:', primaryEmail);
+            logger.oauthDebug('Selected email', { email: primaryEmail });
           } else {
             const errorBody = await emailResponse.text();
-            console.error('❌ GitHub emails API error:', errorBody);
+            logger.oauthError('GitHub emails API error', { errorBody });
           }
         } catch (emailError) {
-          console.error('❌ Could not fetch GitHub user emails:', emailError);
+          logger.oauthError('Could not fetch GitHub user emails', emailError);
         }
       }
 
       if (!primaryEmail) {
-        console.error('❌ No email address found - user may have private email settings');
+        logger.oauthError('No email address found - user may have private email settings');
         throw new OAuthProviderError('No email address found for GitHub user. Please ensure your GitHub account has a public email or the user:email scope is granted.', 'github');
       }
 
@@ -445,7 +448,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       };
 
     } catch (error) {
-      console.error('❌ GitHub fetchUserInfo error:', error);
+      logger.oauthError('GitHub fetchUserInfo error', error);
 
       // Provide more specific error information
       if (error instanceof OAuthProviderError) {

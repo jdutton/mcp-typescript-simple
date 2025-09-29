@@ -2,6 +2,7 @@ import { MCPStreamableHttpServer } from '../../../src/server/streamable-http-ser
 import { EnvironmentConfig } from '../../../src/config/environment.js';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { logger } from '../../../src/utils/logger.js';
 import request from 'supertest';
 
 describe('MCPStreamableHttpServer', () => {
@@ -10,8 +11,10 @@ describe('MCPStreamableHttpServer', () => {
   const servers: MCPStreamableHttpServer[] = [];
 
   beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    jest.spyOn(logger, 'debug').mockImplementation(() => {});
+    jest.spyOn(logger, 'info').mockImplementation(() => {});
     (EnvironmentConfig as any).getSecurityConfig = jest.fn().mockReturnValue({ requireHttps: false });
     (EnvironmentConfig as any).isDevelopment = jest.fn().mockReturnValue(true);
     Object.assign(OAuthProviderFactory, {
@@ -101,14 +104,16 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const consoleSpy = jest.spyOn(console, 'log');
+    const loggerSpy = jest.spyOn(logger, 'debug');
 
     await request(app)
       .get('/health')
       .set('Accept', 'application/json')
       .expect(200);
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Accept: application\/json/));
+    expect(loggerSpy).toHaveBeenCalledWith('Incoming request', expect.objectContaining({
+      accept: 'application/json'
+    }));
   });
 
   it('logs large request body with truncation', async () => {
@@ -116,14 +121,16 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const consoleSpy = jest.spyOn(console, 'log');
+    const loggerSpy = jest.spyOn(logger, 'debug');
     const largeBody = { data: 'x'.repeat(2000) }; // Large body over 1000 chars
 
     await request(app)
       .post('/mcp')
       .send(largeBody); // Don't care about status, just that it logs
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Request Body:.*truncated/));
+    expect(loggerSpy).toHaveBeenCalledWith('Request body (truncated)', expect.objectContaining({
+      totalLength: expect.any(Number)
+    }));
   });
 
   it('logs small request body without truncation', async () => {
@@ -131,15 +138,17 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const consoleSpy = jest.spyOn(console, 'log');
+    const loggerSpy = jest.spyOn(logger, 'debug');
     const smallBody = { data: 'small' };
 
     await request(app)
       .post('/mcp')
       .send(smallBody); // Don't care about status, just that it logs
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/Request Body:.*"data":"small"/));
-    expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringMatching(/truncated/));
+    expect(loggerSpy).toHaveBeenCalledWith('Request body', expect.objectContaining({
+      body: expect.stringContaining('"data":"small"')
+    }));
+    expect(loggerSpy).not.toHaveBeenCalledWith('Request body (truncated)', expect.anything());
   });
 
   it('tests specific server configuration options', async () => {
@@ -152,14 +161,16 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const consoleSpy = jest.spyOn(console, 'log');
+    const loggerSpy = jest.spyOn(logger, 'debug');
 
     // Test a request that will go through different code paths
     await request(app)
       .get('/health')
       .set('User-Agent', 'Test Agent');
 
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringMatching(/User-Agent: Test Agent/));
+    expect(loggerSpy).toHaveBeenCalledWith('Incoming request', expect.objectContaining({
+      userAgent: 'Test Agent'
+    }));
   });
 
   it('returns 401 when MCP endpoint requires auth but no token provided', async () => {
@@ -431,19 +442,22 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('starts and stops server properly', async () => {
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
 
     const server = makeServer({ port: 8082, host: '127.0.0.1' });
 
     // Start server
     await server.start();
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringMatching(/Streamable HTTP server listening on 127\.0\.0\.1:8082/));
+    expect(loggerInfoSpy).toHaveBeenCalledWith('Streamable HTTP server listening', expect.objectContaining({
+      host: '127.0.0.1',
+      port: 8082
+    }));
 
     // Stop server
     await server.stop();
-    expect(consoleErrorSpy).toHaveBeenCalledWith('📡 Streamable HTTP server stopped');
+    expect(loggerInfoSpy).toHaveBeenCalledWith('Streamable HTTP server stopped');
 
-    consoleErrorSpy.mockRestore();
+    loggerInfoSpy.mockRestore();
   });
 
   it('handles stop when server not started', async () => {

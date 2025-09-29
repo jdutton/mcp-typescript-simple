@@ -3,6 +3,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
+import { logger } from '../build/utils/logger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -24,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Remove 'api' and 'admin' from path segments to get the actual admin path
     const adminPath = '/' + pathSegments.slice(2).join('/');
 
-    console.log(`🔧 Admin request: ${req.method} ${adminPath}`);
+    logger.debug("Admin request received", { method: req.method, path: adminPath });
 
     // Sessions endpoint
     if (adminPath === '/sessions' || adminPath === '') {
@@ -149,7 +150,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (error) {
-    console.error('❌ Admin endpoint error:', error);
+    logger.error("Admin endpoint error", error);
 
     if (!res.headersSent) {
       res.status(500).json({

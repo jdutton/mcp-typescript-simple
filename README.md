@@ -18,6 +18,13 @@ A production-ready MCP (Model Context Protocol) server built with TypeScript fea
 - **Development Bypass**: Easy auth bypass for local development
 - **Claude Code Ready**: Full compatibility with Claude Code integration
 
+### 📊 **Production Observability**
+- **Structured Logging**: Pino-based high-performance logging with environment-aware configuration
+- **OpenTelemetry Integration**: Distributed tracing and metrics collection
+- **Session Correlation**: Secure UUID-based session tracking for distributed systems
+- **Local Development**: Grafana OTEL-LGTM stack for observability validation
+- **Cross-Platform**: Compatible with Express.js, Kubernetes, and Vercel deployments
+
 ## Current State
 
 This project provides a containerized MCP server with comprehensive CI/CD testing and multi-LLM support:
@@ -102,6 +109,11 @@ npm run test:integration
 
 # Test dual-mode functionality
 npm run test:dual-mode
+
+# Observability features
+npm run otel:start      # Start Grafana OTEL-LGTM stack (requires Docker)
+npm run otel:stop       # Stop observability stack
+npm run otel:logs       # View observability stack logs
 ```
 
 #### Development Guides
@@ -110,6 +122,7 @@ npm run test:dual-mode
 - 🏗️ **[System Architecture](./docs/architecture.md)** - Detailed architecture overview with diagrams
 - 🚀 **[Dual-Mode Operation Guide](./docs/dual-mode-guide.md)** - Understanding STDIO and HTTP transport modes
 - 🔐 **[OAuth Setup Guide](./docs/oauth-setup.md)** - Configure OAuth authentication
+- 📊 **[Observability Setup](./docs/adr/001-opentelemetry-observability-architecture.md)** - Structured logging and OpenTelemetry integration
 
 ### Docker Development
 
@@ -129,6 +142,7 @@ src/
 ├── auth/                       # OAuth authentication system
 ├── config/                     # Environment and configuration management
 ├── llm/                        # Multi-LLM provider integration
+├── observability/              # Structured logging and OpenTelemetry integration
 ├── server/                     # HTTP and MCP server implementations
 ├── session/                    # Session management
 ├── tools/                      # MCP tool implementations

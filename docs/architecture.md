@@ -352,17 +352,31 @@ npm run dev:oauth
 
 ## Monitoring and Observability
 
-### Built-in Monitoring
-- **Health Endpoints**: Real-time health status and configuration
-- **Request Logging**: Unique request IDs with timing information
-- **Error Tracking**: Structured error responses with context
-- **Performance Metrics**: Memory usage, response times
+### Structured Logging with Pino
+- **High Performance**: 5-10x faster than Winston with minimal overhead
+- **Environment Aware**: Automatic configuration for development, production, and Vercel edge runtime
+- **JSON Structured**: Machine-readable logs with consistent schema
+- **Security First**: PII prevention at source - no retrospective filtering
+- **Backward Compatible**: Existing logger interface preserved
+
+### OpenTelemetry Integration
+- **Distributed Tracing**: W3C Trace Context standard for request correlation
+- **Session Correlation**: Secure UUID-based session tracking across distributed systems
+- **Metrics Collection**: Auto-instrumentation for Node.js runtime metrics
+- **Cross-Platform**: Works with Express.js, Kubernetes, and Vercel deployments
+- **OTLP Export**: Standard OpenTelemetry Protocol for vendor-neutral observability
+
+### Local Development Stack
+- **Grafana OTEL-LGTM**: Complete observability stack (Logs, Grafana, Tempo, Mimir)
+- **Docker Integration**: One-command setup via `npm run otel:start`
+- **Port Management**: Grafana on 3100 to avoid MCP server conflicts (3000-3002)
+- **Real-time Validation**: Test observability features during development
 
 ### Production Monitoring Strategy
-- **Vercel Analytics**: Built-in function performance monitoring
-- **Custom Metrics**: Tool usage patterns and success rates
-- **Error Alerting**: Failed tool executions and transport errors
-- **Resource Monitoring**: Memory usage trends and cold start frequency
+- **Vercel Integration**: Native @vercel/otel package for serverless functions
+- **Cross-Platform Export**: OTLP endpoints for Grafana Cloud, Datadog, etc.
+- **Security Compliance**: Session IDs only (UUID v4) - no personal data in traces
+- **Performance Optimized**: Configurable sampling rates (100% dev, 10% prod)
 
 ## Risk Assessment and Mitigation
 

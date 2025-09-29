@@ -16,6 +16,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Microsoft Azure AD OAuth provider implementation
@@ -78,12 +79,12 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         session.scopes
       );
 
-      console.log(`[Microsoft OAuth] Generated auth URL with state: ${state.substring(0, 8)}...`);
-      console.log(`[Microsoft OAuth] Redirecting to Microsoft...`);
+      logger.oauthDebug('Generated auth URL', { provider: 'microsoft', statePrefix: state.substring(0, 8) });
+      logger.oauthInfo('Redirecting to Microsoft', { provider: 'microsoft' });
       this.setAntiCachingHeaders(res);
       res.redirect(authUrl);
     } catch (error) {
-      console.error('Microsoft OAuth authorization error:', error);
+      logger.oauthError('Microsoft OAuth authorization error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Failed to initiate authorization' });
     }
@@ -97,7 +98,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       const { code, state, error } = req.query;
 
       if (error) {
-        console.error('Microsoft OAuth error:', error);
+        logger.oauthError('Microsoft OAuth error', { error });
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Authorization failed', details: error });
         return;
@@ -110,7 +111,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       }
 
       // Validate session
-      console.log(`[Microsoft OAuth] Validating state: ${state.substring(0, 8)}...`);
+      logger.oauthDebug('Validating state', { provider: 'microsoft', statePrefix: state.substring(0, 8) });
       const session = this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
@@ -163,7 +164,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       res.json(response);
 
     } catch (error) {
-      console.error('Microsoft OAuth callback error:', error);
+      logger.oauthError('Microsoft OAuth callback error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'Authorization failed',
@@ -226,12 +227,12 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         user: userInfo,
       };
 
-      console.log(`[Microsoft OAuth] ✅ Token exchange successful for user: ${userInfo.name}`);
+      logger.oauthInfo('Token exchange successful', { provider: 'microsoft', userName: userInfo.name });
       this.setAntiCachingHeaders(res);
       res.json(response);
 
     } catch (error) {
-      console.error('[Microsoft OAuth] Token exchange error:', error);
+      logger.oauthError('Token exchange error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
@@ -294,7 +295,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       res.json(response);
 
     } catch (error) {
-      console.error('Microsoft token refresh error:', error);
+      logger.oauthError('Microsoft token refresh error', error);
       this.setAntiCachingHeaders(res);
       res.status(401).json({
         error: 'Failed to refresh token',
@@ -316,7 +317,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         try {
           await this.revokeMicrosoftToken(token);
         } catch (revokeError) {
-          console.warn('Failed to revoke Microsoft token:', revokeError);
+          logger.oauthWarn('Failed to revoke Microsoft token', { error: revokeError });
         }
 
         this.removeToken(token);
@@ -325,7 +326,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
-      console.error('Microsoft logout error:', error);
+      logger.oauthError('Microsoft logout error', error);
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -365,7 +366,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       };
 
     } catch (error) {
-      console.error('Microsoft token verification error:', error);
+      logger.oauthError('Microsoft token verification error', error);
       throw new OAuthTokenError('Invalid or expired token', 'microsoft');
     }
   }
@@ -385,7 +386,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       return await this.fetchMicrosoftUserInfo(accessToken);
 
     } catch (error) {
-      console.error('Microsoft getUserInfo error:', error);
+      logger.oauthError('Microsoft getUserInfo error', error);
       throw new OAuthProviderError('Failed to get user information', 'microsoft');
     }
   }
@@ -395,7 +396,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
    */
   private async fetchMicrosoftUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
-      console.log('🔍 Fetching Microsoft user info with token:', accessToken.substring(0, 10) + '...');
+      logger.oauthDebug('Fetching Microsoft user info', { tokenPrefix: accessToken.substring(0, 10) });
 
       // Get user profile from Microsoft Graph API
       const userResponse = await fetch(this.MICROSOFT_USER_URL, {
@@ -406,11 +407,11 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         },
       });
 
-      console.log('📡 Microsoft Graph API response status:', userResponse.status, userResponse.statusText);
+      logger.oauthDebug('Microsoft Graph API response', { status: userResponse.status, statusText: userResponse.statusText });
 
       if (!userResponse.ok) {
         const errorBody = await userResponse.text();
-        console.error('❌ Microsoft Graph API error response:', errorBody);
+        logger.oauthError('Microsoft Graph API error response', { errorBody });
         throw new OAuthProviderError(
           `Failed to fetch user profile: ${userResponse.status} ${userResponse.statusText} - ${errorBody}`,
           'microsoft'
@@ -418,21 +419,21 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       }
 
       const userData = await userResponse.json();
-      console.log('👤 Microsoft user data received:', {
+      logger.oauthDebug('Microsoft user data received', {
         id: userData.id,
         mail: userData.mail,
         userPrincipalName: userData.userPrincipalName,
         displayName: userData.displayName,
-        email_preference: userData.mail ? 'mail' : 'userPrincipalName'
+        emailPreference: userData.mail ? 'mail' : 'userPrincipalName'
       });
 
       if (!userData.id || (!userData.mail && !userData.userPrincipalName)) {
-        console.error('❌ Incomplete user data from Microsoft:', userData);
+        logger.oauthError('Incomplete user data from Microsoft', { userData });
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
       const email = userData.mail || userData.userPrincipalName;
-      console.log('📧 Selected email:', email);
+      logger.oauthDebug('Selected email', { email });
 
       return {
         sub: userData.id,
@@ -443,7 +444,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       };
 
     } catch (error) {
-      console.error('❌ Microsoft fetchUserInfo error:', error);
+      logger.oauthError('Microsoft fetchUserInfo error', error);
 
       // Provide more specific error information
       if (error instanceof OAuthProviderError) {
@@ -481,7 +482,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         );
       }
     } catch (error) {
-      console.error('Microsoft token revocation error:', error);
+      logger.oauthError('Microsoft token revocation error', error);
       throw error;
     }
   }

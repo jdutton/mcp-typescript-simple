@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 import { TransportFactory, StdioTransportManager, StreamableHTTPTransportManager } from '../../../src/transport/factory.js';
 import { EnvironmentConfig, TransportMode } from '../../../src/config/environment.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { logger } from '../../../src/utils/logger.js';
 
 describe('TransportFactory', () => {
   afterEach(() => {
@@ -38,7 +39,7 @@ describe('TransportFactory', () => {
 
 
   it('propagates errors when Streamable HTTP transports fail to close', async () => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(logger, 'error').mockImplementation(() => {});
     const manager = new StreamableHTTPTransportManager({
       port: 3000,
       host: 'localhost',
@@ -135,15 +136,15 @@ describe('TransportFactory', () => {
     });
 
     it('starts successfully after initialization', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
 
       await manager.initialize(mockServer);
       await manager.start();
 
       expect(mockServer.connect).toHaveBeenCalled();
-      expect(consoleSpy).toHaveBeenCalledWith('🚀 MCP TypeScript Simple server running on stdio');
+      expect(loggerInfoSpy).toHaveBeenCalledWith('MCP TypeScript Simple server running on stdio');
 
-      consoleSpy.mockRestore();
+      loggerInfoSpy.mockRestore();
     });
 
     it('throws error when starting without initialization', async () => {

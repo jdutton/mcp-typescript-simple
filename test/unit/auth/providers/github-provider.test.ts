@@ -6,6 +6,7 @@ import type {
   StoredTokenInfo,
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
+import { logger } from '../../../../src/utils/logger.js';
 
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
@@ -105,9 +106,9 @@ describe('GitHubOAuthProvider', () => {
 
     const res = createMockResponse();
 
-    // Mock console.error to avoid error output during testing
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    // Mock logger to avoid output during testing
+    const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+    const loggerDebugSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
     await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -123,8 +124,8 @@ describe('GitHubOAuthProvider', () => {
       expect(res.json).toHaveBeenCalledWith({ error: 'Failed to initiate authorization' });
     }
 
-    consoleSpy.mockRestore();
-    consoleLogSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
+    loggerDebugSpy.mockRestore();
     provider.dispose();
   });
 
@@ -194,7 +195,7 @@ describe('GitHubOAuthProvider', () => {
 
   it('returns 500 when token exchange does not provide access token', async () => {
     const provider = createProvider();
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
     (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
       codeVerifier: 'verifier',
@@ -215,9 +216,9 @@ describe('GitHubOAuthProvider', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Authorization failed' }));
-    expect(consoleSpy).toHaveBeenCalled();
+    expect(loggerErrorSpy).toHaveBeenCalled();
 
-    consoleSpy.mockRestore();
+    loggerErrorSpy.mockRestore();
     provider.dispose();
   });
 

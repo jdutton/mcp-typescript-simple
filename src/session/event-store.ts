@@ -4,6 +4,7 @@
 
 import { EventStore, EventId, StreamId } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+import { logger } from '../utils/logger.js';
 
 /**
  * Stored event with metadata
@@ -149,7 +150,7 @@ export class MemoryEventStore implements EventStore {
     }
 
     if (expiredEvents.length > 0) {
-      console.log(`🧹 Cleaned up ${expiredEvents.length} expired events`);
+      logger.debug("Cleaned up expired events", { count: expiredEvents.length });
     }
   }
 

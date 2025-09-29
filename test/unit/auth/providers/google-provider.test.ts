@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '../../../../src/auth/providers/types.js';
+import { logger } from '../../../../src/utils/logger.js';
 
 const mockGenerateAuthUrl = jest.fn<(options: Record<string, unknown>) => string>();
 const mockGetToken = jest.fn<(options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
@@ -214,7 +215,7 @@ describe('GoogleOAuthProvider', () => {
     mockGetToken.mockResolvedValueOnce({ tokens: {} });
 
     const res = createMockResponse();
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
     await provider.handleAuthorizationCallback({
       query: { code: 'code123', state: 'state123' }
@@ -423,7 +424,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles error during authorization URL generation', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Make generateAuthUrl throw an error
       mockGenerateAuthUrl.mockImplementation(() => {
@@ -449,7 +450,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles OAuth error parameter from Google', async () => {
       const provider = createProvider();
       const res = createMockResponse();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback({
         query: { error: 'access_denied', error_description: 'User denied access' }
@@ -460,7 +461,7 @@ describe('GoogleOAuthProvider', () => {
         error: 'Authorization failed',
         details: 'access_denied'
       });
-      expect(consoleSpy).toHaveBeenCalledWith('Google OAuth error:', 'access_denied');
+      expect(consoleSpy).toHaveBeenCalledWith('Google OAuth error', { error: 'access_denied' });
 
       consoleSpy.mockRestore();
       provider.dispose();
@@ -725,7 +726,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles Google API failure during token exchange', async () => {
       const provider = createProvider();
       const res = createMockResponse();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Mock getToken to throw error
       mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
@@ -845,7 +846,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('verifies token with Google TokenInfo API when not in cache', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
       mockGetTokenInfo.mockResolvedValueOnce({
         sub: '456',
@@ -877,7 +878,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('falls back to UserInfo API when TokenInfo fails', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -917,7 +918,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('throws error when both TokenInfo and UserInfo APIs fail', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -1000,7 +1001,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles getUserInfo API failure', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       mockFetch.mockResolvedValueOnce({
         ok: false,

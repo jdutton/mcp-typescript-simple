@@ -27,6 +27,7 @@ import {
   AnyModel,
   ModelsForProvider
 } from './types.js';
+import { logger } from '../utils/logger.js';
 
 type ProviderClientRegistry = {
   claude: Anthropic;
@@ -60,10 +61,10 @@ export class LLMManager {
           apiKey: config.providers.claude.apiKey,
         });
         this.clients.claude = anthropic;
-        console.log('✅ Claude client initialized');
+        logger.info('Claude client initialized', { provider: 'claude' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn('⚠️  Failed to initialize Claude client:', errorMessage);
+        logger.warn('Failed to initialize Claude client', { provider: 'claude', error: errorMessage });
       }
     }
 
@@ -74,10 +75,10 @@ export class LLMManager {
           apiKey: config.providers.openai.apiKey,
         });
         this.clients.openai = openai;
-        console.log('✅ OpenAI client initialized');
+        logger.info('OpenAI client initialized', { provider: 'openai' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn('⚠️  Failed to initialize OpenAI client:', errorMessage);
+        logger.warn('Failed to initialize OpenAI client', { provider: 'openai', error: errorMessage });
       }
     }
 
@@ -86,10 +87,10 @@ export class LLMManager {
       try {
         const genAI = new GoogleGenerativeAI(config.providers.gemini.apiKey);
         this.clients.gemini = genAI;
-        console.log('✅ Gemini client initialized');
+        logger.info('Gemini client initialized', { provider: 'gemini' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn('⚠️  Failed to initialize Gemini client:', errorMessage);
+        logger.warn('Failed to initialize Gemini client', { provider: 'gemini', error: errorMessage });
       }
     }
 
@@ -97,7 +98,7 @@ export class LLMManager {
       throw new Error('No LLM clients could be initialized - check your API keys');
     }
 
-    console.log(`🤖 LLM Manager initialized with ${this.getAvailableProviders().length} provider(s)`);
+    logger.info('LLM Manager initialized', { providerCount: this.getAvailableProviders().length, providers: this.getAvailableProviders() });
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
@@ -136,11 +137,11 @@ export class LLMManager {
       return llmResponse;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`LLM request failed for provider ${provider}:`, errorMessage);
+      logger.error('LLM request failed', { provider, error: errorMessage });
 
       // Try fallback provider
       if (provider !== 'claude') {
-        console.log('🔄 Trying fallback provider: claude');
+        logger.info('Trying fallback provider', { fallbackProvider: 'claude' });
         return this.complete({ ...request, provider: 'claude' });
       }
 

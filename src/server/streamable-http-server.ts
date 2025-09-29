@@ -15,6 +15,7 @@ import { OAuthProvider, OAuthUserInfo } from '../auth/providers/types.js';
 import { SessionManager } from '../session/session-manager.js';
 import { EventStoreFactory } from '../session/event-store.js';
 import { createOAuthDiscoveryMetadata } from '../auth/discovery-metadata.js';
+import { logger } from '../utils/logger.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -132,26 +133,34 @@ export class MCPStreamableHttpServer {
         : 'none';
 
       // Log incoming request
-      console.log(`📥 [${requestId}] ${new Date().toISOString()} ${req.method} ${req.path}`);
-      console.log(`📋 [${requestId}] Client: ${req.ip} | User-Agent: ${req.headers['user-agent'] || 'unknown'}`);
-      console.log(`🔐 [${requestId}] Auth: ${sanitizedAuth}`);
-      console.log(`📊 [${requestId}] Content-Type: ${req.headers['content-type'] || 'none'} | Body Size: ${req.headers['content-length'] || 'unknown'}`);
-
-      if (req.headers.accept) {
-        console.log(`📨 [${requestId}] Accept: ${req.headers.accept}`);
-      }
+      logger.debug("Incoming request", {
+        requestId,
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path: req.path,
+        client: req.ip,
+        userAgent: req.headers['user-agent'] || 'unknown',
+        auth: sanitizedAuth,
+        contentType: req.headers['content-type'] || 'none',
+        bodySize: req.headers['content-length'] || 'unknown',
+        accept: req.headers.accept
+      });
 
       // Log request body for MCP endpoint (with size limit)
       if (req.path === this.options.endpoint && req.method === 'POST' && req.body) {
         try {
           const bodyStr = JSON.stringify(req.body);
           if (bodyStr.length < 1000) {
-            console.log(`📤 [${requestId}] Request Body: ${bodyStr}`);
+            logger.debug("Request body", { requestId, body: bodyStr });
           } else {
-            console.log(`📤 [${requestId}] Request Body: ${bodyStr.substring(0, 500)}... (truncated, total: ${bodyStr.length} chars)`);
+            logger.debug("Request body (truncated)", {
+              requestId,
+              bodyPreview: bodyStr.substring(0, 500),
+              totalLength: bodyStr.length
+            });
           }
         } catch (error) {
-          console.log(`📤 [${requestId}] Request Body: [Unable to stringify: ${error}]`);
+          logger.debug("Request body stringify failed", { requestId, error });
         }
       }
 
@@ -162,19 +171,28 @@ export class MCPStreamableHttpServer {
       const originalSend = res.send;
       res.send = function(data) {
         const duration = Date.now() - startTime;
-        console.log(`📤 [${requestId}] Response (send): ${res.statusCode} ${res.statusMessage} (${duration}ms)`);
+        logger.debug("Response sent", {
+          requestId,
+          statusCode: res.statusCode,
+          statusMessage: res.statusMessage,
+          duration
+        });
 
         // Log response body for MCP endpoint (with size limit)
         if (req.path === mcpEndpoint && data) {
           try {
             const responseStr = typeof data === 'string' ? data : JSON.stringify(data);
             if (responseStr.length < 1000) {
-              console.log(`📥 [${requestId}] Response Body: ${responseStr}`);
+              logger.debug("Response body", { requestId, body: responseStr });
             } else {
-              console.log(`📥 [${requestId}] Response Body: ${responseStr.substring(0, 500)}... (truncated, total: ${responseStr.length} chars)`);
+              logger.debug("Response body (truncated)", {
+                requestId,
+                bodyPreview: responseStr.substring(0, 500),
+                totalLength: responseStr.length
+              });
             }
           } catch (error) {
-            console.log(`📥 [${requestId}] Response Body: [Unable to stringify: ${error}]`);
+            logger.debug("Response body stringify failed", { requestId, error });
           }
         }
 
@@ -185,7 +203,12 @@ export class MCPStreamableHttpServer {
       const originalWrite = res.write;
       res.write = function(chunk: unknown, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) {
         if (req.path === mcpEndpoint) {
-          console.log(`📡 [${requestId}] Streaming chunk written: ${chunk ? chunk.toString().substring(0, 200) : 'empty'}${chunk && chunk.toString().length > 200 ? '...' : ''}`);
+          const chunkStr = chunk ? chunk.toString() : 'empty';
+          logger.debug("Streaming chunk written", {
+            requestId,
+            chunkPreview: chunkStr.substring(0, 200),
+            truncated: chunkStr.length > 200
+          });
         }
         return originalWrite.call(this, chunk, encoding as BufferEncoding, callback);
       };
@@ -194,23 +217,34 @@ export class MCPStreamableHttpServer {
       const originalEnd = res.end;
       res.end = function(chunk?: unknown, encoding?: BufferEncoding | (() => void), callback?: () => void) {
         const duration = Date.now() - startTime;
-        console.log(`🏁 [${requestId}] Response ended: ${res.statusCode} (${duration}ms)`);
+        logger.debug("Response ended", {
+          requestId,
+          statusCode: res.statusCode,
+          duration
+        });
 
         if (req.path === mcpEndpoint) {
           const contentType = res.getHeader('content-type');
           const contentLength = res.getHeader('content-length');
-          console.log(`📋 [${requestId}] Final Headers: Content-Type: ${contentType || 'none'}, Content-Length: ${contentLength || 'none'}`);
+          logger.debug("Final response headers", {
+            requestId,
+            contentType: contentType || 'none',
+            contentLength: contentLength || 'none'
+          });
 
           if (chunk && req.path === mcpEndpoint) {
             try {
               const chunkStr = chunk.toString();
               if (chunkStr.length < 500) {
-                console.log(`📥 [${requestId}] Final chunk: ${chunkStr}`);
+                logger.debug("Final chunk", { requestId, chunk: chunkStr });
               } else {
-                console.log(`📥 [${requestId}] Final chunk: ${chunkStr.substring(0, 200)}... (truncated)`);
+                logger.debug("Final chunk (truncated)", {
+                  requestId,
+                  chunkPreview: chunkStr.substring(0, 200)
+                });
               }
             } catch (error) {
-              console.log(`📥 [${requestId}] Final chunk: [Unable to stringify: ${error}]`);
+              logger.debug("Final chunk stringify failed", { requestId, error });
             }
           }
         }
@@ -276,7 +310,7 @@ export class MCPStreamableHttpServer {
           return;
         }
 
-        console.log('🔍 Debug: Testing GitHub API access with token:', token.substring(0, 10) + '...');
+        logger.debug("Testing GitHub API access", { tokenPreview: token.substring(0, 10) + '...' });
 
         // Test GitHub user API
         const userResponse = await fetch('https://api.github.com/user', {
@@ -325,7 +359,7 @@ export class MCPStreamableHttpServer {
         });
 
       } catch (error) {
-        console.error('Debug endpoint error:', error);
+        logger.error("Debug endpoint error", error);
         res.status(500).json({
           error: 'Debug test failed',
           message: error instanceof Error ? error.message : String(error)
@@ -349,25 +383,37 @@ export class MCPStreamableHttpServer {
     this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
       const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
 
-      console.error(`❌ [${requestId}] Express Error Handler: ${error.name}: ${error.message}`);
-      console.error(`📍 [${requestId}] Request: ${req.method} ${req.path}`);
-      console.error(`🔍 [${requestId}] Error Stack:`, error.stack);
+      logger.error("Express error handler caught error", {
+        requestId,
+        errorName: error.name,
+        errorMessage: error.message,
+        method: req.method,
+        path: req.path,
+        stack: error.stack
+      });
 
       // Log additional context for auth errors
       if (error.message.includes('auth') || error.message.includes('token') || error.message.includes('Bearer')) {
-        console.error(`🔐 [${requestId}] Auth Error Context - Auth Header Present: ${!!req.headers.authorization}`);
+        const authHeaderPresent = !!req.headers.authorization;
+        let sanitizedAuth: string | undefined;
+
         if (req.headers.authorization) {
-          const sanitizedAuth = req.headers.authorization.startsWith('Bearer ')
+          sanitizedAuth = req.headers.authorization.startsWith('Bearer ')
             ? `Bearer ${req.headers.authorization.substring(7, 19)}...${req.headers.authorization.substring(req.headers.authorization.length - 8)}`
             : req.headers.authorization.substring(0, 20) + '...';
-          console.error(`🔐 [${requestId}] Sanitized Auth Header: ${sanitizedAuth}`);
         }
+
+        logger.error("Auth error context", {
+          requestId,
+          authHeaderPresent,
+          sanitizedAuth
+        });
       }
 
       // Don't send response if headers already sent
       if (!res.headersSent) {
         const statusCode = error.name === 'UnauthorizedError' || error.message.includes('auth') ? 401 : 500;
-        console.log(`📤 [${requestId}] Sending error response: ${statusCode}`);
+        logger.debug("Sending error response", { requestId, statusCode });
 
         if (statusCode === 401) {
           res.status(401).json({
@@ -385,7 +431,7 @@ export class MCPStreamableHttpServer {
           });
         }
       } else {
-        console.log(`⚠️ [${requestId}] Headers already sent, cannot send error response`);
+        logger.warn("Headers already sent, cannot send error response", { requestId });
       }
     });
   }
@@ -434,7 +480,7 @@ export class MCPStreamableHttpServer {
         setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
-        console.error('OAuth authorization server metadata error:', error);
+        logger.error("OAuth authorization server metadata error", error);
         setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate authorization server metadata',
@@ -469,7 +515,7 @@ export class MCPStreamableHttpServer {
         setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
-        console.error('OAuth protected resource metadata error:', error);
+        logger.error("OAuth protected resource metadata error", error);
         setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate protected resource metadata',
@@ -511,7 +557,7 @@ export class MCPStreamableHttpServer {
         setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
-        console.error('MCP protected resource metadata error:', error);
+        logger.error("MCP protected resource metadata error", error);
         setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate MCP protected resource metadata',
@@ -548,7 +594,7 @@ export class MCPStreamableHttpServer {
         setAntiCachingHeaders(res);
         res.json(metadata);
       } catch (error) {
-        console.error('OpenID Connect configuration error:', error);
+        logger.error("OpenID Connect configuration error", error);
         setAntiCachingHeaders(res);
         res.status(500).json({
           error: 'Failed to generate OpenID Connect configuration',
@@ -608,7 +654,7 @@ export class MCPStreamableHttpServer {
       try {
         await this.oauthProvider!.handleAuthorizationRequest(req, res);
       } catch (error) {
-        console.error('OAuth authorization error:', error);
+        logger.error("OAuth authorization error", error);
         res.status(500).json({ error: 'Authorization failed' });
       }
     };
@@ -622,7 +668,7 @@ export class MCPStreamableHttpServer {
       try {
         await this.oauthProvider!.handleAuthorizationCallback(req, res);
       } catch (error) {
-        console.error('OAuth callback error:', error);
+        logger.error("OAuth callback error", error);
         res.status(500).json({ error: 'Authorization callback failed' });
       }
     };
@@ -633,8 +679,10 @@ export class MCPStreamableHttpServer {
     // Supports both JSON and form data (RFC 6749 Section 4.1.3 and 6.1)
     const universalTokenHandler = async (req: Request, res: Response) => {
       try {
-        console.log(`[OAuth Debug] Universal token handler - Content-Type: ${req.headers['content-type']}`);
-        console.log(`[OAuth Debug] Request body:`, req.body);
+        logger.debug("Universal token handler processing", {
+          contentType: req.headers['content-type'],
+          body: req.body
+        });
 
         // Extract parameters (works for both form data and JSON)
         const { grant_type, refresh_token } = req.body;
@@ -666,7 +714,7 @@ export class MCPStreamableHttpServer {
           });
         }
       } catch (error) {
-        console.error('OAuth universal token handler error:', error);
+        logger.error("OAuth universal token handler error", error);
         res.status(500).json({
           error: 'server_error',
           error_description: error instanceof Error ? error.message : String(error),
@@ -686,7 +734,7 @@ export class MCPStreamableHttpServer {
       try {
         await this.oauthProvider!.handleLogout(req, res);
       } catch (error) {
-        console.error('Logout error:', error);
+        logger.error("Logout error", error);
         res.status(500).json({ error: 'Logout failed' });
       }
     };
@@ -701,26 +749,29 @@ export class MCPStreamableHttpServer {
     const authMiddleware = this.options.requireAuth && this.oauthProvider
       ? (req: Request, res: Response, next: NextFunction) => {
           const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
-          console.log(`🔐 [${requestId}] Auth Middleware: Verifying Bearer token`);
+          logger.debug("Auth middleware verifying Bearer token", { requestId });
 
           const bearerAuthMiddleware = requireBearerAuth({ verifier: this.oauthProvider! });
           bearerAuthMiddleware(req, res, (error?: unknown) => {
             if (error) {
-              console.error(`❌ [${requestId}] Auth Failed:`, error instanceof Error ? error.message : error);
+              logger.error("Auth failed", {
+                requestId,
+                error: error instanceof Error ? error.message : error
+              });
               return next(error);
             }
 
             const authInfo = (req as AuthenticatedRequest).auth;
             if (authInfo) {
-              console.log(`✅ [${requestId}] Auth Success: token validated`);
-              console.log(`👤 [${requestId}] Client ID: ${authInfo.clientId}`);
-              console.log(`🔑 [${requestId}] Scopes: ${authInfo.scopes?.join(', ') || 'none'}`);
-              if (authInfo.extra?.userInfo) {
-                const userInfo = authInfo.extra.userInfo as OAuthUserInfo;
-                console.log(`👨‍💼 [${requestId}] User: ${userInfo.email || userInfo.sub || 'unknown'}`);
-              }
+              const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
+              logger.info("Auth success", {
+                requestId,
+                clientId: authInfo.clientId,
+                scopes: authInfo.scopes?.join(', ') || 'none',
+                user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
+              });
             } else {
-              console.log(`⚠️ [${requestId}] Auth Info: No auth info set despite successful verification`);
+              logger.warn("Auth info missing despite successful verification", { requestId });
             }
 
             next();
@@ -728,7 +779,7 @@ export class MCPStreamableHttpServer {
         }
       : (req: Request, res: Response, next: NextFunction) => {
           const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
-          console.log(`🔓 [${requestId}] Auth Middleware: Bypassed (auth not required)`);
+          logger.debug("Auth middleware bypassed (auth not required)", { requestId });
           next();
         };
 
@@ -737,8 +788,11 @@ export class MCPStreamableHttpServer {
       const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
 
       try {
-        console.log(`🔗 [${requestId}] MCP Handler: Starting Streamable HTTP processing`);
-        console.log(`🔧 [${requestId}] Method: ${req.method} | Auth Required: ${this.options.requireAuth}`);
+        logger.debug("MCP handler starting Streamable HTTP processing", {
+          requestId,
+          method: req.method,
+          authRequired: this.options.requireAuth
+        });
 
         // Handle DELETE method for session cleanup
         if (req.method === 'DELETE') {
@@ -752,7 +806,7 @@ export class MCPStreamableHttpServer {
         // Get or create transport for the session
         const transport = await this.getOrCreateTransport(req, requestId);
 
-        console.log(`📡 [${requestId}] Handling request with Streamable HTTP transport`);
+        logger.debug("Handling request with Streamable HTTP transport", { requestId });
 
         // Set up response monitoring
         const { originalWrite, originalEnd, responseDataCaptured } = this.setupResponseMonitoring(res, requestId);
@@ -763,19 +817,25 @@ export class MCPStreamableHttpServer {
         // Process the request
         await this.processTransportRequest(transport, req, res, requestId);
 
-        console.log(`📊 [${requestId}] Response data captured: ${responseDataCaptured.captured}`);
+        logger.debug("Response data captured", {
+          requestId,
+          captured: responseDataCaptured.captured
+        });
 
         // Restore original methods
         res.write = originalWrite;
         res.end = originalEnd;
 
       } catch (error) {
-        console.error(`❌ [${requestId}] Streamable HTTP request error:`, error);
-        console.error(`🔍 [${requestId}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
+        logger.error("Streamable HTTP request error", {
+          requestId,
+          error,
+          stack: error instanceof Error ? error.stack : 'No stack trace'
+        });
 
         if (!res.headersSent) {
           const statusCode = (error as Error & { statusCode?: number }).statusCode || 500;
-          console.log(`📤 [${requestId}] Sending error response: ${statusCode}`);
+          logger.debug("Sending error response", { requestId, statusCode });
 
           if (statusCode === 503) {
             res.status(503).json({
@@ -787,7 +847,7 @@ export class MCPStreamableHttpServer {
             res.status(500).json({ error: 'Failed to process Streamable HTTP request' });
           }
         } else {
-          console.log(`⚠️ [${requestId}] Response already sent, cannot send error response`);
+          logger.warn("Response already sent, cannot send error response", { requestId });
         }
       }
     };
@@ -801,7 +861,7 @@ export class MCPStreamableHttpServer {
     const sessionId = req.headers['mcp-session-id'] as string;
 
     if (!sessionId) {
-      console.log(`⚠️ [${requestId}] DELETE request missing mcp-session-id header`);
+      logger.warn("DELETE request missing mcp-session-id header", { requestId });
       res.status(400).json({
         error: 'Bad Request',
         message: 'DELETE requests require mcp-session-id header',
@@ -811,22 +871,26 @@ export class MCPStreamableHttpServer {
       return;
     }
 
-    console.log(`🗑️  [${requestId}] Session cleanup requested for: ${sessionId}`);
+    logger.info("Session cleanup requested", { requestId, sessionId });
 
     if (this.sessionTransports.has(sessionId)) {
       const transport = this.sessionTransports.get(sessionId)!;
 
       try {
         await transport.close();
-        console.log(`🔌 [${requestId}] Transport closed for session: ${sessionId}`);
+        logger.debug("Transport closed for session", { requestId, sessionId });
       } catch (error) {
-        console.error(`❌ [${requestId}] Error closing transport for session ${sessionId}:`, error);
+        logger.error("Error closing transport for session", {
+          requestId,
+          sessionId,
+          error
+        });
       }
 
       this.sessionTransports.delete(sessionId);
       this.sessionManager.closeSession(sessionId);
 
-      console.log(`✅ [${requestId}] Session ${sessionId} successfully cleaned up`);
+      logger.info("Session successfully cleaned up", { requestId, sessionId });
       res.status(200).json({
         message: 'Session successfully terminated',
         sessionId: sessionId,
@@ -834,7 +898,7 @@ export class MCPStreamableHttpServer {
         timestamp: new Date().toISOString()
       });
     } else {
-      console.log(`⚠️ [${requestId}] Session ${sessionId} not found or already cleaned up`);
+      logger.warn("Session not found or already cleaned up", { requestId, sessionId });
       res.status(404).json({
         error: 'Session Not Found',
         message: `Session ${sessionId} not found or already terminated`,
@@ -853,27 +917,43 @@ export class MCPStreamableHttpServer {
       try {
         const jsonrpcRequest = req.body;
         if (jsonrpcRequest.jsonrpc && jsonrpcRequest.method) {
-          console.log(`📋 [${requestId}] JSON-RPC Method: ${jsonrpcRequest.method} | ID: ${jsonrpcRequest.id} | Version: ${jsonrpcRequest.jsonrpc}`);
+          logger.debug("JSON-RPC request", {
+            requestId,
+            method: jsonrpcRequest.method,
+            id: jsonrpcRequest.id,
+            version: jsonrpcRequest.jsonrpc
+          });
 
           if (jsonrpcRequest.params) {
             if (jsonrpcRequest.method === 'initialize') {
-              console.log(`🚀 [${requestId}] Initialize Request - Protocol: ${jsonrpcRequest.params.protocolVersion}`);
-              console.log(`🎯 [${requestId}] Client Info: ${JSON.stringify(jsonrpcRequest.params.clientInfo)}`);
-              console.log(`⚙️ [${requestId}] Capabilities: ${JSON.stringify(jsonrpcRequest.params.capabilities)}`);
+              logger.debug("Initialize request", {
+                requestId,
+                protocolVersion: jsonrpcRequest.params.protocolVersion,
+                clientInfo: jsonrpcRequest.params.clientInfo,
+                capabilities: jsonrpcRequest.params.capabilities
+              });
             } else if (jsonrpcRequest.method === 'tools/list') {
-              console.log(`🛠️ [${requestId}] Tools List Request`);
+              logger.debug("Tools list request", { requestId });
             } else if (jsonrpcRequest.method === 'tools/call') {
-              console.log(`🔧 [${requestId}] Tool Call: ${jsonrpcRequest.params.name}`);
-              console.log(`📝 [${requestId}] Tool Args: ${JSON.stringify(jsonrpcRequest.params.arguments)}`);
+              logger.debug("Tool call", {
+                requestId,
+                toolName: jsonrpcRequest.params.name,
+                arguments: jsonrpcRequest.params.arguments
+              });
             } else {
-              console.log(`📦 [${requestId}] Params: ${JSON.stringify(jsonrpcRequest.params).substring(0, 200)}${JSON.stringify(jsonrpcRequest.params).length > 200 ? '...' : ''}`);
+              const paramsStr = JSON.stringify(jsonrpcRequest.params);
+              logger.debug("JSON-RPC params", {
+                requestId,
+                params: paramsStr.length > 200 ? paramsStr.substring(0, 200) : paramsStr,
+                truncated: paramsStr.length > 200
+              });
             }
           }
         } else {
-          console.log(`⚠️ [${requestId}] Non-JSON-RPC request body detected`);
+          logger.warn("Non-JSON-RPC request body detected", { requestId });
         }
       } catch (error) {
-        console.log(`❌ [${requestId}] Failed to parse JSON-RPC request: ${error}`);
+        logger.error("Failed to parse JSON-RPC request", { requestId, error });
       }
     }
   }
@@ -885,11 +965,17 @@ export class MCPStreamableHttpServer {
     const existingSessionId = req.headers['mcp-session-id'] as string;
 
     if (existingSessionId && this.sessionTransports.has(existingSessionId)) {
-      console.log(`♻️  [${requestId}] Reusing existing transport for session: ${existingSessionId}`);
+      logger.debug("Reusing existing transport for session", {
+        requestId,
+        sessionId: existingSessionId
+      });
       return this.sessionTransports.get(existingSessionId)!;
     }
 
-    console.log(`🆕 [${requestId}] Creating new transport for session: ${existingSessionId || 'new'}`);
+    logger.debug("Creating new transport for session", {
+      requestId,
+      sessionId: existingSessionId || 'new'
+    });
     const transport = this.createNewTransport(req, requestId);
 
     // Store transport for future session reuse (will be updated with actual sessionId in handleSessionInitialized)
@@ -907,13 +993,13 @@ export class MCPStreamableHttpServer {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => {
         const sessionId = this.sessionManager.generateSessionId();
-        console.log(`🔑 [${requestId}] Generated session ID: ${sessionId}`);
+        logger.debug("Generated session ID", { requestId, sessionId });
         return sessionId;
       },
       onsessioninitialized: async (sessionId: string) => {
         // Store transport with the actual generated session ID
         this.sessionTransports.set(sessionId, transport);
-        console.log(`💾 [${requestId}] Stored transport for session: ${sessionId}`);
+        logger.debug("Stored transport for session", { requestId, sessionId });
         await this.handleSessionInitialized(req, sessionId, requestId);
       },
       onsessionclosed: async (sessionId: string) => {
@@ -936,19 +1022,31 @@ export class MCPStreamableHttpServer {
    */
   private async handleSessionInitialized(req: Request, sessionId: string, requestId: string): Promise<void> {
     const authInfo = (req as AuthenticatedRequest).auth;
-    console.log(`🔗 [${requestId}] New Streamable HTTP session initialized: ${sessionId}`);
-    console.log(`👤 [${requestId}] Auth Status: ${authInfo ? 'authenticated' : 'anonymous'}`);
+
+    logger.info("New Streamable HTTP session initialized", {
+      requestId,
+      sessionId,
+      authStatus: authInfo ? 'authenticated' : 'anonymous'
+    });
 
     if (authInfo) {
-      console.log(`🎫 [${requestId}] Session Auth Details - Client: ${authInfo.clientId}, Scopes: ${authInfo.scopes?.join(', ') || 'none'}`);
+      logger.debug("Session auth details", {
+        requestId,
+        clientId: authInfo.clientId,
+        scopes: authInfo.scopes?.join(', ') || 'none'
+      });
     }
 
     try {
       this.sessionManager.createSession(authInfo);
       const stats = this.sessionManager.getStats();
-      console.log(`📊 [${requestId}] Session Stats - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
+      logger.info("Session stats", {
+        requestId,
+        totalSessions: stats.totalSessions,
+        activeSessions: stats.activeSessions
+      });
     } catch (error) {
-      console.error(`❌ [${requestId}] Failed to create session: ${error}`);
+      logger.error("Failed to create session", { requestId, error });
     }
   }
 
@@ -956,17 +1054,21 @@ export class MCPStreamableHttpServer {
    * Handle session closure
    */
   private async handleSessionClosed(sessionId: string, requestId: string): Promise<void> {
-    console.log(`🔌 [${requestId}] Streamable HTTP session closed: ${sessionId}`);
+    logger.info("Streamable HTTP session closed", { requestId, sessionId });
 
     this.sessionTransports.delete(sessionId);
-    console.log(`🗑️  [${requestId}] Removed transport for session: ${sessionId}`);
+    logger.debug("Removed transport for session", { requestId, sessionId });
 
     try {
       this.sessionManager.closeSession(sessionId);
       const stats = this.sessionManager.getStats();
-      console.log(`📊 [${requestId}] Session Stats After Close - Total: ${stats.totalSessions}, Active: ${stats.activeSessions}`);
+      logger.info("Session stats after close", {
+        requestId,
+        totalSessions: stats.totalSessions,
+        activeSessions: stats.activeSessions
+      });
     } catch (error) {
-      console.error(`❌ [${requestId}] Failed to close session: ${error}`);
+      logger.error("Failed to close session", { requestId, error });
     }
   }
 
@@ -983,13 +1085,24 @@ export class MCPStreamableHttpServer {
     const originalEnd = res.end;
 
     res.write = function(chunk: unknown, encodingOrCallback?: BufferEncoding | ((error: Error | null | undefined) => void), cb?: (error: Error | null | undefined) => void): boolean {
-      console.log(`✍️ [${requestId}] Transport writing to response: ${chunk ? chunk.toString().substring(0, 200) : 'empty'}${chunk && chunk.toString().length > 200 ? '...' : ''}`);
+      const chunkStr = chunk ? chunk.toString() : 'empty';
+      logger.debug("Transport writing to response", {
+        requestId,
+        chunkPreview: chunkStr.substring(0, 200),
+        truncated: chunkStr.length > 200
+      });
       responseDataCaptured.captured = true;
       return originalWrite.call(this, chunk, encodingOrCallback as never, cb);
     };
 
     res.end = function(chunkOrCallback?: unknown | (() => void), encodingOrCallback?: BufferEncoding | (() => void), cb?: () => void): typeof res {
-      console.log(`🏁 [${requestId}] Transport ending response: ${chunkOrCallback && typeof chunkOrCallback !== 'function' ? chunkOrCallback.toString().substring(0, 200) : 'no final chunk'}${chunkOrCallback && typeof chunkOrCallback !== 'function' && chunkOrCallback.toString().length > 200 ? '...' : ''}`);
+      const hasChunk = chunkOrCallback && typeof chunkOrCallback !== 'function';
+      const chunkStr = hasChunk ? chunkOrCallback.toString() : 'no final chunk';
+      logger.debug("Transport ending response", {
+        requestId,
+        chunkPreview: hasChunk ? chunkStr.substring(0, 200) : chunkStr,
+        truncated: hasChunk && chunkStr.length > 200
+      });
       responseDataCaptured.captured = true;
       return originalEnd.call(this, chunkOrCallback, encodingOrCallback as never, cb);
     };
@@ -1002,16 +1115,16 @@ export class MCPStreamableHttpServer {
    */
   private async connectTransportToServer(transport: StreamableHTTPServerTransport, requestId: string): Promise<void> {
     if (!this.streamableTransportHandler) {
-      console.log(`⚠️ [${requestId}] No MCP server handler available - this will cause the request to hang!`);
+      logger.warn("No MCP server handler available", { requestId });
       const error = new Error('MCP server handler not initialized') as Error & { statusCode: number };
       error.statusCode = 503;
       throw error;
     }
 
-    console.log(`🔌 [${requestId}] Connecting transport to MCP server handler`);
+    logger.debug("Connecting transport to MCP server handler", { requestId });
 
     const mcpHandlerPromise = this.streamableTransportHandler(transport);
-    console.log(`⏳ [${requestId}] MCP server handler started...`);
+    logger.debug("MCP server handler started", { requestId });
 
     const mcpTimeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('MCP server handler timeout after 30s')), 30000);
@@ -1019,9 +1132,9 @@ export class MCPStreamableHttpServer {
 
     try {
       await Promise.race([mcpHandlerPromise, mcpTimeoutPromise]);
-      console.log(`🎯 [${requestId}] MCP server handler completed - transport now connected to server`);
+      logger.debug("MCP server handler completed, transport connected", { requestId });
     } catch (error) {
-      console.error(`❌ [${requestId}] MCP server handler error:`, error);
+      logger.error("MCP server handler error", { requestId, error });
       throw error;
     }
   }
@@ -1030,10 +1143,14 @@ export class MCPStreamableHttpServer {
    * Process the request using the transport
    */
   private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
-    console.log(`🔍 [${requestId}] Before transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
+    logger.debug("Before transport.handleRequest", {
+      requestId,
+      headersSent: res.headersSent,
+      responseFinished: res.finished
+    });
 
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
-    console.log(`⏳ [${requestId}] Transport.handleRequest started...`);
+    logger.debug("Transport.handleRequest started", { requestId });
 
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Transport handleRequest timeout after 30s')), 30000);
@@ -1041,13 +1158,17 @@ export class MCPStreamableHttpServer {
 
     try {
       await Promise.race([transportPromise, timeoutPromise]);
-      console.log(`✅ [${requestId}] Transport handled request successfully`);
+      logger.debug("Transport handled request successfully", { requestId });
     } catch (error) {
-      console.error(`❌ [${requestId}] Transport handleRequest error:`, error);
+      logger.error("Transport handleRequest error", { requestId, error });
       throw error;
     }
 
-    console.log(`🔍 [${requestId}] After transport.handleRequest - Headers sent: ${res.headersSent}, Response finished: ${res.finished}`);
+    logger.debug("After transport.handleRequest", {
+      requestId,
+      headersSent: res.headersSent,
+      responseFinished: res.finished
+    });
   }
 
   /**
@@ -1146,18 +1267,21 @@ export class MCPStreamableHttpServer {
 
       // Use HTTPS in production or when explicitly required
       if (securityConfig.requireHttps) {
-        console.warn('⚠️  HTTPS required but not yet implemented. Starting with HTTP.');
+        logger.warn("HTTPS required but not yet implemented, starting with HTTP");
       }
 
       this.server = createServer(this.app);
 
       this.server.on('error', (error: Error) => {
-        console.error('HTTP server error:', error);
+        logger.error("HTTP server error", error);
         reject(error);
       });
 
       this.server.listen(this.options.port, this.options.host, () => {
-        console.error(`📡 Streamable HTTP server listening on ${this.options.host}:${this.options.port}`);
+        logger.info("Streamable HTTP server listening", {
+          host: this.options.host,
+          port: this.options.port
+        });
         resolve();
       });
     });
@@ -1177,7 +1301,7 @@ export class MCPStreamableHttpServer {
         if (error) {
           reject(error);
         } else {
-          console.error('📡 Streamable HTTP server stopped');
+          logger.info("Streamable HTTP server stopped");
           this.sessionManager.destroy();
           resolve();
         }

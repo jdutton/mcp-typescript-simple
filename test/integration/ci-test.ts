@@ -100,27 +100,27 @@ class CITestRunner {
   private async testServerStartup(): Promise<void> {
     return new Promise((resolve, reject) => {
       const child = spawn('npx', ['tsx', 'src/index.ts'], {
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, MCP_DEV_SKIP_AUTH: 'true' }
       });
 
-      let _stderr = '';
+      let stderr = '';
 
       child.stderr.on('data', (data) => {
-        _stderr += data.toString();
-      });
-
-      const timeout = setTimeout(() => {
-        child.kill();
-        reject(new Error('Server startup timeout'));
-      }, 5000);
-
-      child.stderr.on('data', (data) => {
-        if (data.toString().includes('MCP TypeScript Simple server running')) {
+        stderr += data.toString();
+        // Check for structured logging output indicating server is ready
+        // This could be either pino-pretty format or JSON format
+        if (stderr.includes('MCP server ready') || stderr.includes('"message":"MCP server ready"')) {
           clearTimeout(timeout);
           child.kill();
           resolve();
         }
       });
+
+      const timeout = setTimeout(() => {
+        child.kill();
+        reject(new Error(`Server startup timeout. Last output:\n${stderr.substring(stderr.length - 500)}`));
+      }, 5000);
 
       child.on('error', (error) => {
         clearTimeout(timeout);
@@ -130,7 +130,7 @@ class CITestRunner {
       child.on('exit', (code) => {
         clearTimeout(timeout);
         if (code !== null && code !== 0) {
-          reject(new Error(`Server exited with code ${code}: ${_stderr}`));
+          reject(new Error(`Server exited with code ${code}: ${stderr}`));
         }
       });
     });
