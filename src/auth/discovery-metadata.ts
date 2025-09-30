@@ -18,6 +18,7 @@ export interface AuthorizationServerMetadata {
   token_endpoint_auth_signing_alg_values_supported?: string[];
   userinfo_endpoint?: string;
   revocation_endpoint?: string;
+  registration_endpoint?: string; // RFC 7591 Dynamic Client Registration
   scopes_supported: string[];
   response_types_supported: string[];
   response_modes_supported?: string[];
@@ -88,6 +89,7 @@ export class OAuthDiscoveryMetadata {
       issuer: this.baseUrl,
       authorization_endpoint: `${this.baseUrl}/authorize`, // Generic authorize endpoint for MCP Inspector compatibility
       token_endpoint: `${this.baseUrl}/token`, // Generic token endpoint for MCP Inspector compatibility
+      registration_endpoint: `${this.baseUrl}/register`, // RFC 7591 Dynamic Client Registration
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
         'client_secret_basic'
