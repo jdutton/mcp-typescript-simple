@@ -7,10 +7,7 @@ import { LLMManager } from '../../llm/manager.js';
 import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
 
 type ToolResponse = {
-  content: Array<
-    | { type: 'text'; text: string }
-    | { type: 'json'; json: unknown }
-  >;
+  content: Array<{ type: 'text'; text: string }>;
 };
 
 export const SummarizeToolSchema = z.object({
@@ -85,20 +82,11 @@ export async function handleSummarizeTool(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorPayload = {
-      tool: 'summarize',
-      code: 'SUMMARIZE_TOOL_ERROR',
-      message: errorMessage
-    };
     return {
       content: [
         {
           type: 'text',
-          text: `Summarization failed: ${errorMessage}`
-        },
-        {
-          type: 'json',
-          json: { error: errorPayload }
+          text: `Summarization failed: ${errorMessage}\n\nError details:\n- Tool: summarize\n- Code: SUMMARIZE_TOOL_ERROR`
         }
       ]
     };

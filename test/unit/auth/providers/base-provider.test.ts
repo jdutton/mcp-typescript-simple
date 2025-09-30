@@ -33,6 +33,7 @@ const createResponse = (): MockResponse => {
     return res as Response;
   });
   res.redirect = jest.fn(() => res as Response);
+  res.setHeader = jest.fn(() => res as Response);
   return res as MockResponse;
 };
 
@@ -277,5 +278,127 @@ describe('BaseOAuthProvider', () => {
     provider.dispose();
     expect(clearSpy).toHaveBeenCalled();
     clearSpy.mockRestore();
+  });
+
+  describe('OAuth Client State Preservation (Claude Code / MCP Inspector compatibility)', () => {
+    it('stores and retrieves client state in OAuth session', () => {
+      const serverState = 'server-state-123';
+      const clientState = 'client-state-456';
+      const codeVerifier = 'verifier';
+      const codeChallenge = 'challenge';
+      const clientRedirectUri = 'http://localhost:3000/callback';
+
+      const session = provider['createOAuthSession'](
+        serverState,
+        codeVerifier,
+        codeChallenge,
+        clientRedirectUri,
+        undefined,
+        clientState
+      );
+
+      expect(session.state).toBe(serverState);
+      expect(session.clientState).toBe(clientState);
+      expect(session.clientRedirectUri).toBe(clientRedirectUri);
+    });
+
+    it('handles client redirect with client original state', () => {
+      const res = createResponse();
+      const serverState = 'server-state-abc';
+      const clientState = 'client-state-xyz';
+      const authCode = 'auth-code-123';
+
+      const session: OAuthSession = {
+        state: serverState,
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge',
+        redirectUri: 'http://localhost:3000/auth/callback',
+        clientRedirectUri: 'http://localhost:50151/callback',
+        clientState: clientState,
+        scopes: ['openid', 'profile', 'email'],
+        provider: 'google',
+        expiresAt: Date.now() + 600000
+      };
+
+      sessionAccess.storeSession(serverState, session);
+
+      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+
+      expect(handled).toBe(true);
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining(`code=${authCode}`)
+      );
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining(`state=${clientState}`)
+      );
+      expect(res.redirect).not.toHaveBeenCalledWith(
+        expect.stringContaining(`state=${serverState}`)
+      );
+    });
+
+    it('falls back to server state when client state not provided', () => {
+      const res = createResponse();
+      const serverState = 'server-state-only';
+      const authCode = 'auth-code-456';
+
+      const session: OAuthSession = {
+        state: serverState,
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge',
+        redirectUri: 'http://localhost:3000/auth/callback',
+        clientRedirectUri: 'http://localhost:6274/callback',
+        // No clientState provided
+        scopes: ['openid', 'profile'],
+        provider: 'google',
+        expiresAt: Date.now() + 600000
+      };
+
+      sessionAccess.storeSession(serverState, session);
+
+      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+
+      expect(handled).toBe(true);
+      expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining(`state=${serverState}`)
+      );
+    });
+
+    it('does not handle redirect when clientRedirectUri not provided', () => {
+      const res = createResponse();
+      const serverState = 'server-state-123';
+      const authCode = 'auth-code-789';
+
+      const session: OAuthSession = {
+        state: serverState,
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge',
+        redirectUri: 'http://localhost:3000/auth/callback',
+        // No clientRedirectUri
+        scopes: ['openid'],
+        provider: 'google',
+        expiresAt: Date.now() + 600000
+      };
+
+      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+
+      expect(handled).toBe(false);
+      expect(res.redirect).not.toHaveBeenCalled();
+    });
+
+    it('creates session without client state for direct server usage', () => {
+      const serverState = 'server-only-state';
+      const codeVerifier = 'verifier';
+      const codeChallenge = 'challenge';
+
+      const session = provider['createOAuthSession'](
+        serverState,
+        codeVerifier,
+        codeChallenge
+      );
+
+      expect(session.state).toBe(serverState);
+      expect(session.clientState).toBeUndefined();
+      expect(session.clientRedirectUri).toBeUndefined();
+    });
   });
 });

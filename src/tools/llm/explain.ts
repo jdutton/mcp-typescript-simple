@@ -7,10 +7,7 @@ import { LLMManager } from '../../llm/manager.js';
 import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
 
 type ToolResponse = {
-  content: Array<
-    | { type: 'text'; text: string }
-    | { type: 'json'; json: unknown }
-  >;
+  content: Array<{ type: 'text'; text: string }>;
 };
 
 export const ExplainToolSchema = z.object({
@@ -82,20 +79,11 @@ export async function handleExplainTool(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorPayload = {
-      tool: 'explain',
-      code: 'EXPLAIN_TOOL_ERROR',
-      message: errorMessage
-    };
     return {
       content: [
         {
           type: 'text',
-          text: `Explanation failed: ${errorMessage}`
-        },
-        {
-          type: 'json',
-          json: { error: errorPayload }
+          text: `Explanation failed: ${errorMessage}\n\nError details:\n- Tool: explain\n- Code: EXPLAIN_TOOL_ERROR`
         }
       ]
     };

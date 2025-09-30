@@ -21,7 +21,12 @@ export default {
   ],
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.d.ts'
+    '!src/**/*.d.ts',
+    // Exclude route handlers from unit test coverage - they are integration points
+    // that require HTTP request/response testing via integration tests.
+    // Testing routes via mocked unit tests is fragile and provides little value.
+    // See test/integration/*-routes.test.ts for comprehensive route testing.
+    '!src/server/routes/**/*.ts',
   ],
   coverageThreshold: {
     global: {

@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a production-ready TypeScript-based MCP (Model Context Protocol) server featuring:
 - **Dual-mode operation**: STDIO (traditional) + Streamable HTTP with OAuth
 - **Multi-LLM integration**: Claude, OpenAI, and Gemini with type-safe provider selection
+- **OAuth Dynamic Client Registration (DCR)**: RFC 7591 compliant automatic client registration
 - **Vercel serverless deployment**: Ready for production deployment as serverless functions
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
 - **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design
@@ -58,9 +59,33 @@ npm run dev:with-otel           # Start MCP server with observability
 npm run otel:test               # Send test telemetry data
 npm run otel:validate           # Validate OTEL setup and connectivity
 
-# Development Deployment (Preview Only)
-npm run build            # Build for deployment
-npm run dev:vercel       # Local Vercel development server
+# Production Deployment Testing
+npm run build                    # Build for deployment
+
+# Production mode (compiled JavaScript with OAuth)
+npm run run:oauth:google         # Google OAuth
+npm run run:oauth:github         # GitHub OAuth
+npm run run:oauth:microsoft      # Microsoft OAuth
+
+# Docker deployment
+npm run run:docker:build         # Build Docker image
+npm run run:docker:google        # Run Docker with Google OAuth
+npm run run:docker:github        # Run Docker with GitHub OAuth
+npm run run:docker:microsoft     # Run Docker with Microsoft OAuth
+
+# Vercel deployment (Preview Only)
+npm run dev:vercel               # Local Vercel development server
+```
+
+### Progressive Production Fidelity
+
+Test with increasing production-like fidelity:
+
+1. **Development (TypeScript)**: `npm run dev:oauth:google` - Fast iteration with tsx
+2. **Production Build (JavaScript)**: `npm run run:oauth:google` - Compiled code with Node.js
+3. **Docker Container**: `npm run run:docker:google` - Containerized deployment
+4. **Vercel Serverless**: `npm run deploy:vercel` - Production serverless (GitHub Actions only)
+
 ```
 
 ## Project Architecture
@@ -158,6 +183,89 @@ npm run dev:vercel        # Local Vercel development server
 ### OAuth Configuration (optional)
 - `OAUTH_PROVIDER` - google, github, microsoft, generic
 - Provider-specific client ID/secret pairs
+
+## OAuth Client Integration
+
+### Connecting Claude Code to This MCP Server
+
+The MCP server supports **managed OAuth flows** for agentic clients like Claude Code and MCP Inspector through:
+
+1. **Dynamic Client Registration (DCR)**: Automatic OAuth client registration per RFC 7591
+2. **OAuth Client State Preservation**: CSRF-safe state parameter handling for OAuth clients
+3. **PKCE Support**: Full Proof Key for Code Exchange (RFC 7636) implementation
+
+#### Connection Steps for Claude Code
+
+1. **Start the MCP server with OAuth**:
+   ```bash
+   npm run dev:oauth:google    # Development mode with Google OAuth
+   # OR
+   npm run run:oauth:google    # Production mode with Google OAuth
+   ```
+
+2. **Register with Claude Code**:
+   ```bash
+   # In a separate directory (not this project):
+   claude mcp add http://localhost:3000
+   ```
+
+3. **OAuth Flow**:
+   - Claude Code initiates OAuth flow automatically
+   - Browser opens for authentication with Google/GitHub/Microsoft
+   - Server preserves Claude Code's state parameter for CSRF protection
+   - Authentication completes seamlessly
+
+4. **Verify Connection**:
+   - Claude Code shows available tools: `hello`, `echo`, `current-time`, etc.
+   - Server logs show successful OAuth session creation
+   - Check active sessions: `curl http://localhost:3000/admin/sessions`
+
+#### OAuth Client State Preservation
+
+**CRITICAL**: The server implements OAuth client state preservation to support managed OAuth flows.
+
+**Why this matters:**
+- OAuth clients (Claude Code, MCP Inspector) send their own `state` parameter for CSRF protection
+- The MCP server acts as an OAuth intermediary between the client and the provider
+- Server must return the client's original state, not its own internal state
+
+**How it works:**
+```
+Claude Code → MCP Server → Google OAuth
+  state=abc123    state=xyz789
+  (stored in session)
+
+Google → MCP Server → Claude Code
+         state=xyz789   state=abc123  ✅ CORRECT!
+```
+
+**Implementation:**
+- Automatic detection of client-managed vs server-managed OAuth flows
+- Full backward compatibility with traditional OAuth
+- Works with all providers (Google, GitHub, Microsoft, generic)
+
+**Documentation:**
+- Technical details: `docs/oauth-setup.md` (OAuth Client State Preservation section)
+- Architecture decision: `docs/adr/002-oauth-client-state-preservation.md`
+- Testing: `test/unit/auth/providers/base-provider.test.ts` (lines 282-402)
+
+#### Supported OAuth Clients
+
+- **Claude Code**: Anthropic's AI assistant with managed OAuth
+- **MCP Inspector**: Development tool for testing MCP servers (`http://localhost:6274`)
+- **Custom Clients**: Any OAuth client following RFC 6749/RFC 9449 (OAuth 2.1)
+
+#### Troubleshooting
+
+**"Invalid state parameter" error:**
+- Fixed in current implementation via OAuth client state preservation
+- Enable debug logging: `export NODE_ENV=development`
+- Check logs for: `[oauth:debug] Returning client original state`
+
+**Connection issues:**
+- Verify server is running: `curl http://localhost:3000/health`
+- Check OAuth discovery: `curl http://localhost:3000/.well-known/oauth-authorization-server`
+- Verify provider credentials in `.env` file
 
 ## Session State Management Limitations
 

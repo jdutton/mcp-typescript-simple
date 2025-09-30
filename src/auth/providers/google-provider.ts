@@ -64,14 +64,14 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   async handleAuthorizationRequest(req: Request, res: Response): Promise<void> {
     try {
-      // Extract MCP Inspector client parameters
-      const { clientRedirectUri, clientCodeChallenge, clientCodeChallengeMethod } = this.extractClientParameters(req);
+      // Extract MCP Inspector / Claude Code client parameters
+      const { clientRedirectUri, clientCodeChallenge, clientCodeChallengeMethod, clientState } = this.extractClientParameters(req);
 
       // Setup PKCE parameters (handles both client and server-generated codes)
       const { state, codeVerifier, codeChallenge } = this.setupPKCE(clientCodeChallenge);
 
-      // Create OAuth session with client redirect support
-      const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri);
+      // Create OAuth session with client redirect support and client state preservation
+      const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
       this.storeSession(state, session);
 
       // Generate authorization URL using Google's OAuth client (different from base method)
