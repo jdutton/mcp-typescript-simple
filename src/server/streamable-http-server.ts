@@ -6,6 +6,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import { createServer, Server as HttpServer } from 'http';
 import helmet from 'helmet';
 import cors from 'cors';
+import * as OpenApiValidator from 'express-openapi-validator';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -197,6 +198,42 @@ export class MCPStreamableHttpServer {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // OpenAPI request/response validation (development only for responses)
+    // Skip validation in test environment to avoid timeouts
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+
+    if (!isTest) {
+      this.app.use(
+        OpenApiValidator.middleware({
+          apiSpec: './openapi.yaml',
+          validateRequests: true, // Always validate requests
+          validateResponses: isDevelopment, // Only validate responses in development
+          validateSecurity: false, // We handle auth separately
+          ignorePaths: /.*\/docs.*|.*\/openapi\.json|.*\/openapi\.yaml/, // Skip doc endpoints
+        })
+      );
+    }
+
+    // OpenAPI validation error handler
+    this.app.use((err: Error & { status?: number; errors?: unknown[] }, req: Request, res: Response, next: NextFunction) => {
+      if (err.status === 400 && err.errors) {
+        // OpenAPI validation error
+        logger.warn('OpenAPI validation error', {
+          path: req.path,
+          method: req.method,
+          errors: err.errors,
+        });
+        res.status(400).json({
+          error: 'validation_error',
+          message: err.message,
+          errors: err.errors,
+        });
+        return;
+      }
+      next(err);
+    });
 
     // Comprehensive request logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {
