@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a production-ready TypeScript-based MCP (Model Context Protocol) server featuring:
 - **Dual-mode operation**: STDIO (traditional) + Streamable HTTP with OAuth
 - **Multi-LLM integration**: Claude, OpenAI, and Gemini with type-safe provider selection
+- **OAuth Dynamic Client Registration (DCR)**: RFC 7591 compliant automatic client registration
 - **Vercel serverless deployment**: Ready for production deployment as serverless functions
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
 - **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design

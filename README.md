@@ -14,7 +14,8 @@ A production-ready MCP (Model Context Protocol) server built with TypeScript fea
 ### 🚀 **Dual-Mode Operation**
 - **STDIO Mode**: Traditional stdin/stdout for development and Claude Desktop
 - **Streamable HTTP Mode**: HTTP endpoints with streaming support for web applications
-- **OAuth Authentication**: Secure Google OAuth integration for production
+- **OAuth Authentication**: Secure Google/GitHub/Microsoft OAuth integration for production
+- **Dynamic Client Registration**: RFC 7591 compliant OAuth DCR for automatic client registration
 - **Development Bypass**: Easy auth bypass for local development
 - **Claude Code Ready**: Full compatibility with Claude Code integration
 
@@ -122,6 +123,7 @@ npm run otel:logs       # View observability stack logs
 - 🏗️ **[System Architecture](./docs/architecture.md)** - Detailed architecture overview with diagrams
 - 🚀 **[Dual-Mode Operation Guide](./docs/dual-mode-guide.md)** - Understanding STDIO and HTTP transport modes
 - 🔐 **[OAuth Setup Guide](./docs/oauth-setup.md)** - Configure OAuth authentication
+- 🔓 **[OAuth Dynamic Client Registration](./docs/oauth-dcr.md)** - Automatic client registration (RFC 7591)
 - 📊 **[Observability Setup](./docs/adr/001-opentelemetry-observability-architecture.md)** - Structured logging and OpenTelemetry integration
 
 ### Docker Development
