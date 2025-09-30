@@ -56,6 +56,10 @@
     "otel:restart": "npm run otel:stop && npm run otel:start",
     "otel:validate": "echo '✓ Testing Grafana health...' && curl -sf http://localhost:3100/api/health > /dev/null && echo '✓ Grafana is healthy' && echo '✓ Testing OTLP traces endpoint...' && curl -sf -w '%{http_code}' -X POST http://localhost:4318/v1/traces -H 'Content-Type: application/x-protobuf' --data-binary @/dev/null -o /dev/null | grep -qE '^(200|400|415)$' && echo '✓ OTLP endpoint is accepting requests' && echo '✓ All observability services are healthy'",
     "dev:with-otel": "npm run otel:start && sleep 10 && npm run dev:http",
+    "docs:build": "redocly build-docs openapi.yaml -o docs/api-reference.html",
+    "docs:validate": "redocly lint openapi.yaml",
+    "docs:preview": "redocly preview-docs openapi.yaml",
+    "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",
     "validate": "npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:integration && npm run test:system:stdio && npm run test:system:ci"
   },
   "keywords": [
@@ -93,13 +97,17 @@
     "pino": "^9.12.0",
     "pino-opentelemetry-transport": "^1.1.0",
     "pino-pretty": "^13.1.1",
+    "swagger-ui-express": "^5.0.1",
+    "yaml": "^2.8.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.2.2",
     "@types/jest": "^30.0.0",
     "@types/nock": "^10.0.3",
     "@types/node": "^24.5.2",
     "@types/supertest": "^6.0.3",
+    "@types/swagger-ui-express": "^4.1.8",
     "@typescript-eslint/eslint-plugin": "^8.44.0",
     "@typescript-eslint/parser": "^8.44.0",
     "@vercel/node": "^5.3.23",

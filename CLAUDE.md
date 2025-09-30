@@ -46,6 +46,12 @@ npm run validate         # Complete validation (unit → integration → build)
 npm run lint             # ESLint code checking
 npm run typecheck        # TypeScript type checking
 
+# API Documentation
+npm run docs:validate    # Validate OpenAPI specification
+npm run docs:preview     # Preview docs locally with Redocly
+npm run docs:build       # Build static Redoc HTML
+npm run docs:bundle      # Bundle OpenAPI spec to JSON
+
 # Branch management and PR workflow
 npm run sync-check              # Check if branch is behind origin/main (safe, no auto-merge)
 npm run pre-commit              # Complete pre-commit workflow (sync check + validation)
@@ -138,6 +144,72 @@ Test with increasing production-like fidelity:
 - **Model-Specific Optimization**: Each tool has optimized default provider/model combinations
 - **Runtime Flexibility**: Override provider/model per request
 - **Automatic Fallback**: Graceful degradation if providers unavailable
+
+## API Documentation
+
+This project includes comprehensive OpenAPI 3.1 specification and interactive documentation:
+
+### Available Documentation Endpoints
+
+When running the server locally or in production, access documentation at:
+
+- **`/docs`** - Beautiful read-focused documentation (Redoc)
+- **`/api-docs`** - Interactive API testing interface (Swagger UI)
+- **`/openapi.yaml`** - OpenAPI specification in YAML format
+- **`/openapi.json`** - OpenAPI specification in JSON format
+
+### Documentation Workflow
+
+#### When to Update Documentation
+
+Update `openapi.yaml` whenever you:
+- Add new API endpoints
+- Change request/response schemas
+- Modify authentication requirements
+- Update error responses
+- Add new query parameters or headers
+- Change endpoint behavior
+
+#### Validation and Testing
+
+Always validate documentation changes:
+
+```bash
+# Validate OpenAPI specification (REQUIRED before commit)
+npm run docs:validate
+
+# Preview documentation locally
+npm run docs:preview
+
+# Run documentation validation tests
+npm test -- test/unit/docs/openapi-validation.test.ts
+```
+
+#### Documentation Maintenance Guidelines
+
+1. **Keep openapi.yaml in sync** - Update immediately when changing endpoints
+2. **Include examples** - Add request/response examples for all endpoints
+3. **Document errors** - Include all possible error responses with examples
+4. **Reference RFCs** - Link to relevant specifications (OAuth, MCP, etc.)
+5. **Test before commit** - Run `npm run docs:validate` as part of `npm run validate`
+
+#### OpenAPI Specification Structure
+
+The `openapi.yaml` file includes:
+- **Health & Status** - Server health check endpoints
+- **MCP Protocol** - JSON-RPC 2.0 endpoints for MCP tool invocation
+- **OAuth Authentication** - Complete OAuth 2.0 authorization code flow
+- **OAuth Discovery** - RFC 8414/9728 metadata endpoints
+- **Dynamic Client Registration** - RFC 7591/7592 client management
+- **Admin & Monitoring** - Session management and metrics
+
+#### Swagger UI Features
+
+Interactive API documentation at `/api-docs` includes:
+- **Try it out** - Test endpoints directly from browser
+- **OAuth 2.0 testing** - Complete OAuth flow integration
+- **Request/response validation** - Real-time schema validation
+- **Persistent authorization** - Stays logged in across page refreshes
 
 ## Deployment Options
 

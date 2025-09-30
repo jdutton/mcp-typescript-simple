@@ -23,6 +23,7 @@ import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
+import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '../utils/logger.js';
 
 export interface StreamableHttpServerOptions {
@@ -108,6 +109,9 @@ export class MCPStreamableHttpServer {
     const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
     setupAdminTokenRoutes(this.app, this.tokenStore, this.clientStore, { devMode });
 
+    // Documentation routes (OpenAPI, Swagger UI, Redoc) - available without auth
+    setupDocsRoutes(this.app);
+
     // Set up streamable HTTP routes after OAuth provider is configured
     this.setupStreamableHTTPRoutes();
   }
@@ -121,12 +125,34 @@ export class MCPStreamableHttpServer {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'", // Required for Swagger UI
+            "https://cdn.redoc.ly", // Redoc CDN
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com", // Google Fonts for Redoc
+          ],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com", // Google Fonts for Redoc
+          ],
+          imgSrc: [
+            "'self'",
+            "data:", // Allow data URIs for Swagger UI
+            "https:", // Allow HTTPS images
+          ],
           connectSrc: ["'self'"],
+          workerSrc: ["'self'", "blob:"], // Allow workers for Redoc
+          upgradeInsecureRequests: null, // Disable for localhost development
         },
       },
       crossOriginEmbedderPolicy: false, // Required for streaming
+      crossOriginResourcePolicy: false, // Required for Safari to fetch docs
+      strictTransportSecurity: false, // Disable HSTS for localhost development
     }));
 
     // CORS configuration with configurable origins
@@ -139,7 +165,20 @@ export class MCPStreamableHttpServer {
     ];
 
     const corsOptions: cors.CorsOptions = {
-      origin: this.options.allowedOrigins || defaultOrigins,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (same-origin requests, curl, etc.)
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        // Check against allowed origins
+        const allowedOrigins = this.options.allowedOrigins || defaultOrigins;
+        if (allowedOrigins.indexOf(origin) !== -1) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
