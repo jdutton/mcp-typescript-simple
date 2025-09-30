@@ -14,9 +14,12 @@ import { OAuthProviderFactory } from '../auth/factory.js';
 import { OAuthProvider, OAuthUserInfo } from '../auth/providers/types.js';
 import { SessionManager } from '../session/session-manager.js';
 import { EventStoreFactory } from '../session/event-store.js';
-import { createOAuthDiscoveryMetadata } from '../auth/discovery-metadata.js';
 import { ClientStoreFactory } from '../auth/client-store-factory.js';
 import { OAuthRegisteredClientsStore } from '../auth/stores/client-store-interface.js';
+import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
+import { setupOAuthRoutes } from './routes/oauth-routes.js';
+import { setupHealthRoutes } from './routes/health-routes.js';
+import { setupAdminRoutes } from './routes/admin-routes.js';
 import { logger } from '../utils/logger.js';
 
 export interface StreamableHttpServerOptions {
@@ -56,7 +59,12 @@ export class MCPStreamableHttpServer {
     this.sessionManager = new SessionManager(eventStore);
 
     this.setupMiddleware();
-    this.setupNonOAuthRoutes();
+
+    // Setup health and utility routes
+    setupHealthRoutes(this.app, this.sessionManager, this.oauthProvider, {
+      enableResumability: this.options.enableResumability,
+      enableJsonResponse: this.options.enableJsonResponse
+    });
   }
 
   /**
@@ -68,8 +76,26 @@ export class MCPStreamableHttpServer {
 
     // OAuth routes (only if auth is required)
     if (this.options.requireAuth) {
-      await this.setupOAuthRoutes();
+      // Create OAuth provider from environment
+      const provider = await OAuthProviderFactory.createFromEnvironment();
+      if (!provider) {
+        const env = EnvironmentConfig.get();
+        const providerType = env.OAUTH_PROVIDER;
+
+        if (!providerType) {
+          throw new Error('OAuth authentication is required but no OAuth provider is configured. Set OAUTH_PROVIDER environment variable (google, github, or microsoft) and provide the corresponding credentials.');
+        } else {
+          throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
+        }
+      }
+      this.oauthProvider = provider;
+
+      // Setup OAuth authentication routes
+      setupOAuthRoutes(this.app, this.oauthProvider, this.clientStore);
     }
+
+    // OAuth discovery routes (available even without auth)
+    this.setupOAuthDiscoveryRoutes();
 
     // Set up streamable HTTP routes after OAuth provider is configured
     this.setupStreamableHTTPRoutes();
@@ -266,123 +292,8 @@ export class MCPStreamableHttpServer {
    * Set up non-OAuth routes (called from constructor)
    */
   private setupNonOAuthRoutes(): void {
-    // Health check endpoint
-    const healthHandler = (req: Request, res: Response) => {
-      const sessionStats = this.sessionManager.getStats();
-
-      // Check OAuth credentials availability
-      const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProvider);
-
-      // Check LLM providers
-      const llmProviders = EnvironmentConfig.checkLLMProviders();
-
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        deployment: 'local',
-        mode: 'streamable_http',
-        auth: hasOAuthCredentials ? 'enabled' : 'disabled',
-        oauth_provider: oauthProvider,
-        llm_providers: llmProviders,
-        version: process.env.npm_package_version || '1.0.0',
-        node_version: process.version,
-        environment: process.env.NODE_ENV || 'development',
-        sessions: sessionStats,
-        performance: {
-          uptime_seconds: process.uptime(),
-          memory_usage: process.memoryUsage(),
-        },
-        features: {
-          resumability: this.options.enableResumability || false,
-          jsonResponse: this.options.enableJsonResponse || false,
-        },
-      });
-    };
-
-    // Register health endpoints for both standalone and Vercel deployments
-    this.app.get('/health', healthHandler);
-
-    // Debug endpoint for GitHub OAuth troubleshooting
-    this.app.get('/debug/github-oauth', async (req: Request, res: Response) => {
-      try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-
-        if (!token) {
-          res.status(400).json({
-            error: 'Missing Authorization header',
-            message: 'Provide Authorization: Bearer YOUR_TOKEN header'
-          });
-          return;
-        }
-
-        logger.debug("Testing GitHub API access", { tokenPreview: token.substring(0, 10) + '...' });
-
-        // Test GitHub user API
-        const userResponse = await fetch('https://api.github.com/user', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'MCP-TypeScript-Server-Debug',
-          },
-        });
-
-        const userData = userResponse.ok ? await userResponse.json() : await userResponse.text();
-
-        // Test GitHub emails API
-        const emailResponse = await fetch('https://api.github.com/user/emails', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github.v3+json',
-            'User-Agent': 'MCP-TypeScript-Server-Debug',
-          },
-        });
-
-        const emailData = emailResponse.ok ? await emailResponse.json() : await emailResponse.text();
-
-        res.json({
-          debug_info: {
-            timestamp: new Date().toISOString(),
-            token_preview: token.substring(0, 10) + '...',
-          },
-          github_user_api: {
-            status: userResponse.status,
-            status_text: userResponse.statusText,
-            headers: Object.fromEntries(userResponse.headers.entries()),
-            data: userData
-          },
-          github_emails_api: {
-            status: emailResponse.status,
-            status_text: emailResponse.statusText,
-            headers: Object.fromEntries(emailResponse.headers.entries()),
-            data: emailData
-          },
-          oauth_provider_info: this.oauthProvider ? {
-            type: this.oauthProvider.getProviderType(),
-            name: this.oauthProvider.getProviderName(),
-            endpoints: this.oauthProvider.getEndpoints()
-          } : 'No OAuth provider configured'
-        });
-
-      } catch (error) {
-        logger.error("Debug endpoint error", error);
-        res.status(500).json({
-          error: 'Debug test failed',
-          message: error instanceof Error ? error.message : String(error)
-        });
-      }
-    });
-
-    // OAuth discovery endpoints (available even without OAuth enabled)
-    this.setupOAuthDiscoveryRoutes();
-
-    // OAuth routes will be set up in initialize() method
-
-    // Streamable HTTP routes will be set up in initialize() method
-    // after OAuth provider setup
-
-    // Session management routes
-    this.setupSessionRoutes();
+    // Admin and session management routes
+    setupAdminRoutes(this.app, this.sessionManager);
 
     // Catch-all error handler with enhanced logging
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -447,440 +358,14 @@ export class MCPStreamableHttpServer {
    * Set up OAuth discovery endpoints (RFC 8414, RFC 9728, OpenID Connect Discovery)
    */
   private setupOAuthDiscoveryRoutes(): void {
-    // Helper function to get base URL for the current request
-    const getBaseUrl = (req: Request): string => {
-      const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-      const host = req.headers['x-forwarded-host'] || req.headers.host || `${this.options.host}:${this.options.port}`;
-      return `${protocol}://${host}`;
-    };
-
-    // Helper to set anti-caching headers for OAuth endpoints per RFC 6749 and RFC 9700
-    const setAntiCachingHeaders = (res: Response): void => {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-      res.setHeader('Pragma', 'no-cache');
-      res.setHeader('Expires', '0');
-    };
-
-    // OAuth 2.0 Authorization Server Metadata (RFC 8414)
-    this.app.get('/.well-known/oauth-authorization-server', async (req: Request, res: Response) => {
-      try {
-        if (!this.oauthProvider) {
-          // Return minimal metadata indicating OAuth is not configured
-          setAntiCachingHeaders(res);
-          res.json({
-            error: 'OAuth not configured',
-            message: 'OAuth provider not available. Configure OAuth credentials to enable authentication.',
-            issuer: getBaseUrl(req),
-            configuration_endpoint: `${getBaseUrl(req)}/.well-known/oauth-authorization-server`
-          });
-          return;
-        }
-
-        const baseUrl = getBaseUrl(req);
-        const discoveryMetadata = createOAuthDiscoveryMetadata(this.oauthProvider, baseUrl, {
-          enableResumability: this.options.enableResumability,
-          toolDiscoveryEndpoint: `${baseUrl}${this.options.endpoint}`
-        });
-
-        const metadata = discoveryMetadata.generateAuthorizationServerMetadata();
-        setAntiCachingHeaders(res);
-        res.json(metadata);
-      } catch (error) {
-        logger.error("OAuth authorization server metadata error", error);
-        setAntiCachingHeaders(res);
-        res.status(500).json({
-          error: 'Failed to generate authorization server metadata',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // OAuth 2.0 Protected Resource Metadata (RFC 9728)
-    this.app.get('/.well-known/oauth-protected-resource', async (req: Request, res: Response) => {
-      try {
-        if (!this.oauthProvider) {
-          // Return minimal metadata indicating OAuth is not configured
-          setAntiCachingHeaders(res);
-          res.json({
-            resource: getBaseUrl(req),
-            authorization_servers: [],
-            resource_documentation: `${getBaseUrl(req)}/docs`,
-            bearer_methods_supported: ['header'],
-            message: 'OAuth provider not configured'
-          });
-          return;
-        }
-
-        const baseUrl = getBaseUrl(req);
-        const discoveryMetadata = createOAuthDiscoveryMetadata(this.oauthProvider, baseUrl, {
-          enableResumability: this.options.enableResumability,
-          toolDiscoveryEndpoint: `${baseUrl}${this.options.endpoint}`
-        });
-
-        const metadata = discoveryMetadata.generateProtectedResourceMetadata();
-        setAntiCachingHeaders(res);
-        res.json(metadata);
-      } catch (error) {
-        logger.error("OAuth protected resource metadata error", error);
-        setAntiCachingHeaders(res);
-        res.status(500).json({
-          error: 'Failed to generate protected resource metadata',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // MCP-specific Protected Resource Metadata
-    this.app.get('/.well-known/oauth-protected-resource/mcp', async (req: Request, res: Response) => {
-      try {
-        const baseUrl = getBaseUrl(req);
-
-        if (!this.oauthProvider) {
-          // Return MCP metadata even without OAuth configured
-          setAntiCachingHeaders(res);
-          res.json({
-            resource: baseUrl,
-            authorization_servers: [],
-            mcp_version: '1.18.0',
-            transport_capabilities: ['stdio', 'streamable_http'],
-            tool_discovery_endpoint: `${baseUrl}${this.options.endpoint}`,
-            supported_tool_types: ['function', 'text_generation', 'analysis'],
-            scopes_supported: ['mcp:read', 'mcp:write'],
-            session_management: {
-              resumability_supported: this.options.enableResumability || false
-            },
-            message: 'OAuth provider not configured'
-          });
-          return;
-        }
-
-        const discoveryMetadata = createOAuthDiscoveryMetadata(this.oauthProvider, baseUrl, {
-          enableResumability: this.options.enableResumability,
-          toolDiscoveryEndpoint: `${baseUrl}${this.options.endpoint}`
-        });
-
-        const metadata = discoveryMetadata.generateMCPProtectedResourceMetadata();
-        setAntiCachingHeaders(res);
-        res.json(metadata);
-      } catch (error) {
-        logger.error("MCP protected resource metadata error", error);
-        setAntiCachingHeaders(res);
-        res.status(500).json({
-          error: 'Failed to generate MCP protected resource metadata',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // OpenID Connect Discovery Configuration
-    this.app.get('/.well-known/openid-configuration', async (req: Request, res: Response) => {
-      try {
-        if (!this.oauthProvider) {
-          // Return minimal OpenID Connect metadata indicating OAuth is not configured
-          setAntiCachingHeaders(res);
-          res.json({
-            issuer: getBaseUrl(req),
-            authorization_endpoint: `${getBaseUrl(req)}/auth/login`,
-            token_endpoint: `${getBaseUrl(req)}/auth/token`,
-            response_types_supported: ['code'],
-            subject_types_supported: ['public'],
-            id_token_signing_alg_values_supported: ['RS256'],
-            message: 'OAuth provider not configured'
-          });
-          return;
-        }
-
-        const baseUrl = getBaseUrl(req);
-        const discoveryMetadata = createOAuthDiscoveryMetadata(this.oauthProvider, baseUrl, {
-          enableResumability: this.options.enableResumability,
-          toolDiscoveryEndpoint: `${baseUrl}${this.options.endpoint}`
-        });
-
-        const metadata = discoveryMetadata.generateOpenIDConnectConfiguration();
-        setAntiCachingHeaders(res);
-        res.json(metadata);
-      } catch (error) {
-        logger.error("OpenID Connect configuration error", error);
-        setAntiCachingHeaders(res);
-        res.status(500).json({
-          error: 'Failed to generate OpenID Connect configuration',
-          message: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // 404 handler for unknown discovery endpoints
-    this.app.use('/.well-known', (req: Request, res: Response) => {
-      // If we get here, none of the specific endpoints matched
-      setAntiCachingHeaders(res);
-      res.status(404).json({
-        error: 'Discovery endpoint not found',
-        message: `The discovery endpoint '${req.path}' was not found on this server.`,
-        available_endpoints: [
-          '/.well-known/oauth-authorization-server',
-          '/.well-known/oauth-protected-resource',
-          '/.well-known/oauth-protected-resource/mcp',
-          '/.well-known/openid-configuration'
-        ]
-      });
+    setupDiscoveryRoutes(this.app, this.oauthProvider, {
+      endpoint: this.options.endpoint,
+      host: this.options.host,
+      port: this.options.port,
+      enableResumability: this.options.enableResumability
     });
   }
 
-  /**
-   * Set up OAuth authentication routes with multi-provider support
-   */
-  private async setupOAuthRoutes(): Promise<void> {
-    // Create OAuth provider from environment
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-    if (!provider) {
-      const env = EnvironmentConfig.get();
-      const providerType = env.OAUTH_PROVIDER;
-
-      if (!providerType) {
-        throw new Error('OAuth authentication is required but no OAuth provider is configured. Set OAUTH_PROVIDER environment variable (google, github, or microsoft) and provide the corresponding credentials.');
-      } else {
-        throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
-      }
-    }
-    this.oauthProvider = provider;
-
-    const endpoints = this.oauthProvider.getEndpoints();
-
-    // Generic auth endpoint for test discovery
-    this.app.get('/auth', (req: Request, res: Response) => {
-      res.json({
-        message: 'OAuth authentication endpoint',
-        providers: ['google', 'github', 'microsoft'],
-        endpoints: endpoints
-      });
-    });
-
-    // OAuth authorization endpoint
-    const authHandler = async (req: Request, res: Response) => {
-      try {
-        await this.oauthProvider!.handleAuthorizationRequest(req, res);
-      } catch (error) {
-        logger.error("OAuth authorization error", error);
-        res.status(500).json({ error: 'Authorization failed' });
-      }
-    };
-    this.app.get(endpoints.authEndpoint, authHandler);
-
-    // Generic OAuth authorize endpoint (for MCP Inspector compatibility)
-    this.app.get('/authorize', authHandler);
-
-    // OAuth callback endpoint
-    const callbackHandler = async (req: Request, res: Response) => {
-      try {
-        await this.oauthProvider!.handleAuthorizationCallback(req, res);
-      } catch (error) {
-        logger.error("OAuth callback error", error);
-        res.status(500).json({ error: 'Authorization callback failed' });
-      }
-    };
-    this.app.get(endpoints.callbackEndpoint, callbackHandler);
-
-    // Universal OAuth 2.0 token handler (RFC 6749 Section 3.2)
-    // Implements OAuth 2.0 Token Endpoint for authorization_code and refresh_token grants
-    // Supports both JSON and form data (RFC 6749 Section 4.1.3 and 6.1)
-    const universalTokenHandler = async (req: Request, res: Response) => {
-      try {
-        logger.debug("Universal token handler processing", {
-          contentType: req.headers['content-type'],
-          body: req.body
-        });
-
-        // Extract parameters (works for both form data and JSON)
-        const { grant_type, refresh_token } = req.body;
-
-        // Determine operation based on grant_type (RFC 6749 Section 4.1.3)
-        if (grant_type === 'authorization_code') {
-          // Authorization Code Grant token exchange (RFC 6749 Section 4.1.3)
-          // Supports PKCE (RFC 7636) - delegate to provider's handleTokenExchange
-          if (this.oauthProvider && 'handleTokenExchange' in this.oauthProvider) {
-            // Type assertion for providers that implement handleTokenExchange
-            const provider = this.oauthProvider as OAuthProvider & {
-              handleTokenExchange: (req: Request, res: Response) => Promise<void>
-            };
-            await provider.handleTokenExchange(req, res);
-          } else {
-            res.status(501).json({
-              error: 'not_implemented',
-              error_description: 'Token exchange not supported by current OAuth provider'
-            });
-          }
-        } else if (grant_type === 'refresh_token' || refresh_token) {
-          // Refresh Token Grant (RFC 6749 Section 6) - delegate to provider's handleTokenRefresh
-          await this.oauthProvider!.handleTokenRefresh(req, res);
-        } else {
-          // Invalid grant type (RFC 6749 Section 5.2)
-          res.status(400).json({
-            error: 'unsupported_grant_type',
-            error_description: 'Supported grant types: authorization_code, refresh_token'
-          });
-        }
-      } catch (error) {
-        logger.error("OAuth universal token handler error", error);
-        res.status(500).json({
-          error: 'server_error',
-          error_description: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString()
-        });
-      }
-    };
-
-    // Use universal handler for both provider-specific refresh endpoint and generic token endpoint
-    this.app.post(endpoints.refreshEndpoint, universalTokenHandler);
-
-    // Generic OAuth 2.0 token endpoint (RFC 6749 Section 3.2) - uses same universal handler
-    this.app.post('/token', universalTokenHandler);
-
-    // Logout endpoint
-    const logoutHandler = async (req: Request, res: Response) => {
-      try {
-        await this.oauthProvider!.handleLogout(req, res);
-      } catch (error) {
-        logger.error("Logout error", error);
-        res.status(500).json({ error: 'Logout failed' });
-      }
-    };
-    this.app.post(endpoints.logoutEndpoint, logoutHandler);
-
-    // OAuth 2.0 Dynamic Client Registration Endpoint (RFC 7591)
-    const registerClientHandler = async (req: Request, res: Response): Promise<void> => {
-      try {
-        logger.info('Client registration request received', {
-          clientName: req.body.client_name,
-          redirectUris: req.body.redirect_uris,
-        });
-
-        // Validate required fields (RFC 7591 Section 2)
-        if (!req.body.redirect_uris || !Array.isArray(req.body.redirect_uris) || req.body.redirect_uris.length === 0) {
-          logger.warn('Client registration failed: missing redirect_uris');
-          res.status(400).json({
-            error: 'invalid_client_metadata',
-            error_description: 'redirect_uris is required and must be a non-empty array',
-          });
-          return;
-        }
-
-        // Validate redirect URIs format
-        for (const uri of req.body.redirect_uris) {
-          try {
-            new URL(uri);
-          } catch {
-            logger.warn('Client registration failed: invalid redirect_uri', { uri });
-            res.status(400).json({
-              error: 'invalid_redirect_uri',
-              error_description: `Invalid redirect URI: ${uri}`,
-            });
-            return;
-          }
-        }
-
-        // Register the client
-        const registeredClient = await this.clientStore!.registerClient({
-          redirect_uris: req.body.redirect_uris,
-          client_name: req.body.client_name,
-          client_uri: req.body.client_uri,
-          logo_uri: req.body.logo_uri,
-          scope: req.body.scope,
-          contacts: req.body.contacts,
-          tos_uri: req.body.tos_uri,
-          policy_uri: req.body.policy_uri,
-          jwks_uri: req.body.jwks_uri,
-          token_endpoint_auth_method: req.body.token_endpoint_auth_method || 'client_secret_post',
-          grant_types: req.body.grant_types || ['authorization_code', 'refresh_token'],
-          response_types: req.body.response_types || ['code'],
-        });
-
-        logger.info('Client registered successfully', {
-          clientId: registeredClient.client_id,
-          clientName: registeredClient.client_name,
-        });
-
-        // Return client information (RFC 7591 Section 3.2.1)
-        res.status(201).json(registeredClient);
-      } catch (error) {
-        logger.error('Client registration error', error);
-        res.status(500).json({
-          error: 'server_error',
-          error_description: error instanceof Error ? error.message : String(error),
-        });
-      }
-    };
-    this.app.post('/register', registerClientHandler);
-
-    // Client Configuration Endpoint - GET /register/:client_id (RFC 7592 Section 2.1)
-    const getClientHandler = async (req: Request, res: Response): Promise<void> => {
-      try {
-        const clientId = req.params.client_id;
-        if (!clientId) {
-          logger.warn('Client ID missing in request');
-          res.status(400).json({
-            error: 'invalid_request',
-            error_description: 'client_id is required',
-          });
-          return;
-        }
-
-        const client = await this.clientStore!.getClient(clientId);
-        if (!client) {
-          logger.warn('Client not found', { clientId });
-          res.status(404).json({
-            error: 'not_found',
-            error_description: 'Client not found',
-          });
-          return;
-        }
-
-        logger.info('Client configuration retrieved', { clientId });
-        res.json(client);
-      } catch (error) {
-        logger.error('Get client error', error);
-        res.status(500).json({
-          error: 'server_error',
-          error_description: error instanceof Error ? error.message : String(error),
-        });
-      }
-    };
-    this.app.get('/register/:client_id', getClientHandler);
-
-    // Client Configuration Endpoint - DELETE /register/:client_id (RFC 7592 Section 2.3)
-    const deleteClientHandler = async (req: Request, res: Response): Promise<void> => {
-      try {
-        const clientId = req.params.client_id;
-        if (!clientId) {
-          logger.warn('Client ID missing in request');
-          res.status(400).json({
-            error: 'invalid_request',
-            error_description: 'client_id is required',
-          });
-          return;
-        }
-
-        const deleted = await this.clientStore!.deleteClient!(clientId);
-        if (!deleted) {
-          logger.warn('Client deletion failed: not found', { clientId });
-          res.status(404).json({
-            error: 'not_found',
-            error_description: 'Client not found',
-          });
-          return;
-        }
-
-        logger.info('Client deleted successfully', { clientId });
-        res.status(204).send();
-      } catch (error) {
-        logger.error('Delete client error', error);
-        res.status(500).json({
-          error: 'server_error',
-          error_description: error instanceof Error ? error.message : String(error),
-        });
-      }
-    };
-    this.app.delete('/register/:client_id', deleteClientHandler);
-  }
 
   /**
    * Set up Streamable HTTP endpoints for MCP communication
@@ -1313,86 +798,6 @@ export class MCPStreamableHttpServer {
   }
 
   /**
-   * Set up session management routes
-   */
-  private setupSessionRoutes(): void {
-    // Get active sessions (admin endpoint)
-    const sessionsHandler = (req: Request, res: Response) => {
-      const sessions = this.sessionManager.getActiveSessions();
-      const stats = this.sessionManager.getStats();
-
-      res.json({
-        sessions: sessions.map(s => ({
-          sessionId: s.sessionId,
-          createdAt: new Date(s.createdAt).toISOString(),
-          lastActivity: new Date(s.lastActivity).toISOString(),
-          hasAuth: !!s.authInfo,
-          metadata: s.metadata,
-        })),
-        stats,
-      });
-    };
-    this.app.get('/admin/sessions', sessionsHandler);
-
-    // Close a specific session (admin endpoint)
-    const deleteSessionHandler = (req: Request, res: Response) => {
-      const { sessionId } = req.params;
-      if (!sessionId) {
-        res.status(400).json({ error: 'Session ID is required' });
-        return;
-      }
-      const closed = this.sessionManager.closeSession(sessionId);
-
-      if (closed) {
-        res.json({ success: true, message: `Session ${sessionId} closed` });
-      } else {
-        res.status(404).json({ error: 'Session not found' });
-      }
-    };
-    this.app.delete('/admin/sessions/:sessionId', deleteSessionHandler);
-
-    // Admin metrics endpoint (matches Vercel API)
-    const metricsHandler = (req: Request, res: Response) => {
-      const sessionStats = this.sessionManager.getStats();
-      const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-      const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProvider);
-      const llmProviders = EnvironmentConfig.checkLLMProviders();
-
-      const metrics = {
-        timestamp: new Date().toISOString(),
-        platform: 'express-standalone',
-        performance: {
-          uptime_seconds: process.uptime(),
-          memory_usage: process.memoryUsage(),
-          cpu_usage: process.cpuUsage(),
-        },
-        deployment: {
-          mode: 'standalone',
-          version: process.env.npm_package_version || '1.0.0',
-          node_version: process.version,
-          environment: process.env.NODE_ENV || 'development',
-        },
-        configuration: {
-          oauth_provider: oauthProvider,
-          oauth_configured: hasOAuthCredentials,
-          llm_providers: llmProviders,
-          transport_mode: 'streamable_http',
-        },
-        sessions: sessionStats,
-        endpoints: {
-          health: '/health',
-          mcp: '/mcp',
-          auth: '/auth',
-          admin: '/admin',
-        }
-      };
-
-      res.json(metrics);
-    };
-    this.app.get('/admin/metrics', metricsHandler);
-  }
-
-  /**
    * Register callback for Streamable HTTP transport events
    */
   onStreamableHTTPTransport(handler: (transport: StreamableHTTPServerTransport) => Promise<void>): void {
@@ -1438,12 +843,23 @@ export class MCPStreamableHttpServer {
         return;
       }
 
-      this.server.close((error?: Error) => {
+      this.server.close(async (error?: Error) => {
         if (error) {
           reject(error);
         } else {
           logger.info("Streamable HTTP server stopped");
           this.sessionManager.destroy();
+
+          // Cleanup client store resources
+          if (this.clientStore && 'dispose' in this.clientStore && typeof this.clientStore.dispose === 'function') {
+            await this.clientStore.dispose();
+          }
+
+          // Cleanup OAuth provider resources
+          if (this.oauthProvider && 'dispose' in this.oauthProvider && typeof this.oauthProvider.dispose === 'function') {
+            this.oauthProvider.dispose();
+          }
+
           resolve();
         }
       });

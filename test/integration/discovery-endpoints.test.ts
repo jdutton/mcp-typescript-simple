@@ -67,8 +67,8 @@ describe('OAuth Discovery Endpoints Integration', () => {
 
       expect(response.body).toMatchObject({
         issuer: expect.stringMatching(/^https?:\/\//),
-        authorization_endpoint: expect.stringContaining('/auth/google'),
-        token_endpoint: expect.stringContaining('/auth/google/refresh'),
+        authorization_endpoint: expect.stringContaining('/authorize'), // Generic endpoint for MCP Inspector compatibility
+        token_endpoint: expect.stringContaining('/token'), // Generic endpoint for MCP Inspector compatibility
         token_endpoint_auth_methods_supported: expect.arrayContaining(['client_secret_post']),
         response_types_supported: expect.arrayContaining(['code']),
         grant_types_supported: expect.arrayContaining(['authorization_code', 'refresh_token']),
@@ -77,7 +77,7 @@ describe('OAuth Discovery Endpoints Integration', () => {
       });
 
       expect(response.body.service_documentation).toBe('https://developers.google.com/identity/protocols/oauth2');
-      expect(response.body.revocation_endpoint).toContain('/auth/google/logout');
+      expect(response.body.registration_endpoint).toContain('/register'); // Generic DCR registration endpoint
     });
 
     it('should return error metadata when OAuth is not configured', async () => {
@@ -226,8 +226,8 @@ describe('OAuth Discovery Endpoints Integration', () => {
 
       expect(response.body).toMatchObject({
         issuer: expect.stringMatching(/^https?:\/\//),
-        authorization_endpoint: expect.stringContaining('/auth/google'),
-        token_endpoint: expect.stringContaining('/auth/google/refresh'),
+        authorization_endpoint: expect.stringContaining('/authorize'), // Generic endpoint
+        token_endpoint: expect.stringContaining('/token'), // Generic endpoint
         subject_types_supported: expect.arrayContaining(['public']),
         id_token_signing_alg_values_supported: expect.arrayContaining(['RS256']),
         claims_supported: expect.arrayContaining(['sub', 'email', 'name']),

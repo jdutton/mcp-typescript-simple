@@ -18,7 +18,7 @@
  * - Performance degrades with many clients (full file read/write)
  */
 
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { randomUUID, randomBytes } from 'crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
@@ -67,7 +67,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
    */
   private loadSync(): void {
     try {
-      const data = require('fs').readFileSync(this.filePath, 'utf8');
+      const data = readFileSync(this.filePath, 'utf8');
       const parsed: PersistedClientData = JSON.parse(data);
 
       if (parsed.version !== 1) {
