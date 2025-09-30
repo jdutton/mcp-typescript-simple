@@ -93,8 +93,10 @@ npm run build
 # Production STDIO mode
 npm start
 
-# Production Streamable HTTP mode
-npm run start:http
+# Production Streamable HTTP mode (with OAuth)
+npm run run:oauth:google     # Google OAuth
+npm run run:oauth:github     # GitHub OAuth
+npm run run:oauth:microsoft  # Microsoft OAuth
 
 # Type checking
 npm run typecheck
@@ -126,14 +128,46 @@ npm run otel:logs       # View observability stack logs
 - 🔓 **[OAuth Dynamic Client Registration](./docs/oauth-dcr.md)** - Automatic client registration (RFC 7591)
 - 📊 **[Observability Setup](./docs/adr/001-opentelemetry-observability-architecture.md)** - Structured logging and OpenTelemetry integration
 
-### Docker Development
+### Docker Deployment
 
 ```bash
-# Build Docker image
-docker build -t mcp-typescript-simple .
+# Build production Docker image
+npm run run:docker:build
 
-# Run container
-docker run mcp-typescript-simple
+# Run Docker container with OAuth
+npm run run:docker:google     # Google OAuth
+npm run run:docker:github     # GitHub OAuth
+npm run run:docker:microsoft  # Microsoft OAuth
+
+# Manual Docker commands
+docker build -t mcp-typescript-simple:latest .
+docker run --rm -p 3000:3000 --env-file .env.google mcp-typescript-simple:latest
+```
+
+### Progressive Production Fidelity Testing
+
+Test with increasing production-like fidelity:
+
+**Level 1: Development Mode (TypeScript via tsx)**
+```bash
+npm run dev:oauth:google
+```
+
+**Level 2: Production Build (Compiled JavaScript)**
+```bash
+npm run build
+npm run run:oauth:google
+```
+
+**Level 3: Docker Container**
+```bash
+npm run run:docker:build
+npm run run:docker:google
+```
+
+**Level 4: Vercel Serverless (Future)**
+```bash
+npm run deploy:vercel
 ```
 
 ## Project Structure

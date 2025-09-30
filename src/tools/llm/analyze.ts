@@ -7,10 +7,7 @@ import { LLMManager } from '../../llm/manager.js';
 import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
 
 type ToolResponse = {
-  content: Array<
-    | { type: 'text'; text: string }
-    | { type: 'json'; json: unknown }
-  >;
+  content: Array<{ type: 'text'; text: string }>;
 };
 
 export const AnalyzeToolSchema = z.object({
@@ -75,20 +72,11 @@ export async function handleAnalyzeTool(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorPayload = {
-      tool: 'analyze',
-      code: 'ANALYZE_TOOL_ERROR',
-      message: errorMessage
-    };
     return {
       content: [
         {
           type: 'text',
-          text: `Analysis failed: ${errorMessage}`
-        },
-        {
-          type: 'json',
-          json: { error: errorPayload }
+          text: `Analysis failed: ${errorMessage}\n\nError details:\n- Tool: analyze\n- Code: ANALYZE_TOOL_ERROR`
         }
       ]
     };

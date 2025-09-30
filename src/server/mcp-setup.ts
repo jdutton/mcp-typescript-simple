@@ -283,20 +283,11 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
       }
 
       // For other errors, return error content in response
-      const errorPayload = {
-        tool: name,
-        code: 'TOOL_EXECUTION_ERROR',
-        message: errorMessage
-      };
       return {
         content: [
           {
             type: "text",
-            text: `Error executing tool '${name}': ${errorMessage}`,
-          },
-          {
-            type: 'json',
-            json: { error: errorPayload }
+            text: `Error executing tool '${name}': ${errorMessage}\n\nError details:\n- Tool: ${name}\n- Code: TOOL_EXECUTION_ERROR`,
           }
         ],
       };

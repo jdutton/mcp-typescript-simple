@@ -7,10 +7,7 @@ import { LLMManager } from '../../llm/manager.js';
 import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
 
 type ToolResponse = {
-  content: Array<
-    | { type: 'text'; text: string }
-    | { type: 'json'; json: unknown }
-  >;
+  content: Array<{ type: 'text'; text: string }>;
 };
 
 export const ChatToolSchema = {
@@ -89,20 +86,11 @@ export async function handleChatTool(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    const errorPayload = {
-      tool: 'chat',
-      code: 'CHAT_TOOL_ERROR',
-      message: errorMessage
-    };
     return {
       content: [
         {
           type: 'text',
-          text: `Error (chat tool): ${errorMessage}`
-        },
-        {
-          type: 'json',
-          json: { error: errorPayload }
+          text: `Chat failed: ${errorMessage}\n\nError details:\n- Tool: chat\n- Code: CHAT_TOOL_ERROR`
         }
       ]
     };

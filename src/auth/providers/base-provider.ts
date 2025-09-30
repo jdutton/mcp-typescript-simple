@@ -473,7 +473,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
-   * Handle client redirect flow for MCP Inspector compatibility
+   * Handle client redirect flow for MCP Inspector and Claude Code compatibility
    * Returns true if client redirect was handled, false if should continue with normal flow
    */
   protected handleClientRedirect(
@@ -494,7 +494,18 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // Build redirect URL with authorization code (OAuth standard flow)
       const redirectUrl = new URL(session.clientRedirectUri);
       redirectUrl.searchParams.set('code', code);
-      redirectUrl.searchParams.set('state', state);
+
+      // Use client's original state if provided, otherwise use our server state
+      // This is critical for OAuth clients (Claude Code, MCP Inspector) that manage their own state
+      const stateToReturn = session.clientState || state;
+      redirectUrl.searchParams.set('state', stateToReturn);
+
+      if (session.clientState) {
+        logger.oauthDebug('Returning client original state', {
+          provider: providerName,
+          clientStatePrefix: session.clientState.substring(0, 8)
+        });
+      }
 
       // Clean up session since we're done with this flow
       this.removeSession(state);
@@ -566,7 +577,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     codeVerifier: string,
     codeChallenge: string,
     clientRedirectUri?: string,
-    customScopes?: string[]
+    customScopes?: string[],
+    clientState?: string
   ): OAuthSession {
     const providerName = this.getProviderName();
 
@@ -574,12 +586,17 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       logger.oauthDebug('Client redirect URI', { provider: providerName, clientRedirectUri });
     }
 
+    if (clientState) {
+      logger.oauthDebug('Client state parameter', { provider: providerName, clientStatePrefix: clientState.substring(0, 8) });
+    }
+
     return {
       state,
       codeVerifier, // Empty if using client's challenge, populated if we generated it
       codeChallenge,
       redirectUri: this.config.redirectUri,
-      clientRedirectUri, // Store MCP Inspector's redirect URI
+      clientRedirectUri, // Store MCP Inspector's or Claude Code's redirect URI
+      clientState, // Store client's original state for validation
       scopes: customScopes || (this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes()),
       provider: this.getProviderType(),
       expiresAt: Date.now() + this.SESSION_TIMEOUT,
