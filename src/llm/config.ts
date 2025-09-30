@@ -40,11 +40,12 @@ export class LLMConfigManager {
         providers: {
           claude: {
             apiKey: claudeKey,
-            defaultModel: 'claude-3-haiku-20240307',
+            defaultModel: 'claude-3-5-haiku-20241022', // Latest Haiku
             models: {
-              'claude-3-haiku-20240307': { maxTokens: 4096, available: true },
-              'claude-3-sonnet-20240229': { maxTokens: 4096, available: true },
-              'claude-3-opus-20240229': { maxTokens: 4096, available: true }
+              'claude-3-5-haiku-20241022': { maxTokens: 8192, available: true },      // Latest Haiku
+              'claude-3-haiku-20240307': { maxTokens: 4096, available: true },        // Previous Haiku
+              'claude-sonnet-4-5-20250929': { maxTokens: 8192, available: true },    // Latest Sonnet
+              'claude-3-7-sonnet-20250219': { maxTokens: 8192, available: true }     // Previous Sonnet
             }
           },
           openai: {

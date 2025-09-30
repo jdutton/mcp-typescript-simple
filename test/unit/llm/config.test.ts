@@ -69,11 +69,12 @@ describe('LLMConfigManager', () => {
       providers: {
         claude: {
           apiKey: 'anthropic-key',
-          defaultModel: 'claude-3-haiku-20240307',
+          defaultModel: 'claude-3-5-haiku-20241022',
           models: {
+            'claude-3-5-haiku-20241022': { maxTokens: 8192, available: true },
             'claude-3-haiku-20240307': { maxTokens: 4096, available: true },
-            'claude-3-sonnet-20240229': { maxTokens: 4096, available: true },
-            'claude-3-opus-20240229': { maxTokens: 4096, available: true }
+            'claude-sonnet-4-5-20250929': { maxTokens: 8192, available: true },
+            'claude-3-7-sonnet-20250219': { maxTokens: 8192, available: true }
           }
         },
         openai: {
@@ -147,5 +148,25 @@ describe('LLMConfigManager', () => {
 
     await expect(manager.getModelConfig('openai', defaultModel))
       .rejects.toThrow(`Model '${defaultModel}' is not available for provider 'openai'`);
+  });
+
+  it('should not include deprecated Claude 3 models (claude-3-sonnet-20240229, claude-3-opus-20240229)', async () => {
+    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+      ANTHROPIC_API_KEY: 'key',
+      OPENAI_API_KEY: 'key',
+      GOOGLE_API_KEY: 'key',
+      LLM_DEFAULT_PROVIDER: undefined
+    } as any);
+
+    const manager = new LLMConfigManager();
+    const config = await manager.loadConfig();
+
+    // Deprecated models should not be present
+    expect(config.providers.claude.models).not.toHaveProperty('claude-3-sonnet-20240229');
+    expect(config.providers.claude.models).not.toHaveProperty('claude-3-opus-20240229');
+
+    // Should have current Claude 4 models instead
+    expect(config.providers.claude.models).toHaveProperty('claude-sonnet-4-5-20250929');
+    expect(config.providers.claude.models).toHaveProperty('claude-3-5-haiku-20241022');
   });
 });
