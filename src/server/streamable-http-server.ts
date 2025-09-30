@@ -16,10 +16,13 @@ import { SessionManager } from '../session/session-manager.js';
 import { EventStoreFactory } from '../session/event-store.js';
 import { ClientStoreFactory } from '../auth/client-store-factory.js';
 import { OAuthRegisteredClientsStore } from '../auth/stores/client-store-interface.js';
+import { TokenStoreFactory } from '../auth/token-store-factory.js';
+import { InitialAccessTokenStore } from '../auth/stores/token-store-interface.js';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
+import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { logger } from '../utils/logger.js';
 
 export interface StreamableHttpServerOptions {
@@ -44,6 +47,7 @@ export class MCPStreamableHttpServer {
   private server?: HttpServer;
   private oauthProvider?: OAuthProvider;
   private clientStore?: OAuthRegisteredClientsStore;
+  private tokenStore?: InitialAccessTokenStore;
   private sessionManager: SessionManager;
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
   private sessionTransports: Map<string, StreamableHTTPServerTransport> = new Map();
@@ -74,6 +78,9 @@ export class MCPStreamableHttpServer {
     // Initialize client store for OAuth Dynamic Client Registration
     this.clientStore = ClientStoreFactory.create();
 
+    // Initialize token store for protected DCR endpoints
+    this.tokenStore = TokenStoreFactory.create();
+
     // OAuth routes (only if auth is required)
     if (this.options.requireAuth) {
       // Create OAuth provider from environment
@@ -96,6 +103,10 @@ export class MCPStreamableHttpServer {
 
     // OAuth discovery routes (available even without auth)
     this.setupOAuthDiscoveryRoutes();
+
+    // Admin token management routes (for protected DCR)
+    const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
+    setupAdminTokenRoutes(this.app, this.tokenStore, this.clientStore, { devMode });
 
     // Set up streamable HTTP routes after OAuth provider is configured
     this.setupStreamableHTTPRoutes();
