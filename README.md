@@ -117,7 +117,37 @@ npm run test:dual-mode
 npm run otel:start      # Start Grafana OTEL-LGTM stack (requires Docker)
 npm run otel:stop       # Stop observability stack
 npm run otel:logs       # View observability stack logs
+
+# API Documentation
+npm run docs:validate   # Validate OpenAPI specification
+npm run docs:preview    # Preview docs locally with Redocly
+npm run docs:build      # Build static Redoc HTML
+npm run docs:bundle     # Bundle OpenAPI spec to JSON
 ```
+
+### API Documentation
+
+This project includes comprehensive OpenAPI 3.1 specification and interactive documentation. When running the server (development or production), access:
+
+- **📖 `/docs`** - Beautiful read-focused documentation (Redoc)
+- **🧪 `/api-docs`** - Interactive API testing with OAuth support (Swagger UI)
+- **📄 `/openapi.yaml`** - OpenAPI specification (YAML format)
+- **📄 `/openapi.json`** - OpenAPI specification (JSON format)
+
+**Example**: Start the server and visit `http://localhost:3000/docs`
+
+```bash
+npm run dev:http
+# Open http://localhost:3000/docs in your browser
+```
+
+The documentation includes:
+- All HTTP endpoints with request/response examples
+- OAuth 2.0 authentication flows with interactive testing
+- JSON-RPC 2.0 MCP protocol endpoints
+- Dynamic Client Registration (RFC 7591/7592)
+- OAuth Discovery metadata (RFC 8414/9728)
+- Admin and monitoring endpoints
 
 #### Development Guides
 - 📘 **Traditional Development**: Use the commands above for STDIO/Streamable HTTP modes

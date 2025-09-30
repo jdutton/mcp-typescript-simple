@@ -6,6 +6,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import { createServer, Server as HttpServer } from 'http';
 import helmet from 'helmet';
 import cors from 'cors';
+import * as OpenApiValidator from 'express-openapi-validator';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -23,6 +24,7 @@ import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
+import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '../utils/logger.js';
 
 export interface StreamableHttpServerOptions {
@@ -108,6 +110,9 @@ export class MCPStreamableHttpServer {
     const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
     setupAdminTokenRoutes(this.app, this.tokenStore, this.clientStore, { devMode });
 
+    // Documentation routes (OpenAPI, Swagger UI, Redoc) - available without auth
+    setupDocsRoutes(this.app);
+
     // Set up streamable HTTP routes after OAuth provider is configured
     this.setupStreamableHTTPRoutes();
   }
@@ -121,12 +126,34 @@ export class MCPStreamableHttpServer {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "'unsafe-eval'", // Required for Swagger UI
+            "https://cdn.redoc.ly", // Redoc CDN
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://fonts.googleapis.com", // Google Fonts for Redoc
+          ],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com", // Google Fonts for Redoc
+          ],
+          imgSrc: [
+            "'self'",
+            "data:", // Allow data URIs for Swagger UI
+            "https:", // Allow HTTPS images
+          ],
           connectSrc: ["'self'"],
+          workerSrc: ["'self'", "blob:"], // Allow workers for Redoc
+          upgradeInsecureRequests: null, // Disable for localhost development
         },
       },
       crossOriginEmbedderPolicy: false, // Required for streaming
+      crossOriginResourcePolicy: false, // Required for Safari to fetch docs
+      strictTransportSecurity: false, // Disable HSTS for localhost development
     }));
 
     // CORS configuration with configurable origins
@@ -139,7 +166,20 @@ export class MCPStreamableHttpServer {
     ];
 
     const corsOptions: cors.CorsOptions = {
-      origin: this.options.allowedOrigins || defaultOrigins,
+      origin: (origin, callback) => {
+        // Allow requests with no origin (same-origin requests, curl, etc.)
+        if (!origin) {
+          return callback(null, true);
+        }
+
+        // Check against allowed origins
+        const allowedOrigins = this.options.allowedOrigins || defaultOrigins;
+        if (allowedOrigins.indexOf(origin) !== -1) {
+          return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+      },
       credentials: true,
       methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: [
@@ -158,6 +198,42 @@ export class MCPStreamableHttpServer {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // OpenAPI request/response validation (development only for responses)
+    // Skip validation in test environment to avoid timeouts
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+
+    if (!isTest) {
+      this.app.use(
+        OpenApiValidator.middleware({
+          apiSpec: './openapi.yaml',
+          validateRequests: true, // Always validate requests
+          validateResponses: isDevelopment, // Only validate responses in development
+          validateSecurity: false, // We handle auth separately
+          ignorePaths: /.*\/docs.*|.*\/openapi\.json|.*\/openapi\.yaml/, // Skip doc endpoints
+        })
+      );
+    }
+
+    // OpenAPI validation error handler
+    this.app.use((err: Error & { status?: number; errors?: unknown[] }, req: Request, res: Response, next: NextFunction) => {
+      if (err.status === 400 && err.errors) {
+        // OpenAPI validation error
+        logger.warn('OpenAPI validation error', {
+          path: req.path,
+          method: req.method,
+          errors: err.errors,
+        });
+        res.status(400).json({
+          error: 'validation_error',
+          message: err.message,
+          errors: err.errors,
+        });
+        return;
+      }
+      next(err);
+    });
 
     // Comprehensive request logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {
