@@ -8,11 +8,12 @@ const baseConfig: LLMConfig = {
   providers: {
     claude: {
       apiKey: 'claude-key',
-      defaultModel: 'claude-3-haiku-20240307',
+      defaultModel: 'claude-3-5-haiku-20241022',
       models: {
+        'claude-3-5-haiku-20241022': { maxTokens: 8192, available: true },
         'claude-3-haiku-20240307': { maxTokens: 4096, available: true },
-        'claude-3-sonnet-20240229': { maxTokens: 4096, available: true },
-        'claude-3-opus-20240229': { maxTokens: 4096, available: true }
+        'claude-sonnet-4-5-20250929': { maxTokens: 8192, available: true },
+        'claude-3-7-sonnet-20250219': { maxTokens: 8192, available: true }
       }
     },
     openai: {

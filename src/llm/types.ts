@@ -46,7 +46,13 @@ export interface LLMConfig {
 export type LLMProvider = 'claude' | 'openai' | 'gemini';
 
 // Define available models for each provider
-export type ClaudeModel = 'claude-3-haiku-20240307' | 'claude-3-sonnet-20240229' | 'claude-3-opus-20240229';
+// Updated to Claude 4/3.5 models (September 2025)
+export type ClaudeModel =
+  | 'claude-3-5-haiku-20241022'      // Latest Haiku (Oct 2024)
+  | 'claude-3-haiku-20240307'         // Previous Haiku (Mar 2024) - still supported
+  | 'claude-sonnet-4-5-20250929'     // Latest Sonnet (Sep 2025)
+  | 'claude-3-7-sonnet-20250219';    // Previous Sonnet (Feb 2025) - still supported
+
 export type OpenAIModel = 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini';
 export type GeminiModel = 'gemini-1.5-flash' | 'gemini-1.5-pro' | 'gemini-1.0-pro';
 
@@ -145,13 +151,13 @@ export interface ToolLLMMapping {
 export const DEFAULT_TOOL_LLM_MAPPING: ToolLLMMapping = {
   'chat': {
     provider: 'claude',
-    model: 'claude-3-haiku-20240307',
-    description: 'Fast responses with Claude Haiku'
+    model: 'claude-3-5-haiku-20241022',
+    description: 'Fast responses with Claude 3.5 Haiku'
   },
   'analyze': {
     provider: 'openai',
-    model: 'gpt-4',
-    description: 'Deep analysis with GPT-4'
+    model: 'gpt-4o',
+    description: 'Deep analysis with GPT-4o'
   },
   'summarize': {
     provider: 'gemini',
@@ -160,8 +166,8 @@ export const DEFAULT_TOOL_LLM_MAPPING: ToolLLMMapping = {
   },
   'explain': {
     provider: 'claude',
-    model: 'claude-3-sonnet-20240229',
-    description: 'Clear explanations with Claude Sonnet'
+    model: 'claude-3-7-sonnet-20250219',
+    description: 'Clear explanations with Claude 3.7 Sonnet'
   }
 };
 
@@ -171,7 +177,12 @@ export function isValidModelForProvider<T extends LLMProvider>(
   model: AnyModel
 ): model is ModelsForProvider<T> {
   const validModels: Record<LLMProvider, readonly AnyModel[]> = {
-    claude: ['claude-3-haiku-20240307', 'claude-3-sonnet-20240229', 'claude-3-opus-20240229'],
+    claude: [
+      'claude-3-5-haiku-20241022',
+      'claude-3-haiku-20240307',
+      'claude-sonnet-4-5-20250929',
+      'claude-3-7-sonnet-20250219'
+    ],
     openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
     gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
   };
@@ -182,8 +193,8 @@ export function isValidModelForProvider<T extends LLMProvider>(
 // Helper function to get default model for a provider
 export function getDefaultModelForProvider(provider: LLMProvider): AnyModel {
   const defaults: Record<LLMProvider, AnyModel> = {
-    claude: 'claude-3-haiku-20240307',
-    openai: 'gpt-4',
+    claude: 'claude-3-5-haiku-20241022', // Latest Haiku for speed
+    openai: 'gpt-4o-mini', // Cost-effective GPT-4 level performance
     gemini: 'gemini-1.5-flash'
   };
 
