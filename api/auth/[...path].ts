@@ -45,51 +45,57 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Parse the URL path to determine the OAuth endpoint
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    const pathSegments = url.pathname.split('/').filter(Boolean);
+    // Parse the OAuth path from Vercel's catch-all route parameter
+    // For /auth/github, Vercel passes query.path = ['github']
+    // For /auth/github/callback, Vercel passes query.path = ['github', 'callback']
+    const pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path].filter(Boolean);
+    const oauthPath = '/' + pathArray.join('/');
 
-    // Remove 'api' and 'auth' from path segments to get the actual OAuth path
-    const oauthPath = '/' + pathSegments.slice(2).join('/');
-
-    logger.debug("OAuth request received", { method: req.method, path: oauthPath });
+    logger.debug("OAuth request received", {
+      method: req.method,
+      path: oauthPath,
+      rawPath: req.url,
+      queryPath: req.query.path
+    });
 
     // Initialize OAuth provider
     const oauthProvider = await initializeOAuthProvider();
     const endpoints = oauthProvider.getEndpoints();
 
     // Route to appropriate OAuth handler based on path
-    if (oauthPath === endpoints.authEndpoint || oauthPath.startsWith('/google') || oauthPath.startsWith('/github') || oauthPath.startsWith('/microsoft') || oauthPath.startsWith('/oauth')) {
-      // Authorization endpoint
+    // Paths come as: /github, /github/callback, /google, /google/callback, etc.
+
+    // Match authorization endpoints: /github, /google, /microsoft, /oauth
+    if (oauthPath === '/github' || oauthPath === '/google' || oauthPath === '/microsoft' || oauthPath === '/oauth' || oauthPath === endpoints.authEndpoint) {
       if (req.method === 'GET') {
-        logger.debug("Handling OAuth authorization request");
+        logger.debug("Handling OAuth authorization request", { provider: oauthPath });
         await oauthProvider.handleAuthorizationRequest(req, res);
         return;
       }
     }
 
-    if (oauthPath.includes('/callback')) {
-      // Callback endpoint
+    // Match callback endpoints: /github/callback, /google/callback, etc.
+    if (oauthPath.endsWith('/callback')) {
       if (req.method === 'GET') {
-        logger.debug("Handling OAuth callback");
+        logger.debug("Handling OAuth callback", { path: oauthPath });
         await oauthProvider.handleAuthorizationCallback(req, res);
         return;
       }
     }
 
-    if (oauthPath.includes('/refresh')) {
-      // Token refresh endpoint
+    // Match refresh endpoints: /github/refresh, /google/refresh, etc.
+    if (oauthPath.endsWith('/refresh')) {
       if (req.method === 'POST') {
-        logger.debug("Handling token refresh");
+        logger.debug("Handling token refresh", { path: oauthPath });
         await oauthProvider.handleTokenRefresh(req, res);
         return;
       }
     }
 
-    if (oauthPath.includes('/logout')) {
-      // Logout endpoint
+    // Match logout endpoints: /github/logout, /google/logout, etc.
+    if (oauthPath.endsWith('/logout')) {
       if (req.method === 'POST') {
-        logger.debug("Handling logout");
+        logger.debug("Handling logout", { path: oauthPath });
         await oauthProvider.handleLogout(req, res);
         return;
       }

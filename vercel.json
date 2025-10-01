@@ -12,11 +12,11 @@
       "destination": "/api/mcp"
     },
     {
-      "source": "/auth/(.*)",
-      "destination": "/api/auth"
+      "source": "/debug/github-oauth",
+      "destination": "/api/health"
     },
     {
-      "source": "/admin/(.*)",
+      "source": "/admin/:path*",
       "destination": "/api/admin"
     }
   ],
@@ -25,7 +25,7 @@
       "maxDuration": 30,
       "memory": 1024
     },
-    "api/auth.ts": {
+    "api/auth/[...path].ts": {
       "maxDuration": 15,
       "memory": 512
     },
