@@ -16,6 +16,10 @@
       "destination": "/api/health"
     },
     {
+      "source": "/auth/:path*",
+      "destination": "/api/auth/:path*"
+    },
+    {
       "source": "/admin/:path*",
       "destination": "/api/admin"
     }
