@@ -31,6 +31,9 @@ export class ObservabilityLogger {
   private createPinoLogger(): pino.Logger {
     const transports: pino.TransportSingleOptions[] = [];
 
+    // Note: Transports are disabled in Vercel serverless (worker threads not supported)
+    // The config detects this and disables exporters automatically
+
     // Console transport for development
     if (this.config.exporters.console) {
       transports.push({
