@@ -157,6 +157,18 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         providerData: payload,
       };
 
+      // Check allowlist authorization
+      const allowlistError = this.checkUserAllowlist(userInfo.email);
+      if (allowlistError) {
+        logger.warn('User denied by allowlist', { email: userInfo.email, provider: 'google' });
+        this.setAntiCachingHeaders(res);
+        res.status(403).json({
+          error: 'access_denied',
+          error_description: allowlistError
+        });
+        return;
+      }
+
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokens.access_token,

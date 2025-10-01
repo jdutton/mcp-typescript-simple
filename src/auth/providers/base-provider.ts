@@ -19,6 +19,7 @@ import {
   ProviderTokenResponse
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -29,8 +30,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   private readonly cleanupTimer: NodeJS.Timeout;
+  protected readonly allowlistConfig: AllowlistConfig;
 
   constructor(protected config: OAuthConfig) {
+    // Load allowlist configuration
+    this.allowlistConfig = loadAllowlistConfig();
+
     // Clean up expired sessions and tokens periodically
     this.cleanupTimer = setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
     if (typeof this.cleanupTimer.unref === 'function') {
@@ -78,6 +83,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract handleLogout(req: Request, res: Response): Promise<void>;
   abstract verifyAccessToken(token: string): Promise<AuthInfo>;
   abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+
+  /**
+   * Check if user is authorized based on allowlist
+   * Returns error message if not authorized, undefined if authorized
+   */
+  protected checkUserAllowlist(userEmail: string | undefined): string | undefined {
+    return checkAllowlistAuthorization(userEmail, this.allowlistConfig);
+  }
 
   /**
    * Set anti-caching headers for OAuth responses per RFC 6749 and RFC 9700

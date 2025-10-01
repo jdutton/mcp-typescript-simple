@@ -133,6 +133,18 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       // Get user information
       const userInfo = await this.fetchMicrosoftUserInfo(tokenData.access_token);
 
+      // Check allowlist authorization
+      const allowlistError = this.checkUserAllowlist(userInfo.email);
+      if (allowlistError) {
+        logger.warn('User denied by allowlist', { email: userInfo.email, provider: 'microsoft' });
+        this.setAntiCachingHeaders(res);
+        res.status(403).json({
+          error: 'access_denied',
+          error_description: allowlistError
+        });
+        return;
+      }
+
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokenData.access_token,

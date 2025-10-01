@@ -118,11 +118,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
     });
 
+    // Connect the transport to the MCP server BEFORE handling the request
+    // This is the correct order per MCP SDK documentation
+    await server.connect(transport);
+
     // Handle the request with the transport
     await transport.handleRequest(req as any, res as any, req.method === 'POST' ? req.body : undefined);
-
-    // Connect the transport to the MCP server
-    await server.connect(transport);
 
     const duration = Date.now() - startTime;
     logger.debug("MCP request completed", { requestId, duration });
