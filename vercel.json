@@ -16,8 +16,24 @@
       "destination": "/api/health"
     },
     {
+      "source": "/.well-known/:path*",
+      "destination": "/api/well-known"
+    },
+    {
+      "source": "/register",
+      "destination": "/api/register"
+    },
+    {
+      "source": "/authorize",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/token",
+      "destination": "/api/auth"
+    },
+    {
       "source": "/auth/:path*",
-      "destination": "/api/auth/:path*"
+      "destination": "/api/auth"
     },
     {
       "source": "/admin/:path*",
@@ -29,9 +45,13 @@
       "maxDuration": 30,
       "memory": 1024
     },
-    "api/auth/[...path].ts": {
+    "api/auth.ts": {
       "maxDuration": 15,
       "memory": 512
+    },
+    "api/register.ts": {
+      "maxDuration": 10,
+      "memory": 256
     },
     "api/health.ts": {
       "maxDuration": 10,

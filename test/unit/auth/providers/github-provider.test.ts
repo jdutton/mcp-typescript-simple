@@ -184,8 +184,8 @@ describe('GitHubOAuthProvider', () => {
       user: expect.objectContaining({ email: 'octo@example.com', provider: 'github' })
     }));
 
-    const sessionAfter = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
-    expect(sessionAfter).toBeUndefined();
+    const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+    expect(sessionAfter).toBeNull();
 
     const storedToken = (provider as unknown as { getToken: (token: string) => StoredTokenInfo | undefined }).getToken('access-token');
     expect(storedToken?.userInfo.email).toBe('octo@example.com');

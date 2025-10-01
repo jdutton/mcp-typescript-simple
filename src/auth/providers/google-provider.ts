@@ -19,6 +19,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
 
 /**
  * Google OAuth provider implementation
@@ -27,8 +28,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   private oauth2Client: OAuth2Client;
   protected config: GoogleOAuthConfig; // Override with specific config type
 
-  constructor(config: GoogleOAuthConfig) {
-    super(config);
+  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore) {
+    super(config, sessionStore);
     this.config = config; // Explicitly set the properly typed config
 
     this.oauth2Client = new OAuth2Client(
@@ -118,7 +119,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Validate session
       logger.oauthDebug('Validating state', { provider: 'google', statePrefix: state.substring(0, 8) });
-      const session = this.validateState(state);
+      const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
       if (this.handleClientRedirect(session, code, state, res)) {

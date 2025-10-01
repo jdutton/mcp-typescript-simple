@@ -17,6 +17,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
 
 /**
  * Microsoft Azure AD OAuth provider implementation
@@ -27,8 +28,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   private readonly MICROSOFT_TOKEN_URL: string;
   private readonly MICROSOFT_USER_URL = 'https://graph.microsoft.com/v1.0/me';
 
-  constructor(config: MicrosoftOAuthConfig) {
-    super(config);
+  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore) {
+    super(config, sessionStore);
 
     this.tenantId = config.tenantId || 'common';
     this.MICROSOFT_AUTH_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize`;
@@ -112,7 +113,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
 
       // Validate session
       logger.oauthDebug('Validating state', { provider: 'microsoft', statePrefix: state.substring(0, 8) });
-      const session = this.validateState(state);
+      const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
       if (this.handleClientRedirect(session, code, state, res)) {

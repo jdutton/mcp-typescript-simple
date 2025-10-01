@@ -149,7 +149,7 @@ describe('BaseOAuthProvider', () => {
     });
   };
 
-  it('cleans up expired sessions and tokens', () => {
+  it('cleans up expired sessions and tokens', async () => {
     const now = Date.now();
     const expiredSession: OAuthSession = {
       state: 'expired',
@@ -190,12 +190,12 @@ describe('BaseOAuthProvider', () => {
       }
     });
 
-    sessionAccess.cleanup();
+    await sessionAccess.cleanup();
 
     const tokenStore = provider as unknown as { tokens: Map<string, StoredTokenInfo> };
 
-    expect(sessionAccess.getSession('expired')).toBeUndefined();
-    expect(sessionAccess.getSession('valid')).toBeDefined();
+    expect(await sessionAccess.getSession('expired')).toBeNull();
+    expect(await sessionAccess.getSession('valid')).toBeDefined();
     expect(sessionAccess.getToken('expired-token')).toBeUndefined();
     expect(tokenStore.tokens.has('valid-token')).toBe(true);
   });

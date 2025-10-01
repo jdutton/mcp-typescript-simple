@@ -20,19 +20,27 @@ import {
 } from './types.js';
 import { logger } from '../../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
+import { MemorySessionStore } from '../stores/memory-session-store.js';
 
 /**
  * Abstract base class providing common OAuth functionality
  */
 export abstract class BaseOAuthProvider implements OAuthProvider {
-  protected sessions: Map<string, OAuthSession> = new Map();
+  protected sessionStore: OAuthSessionStore;
   protected tokens: Map<string, StoredTokenInfo> = new Map();
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
 
-  constructor(protected config: OAuthConfig) {
+  constructor(
+    protected config: OAuthConfig,
+    sessionStore?: OAuthSessionStore
+  ) {
+    // Use provided session store or default to memory store
+    this.sessionStore = sessionStore || new MemorySessionStore();
+
     // Load allowlist configuration
     this.allowlistConfig = loadAllowlistConfig();
 
@@ -124,34 +132,32 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Store OAuth session data
    */
-  protected storeSession(state: string, session: OAuthSession): void {
+  protected async storeSession(state: string, session: OAuthSession): Promise<void> {
     this.logDebug(
       `Storing session for provider: ${this.getProviderType()}`,
       {
         statePrefix: state.substring(0, 8),
-        expires: new Date(session.expiresAt).toISOString(),
-        totalSessions: this.sessions.size + 1
+        expires: new Date(session.expiresAt).toISOString()
       }
     );
-    this.sessions.set(state, session);
+    await this.sessionStore.storeSession(state, session);
   }
 
   /**
    * Retrieve OAuth session data
    */
-  protected getSession(state: string): OAuthSession | undefined {
-    const session = this.sessions.get(state);
+  protected async getSession(state: string): Promise<OAuthSession | null> {
+    const session = await this.sessionStore.getSession(state);
 
     if (!session) {
       this.logDebug(
         `Session not found`,
         {
           statePrefix: state.substring(0, 8),
-          totalSessions: this.sessions.size,
           provider: this.getProviderType()
         }
       );
-      return undefined;
+      return null;
     }
 
     const now = Date.now();
@@ -169,8 +175,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     if (isExpired) {
       this.logDebug(`Session expired, removing from storage`);
-      this.sessions.delete(state);
-      return undefined;
+      await this.sessionStore.deleteSession(state);
+      return null;
     }
 
     return session;
@@ -179,8 +185,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Remove OAuth session data
    */
-  protected removeSession(state: string): void {
-    this.sessions.delete(state);
+  protected async removeSession(state: string): Promise<void> {
+    await this.sessionStore.deleteSession(state);
   }
 
   /**
@@ -263,7 +269,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Validate OAuth state parameter
    */
-  protected validateState(state: string): OAuthSession {
+  protected async validateState(state: string): Promise<OAuthSession> {
     this.logDebug(
       `Validating state parameter`,
       {
@@ -276,14 +282,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       throw new OAuthStateError('Missing state parameter', this.getProviderType());
     }
 
-    const session = this.getSession(state);
+    const session = await this.getSession(state);
     if (!session) {
       // Log context for debugging in development only
       this.logDebug(
         `OAuth state validation failed`,
         {
           statePrefix: state.substring(0, 8),
-          sessionsCount: this.sessions.size,
           provider: this.getProviderType()
         }
       );
@@ -422,8 +427,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Get current session count for monitoring
    */
-  getSessionCount(): number {
-    return this.sessions.size;
+  async getSessionCount(): Promise<number> {
+    return await this.sessionStore.getSessionCount();
   }
 
   /**
@@ -619,15 +624,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Clean up expired sessions and tokens
    */
-  cleanup(): void {
+  async cleanup(): Promise<void> {
     const now = Date.now();
 
-    // Clean up expired sessions
-    for (const [state, session] of this.sessions) {
-      if (session.expiresAt < now) {
-        this.sessions.delete(state);
-      }
-    }
+    // Clean up expired sessions (delegated to session store)
+    await this.sessionStore.cleanup();
 
     // Clean up expired tokens
     for (const [token, info] of this.tokens) {

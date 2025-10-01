@@ -17,6 +17,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -27,8 +28,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig) {
-    super(config);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore) {
+    super(config, sessionStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -108,7 +109,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       // Validate session
       logger.oauthDebug('Validating state', { provider: 'github', statePrefix: state.substring(0, 8) });
-      const session = this.validateState(state);
+      const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
       if (this.handleClientRedirect(session, code, state, res)) {
@@ -427,7 +428,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
           if (emailResponse.ok) {
             const emails = await emailResponse.json();
-            logger.oauthDebug('Available emails', {
+            logger.oauthInfo('GitHub emails API response', {
+              count: emails.length,
               emails: emails.map((e: any) => ({ email: e.email, primary: e.primary, verified: e.verified }))
             });
 
@@ -435,19 +437,27 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
             const fallback = emails.find((email: any) => email.verified);
             primaryEmail = primary?.email || fallback?.email || emails[0]?.email;
 
-            logger.oauthDebug('Selected email', { email: primaryEmail });
+            logger.oauthInfo('Selected email', { email: primaryEmail || 'none' });
           } else {
             const errorBody = await emailResponse.text();
-            logger.oauthError('GitHub emails API error', { errorBody });
+            logger.oauthError('GitHub emails API error', {
+              status: emailResponse.status,
+              statusText: emailResponse.statusText,
+              errorBody
+            });
           }
         } catch (emailError) {
           logger.oauthError('Could not fetch GitHub user emails', emailError);
         }
       }
 
+      // Fallback to GitHub noreply email if no email found
       if (!primaryEmail) {
-        logger.oauthError('No email address found - user may have private email settings');
-        throw new OAuthProviderError('No email address found for GitHub user. Please ensure your GitHub account has a public email or the user:email scope is granted.', 'github');
+        logger.oauthWarn('No email address found - using GitHub noreply email', {
+          userId: userData.id,
+          login: userData.login
+        });
+        primaryEmail = `${userData.id}+${userData.login}@users.noreply.github.com`;
       }
 
       return {

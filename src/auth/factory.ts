@@ -20,6 +20,8 @@ import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
 // import { GenericOAuthProvider } from './providers/generic-provider.js';
 import { EnvironmentConfig } from '../config/environment.js';
 import { logger } from '../utils/logger.js';
+import { createSessionStore } from './session-store-factory.js';
+import { OAuthSessionStore } from './stores/session-store-interface.js';
 
 /**
  * Factory for creating OAuth provider instances
@@ -28,6 +30,12 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   private static instance: OAuthProviderFactory | null = null;
   private static shutdownHookRegistered = false;
   private readonly activeProviders = new Set<OAuthProvider>();
+  private sessionStore: OAuthSessionStore;
+
+  constructor() {
+    // Initialize session store (auto-detects Vercel KV vs memory)
+    this.sessionStore = createSessionStore();
+  }
 
   /**
    * Get singleton instance of the factory
@@ -45,18 +53,18 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   createProvider(config: OAuthConfig): OAuthProvider {
     switch (config.type) {
       case 'google':
-        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig));
+        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig, this.sessionStore));
 
       case 'github':
-        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig));
+        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig, this.sessionStore));
 
       case 'microsoft':
-        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig));
+        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig, this.sessionStore));
 
       case 'generic':
         // TODO: Implement Generic provider
         throw new OAuthProviderError(`Generic OAuth provider not yet implemented`, 'generic');
-        // return new GenericOAuthProvider(config as GenericOAuthConfig);
+        // return new GenericOAuthProvider(config as GenericOAuthConfig, this.sessionStore);
 
       default: {
         const { type } = config as { type?: string };
@@ -259,7 +267,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       clientId,
       clientSecret,
       redirectUri: redirectUri || this.getDefaultRedirectUri('github'),
-      scopes: this.getScopesFromEnv('GITHUB_SCOPES') || ['user:email'],
+      scopes: this.getScopesFromEnv('GITHUB_SCOPES') || ['read:user', 'user:email'],
     };
 
     return this.createProvider(config);

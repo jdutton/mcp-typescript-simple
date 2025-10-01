@@ -121,7 +121,7 @@ describe('GoogleOAuthProvider', () => {
     });
     expect(res.redirect).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth?state=state123');
 
-    const session = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
+    const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
     expect(session).toMatchObject({
       state: 'state123',
       codeVerifier: 'verifier',
@@ -187,8 +187,8 @@ describe('GoogleOAuthProvider', () => {
       user: expect.objectContaining({ email: 'user@example.com', provider: 'google' })
     }));
 
-    const sessionAfter = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
-    expect(sessionAfter).toBeUndefined();
+    const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+    expect(sessionAfter).toBeNull();
 
     const storedToken = (provider as unknown as { getToken: (token: string) => StoredTokenInfo | undefined }).getToken('access-token');
     expect(storedToken).toBeDefined();
@@ -326,7 +326,7 @@ describe('GoogleOAuthProvider', () => {
       }));
       expect(res.redirect).toHaveBeenCalled();
 
-      const session = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('generated_state');
+      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
       expect(session).toMatchObject({
         state: 'generated_state',
         codeVerifier: '', // Empty because client provided challenge
@@ -358,7 +358,7 @@ describe('GoogleOAuthProvider', () => {
         state: 'generated_state'
       }));
 
-      const session = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('generated_state');
+      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
       expect(session).toMatchObject({
         codeVerifier: 'generated_verifier',
         codeChallenge: 'generated_challenge'
@@ -390,7 +390,7 @@ describe('GoogleOAuthProvider', () => {
         scope: ['openid', 'email', 'profile'] // Default scopes
       }));
 
-      const session = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
+      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(session?.scopes).toEqual(['openid', 'email', 'profile']);
 
       pkceSpy.mockRestore();
@@ -413,7 +413,7 @@ describe('GoogleOAuthProvider', () => {
 
       await provider.handleAuthorizationRequest(req, res);
 
-      const session = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
+      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(session?.expiresAt).toBe(now + 10 * 60 * 1000); // 10 minute timeout
 
       pkceSpy.mockRestore();
@@ -539,8 +539,8 @@ describe('GoogleOAuthProvider', () => {
       expect(res.redirect).toHaveBeenCalledWith('https://client.example.com/callback?code=auth_code&state=state123');
 
       // Session should be cleaned up
-      const sessionAfter = (provider as unknown as { getSession: (state: string) => OAuthSession | undefined }).getSession('state123');
-      expect(sessionAfter).toBeUndefined();
+      const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+      expect(sessionAfter).toBeNull();
 
       dateSpy.mockRestore();
       provider.dispose();

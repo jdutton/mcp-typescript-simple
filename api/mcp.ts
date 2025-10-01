@@ -5,26 +5,32 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { LLMManager } from "../build/llm/manager.js";
 import { setupMCPServer } from "../build/server/mcp-setup.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
-import { logger } from "../build/utils/logger.js";
+import { OAuthProviderFactory } from "../build/auth/factory.js";
+import { logger } from "../build/observability/logger.js";
 
-// Global instances for reuse across function invocations
-let serverInstance: Server | null = null;
+// Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;
 
+// Global OAuth provider instance for authentication
+let oauthProviderInstance: any = null;
+
+// Global cache of transports by session ID (per MCP SDK pattern)
+const transportCache = new Map<string, StreamableHTTPServerTransport>();
+
 /**
- * Initialize MCP server for serverless environment
+ * Get or initialize LLM manager (singleton)
  */
-async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMManager }> {
-  if (serverInstance && llmManagerInstance) {
-    return { server: serverInstance, llmManager: llmManagerInstance };
+async function getLLMManager(): Promise<LLMManager> {
+  if (llmManagerInstance) {
+    return llmManagerInstance;
   }
 
-  logger.info("Initializing MCP server for Vercel");
-
-  // Initialize LLM manager
+  logger.info("Initializing LLM manager for Vercel");
   const llmManager = new LLMManager();
 
   // Initialize LLM manager (gracefully handle missing API keys)
@@ -40,6 +46,41 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
     });
   }
 
+  llmManagerInstance = llmManager;
+  return llmManager;
+}
+
+/**
+ * Get or initialize OAuth provider (singleton)
+ */
+async function getOAuthProvider() {
+  if (oauthProviderInstance) {
+    return oauthProviderInstance;
+  }
+
+  try {
+    const provider = await OAuthProviderFactory.createFromEnvironment();
+    if (provider) {
+      oauthProviderInstance = provider;
+      logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
+    }
+    return provider;
+  } catch (error) {
+    logger.warn("OAuth provider initialization failed - auth will not be enforced", { error });
+    return null;
+  }
+}
+
+/**
+ * Create a new MCP server for this request
+ * Note: Each serverless invocation needs its own server instance with its own transport
+ */
+async function createMCPServer(): Promise<Server> {
+  logger.debug("Creating new MCP server instance for request");
+
+  // Get shared LLM manager
+  const llmManager = await getLLMManager();
+
   // Create MCP server
   const server = new Server(
     {
@@ -53,19 +94,16 @@ async function initializeMCPServer(): Promise<{ server: Server; llmManager: LLMM
     }
   );
 
-  // Setup server with tools (this function should be extracted from index.ts)
+  // Setup server with tools
   await setupMCPServer(server, llmManager);
 
-  // Cache instances for reuse
-  serverInstance = server;
-  llmManagerInstance = llmManager;
-
-  logger.info("MCP server initialized successfully");
-  return { server, llmManager };
+  logger.debug("MCP server instance created");
+  return server;
 }
 
 /**
  * Vercel serverless function handler
+ * Follows official MCP SDK pattern for session management
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startTime = Date.now();
@@ -82,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Set CORS headers for browser requests
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID, mcp-session-id');
     res.setHeader('X-Request-ID', requestId);
 
     // Handle preflight requests
@@ -92,35 +130,129 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Initialize MCP server
-    const { server } = await initializeMCPServer();
+    // Check for existing session ID
+    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    let transport: StreamableHTTPServerTransport;
 
-    // Create Streamable HTTP transport for this request
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => {
-        // Generate session ID using crypto.randomUUID or fallback
-        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-          return crypto.randomUUID();
+    if (sessionId && transportCache.has(sessionId)) {
+      // Reuse existing transport (per MCP SDK pattern)
+      logger.debug("Reusing cached transport for session", { sessionId, requestId });
+      transport = transportCache.get(sessionId)!;
+    } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
+      // New initialization request - create new transport and server
+      logger.debug("Creating new transport for initialize request", { requestId });
+
+      // Check authentication if OAuth is configured
+      const oauthProvider = await getOAuthProvider();
+      const requireAuth = !!oauthProvider;
+
+      if (requireAuth && oauthProvider) {
+        logger.debug("Validating bearer token", { requestId });
+
+        // Validate Bearer token
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          logger.warn("Missing or invalid Authorization header", { requestId });
+          res.status(401).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Unauthorized: Bearer token required',
+            },
+            id: null,
+          });
+          return;
         }
-        // Fallback for environments without crypto.randomUUID
-        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      },
-      onsessioninitialized: async (sessionId: string) => {
-        logger.info("Streamable HTTP session initialized", { sessionId });
-      },
-      onsessionclosed: async (sessionId: string) => {
-        logger.info("Streamable HTTP session closed", { sessionId });
-      },
-      enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT, // Enable JSON responses for legacy client compatibility (e.g., MCP Inspector)
-      eventStore: undefined, // For now, disable resumability in serverless
-      allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
-      allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
-      enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
-    });
 
-    // Connect the transport to the MCP server BEFORE handling the request
-    // This is the correct order per MCP SDK documentation
-    await server.connect(transport);
+        // Verify token with OAuth provider
+        try {
+          const token = authHeader.substring(7);
+          const authResult = await oauthProvider.verifyToken(token);
+          if (!authResult) {
+            logger.warn("Token verification failed", { requestId });
+            res.status(401).json({
+              jsonrpc: '2.0',
+              error: {
+                code: -32000,
+                message: 'Unauthorized: Invalid bearer token',
+              },
+              id: null,
+            });
+            return;
+          }
+          logger.info("Token verified successfully", {
+            requestId,
+            clientId: authResult.clientId
+          });
+        } catch (error) {
+          logger.error("Token verification error", { requestId, error });
+          res.status(401).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Unauthorized: Token verification failed',
+            },
+            id: null,
+          });
+          return;
+        }
+      }
+
+      // Create new transport
+      transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: () => {
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        },
+        onsessioninitialized: async (newSessionId: string) => {
+          logger.info("Transport session initialized", { sessionId: newSessionId, requestId });
+          // Store the transport by session ID
+          transportCache.set(newSessionId, transport);
+        },
+        onsessionclosed: async (closedSessionId: string) => {
+          logger.info("Transport session closed", { sessionId: closedSessionId, requestId });
+          // Remove from cache
+          transportCache.delete(closedSessionId);
+        },
+        enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
+        eventStore: undefined,
+        allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
+        allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
+        enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
+      });
+
+      // Clean up transport when closed
+      transport.onclose = () => {
+        if (transport.sessionId) {
+          transportCache.delete(transport.sessionId);
+          logger.info("Transport cleanup complete", { sessionId: transport.sessionId });
+        }
+      };
+
+      // Create new server and connect it to the transport
+      const server = await createMCPServer();
+      await server.connect(transport);
+      logger.debug("New server connected to transport", { requestId });
+    } else {
+      // Invalid request - no valid session ID and not an initialize request
+      logger.warn("Invalid request: no session ID and not initialize", {
+        requestId,
+        hasSessionId: !!sessionId,
+        method: req.method,
+        isInitialize: req.method === 'POST' ? isInitializeRequest(req.body) : false
+      });
+      res.status(400).json({
+        jsonrpc: '2.0',
+        error: {
+          code: -32000,
+          message: 'Bad Request: No valid session ID provided',
+        },
+        id: null,
+      });
+      return;
+    }
 
     // Handle the request with the transport
     await transport.handleRequest(req as any, res as any, req.method === 'POST' ? req.body : undefined);
