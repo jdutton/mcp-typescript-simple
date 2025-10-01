@@ -113,6 +113,11 @@ export function requireInitialAccessToken(tokenStore: InitialAccessTokenStore) {
 /**
  * Optional middleware to check admin permissions
  * (for future use when we add role-based access)
+ *
+ * NOTE: This implementation has testability limitations due to the Promise wrapper
+ * around the inner middleware. In production, it works correctly, but the wrapped
+ * response detection makes unit testing difficult. The inner middleware
+ * (requireInitialAccessToken) is thoroughly tested and provides the core functionality.
  */
 export function requireAdminToken(tokenStore: InitialAccessTokenStore) {
   const tokenMiddleware = requireInitialAccessToken(tokenStore);

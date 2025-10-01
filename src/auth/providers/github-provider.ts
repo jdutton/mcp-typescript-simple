@@ -18,6 +18,7 @@ import {
 } from './types.js';
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
+import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -28,8 +29,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore) {
-    super(config, sessionStore);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
+    super(config, sessionStore, tokenStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -152,7 +153,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         scopes: session.scopes,
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Clean up session
       this.removeSession(state);
@@ -221,7 +222,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         scopes: tokenData.scope?.split(',') || [],
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Return standard OAuth token response
       const response: OAuthTokenResponse = {
@@ -270,7 +271,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      const tokenInfo = this.getToken(access_token);
+      const tokenInfo = await this.getToken(access_token);
       if (!tokenInfo) {
         this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Token not found' });
@@ -302,7 +303,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        this.removeToken(token);
+        await this.removeToken(token);
       }
 
       this.setAntiCachingHeaders(res);
@@ -320,7 +321,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
       // Check our local token store first
-      const tokenInfo = this.getToken(token);
+      const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
         return {
           token,
@@ -359,7 +360,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
       // Check local store first
-      const tokenInfo = this.getToken(accessToken);
+      const tokenInfo = await this.getToken(accessToken);
       if (tokenInfo) {
         return tokenInfo.userInfo;
       }

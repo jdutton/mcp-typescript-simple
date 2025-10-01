@@ -36,4 +36,9 @@ export interface OAuthSessionStore {
    * Get the number of active sessions (for monitoring)
    */
   getSessionCount(): Promise<number>;
+
+  /**
+   * Dispose of resources (cleanup timers, connections, etc.)
+   */
+  dispose(): void;
 }

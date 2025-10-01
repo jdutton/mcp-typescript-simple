@@ -20,6 +20,7 @@ import {
 } from './types.js';
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
+import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
 
 /**
  * Google OAuth provider implementation
@@ -28,8 +29,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   private oauth2Client: OAuth2Client;
   protected config: GoogleOAuthConfig; // Override with specific config type
 
-  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore) {
-    super(config, sessionStore);
+  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
+    super(config, sessionStore, tokenStore);
     this.config = config; // Explicitly set the properly typed config
 
     this.oauth2Client = new OAuth2Client(
@@ -181,7 +182,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         scopes: session.scopes,
       };
 
-      this.storeToken(tokens.access_token, tokenInfo);
+      await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up session
       this.removeSession(state);
@@ -233,7 +234,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       // Find token info by refresh token
-      const tokenData = this.findTokenByRefreshToken(refresh_token);
+      const tokenData = await this.findTokenByRefreshToken(refresh_token);
       if (!tokenData) {
         this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Invalid refresh token' });
@@ -260,8 +261,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       };
 
       // Remove old token and store new one
-      this.removeToken(tokenData.accessToken);
-      this.storeToken(credentials.access_token, newTokenInfo);
+      await this.removeToken(tokenData.accessToken);
+      await this.storeToken(credentials.access_token, newTokenInfo);
 
       const response: Pick<OAuthTokenResponse, 'access_token' | 'refresh_token' | 'expires_in' | 'token_type'> = {
         access_token: credentials.access_token,
@@ -291,7 +292,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        this.removeToken(token);
+        await this.removeToken(token);
       }
 
       this.setAntiCachingHeaders(res);
@@ -316,7 +317,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Check our local token store first
       logger.oauthDebug('Checking local token store first', { provider: 'google' });
-      const tokenInfo = this.getToken(token);
+      const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
         logger.oauthDebug('Found token in local storage, using cached info', { provider: 'google' });
         return {
@@ -489,7 +490,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         scopes: ['openid', 'email', 'profile'], // Default scopes for token exchange
       };
 
-      this.storeToken(tokens.access_token, tokenInfo);
+      await this.storeToken(tokens.access_token, tokenInfo);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);
@@ -530,7 +531,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
       // Check local store first
-      const tokenInfo = this.getToken(accessToken);
+      const tokenInfo = await this.getToken(accessToken);
       if (tokenInfo) {
         return tokenInfo.userInfo;
       }

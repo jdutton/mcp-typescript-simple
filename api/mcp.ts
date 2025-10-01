@@ -167,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Verify token with OAuth provider
         try {
           const token = authHeader.substring(7);
-          const authResult = await oauthProvider.verifyToken(token);
+          const authResult = await oauthProvider.verifyAccessToken(token);
           if (!authResult) {
             logger.warn("Token verification failed", { requestId });
             res.status(401).json({

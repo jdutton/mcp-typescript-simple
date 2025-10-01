@@ -209,7 +209,7 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   /**
    * Get the current token count for monitoring
    */
-  getTokenCount(): number;
+  getTokenCount(): Promise<number>;
 
   /**
    * Clean up expired sessions and tokens

@@ -22,13 +22,15 @@ import { logger } from '../../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { MemorySessionStore } from '../stores/memory-session-store.js';
+import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
+import { MemoryOAuthTokenStore } from '../stores/memory-oauth-token-store.js';
 
 /**
  * Abstract base class providing common OAuth functionality
  */
 export abstract class BaseOAuthProvider implements OAuthProvider {
   protected sessionStore: OAuthSessionStore;
-  protected tokens: Map<string, StoredTokenInfo> = new Map();
+  protected tokenStore: OAuthTokenStore;
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   private readonly cleanupTimer: NodeJS.Timeout;
@@ -36,10 +38,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
   constructor(
     protected config: OAuthConfig,
-    sessionStore?: OAuthSessionStore
+    sessionStore?: OAuthSessionStore,
+    tokenStore?: OAuthTokenStore
   ) {
-    // Use provided session store or default to memory store
+    // Use provided stores or default to memory stores
     this.sessionStore = sessionStore || new MemorySessionStore();
+    this.tokenStore = tokenStore || new MemoryOAuthTokenStore();
 
     // Load allowlist configuration
     this.allowlistConfig = loadAllowlistConfig();
@@ -192,36 +196,34 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Store token information
    */
-  protected storeToken(accessToken: string, tokenInfo: StoredTokenInfo): void {
+  protected async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
     this.logDebug(
       `Token stored successfully`,
       {
         provider: this.getProviderType(),
         tokenKey: accessToken,
         expires: new Date(tokenInfo.expiresAt).toISOString(),
-        userEmail: tokenInfo.userInfo.email,
-        totalTokens: this.tokens.size + 1
+        userEmail: tokenInfo.userInfo.email
       }
     );
-    this.tokens.set(accessToken, tokenInfo);
+    await this.tokenStore.storeToken(accessToken, tokenInfo);
   }
 
   /**
    * Retrieve token information
    */
-  protected getToken(accessToken: string): StoredTokenInfo | undefined {
-    const tokenInfo = this.tokens.get(accessToken);
+  protected async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
+    const tokenInfo = await this.tokenStore.getToken(accessToken);
 
     if (!tokenInfo) {
       this.logDebug(
-        `Token not found in local storage`,
+        `Token not found in storage`,
         {
           provider: this.getProviderType(),
-          tokenKey: accessToken,
-          totalTokens: this.tokens.size
+          tokenKey: accessToken
         }
       );
-      return undefined;
+      return null;
     }
 
     const now = Date.now();
@@ -240,8 +242,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     if (isExpired) {
       this.logDebug(`Token expired, removing from storage`);
-      this.tokens.delete(accessToken);
-      return undefined;
+      await this.tokenStore.deleteToken(accessToken);
+      return null;
     }
 
     return tokenInfo;
@@ -250,19 +252,19 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Remove token information
    */
-  protected removeToken(accessToken: string): void {
-    this.tokens.delete(accessToken);
+  protected async removeToken(accessToken: string): Promise<void> {
+    await this.tokenStore.deleteToken(accessToken);
   }
 
   /**
    * Find token by refresh token
+   * NOTE: This method is temporarily disabled as it requires token store iteration support
+   * TODO: Implement token store method to find by refresh token
    */
-  protected findTokenByRefreshToken(refreshToken: string): { accessToken: string; tokenInfo: StoredTokenInfo } | undefined {
-    for (const [accessToken, tokenInfo] of this.tokens) {
-      if (tokenInfo.refreshToken === refreshToken) {
-        return { accessToken, tokenInfo };
-      }
-    }
+  protected async findTokenByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | undefined> {
+    // Token stores don't currently support iteration/search by refresh token
+    // This needs to be implemented in the token store interface
+    logger.warn('findTokenByRefreshToken not yet implemented with token stores');
     return undefined;
   }
 
@@ -407,14 +409,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    */
   async isTokenValid(token: string): Promise<boolean> {
     try {
-      const tokenInfo = this.getToken(token);
+      const tokenInfo = await this.getToken(token);
       if (!tokenInfo) {
         return false;
       }
 
       // Check expiration with buffer
       if (tokenInfo.expiresAt - this.TOKEN_BUFFER <= Date.now()) {
-        this.removeToken(token);
+        await this.removeToken(token);
         return false;
       }
 
@@ -434,8 +436,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Get current token count for monitoring
    */
-  getTokenCount(): number {
-    return this.tokens.size;
+  async getTokenCount(): Promise<number> {
+    return await this.tokenStore.getTokenCount();
   }
 
   /**
@@ -625,20 +627,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Clean up expired sessions and tokens
    */
   async cleanup(): Promise<void> {
-    const now = Date.now();
-
-    // Clean up expired sessions (delegated to session store)
+    // Clean up expired sessions and tokens (delegated to stores)
     await this.sessionStore.cleanup();
-
-    // Clean up expired tokens
-    for (const [token, info] of this.tokens) {
-      if (info.expiresAt < now) {
-        this.tokens.delete(token);
-      }
-    }
+    await this.tokenStore.cleanup();
   }
 
   dispose(): void {
     clearInterval(this.cleanupTimer);
+    this.sessionStore.dispose();
+    this.tokenStore.dispose();
   }
 }

@@ -135,4 +135,9 @@ export class VercelKVSessionStore implements OAuthSessionStore {
       return 0;
     }
   }
+
+  dispose(): void {
+    // No resources to dispose (Vercel KV handles connections)
+    logger.info('VercelKVSessionStore disposed');
+  }
 }

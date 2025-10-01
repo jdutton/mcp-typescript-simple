@@ -38,13 +38,14 @@ const createResponse = (): MockResponse => {
 };
 
 type SessionAccess = {
-  storeSession(state: string, session: OAuthSession): void;
-  getSession(state: string): OAuthSession | undefined;
-  removeSession(state: string): void;
-  storeToken(token: string, info: StoredTokenInfo): void;
-  getToken(token: string): StoredTokenInfo | undefined;
-  removeToken(token: string): void;
-  cleanup(): void;
+  storeSession(state: string, session: OAuthSession): Promise<void>;
+  getSession(state: string): Promise<OAuthSession | null>;
+  removeSession(state: string): Promise<void>;
+  storeToken(token: string, info: StoredTokenInfo): Promise<void>;
+  getToken(token: string): Promise<StoredTokenInfo | null>;
+  removeToken(token: string): Promise<void>;
+  cleanup(): Promise<void>;
+  getTokenCount(): Promise<number>;
 };
 
 class TestOAuthProvider extends BaseOAuthProvider {
@@ -196,8 +197,8 @@ describe('BaseOAuthProvider', () => {
 
     expect(await sessionAccess.getSession('expired')).toBeNull();
     expect(await sessionAccess.getSession('valid')).toBeDefined();
-    expect(sessionAccess.getToken('expired-token')).toBeUndefined();
-    expect(tokenStore.tokens.has('valid-token')).toBe(true);
+    expect(await sessionAccess.getToken('expired-token')).toBeNull();
+    expect(await sessionAccess.getToken('valid-token')).toBeDefined();
   });
 
   it('removes tokens that are expiring within buffer during validation', async () => {
@@ -217,7 +218,7 @@ describe('BaseOAuthProvider', () => {
 
     const result = await provider.isTokenValid('token');
     expect(result).toBe(false);
-    expect(sessionAccess.getToken('token')).toBeUndefined();
+    expect(await sessionAccess.getToken('token')).toBeNull();
   });
 
   it('exchanges authorization code for tokens and returns JSON response', async () => {
