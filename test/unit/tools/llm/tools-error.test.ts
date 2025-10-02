@@ -49,7 +49,7 @@ describe('LLM tool error handling', () => {
     {
       tool: 'summarize',
       handler: handleSummarizeTool as ToolScenario['handler'],
-      defaults: { provider: 'gemini', model: 'gemini-1.5-flash' },
+      defaults: { provider: 'gemini', model: 'gemini-2.5-flash' },
       input: { text: 'summarize me', provider: 'gemini', model: 'gpt-4' }
     },
     {
@@ -81,7 +81,7 @@ describe('LLM tool error handling', () => {
       completeMock.mockRejectedValue(new Error("LLM provider 'gemini' not available"));
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({ provider: 'gemini', model: 'gemini-1.5-flash' }),
+        getProviderForTool: jest.fn().mockReturnValue({ provider: 'gemini', model: 'gemini-2.5-flash' }),
         getAvailableProviders: jest.fn().mockReturnValue([]),
         complete: completeMock,
         clearCache: jest.fn(),

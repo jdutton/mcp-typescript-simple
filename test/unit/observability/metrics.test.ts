@@ -287,17 +287,17 @@ describe('MCP Metrics', () => {
       initializeMetrics();
       jest.clearAllMocks();
 
-      recordLLMRequest('gemini', 'gemini-1.5-pro', 5000, false);
+      recordLLMRequest('gemini', 'gemini-2.5-flash-lite', 5000, false);
 
       expect(mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'gemini',
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-flash-lite',
         success: 'false'
       });
 
       expect(mockHistogram.record).toHaveBeenCalledWith(5000, {
         provider: 'gemini',
-        model: 'gemini-1.5-pro'
+        model: 'gemini-2.5-flash-lite'
       });
     });
 

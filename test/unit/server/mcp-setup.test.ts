@@ -42,10 +42,23 @@ describe('setupMCPServer', () => {
     } as unknown as { setRequestHandler: jest.Mock };
   };
 
-  const createLLMManager = (providers: string[]) => ({
-    getAvailableProviders: jest.fn().mockReturnValue(providers),
-    getProviderForTool: jest.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' })
-  });
+  const createLLMManager = (providers: string[]) => {
+    const schemaInfo = {
+      providers: providers.map(name => ({
+        name,
+        models: name === 'claude' ? ['claude-3-haiku-20240307', 'claude-3-5-haiku-20241022'] :
+                name === 'openai' ? ['gpt-4', 'gpt-4o-mini'] :
+                ['gemini-2.5-flash', 'gemini-2.5-flash-lite']
+      })),
+      defaultProvider: 'claude'
+    };
+
+    return {
+      getAvailableProviders: jest.fn().mockReturnValue(providers),
+      getProviderForTool: jest.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' }),
+      getSchemaInfo: jest.fn(() => Promise.resolve(schemaInfo))
+    };
+  };
 
   afterEach(() => {
     jest.clearAllMocks();

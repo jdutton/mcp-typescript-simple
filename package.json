@@ -40,6 +40,7 @@
     "test:system:stdio": "TEST_ENV=stdio npm run test:system",
     "test:system:vercel:local": "TEST_ENV=vercel:local npm run test:system",
     "test:system:vercel:preview": "TEST_ENV=vercel:preview npm run test:system",
+    "test:models": "jest --config jest.system.config.js test/system/models-validation.system.test.ts --verbose",
     "test:system:vercel:production": "TEST_ENV=vercel:production npm run test:system",
     "test:system:docker": "TEST_ENV=docker npm run test:system",
     "test:system:parallel": "npx tsx tools/parallel-system-tests.ts",

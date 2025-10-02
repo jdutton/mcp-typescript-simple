@@ -39,6 +39,7 @@ npm run test:dual-mode   # Dual-mode functionality test
 npm run test:system:stdio    # STDIO transport mode system tests
 npm run test:system:express  # Express HTTP server system tests
 npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
+npm run test:models          # Validate ALL LLM models with real API calls (requires API keys)
 
 npm run validate         # Complete validation (unit → integration → build)
 

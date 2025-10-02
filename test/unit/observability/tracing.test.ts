@@ -239,8 +239,8 @@ describe('Distributed Tracing', () => {
 
       jest.clearAllMocks();
 
-      await createLLMSpan('gemini', 'gemini-1.5-pro', operation);
-      expect(mockTracer.startActiveSpan).toHaveBeenCalledWith('llm.gemini.gemini-1.5-pro', expect.any(Function));
+      await createLLMSpan('gemini', 'gemini-2.5-flash-lite', operation);
+      expect(mockTracer.startActiveSpan).toHaveBeenCalledWith('llm.gemini.gemini-2.5-flash-lite', expect.any(Function));
     });
   });
 

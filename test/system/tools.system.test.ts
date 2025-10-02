@@ -288,6 +288,51 @@ describeSystemTest('Tools Execution System', () => {
       }
     });
 
+    it('should execute summarize tool with default provider/model fallback', async () => {
+      if (llmProvidersAvailable.length === 0 || !availableTools.includes('summarize')) {
+        console.log('⚠️ Summarize tool or LLM providers not available - skipping test');
+        return;
+      }
+
+      const request: MCPRequest = {
+        jsonrpc: '2.0',
+        method: 'tools/call',
+        params: {
+          name: 'summarize',
+          arguments: {
+            text: 'The Model Context Protocol enables AI applications to connect to various data sources. It provides a standardized interface for context sharing.',
+            length: 'brief'
+            // NO provider specified - test default fallback
+            // NO model specified - test default fallback
+          }
+        },
+        id: 'summarize-default-test'
+      };
+
+      try {
+        const response = await sendMCPRequest(request);
+
+        expect(response.result).toBeDefined();
+        const textContent = response.result.content.find((item: any) => item.type === 'text');
+        expect(textContent).toBeDefined();
+
+        // CRITICAL: Check that response does NOT contain error messages
+        const responseText = textContent.text.toLowerCase();
+        expect(responseText).not.toContain('error');
+        expect(responseText).not.toContain('fail');
+        expect(responseText).not.toContain('not valid');
+        expect(responseText).not.toContain('invalid');
+
+        // Should contain actual summary content (meaningful text)
+        expect(textContent.text.length).toBeGreaterThan(20);
+
+        console.log(`📝 Summarize tool (default provider) response: ${textContent.text.substring(0, 100)}...`);
+      } catch (error) {
+        console.log(`⚠️ Summarize tool failed: ${error}`);
+        throw error; // Re-throw to fail the test
+      }
+    });
+
     it('should handle LLM tool errors gracefully', async () => {
       const availableLlmTool = llmTools.find(tool => availableTools.includes(tool));
 
