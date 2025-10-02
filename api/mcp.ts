@@ -11,13 +11,14 @@ import { LLMManager } from "../build/llm/manager.js";
 import { setupMCPServer } from "../build/server/mcp-setup.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
 import { OAuthProviderFactory } from "../build/auth/factory.js";
+import { OAuthProvider } from "../build/auth/providers/types.js";
 import { logger } from "../build/observability/logger.js";
 
 // Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;
 
 // Global OAuth provider instance for authentication
-let oauthProviderInstance: any = null;
+let oauthProviderInstance: OAuthProvider | null = null;
 
 // Global cache of transports by session ID (per MCP SDK pattern)
 const transportCache = new Map<string, StreamableHTTPServerTransport>();
