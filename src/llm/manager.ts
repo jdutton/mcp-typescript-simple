@@ -155,7 +155,15 @@ export class LLMManager {
   getProviderForTool(toolName: string): { provider: LLMProvider; model?: AnyModel } {
     const mapping = DEFAULT_TOOL_LLM_MAPPING[toolName];
     if (mapping) {
-      return { provider: mapping.provider, model: mapping.model };
+      // Only use tool-specific provider/model if that provider is available
+      if (this.isProviderAvailable(mapping.provider)) {
+        return { provider: mapping.provider, model: mapping.model };
+      }
+      // Fall back to first available provider without a specific model
+      const availableProvider = this.getAvailableProviders()[0];
+      if (availableProvider) {
+        return { provider: availableProvider };
+      }
     }
     return { provider: 'claude' };
   }

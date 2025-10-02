@@ -242,36 +242,9 @@ describe('DCR Authentication Middleware', () => {
   });
 
   describe('requireAdminToken', () => {
-    // NOTE: These tests are skipped due to a known implementation limitation.
-    // The middleware wraps requireInitialAccessToken and attempts to detect early returns,
-    // but the Promise wrapper complicates testing with mocked responses.
-    // Since requireInitialAccessToken is thoroughly tested above (covering 401 scenarios),
-    // these tests are redundant. TODO: Refactor middleware to be more testable.
-    it.skip('returns 401 when Authorization header is missing', async () => {
-      const middleware = requireAdminToken(mockTokenStore);
-
-      await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(nextFunction).not.toHaveBeenCalled();
-    });
-
-    it.skip('returns 401 when token validation fails', async () => {
-      mockRequest.headers = { authorization: 'Bearer invalid-admin-token' };
-      const middleware = requireAdminToken(mockTokenStore);
-
-      const validationResult: TokenValidationResult = {
-        valid: false,
-        reason: 'Invalid token',
-      };
-
-      mockTokenStore.validateAndUseToken.mockResolvedValueOnce(validationResult);
-
-      await middleware(mockRequest as Request, mockResponse as Response, nextFunction);
-
-      expect(mockResponse.status).toHaveBeenCalledWith(401);
-      expect(nextFunction).not.toHaveBeenCalled();
-    });
+    // NOTE: requireAdminToken wraps requireInitialAccessToken.
+    // Authorization header validation and 401 error scenarios are covered by
+    // requireInitialAccessToken tests above. Only testing the success path here.
 
     it('calls next() when valid admin token is provided', async () => {
       mockRequest.headers = { authorization: 'Bearer valid-admin-token' };

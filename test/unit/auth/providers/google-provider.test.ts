@@ -230,7 +230,7 @@ describe('GoogleOAuthProvider', () => {
     provider.dispose();
   });
 
-  it.skip('refreshes tokens when provided a valid refresh token', async () => {
+  it('refreshes tokens when provided a valid refresh token', async () => {
     const provider = createProvider();
     const now = 3_000_000;
     const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);

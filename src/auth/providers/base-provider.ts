@@ -258,14 +258,10 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
   /**
    * Find token by refresh token
-   * NOTE: This method is temporarily disabled as it requires token store iteration support
-   * TODO: Implement token store method to find by refresh token
    */
   protected async findTokenByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | undefined> {
-    // Token stores don't currently support iteration/search by refresh token
-    // This needs to be implemented in the token store interface
-    logger.warn('findTokenByRefreshToken not yet implemented with token stores');
-    return undefined;
+    const result = await this.tokenStore.findByRefreshToken(refreshToken);
+    return result ?? undefined;
   }
 
   /**

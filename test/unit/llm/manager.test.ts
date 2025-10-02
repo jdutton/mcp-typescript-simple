@@ -139,6 +139,88 @@ describe('LLMManager', () => {
   });
 });
 
+describe('LLMManager getProviderForTool', () => {
+  it('returns the preferred provider and model when available', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+    await manager.initialize();
+
+    // summarize tool prefers gemini with gemini-1.5-flash
+    const result = manager.getProviderForTool('summarize');
+    expect(result.provider).toBe('gemini');
+    expect(result.model).toBe('gemini-1.5-flash');
+  });
+
+  it('falls back to available provider without incompatible model when preferred provider unavailable', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    // Initialize with only Claude available (no Gemini client)
+    const claudeClient = {
+      messages: {
+        create: jest.fn(async () => ({
+          content: [{ type: 'text', text: 'response' }],
+          usage: { input_tokens: 10, output_tokens: 20 }
+        }))
+      }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      claude: claudeClient
+    };
+
+    // summarize tool prefers gemini, but only claude is available
+    const result = manager.getProviderForTool('summarize');
+
+    // Should fallback to claude WITHOUT the gemini model
+    expect(result.provider).toBe('claude');
+    expect(result.model).toBeUndefined(); // No model specified, will use provider default
+  });
+
+  it('returns claude as default when tool has no mapping', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    const openaiClient = {
+      chat: {
+        completions: {
+          create: jest.fn()
+        }
+      }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      openai: openaiClient
+    };
+
+    const result = manager.getProviderForTool('unknown-tool');
+    expect(result.provider).toBe('claude');
+    expect(result.model).toBeUndefined();
+  });
+
+  it('prevents invalid provider/model combinations', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    const claudeClient = {
+      messages: { create: jest.fn() }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      claude: claudeClient
+    };
+
+    const result = manager.getProviderForTool('summarize');
+
+    // Verify we don't get gemini model with claude provider
+    if (result.model) {
+      expect(result.model).not.toBe('gemini-1.5-flash');
+      expect(result.model).not.toBe('gemini-1.5-pro');
+      expect(result.model).not.toBe('gemini-1.0-pro');
+    }
+  });
+});
+
 describe('LLMManager error handling', () => {
   const mockConfig: LLMConfig = baseConfig;
 

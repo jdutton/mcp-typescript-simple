@@ -211,7 +211,7 @@ describe('MicrosoftOAuthProvider', () => {
     provider.dispose();
   });
 
-  it.skip('refreshes tokens using the Microsoft token endpoint', async () => {
+  it('refreshes tokens using the Microsoft token endpoint', async () => {
     const provider = createProvider();
     const now = Date.now();
     const stored: StoredTokenInfo = {
@@ -252,9 +252,11 @@ describe('MicrosoftOAuthProvider', () => {
       refresh_token: 'new-refresh'
     }));
 
-    const newToken = (provider as unknown as { getToken: (token: string) => StoredTokenInfo | undefined }).getToken('new-access');
+    const newToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
     expect(newToken?.refreshToken).toBe('new-refresh');
-    expect((provider as unknown as { getToken: (token: string) => StoredTokenInfo | undefined }).getToken('old-access')).toBeUndefined();
+
+    const oldToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
+    expect(oldToken).toBeNull();
 
     provider.dispose();
   });
