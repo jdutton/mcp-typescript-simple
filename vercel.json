@@ -12,11 +12,31 @@
       "destination": "/api/mcp"
     },
     {
-      "source": "/auth/(.*)",
+      "source": "/debug/github-oauth",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/.well-known/:path*",
+      "destination": "/api/well-known"
+    },
+    {
+      "source": "/register",
+      "destination": "/api/register"
+    },
+    {
+      "source": "/authorize",
       "destination": "/api/auth"
     },
     {
-      "source": "/admin/(.*)",
+      "source": "/token",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "/api/auth"
+    },
+    {
+      "source": "/admin/:path*",
       "destination": "/api/admin"
     }
   ],
@@ -28,6 +48,10 @@
     "api/auth.ts": {
       "maxDuration": 15,
       "memory": 512
+    },
+    "api/register.ts": {
+      "maxDuration": 10,
+      "memory": 256
     },
     "api/health.ts": {
       "maxDuration": 10,
@@ -52,7 +76,7 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
+          "value": "Content-Type, Authorization, X-Last-Event-ID"
         }
       ]
     }

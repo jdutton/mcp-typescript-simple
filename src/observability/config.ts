@@ -34,6 +34,17 @@ export function detectRuntime(): 'nodejs' | 'edge' {
 }
 
 /**
+ * Detect if running in Vercel serverless environment
+ * Vercel serverless functions don't support Pino transports (worker threads)
+ */
+export function isVercelServerless(): boolean {
+  return Boolean(
+    process.env.VERCEL &&
+    process.env.AWS_LAMBDA_FUNCTION_NAME // Vercel uses AWS Lambda
+  );
+}
+
+/**
  * Detect deployment environment
  */
 export function detectEnvironment(): 'development' | 'production' | 'test' {
@@ -77,6 +88,13 @@ export function getObservabilityConfig(): ObservabilityConfig {
       }
     }
   };
+
+  // Disable transports in Vercel serverless (they require worker threads)
+  if (isVercelServerless()) {
+    config.exporters.console = false;
+    config.exporters.otlp.enabled = false;
+    config.runtime = 'nodejs'; // Mark as nodejs but without transports
+  }
 
   // Environment-specific overrides
   switch (environment) {

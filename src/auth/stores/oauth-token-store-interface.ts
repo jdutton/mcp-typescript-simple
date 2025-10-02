@@ -1,0 +1,59 @@
+/**
+ * OAuth Token Store Interface
+ *
+ * Manages OAuth access tokens, refresh tokens, and associated user information
+ * for authentication across serverless function invocations.
+ */
+
+import { StoredTokenInfo } from '../providers/types.js';
+
+/**
+ * OAuth Token Store Interface
+ *
+ * Implementations:
+ * - MemoryOAuthTokenStore: Development/testing (not persistent across instances)
+ * - VercelKVOAuthTokenStore: Vercel serverless deployments with Redis-compatible KV
+ */
+export interface OAuthTokenStore {
+  /**
+   * Store an OAuth token with associated metadata
+   *
+   * @param accessToken The access token to use as the key
+   * @param tokenInfo The token metadata to store
+   */
+  storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void>;
+
+  /**
+   * Retrieve token information by access token
+   *
+   * @param accessToken The access token to look up
+   * @returns Token metadata or null if not found/expired
+   */
+  getToken(accessToken: string): Promise<StoredTokenInfo | null>;
+
+  /**
+   * Delete a token by access token
+   *
+   * @param accessToken The access token to delete
+   */
+  deleteToken(accessToken: string): Promise<void>;
+
+  /**
+   * Clean up expired tokens
+   *
+   * @returns Number of tokens cleaned up
+   */
+  cleanup(): Promise<number>;
+
+  /**
+   * Get the current number of stored tokens
+   *
+   * @returns Token count
+   */
+  getTokenCount(): Promise<number>;
+
+  /**
+   * Dispose of store resources (close connections, timers, etc.)
+   */
+  dispose(): void;
+}

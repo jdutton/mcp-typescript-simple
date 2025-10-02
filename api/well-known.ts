@@ -9,10 +9,10 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { OAuthProviderFactory } from '../../build/auth/factory.js';
-import { createOAuthDiscoveryMetadata } from '../../build/auth/discovery-metadata.js';
-import type { OAuthProvider } from '../../build/auth/providers/types.js';
-import { logger } from '../../build/utils/logger.js';
+import { OAuthProviderFactory } from '../build/auth/factory.js';
+import { createOAuthDiscoveryMetadata } from '../build/auth/discovery-metadata.js';
+import type { OAuthProvider } from '../build/auth/providers/types.js';
+import { logger } from '../build/utils/logger.js';
 
 // Global OAuth provider instance for reuse
 let oauthProviderInstance: OAuthProvider | null = null;
@@ -77,10 +77,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Parse the discovery path from the URL
-    const { discovery } = req.query;
-    const discoveryPath = Array.isArray(discovery) ? discovery.join('/') : discovery || '';
+    // Extract path after /.well-known/
+    let discoveryPath = '';
+    if (req.url) {
+      const match = req.url.match(/\/\.well-known\/(.+?)(?:\?|$)/);
+      if (match && match[1]) {
+        discoveryPath = match[1];
+      }
+    }
 
-    logger.debug("OAuth discovery request received", { path: `/${discoveryPath}` });
+    logger.info("OAuth discovery request received", {
+      path: `/${discoveryPath}`,
+      rawUrl: req.url,
+      query: req.query
+    });
 
     const baseUrl = getBaseUrl(req);
     const oauthProvider = await initializeOAuthProvider();
@@ -96,6 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         break;
 
       case 'oauth-protected-resource/mcp':
+      case 'mcp-oauth-discovery': // Legacy endpoint for older MCP Inspector versions
         await handleMCPProtectedResourceMetadata(req, res, baseUrl, oauthProvider);
         break;
 
@@ -111,6 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             '/.well-known/oauth-authorization-server',
             '/.well-known/oauth-protected-resource',
             '/.well-known/oauth-protected-resource/mcp',
+            '/.well-known/mcp-oauth-discovery',
             '/.well-known/openid-configuration'
           ]
         });

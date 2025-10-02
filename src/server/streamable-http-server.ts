@@ -199,41 +199,50 @@ export class MCPStreamableHttpServer {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
 
-    // OpenAPI request/response validation (development only for responses)
-    // Skip validation in test environment to avoid timeouts
-    const isDevelopment = process.env.NODE_ENV !== 'production';
-    const isTest = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID !== undefined;
+    // OpenAPI request/response validation (DISABLED)
+    // The validator is disabled because:
+    // 1. It breaks MCP Inspector during development
+    // 2. It exposes stack traces on 404 errors
+    // 3. MCP endpoints don't follow standard REST patterns that OpenAPI expects
+    // 4. It interferes with unit tests that expect specific error codes
+    //
+    // Instead, we rely on:
+    // - Integration tests for protocol compliance
+    // - Manual testing with MCP Inspector
+    // - TypeScript for type safety
+    //
+    // If spec validation is needed, run it separately with tools like Spectral or Redocly
+    const enableOpenApiValidator = false;
 
-    if (!isTest) {
+    if (enableOpenApiValidator) {
       this.app.use(
         OpenApiValidator.middleware({
           apiSpec: './openapi.yaml',
-          validateRequests: true, // Always validate requests
-          validateResponses: isDevelopment, // Only validate responses in development
-          validateSecurity: false, // We handle auth separately
-          ignorePaths: /.*\/docs.*|.*\/openapi\.json|.*\/openapi\.yaml/, // Skip doc endpoints
+          validateRequests: true,
+          validateResponses: false,
+          validateSecurity: false,
+          ignorePaths: /^\/(api-docs|docs|openapi\.(json|yaml)|authorize|token|mcp|stream|health)($|\/.*)/i,
+          validateApiSpec: false,
         })
       );
-    }
 
-    // OpenAPI validation error handler
-    this.app.use((err: Error & { status?: number; errors?: unknown[] }, req: Request, res: Response, next: NextFunction) => {
-      if (err.status === 400 && err.errors) {
-        // OpenAPI validation error
-        logger.warn('OpenAPI validation error', {
-          path: req.path,
-          method: req.method,
-          errors: err.errors,
-        });
-        res.status(400).json({
-          error: 'validation_error',
-          message: err.message,
-          errors: err.errors,
-        });
-        return;
-      }
-      next(err);
-    });
+      this.app.use((err: Error & { status?: number; errors?: unknown[] }, req: Request, res: Response, next: NextFunction) => {
+        if (err.status === 400 && err.errors) {
+          logger.warn('OpenAPI validation error', {
+            path: req.path,
+            method: req.method,
+            errors: err.errors,
+          });
+          res.status(400).json({
+            error: 'validation_error',
+            message: err.message,
+            errors: err.errors,
+          });
+          return;
+        }
+        next(err);
+      });
+    }
 
     // Comprehensive request logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {

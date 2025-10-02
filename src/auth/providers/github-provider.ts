@@ -17,6 +17,8 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
+import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -27,8 +29,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig) {
-    super(config);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
+    super(config, sessionStore, tokenStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -108,7 +110,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       // Validate session
       logger.oauthDebug('Validating state', { provider: 'github', statePrefix: state.substring(0, 8) });
-      const session = this.validateState(state);
+      const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
       if (this.handleClientRedirect(session, code, state, res)) {
@@ -129,6 +131,18 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       // Get user information
       const userInfo = await this.fetchGitHubUserInfo(tokenData.access_token);
 
+      // Check allowlist authorization
+      const allowlistError = this.checkUserAllowlist(userInfo.email);
+      if (allowlistError) {
+        logger.warn('User denied by allowlist', { email: userInfo.email, provider: 'github' });
+        this.setAntiCachingHeaders(res);
+        res.status(403).json({
+          error: 'access_denied',
+          error_description: allowlistError
+        });
+        return;
+      }
+
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokenData.access_token,
@@ -139,7 +153,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         scopes: session.scopes,
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Clean up session
       this.removeSession(state);
@@ -208,7 +222,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         scopes: tokenData.scope?.split(',') || [],
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Return standard OAuth token response
       const response: OAuthTokenResponse = {
@@ -257,7 +271,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      const tokenInfo = this.getToken(access_token);
+      const tokenInfo = await this.getToken(access_token);
       if (!tokenInfo) {
         this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Token not found' });
@@ -289,7 +303,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
-        this.removeToken(token);
+        await this.removeToken(token);
       }
 
       this.setAntiCachingHeaders(res);
@@ -307,7 +321,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
       // Check our local token store first
-      const tokenInfo = this.getToken(token);
+      const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
         return {
           token,
@@ -346,7 +360,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
       // Check local store first
-      const tokenInfo = this.getToken(accessToken);
+      const tokenInfo = await this.getToken(accessToken);
       if (tokenInfo) {
         return tokenInfo.userInfo;
       }
@@ -415,7 +429,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
           if (emailResponse.ok) {
             const emails = await emailResponse.json();
-            logger.oauthDebug('Available emails', {
+            logger.oauthInfo('GitHub emails API response', {
+              count: emails.length,
               emails: emails.map((e: any) => ({ email: e.email, primary: e.primary, verified: e.verified }))
             });
 
@@ -423,19 +438,27 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
             const fallback = emails.find((email: any) => email.verified);
             primaryEmail = primary?.email || fallback?.email || emails[0]?.email;
 
-            logger.oauthDebug('Selected email', { email: primaryEmail });
+            logger.oauthInfo('Selected email', { email: primaryEmail || 'none' });
           } else {
             const errorBody = await emailResponse.text();
-            logger.oauthError('GitHub emails API error', { errorBody });
+            logger.oauthError('GitHub emails API error', {
+              status: emailResponse.status,
+              statusText: emailResponse.statusText,
+              errorBody
+            });
           }
         } catch (emailError) {
           logger.oauthError('Could not fetch GitHub user emails', emailError);
         }
       }
 
+      // Fallback to GitHub noreply email if no email found
       if (!primaryEmail) {
-        logger.oauthError('No email address found - user may have private email settings');
-        throw new OAuthProviderError('No email address found for GitHub user. Please ensure your GitHub account has a public email or the user:email scope is granted.', 'github');
+        logger.oauthWarn('No email address found - using GitHub noreply email', {
+          userId: userData.id,
+          login: userData.login
+        });
+        primaryEmail = `${userData.id}+${userData.login}@users.noreply.github.com`;
       }
 
       return {

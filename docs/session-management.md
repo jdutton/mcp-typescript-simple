@@ -217,6 +217,66 @@ GET /health
 - Use `DELETE /mcp` endpoint for explicit cleanup
 - Monitor for memory leaks from orphaned sessions
 
+## Session Recovery and Cold Starts
+
+### Serverless Environment Behavior
+In serverless environments (AWS Lambda, Vercel Functions, Google Cloud Functions), **session state is lost during cold starts**:
+
+1. **Cold Start**: Function instance starts fresh with empty memory
+2. **Session Loss**: All previous sessions stored in memory are lost
+3. **Client Impact**: Clients receive "Server not initialized" errors on session-not-found
+4. **Recovery**: Clients must detect session loss and re-initialize with fresh `initialize` request
+
+### Client-Side Session Recovery Pattern
+**Recommended client implementation for serverless environments:**
+
+```typescript
+// Client should implement automatic session recovery
+async function makeRequest(method: string, params: any) {
+  try {
+    const response = await fetch('/mcp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'mcp-session-id': currentSessionId  // Include existing session ID
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: requestId++, method, params })
+    });
+
+    return await response.json();
+  } catch (error) {
+    // If session not found error, re-initialize
+    if (error.message.includes('Server not initialized') ||
+        error.message.includes('session not found')) {
+      console.log('Session lost, re-initializing...');
+      await initializeSession();  // Send initialize request to get new session ID
+      return makeRequest(method, params);  // Retry original request
+    }
+    throw error;
+  }
+}
+```
+
+### Serverless Best Practices
+1. **Expect session loss** - Design clients to handle re-initialization gracefully
+2. **Implement retry logic** - Automatically recover from cold starts
+3. **Monitor cold starts** - Track frequency and impact on user experience
+4. **Session timeout awareness** - Sessions may expire during function inactivity periods
+5. **Health check integration** - Use `/health` endpoint to detect cold starts before client errors
+
+### Vercel Deployment Considerations
+**Current Vercel deployment (api/mcp.ts):**
+- Session storage uses in-memory Map across function invocations
+- Sessions persist **only within same function instance warm period** (typically 5-10 minutes)
+- Cold start after inactivity loses all sessions
+- Clients must implement re-initialization logic for production use
+
+**Production-ready client must:**
+- Detect session loss errors (401, "Server not initialized")
+- Automatically send new `initialize` request
+- Store new `mcp-session-id` from response
+- Retry original request with new session ID
+
 ## Limitations Summary
 
 This limitation is **inherent to the MCP TypeScript SDK design** and affects all projects using StreamableHTTPServerTransport:
@@ -225,5 +285,7 @@ This limitation is **inherent to the MCP TypeScript SDK design** and affects all
 2. **Instance-specific** - Cannot share sessions between server instances
 3. **Non-serializable** - Transport objects contain complex runtime state
 4. **Deployment constraints** - Requires careful consideration for scaling
+5. **Serverless cold starts** - Sessions lost when function instance recycles
+6. **Client recovery required** - Clients must detect and recover from session loss
 
 Understanding these limitations is essential for proper deployment planning and troubleshooting session-related issues.

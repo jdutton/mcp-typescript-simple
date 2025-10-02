@@ -17,6 +17,8 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
+import { OAuthSessionStore } from '../stores/session-store-interface.js';
+import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
 
 /**
  * Microsoft Azure AD OAuth provider implementation
@@ -27,8 +29,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   private readonly MICROSOFT_TOKEN_URL: string;
   private readonly MICROSOFT_USER_URL = 'https://graph.microsoft.com/v1.0/me';
 
-  constructor(config: MicrosoftOAuthConfig) {
-    super(config);
+  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
+    super(config, sessionStore, tokenStore);
 
     this.tenantId = config.tenantId || 'common';
     this.MICROSOFT_AUTH_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize`;
@@ -112,7 +114,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
 
       // Validate session
       logger.oauthDebug('Validating state', { provider: 'microsoft', statePrefix: state.substring(0, 8) });
-      const session = this.validateState(state);
+      const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
       if (this.handleClientRedirect(session, code, state, res)) {
@@ -133,6 +135,18 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       // Get user information
       const userInfo = await this.fetchMicrosoftUserInfo(tokenData.access_token);
 
+      // Check allowlist authorization
+      const allowlistError = this.checkUserAllowlist(userInfo.email);
+      if (allowlistError) {
+        logger.warn('User denied by allowlist', { email: userInfo.email, provider: 'microsoft' });
+        this.setAntiCachingHeaders(res);
+        res.status(403).json({
+          error: 'access_denied',
+          error_description: allowlistError
+        });
+        return;
+      }
+
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokenData.access_token,
@@ -144,7 +158,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         scopes: session.scopes,
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Clean up session
       this.removeSession(state);
@@ -214,7 +228,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         scopes: tokenData.scope?.split(' ') || [],
       };
 
-      this.storeToken(tokenData.access_token, tokenInfo);
+      await this.storeToken(tokenData.access_token, tokenInfo);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const response: OAuthTokenResponse = {
@@ -255,7 +269,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       }
 
       // Find token info by refresh token
-      const tokenData = this.findTokenByRefreshToken(refresh_token);
+      const tokenData = await this.findTokenByRefreshToken(refresh_token);
       if (!tokenData) {
         this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Invalid refresh token' });
@@ -281,8 +295,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       };
 
       // Remove old token and store new one
-      this.removeToken(tokenData.accessToken);
-      this.storeToken(refreshedToken.access_token, newTokenInfo);
+      await this.removeToken(tokenData.accessToken);
+      await this.storeToken(refreshedToken.access_token, newTokenInfo);
 
       const response: Pick<OAuthTokenResponse, 'access_token' | 'refresh_token' | 'expires_in' | 'token_type'> = {
         access_token: refreshedToken.access_token,
@@ -320,7 +334,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
           logger.oauthWarn('Failed to revoke Microsoft token', { error: revokeError });
         }
 
-        this.removeToken(token);
+        await this.removeToken(token);
       }
 
       this.setAntiCachingHeaders(res);
@@ -338,7 +352,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
       // Check our local token store first
-      const tokenInfo = this.getToken(token);
+      const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
         return {
           token,
@@ -377,7 +391,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
       // Check local store first
-      const tokenInfo = this.getToken(accessToken);
+      const tokenInfo = await this.getToken(accessToken);
       if (tokenInfo) {
         return tokenInfo.userInfo;
       }

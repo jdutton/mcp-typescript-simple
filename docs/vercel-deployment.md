@@ -41,50 +41,157 @@ The MCP TypeScript Simple server has been adapted to run on Vercel using serverl
 
 Configure these in your Vercel dashboard or via CLI:
 
-### Required LLM Provider Keys (choose one or more)
+### Required: User Allowlist (Security)
+
+```bash
+ALLOWED_USERS=user1@example.com,user2@example.com,admin@company.com
+```
+
+**CRITICAL**: This controls who can access your MCP server:
+- Comma-separated list of authorized email addresses
+- If not set, all authenticated users will be allowed (with warning logged)
+- Emails are case-insensitive and automatically normalized
+- Use the email address from your OAuth provider (Google, GitHub, Microsoft)
+
+### Required: OAuth Configuration
+
+Choose ONE OAuth provider:
+
+```bash
+OAUTH_PROVIDER=google  # google, github, microsoft, generic
+```
+
+### Optional: LLM Provider Keys (for AI-powered tools)
+
+Choose one or more LLM providers:
+
 ```bash
 ANTHROPIC_API_KEY=your_claude_api_key
 OPENAI_API_KEY=your_openai_api_key
 GOOGLE_API_KEY=your_gemini_api_key
 ```
 
-### OAuth Configuration (optional)
+**Note**: Without LLM keys, only basic tools (`echo`, `hello`, `current-time`) will work.
+
+#### Option 1: Google OAuth
+
 ```bash
-OAUTH_PROVIDER=google  # google, github, microsoft, generic
+OAUTH_PROVIDER=google
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=https://your-app.vercel.app/auth/google/callback
 ```
 
-#### For Google OAuth:
+**Setup steps:**
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create project → APIs & Services → Credentials
+3. Create OAuth client ID → Web application
+4. Add authorized redirect URI: `https://your-app.vercel.app/auth/google/callback`
+5. Copy Client ID and Client Secret to Vercel environment variables
+
+#### Option 2: GitHub OAuth
+
 ```bash
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
+OAUTH_PROVIDER=github
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_REDIRECT_URI=https://your-app.vercel.app/auth/github/callback
 ```
 
-#### For GitHub OAuth:
+**Setup steps:**
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. New OAuth App
+3. Authorization callback URL: `https://your-app.vercel.app/auth/github/callback`
+4. Generate client secret
+5. Copy Client ID and Client Secret to Vercel environment variables
+
+#### Option 3: Microsoft OAuth
+
 ```bash
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
+OAUTH_PROVIDER=microsoft
+MICROSOFT_CLIENT_ID=your-azure-client-id
+MICROSOFT_CLIENT_SECRET=your-azure-client-secret
+MICROSOFT_REDIRECT_URI=https://your-app.vercel.app/auth/microsoft/callback
+MICROSOFT_TENANT_ID=common  # or your-tenant-id for single-tenant
 ```
 
-#### For Microsoft OAuth:
-```bash
-MICROSOFT_CLIENT_ID=your_microsoft_client_id
-MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
-```
+**Setup steps:**
+1. Go to [Azure Portal](https://portal.azure.com/)
+2. Azure Active Directory → App registrations → New registration
+3. Redirect URI: Web, `https://your-app.vercel.app/auth/microsoft/callback`
+4. Certificates & secrets → New client secret
+5. Copy Application (client) ID and client secret value to Vercel
 
-#### For Generic OAuth:
+#### Option 4: Generic OAuth
+
 ```bash
+OAUTH_PROVIDER=generic
 OAUTH_CLIENT_ID=your_oauth_client_id
 OAUTH_CLIENT_SECRET=your_oauth_client_secret
 OAUTH_AUTHORIZATION_URL=https://provider.com/oauth/authorize
 OAUTH_TOKEN_URL=https://provider.com/oauth/token
 OAUTH_USER_INFO_URL=https://provider.com/oauth/userinfo
+OAUTH_REDIRECT_URI=https://your-app.vercel.app/auth/generic/callback
 ```
 
 ### Optional Configuration
+
 ```bash
 NODE_ENV=production
-ALLOWED_ORIGINS=https://your-frontend.com,https://another-domain.com
-ALLOWED_HOSTS=your-backend.vercel.app
+SESSION_SECRET=random-secret-at-least-32-chars
+SESSION_TIMEOUT_MINUTES=60
+REQUIRE_HTTPS=true
+```
+
+## Environment-Specific Configuration
+
+### Production Environment
+
+**Recommended settings:**
+```bash
+NODE_ENV=production
+ALLOWED_USERS=your-real-users@company.com
+OAUTH_PROVIDER=google
+GOOGLE_CLIENT_ID=production-client-id
+GOOGLE_CLIENT_SECRET=production-secret
+ANTHROPIC_API_KEY=production-key
+```
+
+**Security checklist:**
+- ✅ `ALLOWED_USERS` configured with actual user emails
+- ✅ OAuth redirect URI matches production domain
+- ✅ Separate OAuth app from preview/development
+- ✅ Production API keys (not development/test keys)
+- ✅ HTTPS enforced (automatic on Vercel)
+
+### Preview Environment (PR Deployments)
+
+**Recommended settings:**
+```bash
+NODE_ENV=preview
+ALLOWED_USERS=test@example.com,dev@example.com
+OAUTH_PROVIDER=google
+GOOGLE_CLIENT_ID=preview-client-id
+GOOGLE_CLIENT_SECRET=preview-secret
+```
+
+**Notes:**
+- Each PR gets a unique preview URL: `https://mcp-typescript-simple-<hash>.vercel.app`
+- Use separate OAuth app with wildcard redirect URI or multiple URIs configured
+
+### Development Environment (Local)
+
+**Local development with Vercel:**
+```bash
+# Create .env.local file
+ALLOWED_USERS=dev@example.com
+OAUTH_PROVIDER=google
+GOOGLE_CLIENT_ID=dev-client-id
+GOOGLE_CLIENT_SECRET=dev-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
+
+# Run Vercel dev server
+npm run dev:vercel
 ```
 
 ## Deployment Steps
@@ -300,20 +407,31 @@ curl https://your-project.vercel.app/api/health
 
 ## Security Considerations
 
+### User Allowlist (Critical)
+- **Always configure `ALLOWED_USERS` in production** - Never leave it unset
+- Use actual user email addresses from your OAuth provider
+- Regularly review and update the allowlist
+- Monitor logs for unauthorized access attempts
+- Remove users who no longer need access
+
 ### Environment Variables
 - Never commit secrets to version control
 - Use Vercel's encrypted environment variables
-- Rotate API keys regularly
-
-### CORS Configuration
-- Configure `ALLOWED_ORIGINS` for production
-- Enable `ALLOWED_HOSTS` for additional security
-- Use HTTPS for all production traffic
+- Rotate API keys and OAuth secrets regularly
+- Use separate credentials for production/preview/development
 
 ### OAuth Security
-- Use secure redirect URLs (HTTPS only)
+- Use secure redirect URLs (HTTPS only in production)
+- Separate OAuth apps for production vs preview/development
 - Implement proper session management
 - Regular security audits of OAuth flows
+- Monitor for suspicious authentication patterns
+
+### API Key Protection
+- Store all API keys in Vercel environment variables
+- Never log or expose API keys in responses
+- Set up billing alerts with LLM providers
+- Implement rate limiting for production use
 
 ## Cost Optimization
 
