@@ -29,6 +29,11 @@ export class SessionManager {
   constructor(private eventStore?: EventStore) {
     // Start cleanup task to remove expired sessions
     this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 60 * 1000); // Every hour
+
+    // Unref interval to allow serverless functions to exit cleanly
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
   }
 
   /**

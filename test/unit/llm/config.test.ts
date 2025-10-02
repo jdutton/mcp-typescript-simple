@@ -90,11 +90,11 @@ describe('LLMConfigManager', () => {
         },
         gemini: {
           apiKey: '',
-          defaultModel: 'gemini-1.5-flash',
+          defaultModel: 'gemini-2.5-flash',
           models: {
-            'gemini-1.5-flash': { maxTokens: 4096, available: true },
-            'gemini-1.5-pro': { maxTokens: 4096, available: true },
-            'gemini-1.0-pro': { maxTokens: 4096, available: true }
+            'gemini-2.5-flash': { maxTokens: 4096, available: true },
+            'gemini-2.5-flash-lite': { maxTokens: 4096, available: true },
+            'gemini-2.0-flash': { maxTokens: 4096, available: true }
           }
         }
       },

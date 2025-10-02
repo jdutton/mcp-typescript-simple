@@ -61,11 +61,12 @@ export class LLMConfigManager {
           },
           gemini: {
             apiKey: geminiKey,
-            defaultModel: 'gemini-1.5-flash',
+            defaultModel: 'gemini-2.5-flash',
             models: {
-              'gemini-1.5-flash': { maxTokens: 4096, available: true },
-              'gemini-1.5-pro': { maxTokens: 4096, available: true },
-              'gemini-1.0-pro': { maxTokens: 4096, available: true }
+              // October 2025 - Gemini 2.5 and 2.0 models (all 1.5/1.0 models RETIRED)
+              'gemini-2.5-flash': { maxTokens: 8192, available: true },          // Recommended: best price/performance
+              'gemini-2.5-flash-lite': { maxTokens: 8192, available: true },     // Faster/cheaper variant
+              'gemini-2.0-flash': { maxTokens: 8192, available: true }           // Previous generation
             }
           }
         },

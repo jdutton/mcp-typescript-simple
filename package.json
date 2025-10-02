@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "build:vercel": "tsc && cp -r api build/",
-    "dev:stdio": "MCP_DEV_SKIP_AUTH=true tsx --import ./src/observability/register.ts src/index.ts",
+    "dev:stdio": "MCP_DEV_SKIP_AUTH=true tsx --env-file-if-exists=.env.local --import ./src/observability/register.ts src/index.ts",
     "dev:http": "MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true tsx --import ./src/observability/register.ts src/index.ts",
     "dev:http:ci": "MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true HTTP_PORT=3001 tsx --import ./src/observability/register.ts src/index.ts",
     "dev:oauth": "MCP_MODE=streamable_http tsx --import ./src/observability/register.ts --env-file=.env src/index.ts",
@@ -40,6 +40,7 @@
     "test:system:stdio": "TEST_ENV=stdio npm run test:system",
     "test:system:vercel:local": "TEST_ENV=vercel:local npm run test:system",
     "test:system:vercel:preview": "TEST_ENV=vercel:preview npm run test:system",
+    "test:models": "jest --config jest.system.config.js test/system/models-validation.system.test.ts --verbose",
     "test:system:vercel:production": "TEST_ENV=vercel:production npm run test:system",
     "test:system:docker": "TEST_ENV=docker npm run test:system",
     "test:system:parallel": "npx tsx tools/parallel-system-tests.ts",

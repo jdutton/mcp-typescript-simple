@@ -43,11 +43,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             platform: 'vercel',
             mode: 'serverless',
             region: process.env.VERCEL_REGION || 'unknown',
-            deployment_id: process.env.VERCEL_DEPLOYMENT_ID || 'local',
+            deployment_id: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
             version: process.env.npm_package_version || '1.0.0',
-            node_version: process.version,
-            uptime: process.uptime(),
-            memory_usage: process.memoryUsage(),
+            node_version: process.version.split('.')[0], // Major version only
+            uptime: Math.floor(process.uptime()),
+            memory_usage: {
+              heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
+              heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
+            },
           },
           environment: {
             oauth_provider: process.env.OAUTH_PROVIDER || 'google',
@@ -84,9 +87,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           platform: 'vercel',
           mode: 'serverless',
           version: process.env.npm_package_version || '1.0.0',
-          node_version: process.version,
+          node_version: process.version.split('.')[0], // Major version only
           region: process.env.VERCEL_REGION || 'unknown',
-          deployment_id: process.env.VERCEL_DEPLOYMENT_ID || 'local',
+          deployment_id: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
           deployment_url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'unknown',
           git_commit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
           git_branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',

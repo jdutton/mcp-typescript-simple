@@ -67,6 +67,36 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
     return tokenInfo;
   }
 
+  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
+    // Iterate through all tokens to find matching refresh token
+    for (const [accessToken, tokenInfo] of this.tokens.entries()) {
+      if (tokenInfo.refreshToken === refreshToken) {
+        // Verify not expired
+        if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
+          logger.warn('OAuth token expired during refresh token lookup', {
+            tokenPrefix: accessToken.substring(0, 8),
+            expiredAt: new Date(tokenInfo.expiresAt).toISOString()
+          });
+          await this.deleteToken(accessToken);
+          return null;
+        }
+
+        logger.debug('OAuth token found by refresh token', {
+          tokenPrefix: accessToken.substring(0, 8),
+          provider: tokenInfo.provider
+        });
+
+        return { accessToken, tokenInfo };
+      }
+    }
+
+    logger.debug('OAuth token not found by refresh token', {
+      refreshTokenPrefix: refreshToken.substring(0, 8)
+    });
+
+    return null;
+  }
+
   async deleteToken(accessToken: string): Promise<void> {
     const existed = this.tokens.delete(accessToken);
 

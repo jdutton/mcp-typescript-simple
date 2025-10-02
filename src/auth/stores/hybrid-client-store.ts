@@ -24,6 +24,7 @@ import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/aut
 import {
   OAuthRegisteredClientsStore,
   ClientStoreOptions,
+  ExtendedOAuthClientInformation,
 } from './client-store-interface.js';
 import { InMemoryClientStore } from './memory-client-store.js';
 import { FileClientStore } from './file-client-store.js';
@@ -50,6 +51,7 @@ export class HybridClientStore implements OAuthRegisteredClientsStore {
   private syncTimer?: NodeJS.Timeout;
   private pendingWrites = false;
   private debounceMs: number;
+  private exitHandler?: () => void;
 
   constructor(options: HybridClientStoreOptions = {}) {
     const filePath = options.filePath ?? './data/oauth-clients.json';
@@ -79,8 +81,9 @@ export class HybridClientStore implements OAuthRegisteredClientsStore {
       this.startPeriodicSync(syncIntervalMs);
     }
 
-    // Ensure cleanup on exit
-    process.once('exit', () => this.dispose());
+    // Register exit handler
+    this.exitHandler = () => this.dispose();
+    process.on('exit', this.exitHandler);
 
     logger.info('HybridClientStore initialized', {
       clientCount: this.memoryStore.getClientCount(),
@@ -92,11 +95,11 @@ export class HybridClientStore implements OAuthRegisteredClientsStore {
    */
   private loadFromFileToMemorySync(): void {
     try {
-      // Access the file store's internal map directly (it's already loaded)
-      const fileStoreClients = (this.fileStore as any).clients as Map<string, any>;
+      // Use proper accessor method instead of any cast
+      const fileStoreClients = this.fileStore.getAllClients();
       for (const [clientId, client] of fileStoreClients.entries()) {
-        // Directly set in memory
-        (this.memoryStore as any).clients.set(clientId, client);
+        // Use proper setter method instead of any cast
+        this.memoryStore.setClient(clientId, client);
       }
       logger.debug('Clients loaded from file to memory', {
         count: fileStoreClients.size,
@@ -134,14 +137,23 @@ export class HybridClientStore implements OAuthRegisteredClientsStore {
     try {
       const clients = await this.memoryStore.listClients();
 
-      // Clear file store and re-populate
-      (this.fileStore as any).clients.clear();
-      for (const client of clients) {
-        (this.fileStore as any).clients.set(client.client_id, client);
+      // Use proper methods instead of any casts
+      const fileClients = this.fileStore.getAllClients();
+
+      // Remove clients that no longer exist in memory
+      for (const clientId of fileClients.keys()) {
+        if (!clients.some(c => c.client_id === clientId)) {
+          await this.fileStore.deleteClient(clientId);
+        }
       }
 
-      // Persist to file
-      await (this.fileStore as any).save();
+      // Add or update clients from memory
+      for (const client of clients) {
+        this.fileStore.setClient(client.client_id, client as ExtendedOAuthClientInformation);
+      }
+
+      // Persist to file using proper save method
+      await this.fileStore.save();
 
       this.pendingWrites = false;
       logger.debug('Memory store synced to file', {
@@ -237,6 +249,12 @@ export class HybridClientStore implements OAuthRegisteredClientsStore {
    */
   async dispose(): Promise<void> {
     this.stopPeriodicSync();
+
+    // Remove exit handler
+    if (this.exitHandler) {
+      process.off('exit', this.exitHandler);
+      this.exitHandler = undefined;
+    }
 
     // Flush any pending writes
     await this.flush();

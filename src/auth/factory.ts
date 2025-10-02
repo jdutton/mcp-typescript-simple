@@ -31,6 +31,7 @@ import { OAuthTokenStore } from './stores/oauth-token-store-interface.js';
 export class OAuthProviderFactory implements IOAuthProviderFactory {
   private static instance: OAuthProviderFactory | null = null;
   private static shutdownHookRegistered = false;
+  private static exitHandler?: () => void;
   private readonly activeProviders = new Set<OAuthProvider>();
   private sessionStore: OAuthSessionStore;
   private tokenStore: OAuthTokenStore;
@@ -49,6 +50,27 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       OAuthProviderFactory.instance = new OAuthProviderFactory();
     }
     return OAuthProviderFactory.instance;
+  }
+
+  /**
+   * Reset singleton instance (testing only)
+   * Disposes all active providers and clears the instance
+   * @internal
+   */
+  static resetInstance(): void {
+    if (OAuthProviderFactory.instance) {
+      OAuthProviderFactory.instance.disposeAll();
+      OAuthProviderFactory.instance = null;
+      OAuthProviderFactory.shutdownHookRegistered = false;
+
+      // Remove exit handler
+      if (OAuthProviderFactory.exitHandler) {
+        process.off('exit', OAuthProviderFactory.exitHandler);
+        OAuthProviderFactory.exitHandler = undefined;
+      }
+
+      logger.debug('OAuthProviderFactory instance reset');
+    }
   }
 
   /**
@@ -105,13 +127,15 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       return;
     }
 
-    process.once('exit', () => {
+    // Create exit handler and register it
+    OAuthProviderFactory.exitHandler = () => {
       try {
         this.disposeAll();
       } catch (error) {
         logger.error('Failed to dispose OAuth providers on exit', error);
       }
-    });
+    };
+    process.on('exit', OAuthProviderFactory.exitHandler);
 
     OAuthProviderFactory.shutdownHookRegistered = true;
   }

@@ -29,11 +29,11 @@ const baseConfig: LLMConfig = {
     },
     gemini: {
       apiKey: 'gemini-key',
-      defaultModel: 'gemini-1.5-flash',
+      defaultModel: 'gemini-2.5-flash',
       models: {
-        'gemini-1.5-flash': { maxTokens: 4096, available: true },
-        'gemini-1.5-pro': { maxTokens: 4096, available: true },
-        'gemini-1.0-pro': { maxTokens: 4096, available: true }
+        'gemini-2.5-flash': { maxTokens: 4096, available: true },
+        'gemini-2.5-flash-lite': { maxTokens: 4096, available: true },
+        'gemini-2.0-flash': { maxTokens: 4096, available: true }
       }
     }
   },
@@ -97,7 +97,7 @@ describe('LLMManager', () => {
     expect(openaiCreate).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to Claude when requested provider fails', async () => {
+  it('falls back to Claude when default provider fails (no explicit provider requested)', async () => {
     const manager = createManager();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -115,6 +115,9 @@ describe('LLMManager', () => {
       }
     };
 
+    // Configure default provider to be OpenAI (via mocking)
+    jest.spyOn(manager as any, 'getDefaultProvider').mockResolvedValue('openai');
+
     const openaiCreate = jest.fn(async () => {
       throw new Error('openai failure');
     });
@@ -131,11 +134,94 @@ describe('LLMManager', () => {
       }
     };
 
-    const response = await manager.complete({ message: 'Fallback', provider: 'openai' });
+    // NO explicit provider - should use default (openai) and fallback to claude
+    const response = await manager.complete({ message: 'Fallback' });
 
     expect(response.provider).toBe('claude');
     expect(openaiCreate).toHaveBeenCalled();
     expect(anthropicCreate).toHaveBeenCalled();
+  });
+});
+
+describe('LLMManager getProviderForTool', () => {
+  it('returns the preferred provider and model when available', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+    await manager.initialize();
+
+    // summarize tool prefers gemini with gemini-2.5-flash
+    const result = manager.getProviderForTool('summarize');
+    expect(result.provider).toBe('gemini');
+    expect(result.model).toBe('gemini-2.5-flash');
+  });
+
+  it('falls back to available provider without incompatible model when preferred provider unavailable', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    // Initialize with only Claude available (no Gemini client)
+    const claudeClient = {
+      messages: {
+        create: jest.fn(async () => ({
+          content: [{ type: 'text', text: 'response' }],
+          usage: { input_tokens: 10, output_tokens: 20 }
+        }))
+      }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      claude: claudeClient
+    };
+
+    // summarize tool prefers gemini, but only claude is available
+    const result = manager.getProviderForTool('summarize');
+
+    // Should fallback to claude WITHOUT the gemini model
+    expect(result.provider).toBe('claude');
+    expect(result.model).toBeUndefined(); // No model specified, will use provider default
+  });
+
+  it('returns claude as default when tool has no mapping', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    const openaiClient = {
+      chat: {
+        completions: {
+          create: jest.fn()
+        }
+      }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      openai: openaiClient
+    };
+
+    const result = manager.getProviderForTool('unknown-tool');
+    expect(result.provider).toBe('claude');
+    expect(result.model).toBeUndefined();
+  });
+
+  it('prevents invalid provider/model combinations', async () => {
+    setupConfigSpies();
+    const manager = new LLMManager();
+
+    const claudeClient = {
+      messages: { create: jest.fn() }
+    };
+
+    (manager as unknown as { clients: Record<string, unknown> }).clients = {
+      claude: claudeClient
+    };
+
+    const result = manager.getProviderForTool('summarize');
+
+    // Verify we don't get gemini model with claude provider
+    if (result.model) {
+      expect(result.model).not.toBe('gemini-2.5-flash');
+      expect(result.model).not.toBe('gemini-2.5-flash-lite');
+      expect(result.model).not.toBe('gemini-2.0-flash');
+    }
   });
 });
 
@@ -146,7 +232,7 @@ describe('LLMManager error handling', () => {
     setupConfigSpies(mockConfig);
   });
 
-  it('falls back to Claude when the requested provider fails', async () => {
+  it('fails loudly when explicitly requested provider fails (no fallback)', async () => {
     const manager = new LLMManager();
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -162,21 +248,9 @@ describe('LLMManager error handling', () => {
       }
     };
 
-    const claudeResponse = {
-      content: [{ type: 'text', text: 'Fallback response' }],
-      usage: {
-        input_tokens: 12,
-        output_tokens: 6,
-        cache_creation: null,
-        cache_creation_input_tokens: null,
-        cache_read_input_tokens: null,
-        server_tool_use: null,
-        service_tier: null
-      }
-    };
     const claudeClient = {
       messages: {
-        create: jest.fn(async () => claudeResponse)
+        create: jest.fn(async () => ({ content: [{ type: 'text', text: 'Should not be called' }] }))
       }
     };
 
@@ -185,13 +259,14 @@ describe('LLMManager error handling', () => {
       claude: claudeClient
     };
 
-    const result = await manager.complete({ provider: 'openai', message: 'hello' });
+    // When provider is explicitly requested, it should fail instead of falling back
+    await expect(
+      manager.complete({ provider: 'openai', message: 'hello' })
+    ).rejects.toThrow('LLM request failed: OpenAI down');
 
     expect(openAiClient.chat.completions.create).toHaveBeenCalledTimes(1);
-    expect(claudeClient.messages.create).toHaveBeenCalledTimes(1);
-    expect(result.provider).toBe('claude');
-    expect(result.content).toBe('Fallback response');
-    expect(result.usage).toEqual({ promptTokens: 12, completionTokens: 6, totalTokens: 18 });
+    // Claude should NOT be called because provider was explicitly requested
+    expect(claudeClient.messages.create).not.toHaveBeenCalled();
   });
 
   it('throws a descriptive error when fallback provider is unavailable', async () => {
@@ -215,7 +290,7 @@ describe('LLMManager error handling', () => {
 
     await expect(
       manager.complete({ provider: 'openai', message: 'hello' })
-    ).rejects.toThrow("LLM request failed: LLM provider 'claude' not available");
+    ).rejects.toThrow("LLM request failed: OpenAI down");
   });
 
   it('surfaces errors from Claude when no fallback is available', async () => {

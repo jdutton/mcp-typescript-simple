@@ -4,20 +4,52 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider, LLMProvider } from '../../llm/types.js';
 
 type ToolResponse = {
   content: Array<{ type: 'text'; text: string }>;
 };
 
+/**
+ * Create dynamic schema based on available providers
+ */
+export async function createSummarizeToolSchema(llmManager: LLMManager) {
+  const schemaInfo = await llmManager.getSchemaInfo();
+  const toolDefaults = llmManager.getProviderForTool('summarize');
+
+  // Build provider description with available options
+  const providerOptions = schemaInfo.providers.map(p => p.name).join(', ');
+  const providerDesc = `LLM provider to use. Available: ${providerOptions} (default: ${toolDefaults.provider})`;
+
+  // Build model description with examples from available providers
+  const modelExamples = schemaInfo.providers
+    .filter(p => p.models.length > 0)
+    .map(p => `${p.name}: ${p.models.slice(0, 2).join(', ')}`)
+    .join('; ');
+  const modelDesc = `Specific model to use. Must be valid for the selected provider. Examples: ${modelExamples}`;
+
+  return z.object({
+    text: z.string().describe('The text to summarize'),
+    length: z.enum(['brief', 'medium', 'detailed']).optional()
+      .describe('Length of summary. Options: brief, medium, detailed (default: medium)'),
+    format: z.enum(['paragraph', 'bullets', 'outline']).optional()
+      .describe('Format of the summary. Options: paragraph, bullets, outline (default: paragraph)'),
+    focus: z.string().optional().describe('Specific aspect to focus the summary on'),
+    provider: z.enum(schemaInfo.providers.map(p => p.name) as [LLMProvider, ...LLMProvider[]]).optional()
+      .describe(providerDesc),
+    model: z.string().optional().describe(modelDesc)
+  });
+}
+
+// Static schema for backward compatibility and type inference
 export const SummarizeToolSchema = z.object({
   text: z.string().describe('The text to summarize'),
   length: z.enum(['brief', 'medium', 'detailed']).optional()
-    .describe('Length of summary (default: medium)'),
+    .describe('Length of summary. Options: brief, medium, detailed (default: medium)'),
   format: z.enum(['paragraph', 'bullets', 'outline']).optional()
-    .describe('Format of the summary (default: paragraph)'),
+    .describe('Format of the summary. Options: paragraph, bullets, outline (default: paragraph)'),
   focus: z.string().optional().describe('Specific aspect to focus the summary on'),
-  provider: z.enum(['claude', 'openai', 'gemini']).optional().describe('LLM provider to use (default: gemini)'),
+  provider: z.enum(['claude', 'openai', 'gemini']).optional().describe('LLM provider to use'),
   model: z.string().optional().describe('Specific model to use. Must be valid for the selected provider.')
 });
 

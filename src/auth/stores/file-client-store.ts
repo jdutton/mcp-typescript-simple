@@ -94,8 +94,9 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
 
   /**
    * Save clients to file (asynchronous, atomic)
+   * Made public for hybrid store sync
    */
-  private async save(): Promise<void> {
+  async save(): Promise<void> {
     // Serialize write operations to prevent concurrent writes
     this.writePromise = this.writePromise.then(() => this.doSave());
     return this.writePromise;
@@ -282,6 +283,22 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
       logger.error('Failed to reload clients from file', error);
       throw error;
     }
+  }
+
+  /**
+   * Set client directly (internal use only - for hybrid store sync)
+   * @internal
+   */
+  setClient(clientId: string, client: ExtendedOAuthClientInformation): void {
+    this.clients.set(clientId, client);
+  }
+
+  /**
+   * Get all clients as readonly map (internal use only - for hybrid store sync)
+   * @internal
+   */
+  getAllClients(): ReadonlyMap<string, ExtendedOAuthClientInformation> {
+    return this.clients;
   }
 
   /**

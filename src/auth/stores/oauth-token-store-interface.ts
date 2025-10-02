@@ -32,6 +32,14 @@ export interface OAuthTokenStore {
   getToken(accessToken: string): Promise<StoredTokenInfo | null>;
 
   /**
+   * Find token information by refresh token
+   *
+   * @param refreshToken The refresh token to look up
+   * @returns Object containing access token and token info, or null if not found/expired
+   */
+  findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null>;
+
+  /**
    * Delete a token by access token
    *
    * @param accessToken The access token to delete

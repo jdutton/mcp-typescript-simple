@@ -54,7 +54,12 @@ export type ClaudeModel =
   | 'claude-3-7-sonnet-20250219';    // Previous Sonnet (Feb 2025) - still supported
 
 export type OpenAIModel = 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini';
-export type GeminiModel = 'gemini-1.5-flash' | 'gemini-1.5-pro' | 'gemini-1.0-pro';
+// Gemini model names - October 2025 current models
+// NOTE: All Gemini 1.5 and 1.0 models have been RETIRED as of October 2025
+export type GeminiModel =
+  | 'gemini-2.5-flash'          // Stable, recommended for production (best price/performance)
+  | 'gemini-2.5-flash-lite'     // Faster, cheaper variant
+  | 'gemini-2.0-flash';         // Previous generation, still supported
 
 // Type-safe provider-model mapping
 export interface ProviderModelMap {
@@ -161,8 +166,8 @@ export const DEFAULT_TOOL_LLM_MAPPING: ToolLLMMapping = {
   },
   'summarize': {
     provider: 'gemini',
-    model: 'gemini-1.5-flash',
-    description: 'Cost-effective summarization with Gemini Flash'
+    model: 'gemini-2.5-flash',
+    description: 'Cost-effective summarization with Gemini 2.5 Flash'
   },
   'explain': {
     provider: 'claude',
@@ -184,7 +189,7 @@ export function isValidModelForProvider<T extends LLMProvider>(
       'claude-3-7-sonnet-20250219'
     ],
     openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
-    gemini: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-1.0-pro']
+    gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
   };
 
   return validModels[provider].includes(model);
@@ -195,7 +200,7 @@ export function getDefaultModelForProvider(provider: LLMProvider): AnyModel {
   const defaults: Record<LLMProvider, AnyModel> = {
     claude: 'claude-3-5-haiku-20241022', // Latest Haiku for speed
     openai: 'gpt-4o-mini', // Cost-effective GPT-4 level performance
-    gemini: 'gemini-1.5-flash'
+    gemini: 'gemini-2.5-flash' // Gemini 2.5 Flash (October 2025)
   };
 
   return defaults[provider];

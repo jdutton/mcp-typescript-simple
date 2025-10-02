@@ -101,7 +101,7 @@ export class LLMManager {
     logger.info('LLM Manager initialized', { providerCount: this.getAvailableProviders().length, providers: this.getAvailableProviders() });
   }
 
-  async complete(request: LLMRequest): Promise<LLMResponse> {
+  async complete(request: LLMRequest & { _fallbackAttempted?: boolean }): Promise<LLMResponse> {
     const startTime = Date.now();
     const provider = request.provider || await this.getDefaultProvider();
 
@@ -139,14 +139,48 @@ export class LLMManager {
       const errorMessage = error instanceof Error ? error.message : String(error);
       logger.error('LLM request failed', { provider, error: errorMessage });
 
-      // Try fallback provider
-      if (provider !== 'claude') {
-        logger.info('Trying fallback provider', { fallbackProvider: 'claude' });
-        return this.complete({ ...request, provider: 'claude' });
+      // IMPORTANT: Only fallback if the provider was NOT explicitly requested
+      // If user/tool explicitly chose a provider, let it fail loudly so they know there's a problem
+      // Only fallback when using default provider selection (tool mapping fallback scenario)
+      if (!request._fallbackAttempted && !request.provider) {
+        const fallbackProvider = this.getFallbackProvider(provider);
+        if (fallbackProvider) {
+          logger.info('Trying fallback provider (original was default, not explicitly requested)', { originalProvider: provider, fallbackProvider });
+          // Remove model when falling back to different provider to avoid invalid combinations
+          // Mark that we've attempted a fallback to prevent infinite loops
+          return this.complete({ ...request, provider: fallbackProvider, model: undefined, _fallbackAttempted: true });
+        }
       }
 
       throw new Error(`LLM request failed: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Get fallback provider when the requested provider fails
+   * Returns undefined if no fallback is available or if we're already on the last fallback
+   */
+  private getFallbackProvider(currentProvider: LLMProvider): LLMProvider | undefined {
+    const fallbackOrder: LLMProvider[] = ['claude', 'openai', 'gemini'];
+    const currentIndex = fallbackOrder.indexOf(currentProvider);
+
+    // Try providers in order after the current one
+    for (let i = currentIndex + 1; i < fallbackOrder.length; i++) {
+      const candidate = fallbackOrder[i];
+      if (candidate && this.isProviderAvailable(candidate)) {
+        return candidate;
+      }
+    }
+
+    // Try providers before the current one
+    for (let i = 0; i < currentIndex; i++) {
+      const candidate = fallbackOrder[i];
+      if (candidate && this.isProviderAvailable(candidate)) {
+        return candidate;
+      }
+    }
+
+    return undefined;
   }
 
   /**
@@ -155,7 +189,15 @@ export class LLMManager {
   getProviderForTool(toolName: string): { provider: LLMProvider; model?: AnyModel } {
     const mapping = DEFAULT_TOOL_LLM_MAPPING[toolName];
     if (mapping) {
-      return { provider: mapping.provider, model: mapping.model };
+      // Only use tool-specific provider/model if that provider is available
+      if (this.isProviderAvailable(mapping.provider)) {
+        return { provider: mapping.provider, model: mapping.model };
+      }
+      // Fall back to first available provider without a specific model
+      const availableProvider = this.getAvailableProviders()[0];
+      if (availableProvider) {
+        return { provider: availableProvider };
+      }
     }
     return { provider: 'claude' };
   }
@@ -212,6 +254,46 @@ export class LLMManager {
     return {
       size: this.cache.size,
       providers: this.getAvailableProviders()
+    };
+  }
+
+  /**
+   * Get available models for a specific provider
+   */
+  async getAvailableModels(provider: LLMProvider): Promise<string[]> {
+    if (!this.isProviderAvailable(provider)) {
+      return [];
+    }
+
+    const config = await this.configManager.loadConfig();
+    const providerConfig = config.providers[provider];
+
+    return Object.keys(providerConfig.models).filter(modelName => {
+      const modelConfig = providerConfig.models[modelName as keyof typeof providerConfig.models];
+      return modelConfig && (modelConfig as { available?: boolean }).available !== false;
+    });
+  }
+
+  /**
+   * Get formatted schema information for tool descriptions
+   */
+  async getSchemaInfo(): Promise<{
+    providers: Array<{ name: LLMProvider; models: string[] }>;
+    defaultProvider: LLMProvider;
+  }> {
+    const availableProviders = this.getAvailableProviders();
+    const config = await this.configManager.loadConfig();
+
+    const providersWithModels = await Promise.all(
+      availableProviders.map(async (provider) => ({
+        name: provider,
+        models: await this.getAvailableModels(provider)
+      }))
+    );
+
+    return {
+      providers: providersWithModels,
+      defaultProvider: config.defaultProvider
     };
   }
 

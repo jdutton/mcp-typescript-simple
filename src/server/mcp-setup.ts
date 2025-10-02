@@ -11,6 +11,27 @@ import { LLMManager } from "../llm/manager.js";
 import { logger } from "../utils/logger.js";
 
 /**
+ * Build dynamic provider/model descriptions based on available providers
+ */
+function buildProviderDescription(
+  schemaInfo: Awaited<ReturnType<LLMManager['getSchemaInfo']>>,
+  defaultProvider: string
+): string {
+  const providerNames = schemaInfo.providers.map(p => p.name).join(', ');
+  return `AI provider to use. Available: ${providerNames} (default: ${defaultProvider})`;
+}
+
+function buildModelDescription(
+  schemaInfo: Awaited<ReturnType<LLMManager['getSchemaInfo']>>
+): string {
+  const examples = schemaInfo.providers
+    .filter(p => p.models.length > 0)
+    .map(p => `${p.name}: ${p.models.slice(0, 2).join(', ')}`)
+    .join('; ');
+  return `Specific model to use (must be valid for the selected provider). Examples: ${examples}`;
+}
+
+/**
  * Set up MCP server with tools and handlers
  */
 export async function setupMCPServer(server: Server, llmManager: LLMManager): Promise<void> {
@@ -18,6 +39,9 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const availableProviders = llmManager.getAvailableProviders();
     const hasLLM = availableProviders.length > 0;
+
+    // Get schema info for dynamic descriptions
+    const schemaInfo = hasLLM ? await llmManager.getSchemaInfo() : null;
 
     const basicTools = [
       {
@@ -58,7 +82,13 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
       },
     ];
 
-    const llmTools = hasLLM ? [
+    // Build tool-specific defaults
+    const chatDefaults = hasLLM ? llmManager.getProviderForTool('chat') : null;
+    const analyzeDefaults = hasLLM ? llmManager.getProviderForTool('analyze') : null;
+    const summarizeDefaults = hasLLM ? llmManager.getProviderForTool('summarize') : null;
+    const explainDefaults = hasLLM ? llmManager.getProviderForTool('explain') : null;
+
+    const llmTools = (hasLLM && schemaInfo) ? [
       {
         name: "chat",
         description: "Interactive AI assistant with flexible provider and model selection",
@@ -81,12 +111,12 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             },
             provider: {
               type: "string",
-              enum: ["claude", "openai", "gemini"],
-              description: "AI provider to use (default: claude)",
+              enum: schemaInfo.providers.map(p => p.name),
+              description: buildProviderDescription(schemaInfo, chatDefaults?.provider || 'claude'),
             },
             model: {
               type: "string",
-              description: "Specific model to use (must be valid for the selected provider)",
+              description: buildModelDescription(schemaInfo),
             },
           },
           required: ["message"],
@@ -105,7 +135,7 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             analysis_type: {
               type: "string",
               enum: ["sentiment", "themes", "structure", "comprehensive", "summary"],
-              description: "Type of analysis to perform (default: comprehensive)",
+              description: "Type of analysis to perform. Options: sentiment, themes, structure, comprehensive, summary (default: comprehensive)",
             },
             focus: {
               type: "string",
@@ -113,12 +143,12 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             },
             provider: {
               type: "string",
-              enum: ["claude", "openai", "gemini"],
-              description: "AI provider to use (default: openai)",
+              enum: schemaInfo.providers.map(p => p.name),
+              description: buildProviderDescription(schemaInfo, analyzeDefaults?.provider || 'openai'),
             },
             model: {
               type: "string",
-              description: "Specific model to use (must be valid for the selected provider)",
+              description: buildModelDescription(schemaInfo),
             },
           },
           required: ["text"],
@@ -137,12 +167,12 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             length: {
               type: "string",
               enum: ["brief", "medium", "detailed"],
-              description: "Length of the summary (default: medium)",
+              description: "Length of the summary. Options: brief, medium, detailed (default: medium)",
             },
             format: {
               type: "string",
               enum: ["paragraph", "bullets", "outline"],
-              description: "Format of the summary (default: paragraph)",
+              description: "Format of the summary. Options: paragraph, bullets, outline (default: paragraph)",
             },
             focus: {
               type: "string",
@@ -150,12 +180,12 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             },
             provider: {
               type: "string",
-              enum: ["claude", "openai", "gemini"],
-              description: "AI provider to use (default: gemini)",
+              enum: schemaInfo.providers.map(p => p.name),
+              description: buildProviderDescription(schemaInfo, summarizeDefaults?.provider || 'gemini'),
             },
             model: {
               type: "string",
-              description: "Specific model to use (must be valid for the selected provider)",
+              description: buildModelDescription(schemaInfo),
             },
           },
           required: ["text"],
@@ -174,7 +204,7 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             level: {
               type: "string",
               enum: ["beginner", "intermediate", "advanced"],
-              description: "Explanation level (default: intermediate)",
+              description: "Explanation level. Options: beginner, intermediate, advanced (default: intermediate)",
             },
             context: {
               type: "string",
@@ -186,12 +216,12 @@ export async function setupMCPServer(server: Server, llmManager: LLMManager): Pr
             },
             provider: {
               type: "string",
-              enum: ["claude", "openai", "gemini"],
-              description: "AI provider to use (default: claude)",
+              enum: schemaInfo.providers.map(p => p.name),
+              description: buildProviderDescription(schemaInfo, explainDefaults?.provider || 'claude'),
             },
             model: {
               type: "string",
-              description: "Specific model to use (must be valid for the selected provider)",
+              description: buildModelDescription(schemaInfo),
             },
           },
           required: ["topic"],
