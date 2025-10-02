@@ -135,10 +135,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
-    if (sessionId && transportCache.has(sessionId)) {
+    // Atomic check-and-get to prevent race condition
+    const cachedTransport = sessionId ? transportCache.get(sessionId) : undefined;
+
+    if (cachedTransport) {
       // Reuse existing transport (per MCP SDK pattern)
       logger.debug("Reusing cached transport for session", { sessionId, requestId });
-      transport = transportCache.get(sessionId)!;
+      transport = cachedTransport;
     } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
       // New initialization request - create new transport and server
       logger.debug("Creating new transport for initialize request", { requestId });
@@ -270,9 +273,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!res.headersSent) {
+      const isDevelopment = process.env.NODE_ENV !== 'production';
+
       res.status(500).json({
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        jsonrpc: '2.0',
+        error: {
+          code: -32603,
+          message: isDevelopment && error instanceof Error
+            ? error.message
+            : 'Internal server error',
+        },
+        id: null
       });
     }
   }

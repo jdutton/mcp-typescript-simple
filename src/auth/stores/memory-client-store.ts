@@ -21,6 +21,7 @@ import { logger } from '../../utils/logger.js';
 export class InMemoryClientStore implements OAuthRegisteredClientsStore {
   private clients = new Map<string, ExtendedOAuthClientInformation>();
   private cleanupInterval?: NodeJS.Timeout;
+  private exitHandler?: () => void;
 
   constructor(private options: ClientStoreOptions = {}) {
     // Set defaults
@@ -168,6 +169,22 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
   }
 
   /**
+   * Set client directly (internal use only - for hybrid store sync)
+   * @internal
+   */
+  setClient(clientId: string, client: ExtendedOAuthClientInformation): void {
+    this.clients.set(clientId, client);
+  }
+
+  /**
+   * Get all clients as readonly map (internal use only - for hybrid store sync)
+   * @internal
+   */
+  getAllClients(): ReadonlyMap<string, ExtendedOAuthClientInformation> {
+    return this.clients;
+  }
+
+  /**
    * Start automatic cleanup of expired clients
    */
   private startAutoCleanup(): void {
@@ -179,8 +196,9 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
       }
     }, this.options.cleanupIntervalMs!);
 
-    // Ensure cleanup stops when process exits
-    process.once('exit', () => this.stopAutoCleanup());
+    // Create exit handler and register it
+    this.exitHandler = () => this.stopAutoCleanup();
+    process.on('exit', this.exitHandler);
 
     logger.debug('Auto-cleanup started', {
       intervalMs: this.options.cleanupIntervalMs,
@@ -195,6 +213,12 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = undefined;
       logger.debug('Auto-cleanup stopped');
+    }
+
+    // Remove exit handler if it exists
+    if (this.exitHandler) {
+      process.off('exit', this.exitHandler);
+      this.exitHandler = undefined;
     }
   }
 

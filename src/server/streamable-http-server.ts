@@ -686,12 +686,15 @@ export class MCPStreamableHttpServer {
   private async getOrCreateTransport(req: Request, requestId: string): Promise<StreamableHTTPServerTransport> {
     const existingSessionId = req.headers['mcp-session-id'] as string;
 
-    if (existingSessionId && this.sessionTransports.has(existingSessionId)) {
+    // Atomic check-and-get to prevent race condition
+    const existingTransport = existingSessionId ? this.sessionTransports.get(existingSessionId) : undefined;
+
+    if (existingTransport) {
       logger.debug("Reusing existing transport for session", {
         requestId,
         sessionId: existingSessionId
       });
-      return this.sessionTransports.get(existingSessionId)!;
+      return existingTransport;
     }
 
     logger.debug("Creating new transport for session", {
@@ -848,8 +851,10 @@ export class MCPStreamableHttpServer {
     const mcpHandlerPromise = this.streamableTransportHandler(transport);
     logger.debug("MCP server handler started", { requestId });
 
-    const mcpTimeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('MCP server handler timeout after 30s')), 30000);
+    // Create timeout with cleanup to prevent memory leak
+    let timeoutId: NodeJS.Timeout | undefined;
+    const mcpTimeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('MCP server handler timeout after 30s')), 30000);
     });
 
     try {
@@ -858,6 +863,11 @@ export class MCPStreamableHttpServer {
     } catch (error) {
       logger.error("MCP server handler error", { requestId, error });
       throw error;
+    } finally {
+      // Always clear timeout to prevent memory leak
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 
@@ -874,8 +884,10 @@ export class MCPStreamableHttpServer {
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
     logger.debug("Transport.handleRequest started", { requestId });
 
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Transport handleRequest timeout after 30s')), 30000);
+    // Create timeout with cleanup to prevent memory leak
+    let timeoutId: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('Transport handleRequest timeout after 30s')), 30000);
     });
 
     try {
@@ -884,6 +896,11 @@ export class MCPStreamableHttpServer {
     } catch (error) {
       logger.error("Transport handleRequest error", { requestId, error });
       throw error;
+    } finally {
+      // Always clear timeout to prevent memory leak
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
 
     logger.debug("After transport.handleRequest", {
