@@ -10,6 +10,7 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Vercel serverless deployment**: Ready for production deployment as serverless functions
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
 - **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design
+- **Environment Configuration**: Never use dotenv - use Node.js --env-file or --env-file-if-exists flags instead
 
 ## Development Commands
 
