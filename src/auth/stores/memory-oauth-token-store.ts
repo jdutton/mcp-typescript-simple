@@ -16,6 +16,7 @@ import { logger } from '../../observability/logger.js';
 
 export class MemoryOAuthTokenStore implements OAuthTokenStore {
   private tokens = new Map<string, StoredTokenInfo>();
+  private refreshTokenIndex = new Map<string, string>(); // refreshToken -> accessToken
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor() {
@@ -30,6 +31,11 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
     this.tokens.set(accessToken, tokenInfo);
+
+    // Maintain secondary index for O(1) refresh token lookups
+    if (tokenInfo.refreshToken) {
+      this.refreshTokenIndex.set(tokenInfo.refreshToken, accessToken);
+    }
 
     logger.debug('OAuth token stored', {
       tokenPrefix: accessToken.substring(0, 8),
@@ -68,37 +74,53 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
   }
 
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
-    // Iterate through all tokens to find matching refresh token
-    for (const [accessToken, tokenInfo] of this.tokens.entries()) {
-      if (tokenInfo.refreshToken === refreshToken) {
-        // Verify not expired
-        if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-          logger.warn('OAuth token expired during refresh token lookup', {
-            tokenPrefix: accessToken.substring(0, 8),
-            expiredAt: new Date(tokenInfo.expiresAt).toISOString()
-          });
-          await this.deleteToken(accessToken);
-          return null;
-        }
+    // O(1) lookup using secondary index
+    const accessToken = this.refreshTokenIndex.get(refreshToken);
 
-        logger.debug('OAuth token found by refresh token', {
-          tokenPrefix: accessToken.substring(0, 8),
-          provider: tokenInfo.provider
-        });
-
-        return { accessToken, tokenInfo };
-      }
+    if (!accessToken) {
+      logger.debug('OAuth token not found by refresh token', {
+        refreshTokenPrefix: refreshToken.substring(0, 8)
+      });
+      return null;
     }
 
-    logger.debug('OAuth token not found by refresh token', {
-      refreshTokenPrefix: refreshToken.substring(0, 8)
+    const tokenInfo = this.tokens.get(accessToken);
+
+    if (!tokenInfo) {
+      // Clean up stale index entry
+      this.refreshTokenIndex.delete(refreshToken);
+      logger.debug('OAuth token not found by refresh token (stale index)', {
+        refreshTokenPrefix: refreshToken.substring(0, 8)
+      });
+      return null;
+    }
+
+    // Verify not expired
+    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
+      logger.warn('OAuth token expired during refresh token lookup', {
+        tokenPrefix: accessToken.substring(0, 8),
+        expiredAt: new Date(tokenInfo.expiresAt).toISOString()
+      });
+      await this.deleteToken(accessToken);
+      return null;
+    }
+
+    logger.debug('OAuth token found by refresh token', {
+      tokenPrefix: accessToken.substring(0, 8),
+      provider: tokenInfo.provider
     });
 
-    return null;
+    return { accessToken, tokenInfo };
   }
 
   async deleteToken(accessToken: string): Promise<void> {
+    const tokenInfo = this.tokens.get(accessToken);
     const existed = this.tokens.delete(accessToken);
+
+    // Clean up secondary index
+    if (tokenInfo?.refreshToken) {
+      this.refreshTokenIndex.delete(tokenInfo.refreshToken);
+    }
 
     if (existed) {
       logger.debug('OAuth token deleted', {
@@ -114,6 +136,10 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
     for (const [accessToken, tokenInfo] of this.tokens.entries()) {
       if (tokenInfo.expiresAt && tokenInfo.expiresAt <= now) {
         this.tokens.delete(accessToken);
+        // Clean up secondary index
+        if (tokenInfo.refreshToken) {
+          this.refreshTokenIndex.delete(tokenInfo.refreshToken);
+        }
         cleanedCount++;
         logger.debug('Expired OAuth token cleaned up', {
           tokenPrefix: accessToken.substring(0, 8),
@@ -143,6 +169,7 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
   clear(): void {
     const count = this.tokens.size;
     this.tokens.clear();
+    this.refreshTokenIndex.clear();
     logger.warn('All OAuth tokens cleared', { count });
   }
 
@@ -155,6 +182,7 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
       this.cleanupInterval = undefined;
     }
     this.tokens.clear();
+    this.refreshTokenIndex.clear();
     logger.info('MemoryOAuthTokenStore disposed');
   }
 }
