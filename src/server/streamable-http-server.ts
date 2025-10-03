@@ -745,7 +745,7 @@ export class MCPStreamableHttpServer {
   /**
    * Handle session initialization
    */
-  private async handleSessionInitialized(req: Request, sessionId: string, requestId: string, transport: StreamableHTTPServerTransport): Promise<void> {
+  private async handleSessionInitialized(req: Request, sessionId: string, requestId: string, _transport: StreamableHTTPServerTransport): Promise<void> {
     const authInfo = (req as AuthenticatedRequest).auth;
 
     logger.info("New Streamable HTTP session initialized", {

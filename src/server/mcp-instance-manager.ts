@@ -279,6 +279,10 @@ export class MCPInstanceManager {
 
   /**
    * Dispose of resources
+   *
+   * Note: Does NOT dispose the metadata store as it may be shared across
+   * multiple instances (e.g., Redis/Vercel KV). The metadata store should
+   * be managed separately by the application lifecycle.
    */
   dispose(): void {
     if (this.cleanupTimer) {
@@ -287,7 +291,6 @@ export class MCPInstanceManager {
     }
 
     this.instanceCache.clear();
-    this.metadataStore.dispose();
 
     logger.info('MCPInstanceManager disposed');
   }
