@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 import { LLMManager } from '../../llm/manager.js';
-import { AnyModel, isValidModelForProvider } from '../../llm/types.js';
+import { AnyModel, isValidModelForProvider, getDefaultModelForProvider } from '../../llm/types.js';
 
 type ToolResponse = {
   content: Array<{ type: 'text'; text: string }>;
@@ -48,7 +48,14 @@ export async function handleAnalyzeTool(
     // Get default provider/model for analyze tool if not specified
     const toolDefaults = llmManager.getProviderForTool('analyze');
     const provider = input.provider || toolDefaults.provider;
-    const model = input.model ?? toolDefaults.model;
+
+    // If user specified provider without model, use that provider's default model
+    let model: string | undefined;
+    if (input.provider && !input.model) {
+      model = getDefaultModelForProvider(input.provider);
+    } else {
+      model = input.model ?? toolDefaults.model;
+    }
 
     if (model && !isValidModelForProvider(provider, model as AnyModel)) {
       throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
