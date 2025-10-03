@@ -16,10 +16,15 @@ import { StoredTokenInfo } from '../providers/types.js';
 import { logger } from '../../observability/logger.js';
 
 const KEY_PREFIX = 'oauth:token:';
+const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
 
 export class VercelKVOAuthTokenStore implements OAuthTokenStore {
   private getTokenKey(accessToken: string): string {
     return `${KEY_PREFIX}${accessToken}`;
+  }
+
+  private getRefreshIndexKey(refreshToken: string): string {
+    return `${REFRESH_INDEX_PREFIX}${refreshToken}`;
   }
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
@@ -30,7 +35,18 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
     const ttlMs = tokenInfo.expiresAt - now;
     const ttlSeconds = Math.max(Math.floor(ttlMs / 1000), 1); // At least 1 second
 
-    await kv.setex(key, ttlSeconds, JSON.stringify(tokenInfo));
+    // Store token data and secondary index in parallel
+    const storePromises = [
+      kv.setex(key, ttlSeconds, JSON.stringify(tokenInfo))
+    ];
+
+    // Maintain secondary index for O(1) refresh token lookups
+    if (tokenInfo.refreshToken) {
+      const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
+      storePromises.push(kv.setex(refreshIndexKey, ttlSeconds, accessToken));
+    }
+
+    await Promise.all(storePromises);
 
     logger.debug('OAuth token stored in Vercel KV', {
       tokenPrefix: accessToken.substring(0, 8),
@@ -72,56 +88,68 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
   }
 
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
-    // Scan all OAuth tokens to find matching refresh token
-    // Note: This is O(n) but acceptable for small-to-medium token counts
-    let cursor = 0;
+    // O(1) lookup using secondary index
+    const refreshIndexKey = this.getRefreshIndexKey(refreshToken);
+    const accessToken = await kv.get<string>(refreshIndexKey);
 
-    do {
-      const result = await kv.scan(cursor, { match: `${KEY_PREFIX}*`, count: 100 });
-      cursor = typeof result[0] === 'string' ? parseInt(result[0], 10) : result[0];
-      const keys = result[1];
+    if (!accessToken) {
+      logger.debug('OAuth token not found by refresh token in Vercel KV', {
+        refreshTokenPrefix: refreshToken.substring(0, 8)
+      });
+      return null;
+    }
 
-      // Check each key for matching refresh token
-      for (const key of keys) {
-        const data = await kv.get<string>(key);
-        if (!data) continue;
+    // Fetch token data
+    const key = this.getTokenKey(accessToken);
+    const data = await kv.get<string>(key);
 
-        const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+    if (!data) {
+      // Clean up stale index entry
+      await kv.del(refreshIndexKey);
+      logger.debug('OAuth token not found by refresh token in Vercel KV (stale index)', {
+        refreshTokenPrefix: refreshToken.substring(0, 8)
+      });
+      return null;
+    }
 
-        if (tokenInfo.refreshToken === refreshToken) {
-          // Extract access token from key
-          const accessToken = key.substring(KEY_PREFIX.length);
+    const tokenInfo = JSON.parse(data) as StoredTokenInfo;
 
-          // Verify not expired
-          if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-            logger.warn('OAuth token expired during refresh token lookup', {
-              tokenPrefix: accessToken.substring(0, 8),
-              expiredAt: new Date(tokenInfo.expiresAt).toISOString()
-            });
-            await this.deleteToken(accessToken);
-            return null;
-          }
+    // Verify not expired
+    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
+      logger.warn('OAuth token expired during refresh token lookup', {
+        tokenPrefix: accessToken.substring(0, 8),
+        expiredAt: new Date(tokenInfo.expiresAt).toISOString()
+      });
+      await this.deleteToken(accessToken);
+      return null;
+    }
 
-          logger.debug('OAuth token found by refresh token in Vercel KV', {
-            tokenPrefix: accessToken.substring(0, 8),
-            provider: tokenInfo.provider
-          });
-
-          return { accessToken, tokenInfo };
-        }
-      }
-    } while (cursor !== 0);
-
-    logger.debug('OAuth token not found by refresh token in Vercel KV', {
-      refreshTokenPrefix: refreshToken.substring(0, 8)
+    logger.debug('OAuth token found by refresh token in Vercel KV', {
+      tokenPrefix: accessToken.substring(0, 8),
+      provider: tokenInfo.provider
     });
 
-    return null;
+    return { accessToken, tokenInfo };
   }
 
   async deleteToken(accessToken: string): Promise<void> {
     const key = this.getTokenKey(accessToken);
-    await kv.del(key);
+
+    // Fetch token info to get refresh token for index cleanup
+    const data = await kv.get<string>(key);
+
+    // Delete token and secondary index in parallel
+    const deletePromises = [kv.del(key)];
+
+    if (data) {
+      const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+      if (tokenInfo.refreshToken) {
+        const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
+        deletePromises.push(kv.del(refreshIndexKey));
+      }
+    }
+
+    await Promise.all(deletePromises);
 
     logger.debug('OAuth token deleted from Vercel KV', {
       tokenPrefix: accessToken.substring(0, 8)
