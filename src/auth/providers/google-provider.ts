@@ -320,16 +320,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
         logger.oauthDebug('Found token in local storage, using cached info', { provider: 'google' });
-        return {
-          token,
-          clientId: this.config.clientId,
-          scopes: tokenInfo.scopes,
-          expiresAt: Math.floor(tokenInfo.expiresAt / 1000),
-          extra: {
-            userInfo: tokenInfo.userInfo,
-            provider: 'google',
-          },
-        };
+        return this.buildAuthInfoFromCache(token, tokenInfo);
       }
 
       // If not in local store, verify with Google
@@ -400,22 +391,23 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         }
       }
 
-      const authInfo = {
-        token,
-        clientId: this.config.clientId,
-        scopes: userInfo.scopes || ['openid', 'email', 'profile'],
-        expiresAt: userInfo.expiry_date ? Math.floor(userInfo.expiry_date / 1000) : undefined,
-        extra: {
-          userInfo: {
-            sub: userInfo.sub,
-            email: userInfo.email,
-            provider: 'google',
-          },
-        },
+      // Build OAuthUserInfo for helper methods
+      const oauthUserInfo: OAuthUserInfo = {
+        sub: userInfo.sub,
+        email: userInfo.email,
+        name: userInfo.email, // Use email as name fallback when not available
+        provider: 'google',
       };
 
-      logger.oauthDebug('Returning auth info for user', { provider: 'google', email: userInfo.email });
-      return authInfo;
+      // Use provider expiry_date if available, otherwise use default expiration
+      if (userInfo.expiry_date) {
+        const expiresAtSeconds = Math.floor(userInfo.expiry_date / 1000);
+        logger.oauthDebug('Returning auth info for user (with provider expiry)', { provider: 'google', email: userInfo.email });
+        return this.buildAuthInfoWithExpiration(token, oauthUserInfo, expiresAtSeconds, userInfo.scopes);
+      } else {
+        logger.oauthDebug('Returning auth info for user (with default expiry)', { provider: 'google', email: userInfo.email });
+        return this.buildAuthInfoFromUserInfo(token, oauthUserInfo, userInfo.scopes);
+      }
 
     } catch (error) {
       logger.oauthError('Token verification failed', error);

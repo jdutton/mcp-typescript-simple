@@ -323,30 +323,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       // Check our local token store first
       const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
-        return {
-          token,
-          clientId: this.config.clientId,
-          scopes: tokenInfo.scopes,
-          expiresAt: Math.floor(tokenInfo.expiresAt / 1000),
-          extra: {
-            userInfo: tokenInfo.userInfo,
-            provider: 'github',
-          },
-        };
+        return this.buildAuthInfoFromCache(token, tokenInfo);
       }
 
       // If not in local store, verify with GitHub
       const userInfo = await this.fetchGitHubUserInfo(token);
-
-      return {
-        token,
-        clientId: this.config.clientId,
-        scopes: this.getDefaultScopes(),
-        extra: {
-          userInfo,
-          provider: 'github',
-        },
-      };
+      return this.buildAuthInfoFromUserInfo(token, userInfo);
 
     } catch (error) {
       logger.oauthError('GitHub token verification error', error);

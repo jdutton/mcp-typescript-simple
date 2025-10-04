@@ -354,30 +354,12 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       // Check our local token store first
       const tokenInfo = await this.getToken(token);
       if (tokenInfo) {
-        return {
-          token,
-          clientId: this.config.clientId,
-          scopes: tokenInfo.scopes,
-          expiresAt: Math.floor(tokenInfo.expiresAt / 1000),
-          extra: {
-            userInfo: tokenInfo.userInfo,
-            provider: 'microsoft',
-          },
-        };
+        return this.buildAuthInfoFromCache(token, tokenInfo);
       }
 
       // If not in local store, verify with Microsoft Graph API
       const userInfo = await this.fetchMicrosoftUserInfo(token);
-
-      return {
-        token,
-        clientId: this.config.clientId,
-        scopes: this.getDefaultScopes(),
-        extra: {
-          userInfo,
-          provider: 'microsoft',
-        },
-      };
+      return this.buildAuthInfoFromUserInfo(token, userInfo);
 
     } catch (error) {
       logger.oauthError('Microsoft token verification error', error);
