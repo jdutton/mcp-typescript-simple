@@ -8,6 +8,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { LLMManager } from "../build/llm/manager.js";
+import { MCPInstanceManager } from "../build/server/mcp-instance-manager.js";
 import { setupMCPServer } from "../build/server/mcp-setup.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
 import { OAuthProviderFactory } from "../build/auth/factory.js";
@@ -20,8 +21,8 @@ let llmManagerInstance: LLMManager | null = null;
 // Global OAuth provider instance for authentication
 let oauthProviderInstance: OAuthProvider | null = null;
 
-// Global cache of transports by session ID (per MCP SDK pattern)
-const transportCache = new Map<string, StreamableHTTPServerTransport>();
+// Global MCP instance manager for horizontal scalability
+let instanceManagerInstance: MCPInstanceManager | null = null;
 
 /**
  * Get or initialize LLM manager (singleton)
@@ -73,38 +74,26 @@ async function getOAuthProvider() {
 }
 
 /**
- * Create a new MCP server for this request
- * Note: Each serverless invocation needs its own server instance with its own transport
+ * Get or initialize MCP instance manager (singleton)
  */
-async function createMCPServer(): Promise<Server> {
-  logger.debug("Creating new MCP server instance for request");
+async function getInstanceManager(): Promise<MCPInstanceManager> {
+  if (instanceManagerInstance) {
+    return instanceManagerInstance;
+  }
 
-  // Get shared LLM manager
+  logger.info("Initializing MCP instance manager for Vercel");
   const llmManager = await getLLMManager();
 
-  // Create MCP server
-  const server = new Server(
-    {
-      name: "mcp-typescript-simple",
-      version: "1.0.0",
-    },
-    {
-      capabilities: {
-        tools: {},
-      },
-    }
-  );
+  // Instance manager auto-detects Vercel KV when available
+  instanceManagerInstance = new MCPInstanceManager(llmManager);
 
-  // Setup server with tools
-  await setupMCPServer(server, llmManager);
-
-  logger.debug("MCP server instance created");
-  return server;
+  logger.info("MCP instance manager initialized");
+  return instanceManagerInstance;
 }
 
 /**
  * Vercel serverless function handler
- * Follows official MCP SDK pattern for session management
+ * Uses MCP instance manager for horizontal scalability
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startTime = Date.now();
@@ -131,17 +120,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
+    // Get instance manager
+    const instanceManager = await getInstanceManager();
+
     // Check for existing session ID
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
-    // Atomic check-and-get to prevent race condition
-    const cachedTransport = sessionId ? transportCache.get(sessionId) : undefined;
+    if (sessionId) {
+      // Session exists - get or reconstruct from metadata
+      try {
+        const instance = await instanceManager.getOrRecreateInstance(sessionId, {
+          enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
+          allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
+          allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
+        });
 
-    if (cachedTransport) {
-      // Reuse existing transport (per MCP SDK pattern)
-      logger.debug("Reusing cached transport for session", { sessionId, requestId });
-      transport = cachedTransport;
+        logger.debug("Reusing/reconstructed transport for session", { sessionId, requestId });
+        transport = instance.transport;
+      } catch (error) {
+        logger.error("Failed to reconstruct session", { sessionId, requestId, error });
+        res.status(400).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: 'Session not found or expired',
+          },
+          id: null,
+        });
+        return;
+      }
     } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
       // New initialization request - create new transport and server
       logger.debug("Creating new transport for initialize request", { requestId });
@@ -149,6 +157,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Check authentication if OAuth is configured
       const oauthProvider = await getOAuthProvider();
       const requireAuth = !!oauthProvider;
+      let authInfo: { provider: string; userId?: string; email?: string } | undefined;
 
       if (requireAuth && oauthProvider) {
         logger.debug("Validating bearer token", { requestId });
@@ -188,6 +197,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             requestId,
             clientId: authResult.clientId
           });
+
+          // Extract auth info for metadata
+          const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
+          authInfo = {
+            provider: oauthProvider.getProviderType(),
+            userId: userInfo?.sub,
+            email: userInfo?.email,
+          };
         } catch (error) {
           logger.error("Token verification error", { requestId, error });
           res.status(401).json({
@@ -212,13 +229,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         onsessioninitialized: async (newSessionId: string) => {
           logger.info("Transport session initialized", { sessionId: newSessionId, requestId });
-          // Store the transport by session ID
-          transportCache.set(newSessionId, transport);
+
+          // Store session metadata for horizontal scalability
+          await instanceManager.storeSessionMetadata(newSessionId, authInfo);
         },
         onsessionclosed: async (closedSessionId: string) => {
           logger.info("Transport session closed", { sessionId: closedSessionId, requestId });
-          // Remove from cache
-          transportCache.delete(closedSessionId);
+          // Metadata cleanup is handled by instance manager
         },
         enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
         eventStore: undefined,
@@ -227,16 +244,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
       });
 
-      // Clean up transport when closed
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          transportCache.delete(transport.sessionId);
-          logger.info("Transport cleanup complete", { sessionId: transport.sessionId });
+      // Create new server using LLM manager
+      const llmManager = await getLLMManager();
+      const server = new Server(
+        {
+          name: "mcp-typescript-simple",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {},
+          },
         }
-      };
+      );
 
-      // Create new server and connect it to the transport
-      const server = await createMCPServer();
+      // Setup server with tools
+      await setupMCPServer(server, llmManager);
+
+      // Connect server to transport
       await server.connect(transport);
       logger.debug("New server connected to transport", { requestId });
     } else {

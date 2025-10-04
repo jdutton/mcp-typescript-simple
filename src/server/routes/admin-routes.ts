@@ -27,7 +27,7 @@ export function setupAdminRoutes(
       sessions: sessions.map(s => ({
         sessionId: s.sessionId,
         createdAt: new Date(s.createdAt).toISOString(),
-        lastActivity: new Date(s.lastActivity).toISOString(),
+        expiresAt: new Date(s.expiresAt).toISOString(),
         hasAuth: !!s.authInfo,
         metadata: s.metadata,
       })),

@@ -13,7 +13,7 @@ import { logger } from '../utils/logger.js';
 export interface SessionInfo {
   sessionId: string;
   createdAt: number;
-  lastActivity: number;
+  expiresAt: number;
   authInfo?: AuthInfo;
   metadata?: Record<string, unknown>;
 }
@@ -53,7 +53,7 @@ export class SessionManager {
     const sessionInfo: SessionInfo = {
       sessionId,
       createdAt: now,
-      lastActivity: now,
+      expiresAt: now + this.SESSION_TIMEOUT,
       authInfo,
       metadata,
     };
@@ -70,8 +70,11 @@ export class SessionManager {
   getSession(sessionId: string): SessionInfo | undefined {
     const session = this.sessions.get(sessionId);
     if (session) {
-      // Update last activity
-      session.lastActivity = Date.now();
+      // Check if expired
+      if (Date.now() > session.expiresAt) {
+        this.sessions.delete(sessionId);
+        return undefined;
+      }
     }
     return session;
   }
@@ -93,7 +96,6 @@ export class SessionManager {
       session.metadata = { ...session.metadata, ...updates.metadata };
     }
 
-    session.lastActivity = Date.now();
     return true;
   }
 
@@ -107,7 +109,7 @@ export class SessionManager {
     }
 
     const now = Date.now();
-    if (now - session.lastActivity > this.SESSION_TIMEOUT) {
+    if (now > session.expiresAt) {
       this.sessions.delete(sessionId);
       return false;
     }
@@ -137,7 +139,7 @@ export class SessionManager {
     const activeSessions: SessionInfo[] = [];
 
     for (const session of this.sessions.values()) {
-      if (now - session.lastActivity <= this.SESSION_TIMEOUT) {
+      if (now <= session.expiresAt) {
         activeSessions.push(session);
       }
     }
@@ -158,7 +160,7 @@ export class SessionManager {
     let expiredSessions = 0;
 
     for (const session of this.sessions.values()) {
-      if (now - session.lastActivity <= this.SESSION_TIMEOUT) {
+      if (now <= session.expiresAt) {
         activeSessions++;
       } else {
         expiredSessions++;
@@ -180,7 +182,7 @@ export class SessionManager {
     const expiredSessions: string[] = [];
 
     for (const [sessionId, session] of this.sessions) {
-      if (now - session.lastActivity > this.SESSION_TIMEOUT) {
+      if (now > session.expiresAt) {
         expiredSessions.push(sessionId);
       }
     }

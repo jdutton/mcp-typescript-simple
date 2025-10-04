@@ -33,6 +33,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected tokenStore: OAuthTokenStore;
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
+  protected readonly DEFAULT_TOKEN_EXPIRATION_SECONDS = 60 * 60; // 1 hour default when provider doesn't supply expiration
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
 
@@ -95,6 +96,78 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract handleLogout(req: Request, res: Response): Promise<void>;
   abstract verifyAccessToken(token: string): Promise<AuthInfo>;
   abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+
+  /**
+   * Build AuthInfo from cached token information
+   *
+   * Use this when token is found in local token store with complete metadata.
+   */
+  protected buildAuthInfoFromCache(
+    token: string,
+    tokenInfo: StoredTokenInfo
+  ): AuthInfo {
+    return {
+      token,
+      clientId: this.config.clientId,
+      scopes: tokenInfo.scopes,
+      expiresAt: Math.floor(tokenInfo.expiresAt / 1000),
+      extra: {
+        userInfo: tokenInfo.userInfo,
+        provider: this.getProviderType(),
+      },
+    };
+  }
+
+  /**
+   * Build AuthInfo from fresh user info without provider-supplied expiration
+   *
+   * Use this when verifying token directly with provider API and the provider
+   * doesn't return token expiration info (GitHub, Microsoft).
+   * Applies DEFAULT_TOKEN_EXPIRATION_SECONDS (1 hour).
+   */
+  protected buildAuthInfoFromUserInfo(
+    token: string,
+    userInfo: OAuthUserInfo,
+    scopes?: string[]
+  ): AuthInfo {
+    const expiresAt = Math.floor(Date.now() / 1000) + this.DEFAULT_TOKEN_EXPIRATION_SECONDS;
+
+    return {
+      token,
+      clientId: this.config.clientId,
+      scopes: scopes || this.getDefaultScopes(),
+      expiresAt,
+      extra: {
+        userInfo,
+        provider: this.getProviderType(),
+      },
+    };
+  }
+
+  /**
+   * Build AuthInfo with custom expiration timestamp
+   *
+   * Use this when provider supplies token expiration info (Google with expiry_date).
+   *
+   * @param expiresAtSeconds - Unix timestamp in seconds when token expires
+   */
+  protected buildAuthInfoWithExpiration(
+    token: string,
+    userInfo: OAuthUserInfo,
+    expiresAtSeconds: number,
+    scopes?: string[]
+  ): AuthInfo {
+    return {
+      token,
+      clientId: this.config.clientId,
+      scopes: scopes || this.getDefaultScopes(),
+      expiresAt: expiresAtSeconds,
+      extra: {
+        userInfo,
+        provider: this.getProviderType(),
+      },
+    };
+  }
 
   /**
    * Check if user is authorized based on allowlist

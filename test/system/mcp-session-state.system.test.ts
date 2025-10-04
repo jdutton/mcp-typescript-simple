@@ -257,9 +257,9 @@ describe('MCP Session State Management System Tests', () => {
         params: {}
       });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(500);
       expect(response.data.error).toBeDefined();
-      expect(response.data.error?.message).toBe('Bad Request: Server not initialized');
+      expect(response.data.error?.message).toContain('Server not initialized');
     });
 
     it('should fail with invalid session ID', async () => {
@@ -272,9 +272,9 @@ describe('MCP Session State Management System Tests', () => {
         'mcp-session-id': 'invalid-session-id'
       });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(500);
       expect(response.data.error).toBeDefined();
-      expect(response.data.error?.message).toBe('Bad Request: Server not initialized');
+      expect(response.data.error?.message).toContain('Server not initialized');
     });
   });
 

@@ -59,6 +59,12 @@ npm run sync-check              # Check if branch is behind origin/main (safe, n
 npm run pre-commit              # Complete pre-commit workflow (sync check + validation)
 npm run post-pr-merge-cleanup   # Clean up merged branches after PR merge (switches to main, deletes merged branches)
 
+# Development Data Management
+npm run dev:clean               # Clean all file-based data stores
+npm run dev:clean:sessions      # Clean only MCP session metadata
+npm run dev:clean:tokens        # Clean only access tokens
+npm run dev:clean:oauth         # Clean only OAuth clients
+
 # Observability and Development Monitoring
 npm run otel:start              # Start Grafana OTEL-LGTM stack (port 3100)
 npm run otel:stop               # Stop observability stack

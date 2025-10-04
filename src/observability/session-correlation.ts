@@ -15,7 +15,7 @@ export interface SessionContext {
   sessionId: string;
   createdAt: number;
   authenticated: boolean;
-  lastActivity: number;
+  expiresAt: number;
 }
 
 /**
@@ -27,7 +27,7 @@ export function extractSessionContext(session: SessionInfo): SessionContext {
     sessionId: session.sessionId, // Safe: UUID v4 contains no personal data
     createdAt: session.createdAt,
     authenticated: !!session.authInfo,
-    lastActivity: session.lastActivity
+    expiresAt: session.expiresAt
   };
 }
 
@@ -45,7 +45,7 @@ export function addSessionToSpan(sessionContext: SessionContext): void {
     'mcp.session.id': sessionContext.sessionId,
     'mcp.session.created_at': sessionContext.createdAt,
     'mcp.session.authenticated': sessionContext.authenticated,
-    'mcp.session.last_activity': sessionContext.lastActivity
+    'mcp.session.expires_at': sessionContext.expiresAt
   });
 }
 

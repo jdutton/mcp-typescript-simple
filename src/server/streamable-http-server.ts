@@ -7,6 +7,7 @@ import { createServer, Server as HttpServer } from 'http';
 import helmet from 'helmet';
 import cors from 'cors';
 import * as OpenApiValidator from 'express-openapi-validator';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -19,6 +20,8 @@ import { ClientStoreFactory } from '../auth/client-store-factory.js';
 import { OAuthRegisteredClientsStore } from '../auth/stores/client-store-interface.js';
 import { TokenStoreFactory } from '../auth/token-store-factory.js';
 import { InitialAccessTokenStore } from '../auth/stores/token-store-interface.js';
+import { MCPInstanceManager } from './mcp-instance-manager.js';
+import { LLMManager } from '../llm/manager.js';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
@@ -51,8 +54,9 @@ export class MCPStreamableHttpServer {
   private clientStore?: OAuthRegisteredClientsStore;
   private tokenStore?: InitialAccessTokenStore;
   private sessionManager: SessionManager;
+  private llmManager: LLMManager;
+  private instanceManager: MCPInstanceManager;
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
-  private sessionTransports: Map<string, StreamableHTTPServerTransport> = new Map();
 
   constructor(private options: StreamableHttpServerOptions) {
     this.app = express();
@@ -63,6 +67,12 @@ export class MCPStreamableHttpServer {
       : undefined;
 
     this.sessionManager = new SessionManager(eventStore);
+
+    // Create LLM manager for tool support
+    this.llmManager = new LLMManager();
+
+    // Create MCP instance manager for horizontal scalability
+    this.instanceManager = new MCPInstanceManager(this.llmManager);
 
     this.setupMiddleware();
 
@@ -77,6 +87,14 @@ export class MCPStreamableHttpServer {
    * Initialize async components like OAuth and client store
    */
   async initialize(): Promise<void> {
+    // Initialize LLM manager (gracefully handle missing API keys)
+    try {
+      await this.llmManager.initialize();
+    } catch (error) {
+      logger.warn('LLM manager initialization failed, LLM tools will be unavailable', { error });
+      // Continue - basic tools still work without LLM providers
+    }
+
     // Initialize client store for OAuth Dynamic Client Registration
     this.clientStore = ClientStoreFactory.create();
 
@@ -526,18 +544,33 @@ export class MCPStreamableHttpServer {
         this.logJsonRpcRequest(req, requestId);
 
         // Get or create transport for the session
-        const transport = await this.getOrCreateTransport(req, requestId);
+        const { transport, isReconstructed } = await this.getOrCreateTransport(req, requestId);
 
-        logger.debug("Handling request with Streamable HTTP transport", { requestId });
+        logger.debug("Handling request with Streamable HTTP transport", {
+          requestId,
+          isReconstructed
+        });
 
         // Set up response monitoring
         const { originalWrite, originalEnd, responseDataCaptured } = this.setupResponseMonitoring(res, requestId);
 
-        // Connect transport to MCP server
-        await this.connectTransportToServer(transport, requestId);
+        // Connect transport to MCP server (only for new sessions)
+        // Reconstructed sessions already have server+transport connected
+        if (!isReconstructed) {
+          logger.debug("Connecting new session to server", { requestId });
+          await this.connectTransportToServer(transport, requestId);
+          logger.debug("New session connected successfully", { requestId });
+        } else {
+          logger.info("Using reconstructed session - skipping connection", {
+            requestId,
+            sessionId: req.headers['mcp-session-id']
+          });
+        }
 
         // Process the request
+        logger.info("About to process transport request", { requestId, isReconstructed });
         await this.processTransportRequest(transport, req, res, requestId);
+        logger.info("Transport request processed successfully", { requestId });
 
         logger.debug("Response data captured", {
           requestId,
@@ -595,40 +628,17 @@ export class MCPStreamableHttpServer {
 
     logger.info("Session cleanup requested", { requestId, sessionId });
 
-    if (this.sessionTransports.has(sessionId)) {
-      const transport = this.sessionTransports.get(sessionId)!;
+    // Session cleanup is now handled by instance manager's onSessionClosed callback
+    // We just need to notify the session manager
+    this.sessionManager.closeSession(sessionId);
 
-      try {
-        await transport.close();
-        logger.debug("Transport closed for session", { requestId, sessionId });
-      } catch (error) {
-        logger.error("Error closing transport for session", {
-          requestId,
-          sessionId,
-          error
-        });
-      }
-
-      this.sessionTransports.delete(sessionId);
-      this.sessionManager.closeSession(sessionId);
-
-      logger.info("Session successfully cleaned up", { requestId, sessionId });
-      res.status(200).json({
-        message: 'Session successfully terminated',
-        sessionId: sessionId,
-        requestId: requestId,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      logger.warn("Session not found or already cleaned up", { requestId, sessionId });
-      res.status(404).json({
-        error: 'Session Not Found',
-        message: `Session ${sessionId} not found or already terminated`,
-        sessionId: sessionId,
-        requestId: requestId,
-        timestamp: new Date().toISOString()
-      });
-    }
+    logger.info("Session successfully cleaned up", { requestId, sessionId });
+    res.status(200).json({
+      message: 'Session successfully terminated',
+      sessionId: sessionId,
+      requestId: requestId,
+      timestamp: new Date().toISOString()
+    });
   }
 
   /**
@@ -681,34 +691,64 @@ export class MCPStreamableHttpServer {
   }
 
   /**
-   * Get existing transport or create a new one for the session
+   * Get existing instance or reconstruct from metadata
+   * Returns either a full instance (server + transport) or just a transport for new sessions
    */
-  private async getOrCreateTransport(req: Request, requestId: string): Promise<StreamableHTTPServerTransport> {
+  private async getOrCreateTransport(req: Request, requestId: string): Promise<{
+    transport: StreamableHTTPServerTransport;
+    server?: Server;
+    isReconstructed: boolean;
+  }> {
     const existingSessionId = req.headers['mcp-session-id'] as string;
 
-    // Atomic check-and-get to prevent race condition
-    const existingTransport = existingSessionId ? this.sessionTransports.get(existingSessionId) : undefined;
+    if (existingSessionId) {
+      // Session exists - use instance manager to get or reconstruct
+      try {
+        logger.debug("Getting or reconstructing instance", {
+          requestId,
+          sessionId: existingSessionId
+        });
 
-    if (existingTransport) {
-      logger.debug("Reusing existing transport for session", {
-        requestId,
-        sessionId: existingSessionId
-      });
-      return existingTransport;
+        const instance = await this.instanceManager.getOrRecreateInstance(existingSessionId, {
+          enableJsonResponse: this.options.enableJsonResponse,
+          enableResumability: this.options.enableResumability,
+          allowedHosts: this.options.allowedHosts,
+          allowedOrigins: this.options.allowedOrigins,
+        });
+
+        logger.info("Successfully got/reconstructed instance", {
+          requestId,
+          sessionId: existingSessionId,
+          hasServer: !!instance.server,
+          hasTransport: !!instance.transport
+        });
+
+        return {
+          transport: instance.transport,
+          server: instance.server,
+          isReconstructed: true
+        };
+      } catch (error) {
+        logger.error("Failed to reconstruct session", {
+          requestId,
+          sessionId: existingSessionId,
+          error,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        });
+        throw error;
+      }
     }
 
+    // New session - create transport (session ID will be generated in transport)
     logger.debug("Creating new transport for session", {
       requestId,
-      sessionId: existingSessionId || 'new'
+      sessionId: 'new'
     });
-    const transport = this.createNewTransport(req, requestId);
-
-    // Store transport for future session reuse (will be updated with actual sessionId in handleSessionInitialized)
-    if (existingSessionId) {
-      this.sessionTransports.set(existingSessionId, transport);
-    }
-
-    return transport;
+    return {
+      transport: this.createNewTransport(req, requestId),
+      isReconstructed: false
+    };
   }
 
   /**
@@ -722,9 +762,6 @@ export class MCPStreamableHttpServer {
         return sessionId;
       },
       onsessioninitialized: async (sessionId: string) => {
-        // Store transport with the actual generated session ID
-        this.sessionTransports.set(sessionId, transport);
-        logger.debug("Stored transport for session", { requestId, sessionId });
         await this.handleSessionInitialized(req, sessionId, requestId);
       },
       onsessionclosed: async (sessionId: string) => {
@@ -770,6 +807,14 @@ export class MCPStreamableHttpServer {
         totalSessions: stats.totalSessions,
         activeSessions: stats.activeSessions
       });
+
+      // Store session metadata in instance manager for horizontal scalability
+      await this.instanceManager.storeSessionMetadata(sessionId, authInfo ? {
+        provider: authInfo.extra?.provider as string || 'unknown',
+        userId: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).sub : undefined,
+        email: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).email : undefined,
+      } : undefined);
+
     } catch (error) {
       logger.error("Failed to create session", { requestId, error });
     }
@@ -780,9 +825,6 @@ export class MCPStreamableHttpServer {
    */
   private async handleSessionClosed(sessionId: string, requestId: string): Promise<void> {
     logger.info("Streamable HTTP session closed", { requestId, sessionId });
-
-    this.sessionTransports.delete(sessionId);
-    logger.debug("Removed transport for session", { requestId, sessionId });
 
     try {
       this.sessionManager.closeSession(sessionId);
@@ -795,6 +837,9 @@ export class MCPStreamableHttpServer {
     } catch (error) {
       logger.error("Failed to close session", { requestId, error });
     }
+
+    // Note: Instance manager's cleanup is automatic via cleanup timer
+    // Metadata is deleted by MCPInstanceManager when session is closed
   }
 
   /**
@@ -837,6 +882,7 @@ export class MCPStreamableHttpServer {
 
   /**
    * Connect transport to MCP server handler
+   * (Only called for new sessions, not reconstructed ones)
    */
   private async connectTransportToServer(transport: StreamableHTTPServerTransport, requestId: string): Promise<void> {
     if (!this.streamableTransportHandler) {
@@ -875,14 +921,19 @@ export class MCPStreamableHttpServer {
    * Process the request using the transport
    */
   private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
-    logger.debug("Before transport.handleRequest", {
+    const mcpMethod = req.body?.method || 'unknown';
+
+    logger.info("Before transport.handleRequest", {
       requestId,
       headersSent: res.headersSent,
-      responseFinished: res.finished
+      responseFinished: res.finished,
+      transportSessionId: transport.sessionId || 'no-session-id',
+      mcpMethod,
+      hasBody: !!req.body
     });
 
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
-    logger.debug("Transport.handleRequest started", { requestId });
+    logger.info("Transport.handleRequest called, waiting for completion", { requestId, mcpMethod });
 
     // Create timeout with cleanup to prevent memory leak
     let timeoutId: NodeJS.Timeout | undefined;
@@ -892,9 +943,19 @@ export class MCPStreamableHttpServer {
 
     try {
       await Promise.race([transportPromise, timeoutPromise]);
-      logger.debug("Transport handled request successfully", { requestId });
+      logger.info("Transport handled request successfully", {
+        requestId,
+        statusCode: res.statusCode,
+        headersSent: res.headersSent
+      });
     } catch (error) {
-      logger.error("Transport handleRequest error", { requestId, error });
+      logger.error("Transport handleRequest error", {
+        requestId,
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined,
+        statusCode: res.statusCode
+      });
       throw error;
     } finally {
       // Always clear timeout to prevent memory leak
@@ -962,6 +1023,9 @@ export class MCPStreamableHttpServer {
         } else {
           logger.info("Streamable HTTP server stopped");
           this.sessionManager.destroy();
+
+          // Dispose instance manager resources
+          this.instanceManager.dispose();
 
           // Cleanup client store resources
           if (this.clientStore && 'dispose' in this.clientStore && typeof this.clientStore.dispose === 'function') {
