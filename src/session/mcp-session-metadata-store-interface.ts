@@ -63,9 +63,12 @@ export interface MCPSessionMetadata {
   createdAt: number;
 
   /**
-   * Last activity timestamp (Unix milliseconds)
+   * Session expiration timestamp (Unix milliseconds)
+   *
+   * Sessions are automatically deleted when Date.now() > expiresAt.
+   * This enables TTL-based cleanup without mutable state.
    */
-  lastActivity: number;
+  expiresAt: number;
 
   /**
    * Additional custom metadata
@@ -99,16 +102,9 @@ export interface MCPSessionMetadataStore {
    * Retrieve session metadata by session ID
    *
    * @param sessionId - Unique session identifier
-   * @returns Session metadata or null if not found
+   * @returns Session metadata or null if not found or expired
    */
   getSession(sessionId: string): Promise<MCPSessionMetadata | null>;
-
-  /**
-   * Update last activity timestamp
-   *
-   * @param sessionId - Unique session identifier
-   */
-  updateActivity(sessionId: string): Promise<void>;
 
   /**
    * Delete session metadata by session ID

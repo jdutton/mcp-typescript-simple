@@ -99,6 +99,13 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
       expect(instance.server).toBeDefined();
       expect(instance.transport).toBeDefined();
       expect(instance.lastUsed).toBeGreaterThan(0);
+
+      // BUG REPRODUCTION: Transport should have session ID set
+      expect(instance.transport.sessionId).toBe(sessionId);
+
+      // BUG REPRODUCTION: Transport should be marked as initialized
+      // The _initialized flag is critical for the SDK to accept non-initialization requests
+      expect((instance.transport as any)._initialized).toBe(true);
     });
 
     it('should throw error for non-existent session', async () => {

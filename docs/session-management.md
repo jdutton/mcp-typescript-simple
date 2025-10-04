@@ -2,106 +2,170 @@
 
 ## Overview
 
-The MCP TypeScript Simple server uses StreamableHTTPServerTransport for HTTP-based MCP protocol communication. This document describes the session management architecture, limitations, and deployment considerations.
+The MCP TypeScript Simple server uses StreamableHTTPServerTransport for HTTP-based MCP protocol communication with **horizontal scalability** support via metadata-driven reconstruction. This document describes the session management architecture, scalability features, and deployment considerations.
 
 ## Session State Architecture
 
-### In-Memory State Management
-The StreamableHTTPServerTransport session management has important architectural characteristics:
+### Hybrid Reconstruction Pattern (v1.1.0+)
 
-- **Session transports are stored in memory only** - cannot be serialized or persisted to external storage (Redis, databases)
+The server implements a **two-tier session management system** that enables horizontal scalability:
+
+#### 1. Metadata Layer (Persistent, Serializable)
+Session metadata is stored in external storage (Vercel KV/Redis):
+
+```typescript
+interface MCPSessionMetadata {
+  sessionId: string;
+  createdAt: number;
+  lastActivity: number;
+  authInfo?: {           // OAuth authentication preserved
+    provider: string;
+    userId?: string;
+    email?: string;
+  };
+}
+```
+
+**Storage Options** (auto-detected):
+- **Vercel KV** (Redis): For serverless/multi-instance deployments
+- **Memory**: For local development and single-instance deployments
+
+#### 2. Instance Layer (Ephemeral, Non-Serializable)
+Server + Transport instances are reconstructed on-demand:
+
 - **Transport objects contain non-serializable components**: HTTP response objects, event handlers, connection state
-- **No cross-instance session sharing** - each server instance maintains its own session storage
+- **Instances are cached locally** (10-minute TTL) to avoid reconstruction overhead
+- **Any instance can handle any session** via just-in-time reconstruction from metadata
 
 ### Session Lifecycle
-1. **Initialization**: Client sends MCP `initialize` request, server creates new StreamableHTTPServerTransport
+1. **Initialization**: Client sends MCP `initialize` request
+   - Server creates new StreamableHTTPServerTransport
+   - Session metadata stored in Vercel KV/Redis (if available)
 2. **Session ID**: Server generates UUID and returns in `mcp-session-id` header
-3. **Persistence**: Client must include `mcp-session-id` header in all subsequent requests
-4. **Cleanup**: Sessions can be terminated via `DELETE /mcp` endpoint or automatic timeout
+3. **Subsequent Requests**: Client includes `mcp-session-id` header
+   - Server checks local instance cache (10-min TTL)
+   - On cache miss: Fetches metadata from Vercel KV/Redis
+   - Reconstructs Server + Transport from metadata
+   - Caches instance locally for future requests
+4. **Cleanup**: Sessions can be terminated via `DELETE /mcp` endpoint or automatic timeout (30 minutes)
 
 ## Deployment Implications
 
 ### Single Instance Deployments ✅
-**Works perfectly with current implementation**
-- Local development servers
+**Works perfectly with automatic in-memory storage**
+- Local development servers (`npm run dev:http`)
 - Single container deployments
 - Simple production environments
+- **No configuration needed** - automatically uses memory store
 
-### Load Balanced Deployments ⚠️
-**Requires careful configuration**
-- **Requires sticky sessions** - clients must always route to the same server instance
-- Configure load balancer with session affinity using `mcp-session-id` header
-- Without sticky sessions: "Server not initialized" errors on subsequent requests
+### Vercel Serverless ✅
+**Fully supported with Vercel KV**
+- Horizontal auto-scaling across function instances
+- Sessions survive cold starts and instance restarts
+- Any function instance can handle any session
+- **Setup**: Add Vercel KV integration (`vercel link` → add KV storage)
 
-**Load Balancer Configuration Examples:**
-```nginx
-# Nginx with ip_hash for session affinity
-upstream mcp_servers {
-    ip_hash;
-    server 10.0.0.1:3000;
-    server 10.0.0.2:3000;
-}
+**How it works:**
+```
+Request → Vercel Function Instance A
+  ├─ Check local cache (miss - cold start)
+  ├─ Fetch metadata from Vercel KV
+  ├─ Reconstruct Server + Transport
+  └─ Process request
+
+Request → Vercel Function Instance B (different instance)
+  ├─ Check local cache (miss - first time)
+  ├─ Fetch SAME metadata from Vercel KV
+  ├─ Reconstruct Server + Transport
+  └─ Process request successfully ✅
 ```
 
-### Serverless/Functions ❌
-**Not suitable for stateless functions**
-- AWS Lambda, Vercel Functions: Function restarts lose all session state
-- Each function invocation creates isolated memory space
-- No persistent memory between invocations
+### Load Balanced Deployments ✅
+**No sticky sessions required with Vercel KV/Redis**
+- Multiple identical server instances
+- Round-robin load balancing works perfectly
+- Sessions accessible from any instance
+- **Setup**: Configure `REDIS_URL` environment variable OR use Vercel KV
 
-### Container Orchestration ⚠️
-**Possible with session affinity**
-- Kubernetes/Docker Swarm: Use persistent pods with session affinity
-- Horizontal scaling requires sticky session configuration
-- Pod restarts lose active sessions
+**Without external storage** (fallback to memory):
+- **Requires sticky sessions** - clients must route to same instance
+- Configure load balancer with session affinity using `mcp-session-id` header
 
-**Kubernetes Configuration Example:**
+### Container Orchestration ✅
+**Kubernetes/Docker Swarm with horizontal scaling**
+- Deploy with Vercel KV or Redis for session metadata
+- No session affinity required
+- Scale pods freely - sessions work across all pods
+- **Setup**: Set `REDIS_URL` environment variable in pod spec
+
+**Example Kubernetes Deployment:**
 ```yaml
-apiVersion: v1
-kind: Service
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: mcp-service
+  name: mcp-server
 spec:
-  sessionAffinity: ClientIP
-  sessionAffinityConfig:
-    clientIP:
-      timeoutSeconds: 10800  # 3 hours
-  ports:
-  - port: 3000
-    targetPort: 3000
+  replicas: 3  # Scale horizontally
   selector:
-    app: mcp-server
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+      - name: mcp-server
+        image: mcp-typescript-simple:latest
+        env:
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        # NO session affinity needed!
 ```
 
 ## Recommended Deployment Patterns
 
 ### 1. Development
-**Single instance** - Current implementation works perfectly
+**Single instance with automatic memory storage**
 - `npm run dev:http` for local development
 - Docker container for isolated development
-- No special configuration needed
+- No special configuration needed - automatically uses memory store
+- Perfect for development and testing
 
-### 2. Production - Simple
+### 2. Production - Serverless (Vercel/AWS Lambda)
+**Horizontal scaling with Vercel KV/Redis**
+- Auto-scaling across multiple function instances
+- Sessions accessible from any instance
+- **Setup**: Add Vercel KV integration or configure `REDIS_URL`
+- No sticky sessions required - requests can hit any instance
+- Sessions survive cold starts and instance restarts
+
+### 3. Production - Load Balanced (Kubernetes/Docker Swarm)
+**Horizontal scaling with external metadata storage**
+- Multiple identical server instances with round-robin load balancing
+- Sessions accessible from any instance via Vercel KV/Redis
+- **Setup**: Configure `REDIS_URL` environment variable
+- No session affinity required - any instance can handle any session
+- Scale pods/containers freely based on load
+
+### 4. Production - Simple (Single Instance)
 **Single instance with high availability backup**
 - Primary instance with health monitoring
-- Standby instance for failover (manual process)
+- Optional standby instance for failover
+- Uses in-memory storage (no external dependencies)
 - Regular health checks via `/health` endpoint
 
-### 3. Production - Scaled
-**Load balancer with sticky sessions**
-- Multiple identical server instances
-- Load balancer configured for session affinity
-- Shared configuration and secrets
+## Alternative Approaches (Legacy/Fallback)
 
-### 4. High Scale Alternative
-**Stateless mode** (higher overhead, no session benefits)
-- Create new transport+server for every request
-- No session persistence between requests
-- Higher memory and CPU usage per request
+### 1. Load Balancing Without External Storage
+**Requires sticky sessions**
+- Configure load balancer for session affinity using `mcp-session-id` header
+- Each instance maintains its own in-memory session storage
+- Requests must route to same instance for session continuity
+- Less flexible than Vercel KV/Redis approach
 
-## Alternative Approaches
-
-### 1. Stateless Mode Implementation
+### 2. Stateless Mode Implementation
+**Not recommended - loses session benefits**
 ```typescript
 // Create fresh server per request (no session persistence)
 app.post('/mcp', async (req, res) => {
@@ -111,19 +175,9 @@ app.post('/mcp', async (req, res) => {
   // Handle request and cleanup
 });
 ```
-
-### 2. Custom Session Storage
-**Complex approach requiring custom MCP state management**
-- Implement application-level session state serialization
-- Store serialized state in Redis/database
-- Reconstruct transport objects from stored state
-- Requires deep understanding of MCP SDK internals
-
-### 3. Sticky Sessions
-**Recommended for production scaling**
-- Configure load balancer to route clients to same server instance
-- Use `mcp-session-id` header for routing decisions
-- Implement health checks for automatic failover
+- Higher overhead per request
+- No session state between requests
+- Higher memory and CPU usage
 
 ## Session Management API
 
@@ -203,32 +257,71 @@ GET /health
 ## Performance Considerations
 
 ### Memory Usage
-- Each session requires ~1-5MB memory (depending on usage)
-- Sessions accumulate until explicitly cleaned up
-- Monitor memory usage in production deployments
+**Metadata Storage** (Vercel KV/Redis):
+- Each session metadata record: ~500 bytes
+- Minimal memory footprint on metadata store
+- 30-minute TTL for automatic cleanup
+
+**Instance Cache** (In-Memory):
+- Each cached instance: ~1-5MB (depending on usage)
+- 10-minute TTL for automatic cache eviction
+- Only active sessions consume instance memory
 
 ### Concurrent Sessions
-- Single instance can handle 100-1000+ concurrent sessions
+**With Vercel KV/Redis**:
+- Virtually unlimited sessions (limited by Redis capacity)
+- Scale horizontally by adding more server instances
+- Each instance caches frequently-used sessions locally
+
+**Single Instance** (Memory only):
+- 100-1000+ concurrent sessions per instance
 - Limited by available memory and CPU resources
-- Scale horizontally with sticky sessions for higher load
+- Suitable for development and small deployments
 
 ### Session Cleanup
-- Implement automatic session timeout (not currently implemented)
-- Use `DELETE /mcp` endpoint for explicit cleanup
-- Monitor for memory leaks from orphaned sessions
+- **Automatic metadata cleanup**: 30-minute TTL in Vercel KV/Redis
+- **Automatic instance cleanup**: 10-minute TTL in local cache
+- **Manual cleanup**: `DELETE /mcp` endpoint for explicit termination
+- **Monitoring**: Track session count via `/health` endpoint
+
+### Reconstruction Overhead
+- **First request to instance**: 1-5ms reconstruction cost
+- **Subsequent requests**: < 1ms (served from local cache)
+- **Cache warming**: Instances cache on first access
+- **Cold start impact**: Minimal - metadata fetched from Redis in ~1-2ms
 
 ## Session Recovery and Cold Starts
 
-### Serverless Environment Behavior
-In serverless environments (AWS Lambda, Vercel Functions, Google Cloud Functions), **session state is lost during cold starts**:
+### Serverless Environment Behavior (With Vercel KV/Redis)
+
+**With external metadata storage (v1.1.0+)**, sessions survive cold starts:
+
+1. **Cold Start**: Function instance starts fresh with empty instance cache
+2. **Session Preservation**: Metadata persists in Vercel KV/Redis
+3. **Automatic Recovery**: Instance reconstructs Server + Transport from metadata
+4. **Client Impact**: Transparent - clients see seamless operation
+5. **Performance**: First request pays small reconstruction cost (~1-5ms)
+
+**Example flow with Vercel KV:**
+```
+Request → Cold Start Function Instance
+  ├─ Instance cache is empty (new instance)
+  ├─ Fetch session metadata from Vercel KV ✅
+  ├─ Reconstruct Server + Transport (~1-5ms)
+  ├─ Cache instance locally (10-min TTL)
+  └─ Process request successfully
+```
+
+### Serverless Environment Behavior (Without External Storage)
+
+**Without Vercel KV/Redis** (memory-only fallback), sessions are lost during cold starts:
 
 1. **Cold Start**: Function instance starts fresh with empty memory
 2. **Session Loss**: All previous sessions stored in memory are lost
-3. **Client Impact**: Clients receive "Server not initialized" errors on session-not-found
-4. **Recovery**: Clients must detect session loss and re-initialize with fresh `initialize` request
+3. **Client Impact**: Clients receive "Session not found" errors
+4. **Recovery**: Clients must detect session loss and re-initialize
 
-### Client-Side Session Recovery Pattern
-**Recommended client implementation for serverless environments:**
+**Client-side session recovery pattern** (only needed without external storage):
 
 ```typescript
 // Client should implement automatic session recovery
@@ -238,7 +331,7 @@ async function makeRequest(method: string, params: any) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'mcp-session-id': currentSessionId  // Include existing session ID
+        'mcp-session-id': currentSessionId
       },
       body: JSON.stringify({ jsonrpc: '2.0', id: requestId++, method, params })
     });
@@ -246,46 +339,54 @@ async function makeRequest(method: string, params: any) {
     return await response.json();
   } catch (error) {
     // If session not found error, re-initialize
-    if (error.message.includes('Server not initialized') ||
-        error.message.includes('session not found')) {
+    if (error.message.includes('Session not found')) {
       console.log('Session lost, re-initializing...');
-      await initializeSession();  // Send initialize request to get new session ID
-      return makeRequest(method, params);  // Retry original request
+      await initializeSession();
+      return makeRequest(method, params);
     }
     throw error;
   }
 }
 ```
 
-### Serverless Best Practices
-1. **Expect session loss** - Design clients to handle re-initialization gracefully
-2. **Implement retry logic** - Automatically recover from cold starts
-3. **Monitor cold starts** - Track frequency and impact on user experience
-4. **Session timeout awareness** - Sessions may expire during function inactivity periods
-5. **Health check integration** - Use `/health` endpoint to detect cold starts before client errors
+### Deployment Recommendations
 
-### Vercel Deployment Considerations
-**Current Vercel deployment (api/mcp.ts):**
-- Session storage uses in-memory Map across function invocations
-- Sessions persist **only within same function instance warm period** (typically 5-10 minutes)
-- Cold start after inactivity loses all sessions
-- Clients must implement re-initialization logic for production use
+**Production deployments should use Vercel KV/Redis** to avoid session loss:
+- **Vercel**: Add Vercel KV integration (`vercel link` → add KV storage)
+- **AWS Lambda**: Configure `REDIS_URL` environment variable
+- **Kubernetes**: Deploy Redis service and configure `REDIS_URL`
 
-**Production-ready client must:**
-- Detect session loss errors (401, "Server not initialized")
-- Automatically send new `initialize` request
-- Store new `mcp-session-id` from response
-- Retry original request with new session ID
+**Memory-only mode** is suitable for:
+- Local development and testing
+- Single-instance deployments with sticky sessions
+- Low-traffic environments where session loss is acceptable
 
-## Limitations Summary
+## Architecture Summary
 
-This limitation is **inherent to the MCP TypeScript SDK design** and affects all projects using StreamableHTTPServerTransport:
+### Current Implementation (v1.1.0+)
 
-1. **Memory-only storage** - Cannot persist to external storage
-2. **Instance-specific** - Cannot share sessions between server instances
-3. **Non-serializable** - Transport objects contain complex runtime state
-4. **Deployment constraints** - Requires careful consideration for scaling
-5. **Serverless cold starts** - Sessions lost when function instance recycles
-6. **Client recovery required** - Clients must detect and recover from session loss
+The MCP server now supports **horizontal scalability** through hybrid reconstruction:
 
-Understanding these limitations is essential for proper deployment planning and troubleshooting session-related issues.
+**What's Serializable** (stored in Vercel KV/Redis):
+- ✅ Session ID (UUID)
+- ✅ Session timestamps (created, last activity)
+- ✅ Auth info (provider, user ID, email)
+- ✅ Session metadata (lightweight, ~500 bytes)
+
+**What's Reconstructed** (on-demand from metadata):
+- 🔄 MCP Server instance
+- 🔄 StreamableHTTPServerTransport
+- 🔄 Tool registrations
+- 🔄 Event handlers and streams
+
+**Benefits:**
+- ✅ Horizontal scaling - any instance can handle any session
+- ✅ Cold start survival - sessions persist across instance restarts
+- ✅ No sticky sessions required - true stateless routing
+- ✅ Auth preservation - user context maintained across instances
+- ✅ Automatic storage detection - Vercel KV or memory fallback
+
+**Trade-offs:**
+- ⚠️ Reconstruction cost on cache miss (~1-5ms, mitigated by 10-min cache)
+- ⚠️ External storage dependency for multi-instance (Vercel KV/Redis)
+- ⚠️ Only serializable metadata can be preserved

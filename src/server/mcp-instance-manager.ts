@@ -102,7 +102,8 @@ export class MCPInstanceManager {
     // 3. Reconstruct server + transport from metadata
     logger.info('Reconstructing MCP server instance', {
       sessionId: sessionId.substring(0, 8) + '...',
-      age: Math.round((Date.now() - metadata.lastActivity) / 1000) + 's',
+      age: Math.round((Date.now() - metadata.createdAt) / 1000) + 's',
+      ttl: Math.round((metadata.expiresAt - Date.now()) / 1000) + 's',
       hasAuth: !!metadata.authInfo,
       eventCount: metadata.events?.length || 0,
     });
@@ -148,8 +149,7 @@ export class MCPInstanceManager {
     const transport = this.createTransportWithSessionId(sessionId, metadata, {
       ...options,
       onSessionInitialized: async (sid: string) => {
-        // Session already exists in metadata store, just update activity
-        await this.metadataStore.updateActivity(sid);
+        // Session already exists in metadata store (no activity update needed - immutable)
         if (options.onSessionInitialized) {
           await options.onSessionInitialized(sid);
         }
@@ -164,8 +164,24 @@ export class MCPInstanceManager {
       },
     });
 
-    // Connect transport to server
+    // CRITICAL FIX: Set the transport's sessionId and _initialized properties directly
+    // The sessionIdGenerator callback and initialization flow are only invoked during
+    // initialize requests, but reconstructed sessions never receive initialize (already
+    // initialized). We must set these properties manually for the transport to work correctly.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (transport as any).sessionId = sessionId;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (transport as any)._initialized = true;
+
+    // Connect transport to server for reconstruction
+    // This is needed because we're creating fresh server + transport instances
+    // The streamable-http-server.ts will skip connection for reconstructed sessions
     await server.connect(transport);
+
+    logger.debug('MCP instance reconstructed and connected', {
+      sessionId: sessionId.substring(0, 8) + '...',
+      transportSessionId: transport.sessionId,
+    });
 
     return {
       server,
@@ -213,10 +229,11 @@ export class MCPInstanceManager {
     sessionId: string,
     authInfo?: AuthInfo
   ): Promise<void> {
+    const now = Date.now();
     const metadata: MCPSessionMetadata = {
       sessionId,
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
+      createdAt: now,
+      expiresAt: now + (30 * 60 * 1000), // 30 minutes default TTL
       authInfo,
     };
 

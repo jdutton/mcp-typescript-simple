@@ -30,12 +30,21 @@ import { logger } from '../observability/logger.js';
  * Redis key prefix for namespacing
  */
 const KEY_PREFIX = 'mcp:session:metadata:';
-const SESSION_TIMEOUT = 30 * 60; // 30 minutes in seconds
+const DEFAULT_TTL_SECONDS = 30 * 60; // 30 minutes in seconds
+
+export interface VercelKVMCPMetadataStoreOptions {
+  /** Session TTL in seconds (default: 30 minutes) */
+  ttlSeconds?: number;
+}
 
 export class VercelKVMCPMetadataStore implements MCPSessionMetadataStore {
-  constructor() {
+  private readonly ttlSeconds: number;
+
+  constructor(options: VercelKVMCPMetadataStoreOptions = {}) {
+    this.ttlSeconds = options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
+
     logger.info('VercelKVMCPMetadataStore initialized', {
-      timeout: SESSION_TIMEOUT,
+      ttlSeconds: this.ttlSeconds,
       keyPrefix: KEY_PREFIX,
     });
   }
@@ -51,21 +60,22 @@ export class VercelKVMCPMetadataStore implements MCPSessionMetadataStore {
     const key = this.getSessionKey(sessionId);
 
     try {
-      // Update last activity
-      const updatedMetadata: MCPSessionMetadata = {
+      // Set expiresAt if not provided
+      const sessionMetadata: MCPSessionMetadata = {
         ...metadata,
-        lastActivity: Date.now(),
+        expiresAt: metadata.expiresAt || (Date.now() + (this.ttlSeconds * 1000)),
       };
 
       // Store with TTL matching session timeout
-      await kv.setex(key, SESSION_TIMEOUT, JSON.stringify(updatedMetadata));
+      await kv.setex(key, this.ttlSeconds, JSON.stringify(sessionMetadata));
 
       logger.debug('Session metadata stored', {
         sessionId: sessionId.substring(0, 8) + '...',
-        createdAt: new Date(metadata.createdAt).toISOString(),
-        hasAuth: !!metadata.authInfo,
-        eventCount: metadata.events?.length || 0,
-        expiresIn: SESSION_TIMEOUT,
+        createdAt: new Date(sessionMetadata.createdAt).toISOString(),
+        expiresAt: new Date(sessionMetadata.expiresAt).toISOString(),
+        hasAuth: !!sessionMetadata.authInfo,
+        eventCount: sessionMetadata.events?.length || 0,
+        ttlSeconds: this.ttlSeconds,
       });
     } catch (error) {
       logger.error('Failed to store session metadata', {
@@ -93,12 +103,20 @@ export class VercelKVMCPMetadataStore implements MCPSessionMetadataStore {
 
       // Verify not expired (double-check even though Redis TTL handles this)
       const now = Date.now();
-      const age = now - metadata.lastActivity;
-      const ageMinutes = Math.round(age / 60000);
+      if (now > metadata.expiresAt) {
+        logger.warn('Session expired (but Redis TTL should have deleted it)', {
+          sessionId: sessionId.substring(0, 8) + '...',
+          expiresAt: new Date(metadata.expiresAt).toISOString(),
+        });
+        await this.deleteSession(sessionId);
+        return null;
+      }
+
+      const ttlSeconds = Math.round((metadata.expiresAt - now) / 1000);
 
       logger.debug('Session metadata retrieved', {
         sessionId: sessionId.substring(0, 8) + '...',
-        ageMinutes,
+        ttlSeconds,
         hasAuth: !!metadata.authInfo,
         eventCount: metadata.events?.length || 0,
       });
@@ -110,37 +128,6 @@ export class VercelKVMCPMetadataStore implements MCPSessionMetadataStore {
         error,
       });
       return null;
-    }
-  }
-
-  async updateActivity(sessionId: string): Promise<void> {
-    const key = this.getSessionKey(sessionId);
-
-    try {
-      // Get existing metadata
-      const metadata = await this.getSession(sessionId);
-
-      if (!metadata) {
-        logger.warn('Cannot update activity for non-existent session', {
-          sessionId: sessionId.substring(0, 8) + '...',
-        });
-        return;
-      }
-
-      // Update last activity and reset TTL
-      metadata.lastActivity = Date.now();
-      await kv.setex(key, SESSION_TIMEOUT, JSON.stringify(metadata));
-
-      logger.debug('Session activity updated', {
-        sessionId: sessionId.substring(0, 8) + '...',
-        expiresIn: SESSION_TIMEOUT,
-      });
-    } catch (error) {
-      logger.error('Failed to update session activity', {
-        sessionId: sessionId.substring(0, 8) + '...',
-        error,
-      });
-      // Don't throw - activity update is best-effort
     }
   }
 

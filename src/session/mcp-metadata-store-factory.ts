@@ -11,20 +11,30 @@
 
 import { MCPSessionMetadataStore } from './mcp-session-metadata-store-interface.js';
 import { MemoryMCPMetadataStore } from './memory-mcp-metadata-store.js';
+import { FileMCPMetadataStore } from './file-mcp-metadata-store.js';
+import { CachingMCPMetadataStore } from './caching-mcp-metadata-store.js';
 import { VercelKVMCPMetadataStore } from './vercel-kv-mcp-metadata-store.js';
 import { logger } from '../observability/logger.js';
 
-export type MCPMetadataStoreType = 'memory' | 'vercel-kv' | 'redis' | 'auto';
+export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'hybrid' | 'vercel-kv' | 'redis' | 'auto';
 
 export interface MCPMetadataStoreFactoryOptions {
   /**
    * Store type to create
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent across instances)
+   * - 'file': File-based store (persistent, development)
+   * - 'caching': Caching store (memory + optional file/redis/vercel-kv)
+   * - 'hybrid': Alias for 'caching' (backwards compatibility)
    * - 'vercel-kv': Vercel KV store (serverless-optimized)
    * - 'redis': Generic Redis store (future implementation)
    */
   type?: MCPMetadataStoreType;
+
+  /**
+   * Optional file path for file-based store
+   */
+  filePath?: string;
 
   /**
    * Optional Redis URL for generic Redis store
@@ -47,6 +57,13 @@ export class MCPMetadataStoreFactory {
       case 'memory':
         return this.createMemoryStore();
 
+      case 'file':
+        return this.createFileStore(options.filePath);
+
+      case 'caching':
+      case 'hybrid': // Backwards compatibility
+        return this.createCachingStore(options);
+
       case 'vercel-kv':
         return this.createVercelKVStore();
 
@@ -62,33 +79,63 @@ export class MCPMetadataStoreFactory {
    * Auto-detect the best store for current environment
    */
   private static createAutoDetected(options: MCPMetadataStoreFactoryOptions): MCPSessionMetadataStore {
-    // 1. Check for Vercel environment with KV configured
-    if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.info('Creating Vercel KV MCP metadata store', {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isVercel = !!process.env.VERCEL;
+
+    // 1. Production + Vercel KV: Use caching with Vercel KV backend
+    if (isProduction && isVercel && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      logger.info('Creating caching MCP metadata store with Vercel KV backend', {
         detected: true,
         scalable: true,
+        persistent: true,
       });
-      return this.createVercelKVStore();
+      return this.createCachingStore({
+        ...options,
+        type: 'vercel-kv',
+      });
     }
 
-    // 2. Check for generic Redis configuration
-    if (options.redisUrl || process.env.REDIS_URL) {
-      logger.info('Creating Redis MCP metadata store', {
+    // 2. Production + Redis: Use caching with Redis backend
+    if (isProduction && (options.redisUrl || process.env.REDIS_URL)) {
+      logger.info('Creating caching MCP metadata store with Redis backend', {
         detected: true,
         scalable: true,
+        persistent: true,
       });
-      return this.createRedisStore(options.redisUrl || process.env.REDIS_URL);
+      return this.createCachingStore({
+        ...options,
+        type: 'redis',
+        redisUrl: options.redisUrl || process.env.REDIS_URL,
+      });
     }
 
-    // 3. Default to memory store for local development
-    logger.info('Creating in-memory MCP metadata store', {
+    // 3. Development or local: Use caching with file backend
+    if (!isProduction || process.env.USE_FILE_STORE) {
+      logger.info('Creating caching MCP metadata store with file backend', {
+        detected: true,
+        scalable: false,
+        persistent: true,
+      });
+      return this.createCachingStore({
+        ...options,
+        type: 'file',
+        filePath: options.filePath || './data/mcp-sessions.json',
+      });
+    }
+
+    // 4. Fallback: Caching with no secondary (memory-only)
+    logger.info('Creating caching MCP metadata store with no secondary (memory-only)', {
       detected: true,
       scalable: false,
+      persistent: false,
     });
-    logger.warn('Memory metadata store does not persist across serverless instances', {
+    logger.warn('Memory-only metadata store does not persist across instances', {
       recommendation: 'Configure Vercel KV or Redis for multi-instance deployments',
     });
-    return this.createMemoryStore();
+    return this.createCachingStore({
+      ...options,
+      type: 'memory', // Will create caching store with no secondary
+    });
   }
 
   /**
@@ -96,6 +143,39 @@ export class MCPMetadataStoreFactory {
    */
   private static createMemoryStore(): MemoryMCPMetadataStore {
     return new MemoryMCPMetadataStore();
+  }
+
+  /**
+   * Create file-based session metadata store
+   */
+  private static createFileStore(filePath?: string): FileMCPMetadataStore {
+    return new FileMCPMetadataStore(filePath || './data/mcp-sessions.json');
+  }
+
+  /**
+   * Create caching session metadata store
+   * Primary: Memory (fast cache with LRU + TTL)
+   * Secondary: Optional persistent backend (File/Redis/VercelKV)
+   */
+  private static createCachingStore(options: MCPMetadataStoreFactoryOptions): CachingMCPMetadataStore {
+    const primaryStore = this.createMemoryStore();
+
+    // Determine secondary store based on options (optional)
+    let secondaryStore: MCPSessionMetadataStore | undefined;
+
+    if (options.type === 'vercel-kv') {
+      secondaryStore = this.createVercelKVStore();
+    } else if (options.type === 'redis') {
+      secondaryStore = this.createRedisStore(options.redisUrl);
+    } else if (options.type === 'file') {
+      secondaryStore = this.createFileStore(options.filePath);
+    }
+    // If type is 'memory', secondaryStore remains undefined
+
+    return new CachingMCPMetadataStore(primaryStore, secondaryStore, {
+      enablePeriodicSync: true,
+      syncIntervalMs: 5 * 60 * 1000, // 5 minutes
+    });
   }
 
   /**
