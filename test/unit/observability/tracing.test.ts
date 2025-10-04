@@ -83,7 +83,7 @@ describe('Distributed Tracing', () => {
   const mockSessionContext = {
     sessionId: 'session-123',
     createdAt: Date.now(),
-    lastActivity: Date.now(),
+    expiresAt: Date.now() + 3600000, // 1 hour from now
     authenticated: true
   };
 

@@ -58,13 +58,17 @@ describe('SessionManager', () => {
 
   it('reports session statistics and cleanup removes stale sessions', () => {
     const manager = new SessionManager();
+
+    // Create first session at T0
+    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     const active = manager.createSession();
+
+    // Create second session 12 hours later (will expire 12 hours after first)
+    jest.setSystemTime(new Date('2024-01-01T12:00:00Z'));
     const expired = manager.createSession();
 
-    jest.setSystemTime(new Date('2024-01-01T12:00:00Z'));
-    manager.getSession(active.sessionId);
-
-    jest.setSystemTime(new Date('2024-01-02T12:00:00Z'));
+    // Move to a time when first session is expired but second is still valid
+    jest.setSystemTime(new Date('2024-01-02T00:30:00Z')); // First expires at 00:00, second at 12:00
     const internal = manager as unknown as { cleanup(): void };
     internal.cleanup();
 
@@ -72,8 +76,8 @@ describe('SessionManager', () => {
     expect(stats.totalSessions).toBe(1);
     expect(stats.activeSessions).toBe(1);
     expect(stats.expiredSessions).toBe(0);
-    expect(manager.getActiveSessions().map(s => s.sessionId)).toEqual([active.sessionId]);
-    expect(manager.getSession(expired.sessionId)).toBeUndefined();
+    expect(manager.getActiveSessions().map(s => s.sessionId)).toEqual([expired.sessionId]);
+    expect(manager.getSession(active.sessionId)).toBeUndefined();
 
     manager.destroy();
   });

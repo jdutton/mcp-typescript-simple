@@ -199,10 +199,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
           // Extract auth info for metadata
+          const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
           authInfo = {
             provider: oauthProvider.getProviderType(),
-            userId: authResult.extra?.userInfo?.sub,
-            email: authResult.extra?.userInfo?.email,
+            userId: userInfo?.sub,
+            email: userInfo?.email,
           };
         } catch (error) {
           logger.error("Token verification error", { requestId, error });

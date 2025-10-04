@@ -33,7 +33,7 @@ describe('Session Correlation', () => {
       const mockSession: SessionInfo = {
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000, // 1 hour later
         authInfo: { user: { id: 'user123' } } as any,
         metadata: { test: true }
       };
@@ -42,7 +42,7 @@ describe('Session Correlation', () => {
 
       expect(context.sessionId).toBe('test-uuid-12345');
       expect(context.createdAt).toBe(1234567890000);
-      expect(context.lastActivity).toBe(1234567890100);
+      expect(context.expiresAt).toBe(1234567890000 + 3600000);
       expect(context.authenticated).toBe(true);
     });
 
@@ -50,7 +50,7 @@ describe('Session Correlation', () => {
       const mockSession: SessionInfo = {
         sessionId: 'test-uuid-67890',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100
+        expiresAt: 1234567890000 + 3600000
       };
 
       const context = extractSessionContext(mockSession);
@@ -63,7 +63,7 @@ describe('Session Correlation', () => {
       const mockSession: SessionInfo = {
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000,
         authInfo: {
           user: { id: 'user123', email: 'user@example.com' }
         } as any
@@ -77,7 +77,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000,
         authenticated: true
       });
     });
@@ -94,7 +94,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000,
         authenticated: true
       };
 
@@ -105,7 +105,7 @@ describe('Session Correlation', () => {
         'mcp.session.id': 'test-uuid-12345',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': true,
-        'mcp.session.last_activity': 1234567890100
+        'mcp.session.expires_at': 1234567890000 + 3600000
       });
     });
 
@@ -115,7 +115,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000,
         authenticated: false
       };
 
@@ -130,7 +130,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'test-uuid-67890',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: true
       };
 
@@ -142,7 +142,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'unauth-session-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: false
       };
 
@@ -152,7 +152,7 @@ describe('Session Correlation', () => {
         'mcp.session.id': 'unauth-session-123',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': false,
-        'mcp.session.last_activity': 1234567890100
+        'mcp.session.expires_at': 1234567890100 + 3600000
       });
     });
 
@@ -160,7 +160,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'minimal-session',
         createdAt: 0,
-        lastActivity: 0,
+        expiresAt: 0 + 3600000,
         authenticated: false
       };
 
@@ -170,7 +170,7 @@ describe('Session Correlation', () => {
         'mcp.session.id': 'minimal-session',
         'mcp.session.created_at': 0,
         'mcp.session.authenticated': false,
-        'mcp.session.last_activity': 0
+        'mcp.session.expires_at': 0 + 3600000
       });
     });
   });
@@ -180,7 +180,7 @@ describe('Session Correlation', () => {
       const partialSession = {
         sessionId: 'partial-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100
+        expiresAt: 1234567890000 + 3600000
         // Missing authInfo and metadata
       } as any;
 
@@ -189,7 +189,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'partial-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890000 + 3600000,
         authenticated: false
       });
     });
@@ -198,7 +198,7 @@ describe('Session Correlation', () => {
       const sessionWithNullAuth = {
         sessionId: 'null-auth-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authInfo: null,
         metadata: { test: true }
       } as any;
@@ -208,7 +208,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'null-auth-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: false
       });
     });
@@ -217,7 +217,7 @@ describe('Session Correlation', () => {
       const sessionWithComplexAuth = {
         sessionId: 'complex-auth-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authInfo: {
           user: {
             id: 'user123',
@@ -244,7 +244,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'complex-auth-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: true
       });
 
@@ -262,7 +262,7 @@ describe('Session Correlation', () => {
       const sessionWithSensitiveData = {
         sessionId: 'security-test-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authInfo: {
           user: {
             id: 'user123',
@@ -294,7 +294,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'security-test-123',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: true
       });
 
@@ -314,7 +314,7 @@ describe('Session Correlation', () => {
       const sessionContext = {
         sessionId: 'test-uuid-12345',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: true
       };
 
@@ -324,7 +324,7 @@ describe('Session Correlation', () => {
         'mcp.session.id': 'test-uuid-12345',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': true,
-        'mcp.session.last_activity': 1234567890100
+        'mcp.session.expires_at': 1234567890100 + 3600000
       });
 
       // Verify no additional sensitive attributes are added
@@ -336,7 +336,7 @@ describe('Session Correlation', () => {
         'mcp.session.id',
         'mcp.session.created_at',
         'mcp.session.authenticated',
-        'mcp.session.last_activity'
+        'mcp.session.expires_at'
       ];
 
       Object.keys(allAttributes).forEach(key => {
@@ -348,7 +348,7 @@ describe('Session Correlation', () => {
       const maliciousSession = {
         sessionId: 'user@evil.com',  // Trying to inject email as session ID
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authInfo: null,  // No auth info means not authenticated
         // Attempting to add extra malicious fields
         'mcp.user.email': 'injected@evil.com',
@@ -361,7 +361,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'user@evil.com',  // Session ID is preserved as-is (application responsibility)
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: false  // No authInfo means false
       });
 
@@ -376,7 +376,7 @@ describe('Session Correlation', () => {
       const corruptedSession = {
         sessionId: null,
         createdAt: 'invalid_date',
-        lastActivity: undefined,
+        expiresAt: Date.now() + 3600000,
         authInfo: 'not_an_object'  // This is truthy, so authenticated will be true
       } as any;
 
@@ -386,7 +386,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: null,
         createdAt: 'invalid_date',
-        lastActivity: undefined,
+        expiresAt: Date.now() + 3600000,
         authenticated: true  // !!('not_an_object') is true
       });
     });
@@ -396,7 +396,7 @@ describe('Session Correlation', () => {
       const circularSession: any = {
         sessionId: 'circular-test',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authInfo: { user: { id: 'user123' } }
       };
 
@@ -409,7 +409,7 @@ describe('Session Correlation', () => {
       expect(context).toEqual({
         sessionId: 'circular-test',
         createdAt: 1234567890000,
-        lastActivity: 1234567890100,
+        expiresAt: 1234567890100 + 3600000,
         authenticated: true
       });
     });

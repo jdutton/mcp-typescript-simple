@@ -8,6 +8,7 @@
  */
 
 import { MemoryMCPMetadataStore } from '../../../src/session/memory-mcp-metadata-store.js';
+import { CachingMCPMetadataStore } from '../../../src/session/caching-mcp-metadata-store.js';
 import { MCPSessionMetadata } from '../../../src/session/mcp-session-metadata-store-interface.js';
 import { MCPMetadataStoreFactory } from '../../../src/session/mcp-metadata-store-factory.js';
 
@@ -27,7 +28,7 @@ describe('MemoryMCPMetadataStore', () => {
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-123',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       };
 
       await store.storeSession('test-session-123', metadata);
@@ -41,7 +42,7 @@ describe('MemoryMCPMetadataStore', () => {
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-456',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
         authInfo: {
           provider: 'google',
           userId: 'user-123',
@@ -60,7 +61,7 @@ describe('MemoryMCPMetadataStore', () => {
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-789',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
         events: [
           {
             eventId: 'event-1',
@@ -78,18 +79,18 @@ describe('MemoryMCPMetadataStore', () => {
       expect(retrieved?.events?.[0]?.eventId).toBe('event-1');
     });
 
-    it('should update lastActivity timestamp on store', async () => {
+    it('should store expiresAt timestamp', async () => {
       const now = Date.now();
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-timestamp',
         createdAt: now,
-        lastActivity: now - 1000, // 1 second ago
+        expiresAt: Date.now() + 3600000,
       };
 
       await store.storeSession('test-session-timestamp', metadata);
 
       const retrieved = await store.getSession('test-session-timestamp');
-      expect(retrieved?.lastActivity).toBeGreaterThanOrEqual(now);
+      expect(retrieved?.expiresAt).toBeGreaterThanOrEqual(now);
     });
   });
 
@@ -103,7 +104,7 @@ describe('MemoryMCPMetadataStore', () => {
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-get',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       };
 
       await store.storeSession('test-session-get', metadata);
@@ -122,37 +123,17 @@ describe('MemoryMCPMetadataStore', () => {
     });
   });
 
-  describe('updateActivity', () => {
-    it('should update lastActivity timestamp', async () => {
-      const now = Date.now();
-      const metadata: MCPSessionMetadata = {
-        sessionId: 'test-session-activity',
-        createdAt: now,
-        lastActivity: now,
-      };
-
-      await store.storeSession('test-session-activity', metadata);
-
-      // Wait a bit to ensure timestamp difference
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      await store.updateActivity('test-session-activity');
-
-      const retrieved = await store.getSession('test-session-activity');
-      expect(retrieved?.lastActivity).toBeGreaterThan(now);
-    });
-
-    it('should handle update for non-existent session', async () => {
-      await expect(store.updateActivity('non-existent')).resolves.not.toThrow();
-    });
-  });
+  // updateActivity method was removed - lastActivity tracking is no longer needed
+  // describe('updateActivity', () => {
+  //   ...tests removed...
+  // });
 
   describe('deleteSession', () => {
     it('should delete session', async () => {
       const metadata: MCPSessionMetadata = {
         sessionId: 'test-session-delete',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       };
 
       await store.storeSession('test-session-delete', metadata);
@@ -179,13 +160,13 @@ describe('MemoryMCPMetadataStore', () => {
       await store.storeSession('session-1', {
         sessionId: 'session-1',
         createdAt: now,
-        lastActivity: now,
+        expiresAt: Date.now() + 3600000,
       });
 
       await store.storeSession('session-2', {
         sessionId: 'session-2',
         createdAt: now,
-        lastActivity: now,
+        expiresAt: Date.now() + 3600000,
       });
 
       // Cleanup should find no expired sessions (all are fresh)
@@ -212,13 +193,13 @@ describe('MemoryMCPMetadataStore', () => {
       await store.storeSession('session-1', {
         sessionId: 'session-1',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       });
 
       await store.storeSession('session-2', {
         sessionId: 'session-2',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       });
 
       const count = await store.getSessionCount();
@@ -231,7 +212,7 @@ describe('MemoryMCPMetadataStore', () => {
       await store.storeSession('test-session', {
         sessionId: 'test-session',
         createdAt: Date.now(),
-        lastActivity: Date.now(),
+        expiresAt: Date.now() + 3600000,
       });
 
       store.dispose();
@@ -264,7 +245,8 @@ describe('MCPMetadataStoreFactory', () => {
       delete process.env.REDIS_URL;
 
       const store = MCPMetadataStoreFactory.create({ type: 'auto' });
-      expect(store).toBeInstanceOf(MemoryMCPMetadataStore);
+      // Auto-detection creates CachingMCPMetadataStore when file backend is available
+      expect(store).toBeInstanceOf(CachingMCPMetadataStore);
       store.dispose();
 
       // Restore env vars
