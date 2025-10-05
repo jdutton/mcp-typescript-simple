@@ -28,8 +28,17 @@ export function setupOAuthRoutes(
 ): void {
   const endpoints = oauthProvider.getEndpoints();
 
+  // Helper to set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
+  // Prevents Vercel edge cache from serving stale OAuth responses
+  const setAntiCachingHeaders = (res: Response): void => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  };
+
   // Generic auth endpoint for test discovery
   router.get('/auth', (req: Request, res: Response) => {
+    setAntiCachingHeaders(res);
     res.json({
       message: 'OAuth authentication endpoint',
       providers: ['google', 'github', 'microsoft'],
@@ -40,9 +49,11 @@ export function setupOAuthRoutes(
   // OAuth authorization endpoint
   const authHandler = async (req: Request, res: Response) => {
     try {
+      setAntiCachingHeaders(res);
       await oauthProvider.handleAuthorizationRequest(req, res);
     } catch (error) {
       logger.error("OAuth authorization error", error);
+      setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Authorization failed' });
     }
   };
@@ -54,9 +65,11 @@ export function setupOAuthRoutes(
   // OAuth callback endpoint
   const callbackHandler = async (req: Request, res: Response) => {
     try {
+      setAntiCachingHeaders(res);
       await oauthProvider.handleAuthorizationCallback(req, res);
     } catch (error) {
       logger.error("OAuth callback error", error);
+      setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Authorization callback failed' });
     }
   };
@@ -67,6 +80,8 @@ export function setupOAuthRoutes(
   // Supports both JSON and form data (RFC 6749 Section 4.1.3 and 6.1)
   const universalTokenHandler = async (req: Request, res: Response) => {
     try {
+      setAntiCachingHeaders(res);
+
       logger.debug("Universal token handler processing", {
         contentType: req.headers['content-type'],
         body: req.body
@@ -103,6 +118,7 @@ export function setupOAuthRoutes(
       }
     } catch (error) {
       logger.error("OAuth universal token handler error", error);
+      setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error),
@@ -120,9 +136,11 @@ export function setupOAuthRoutes(
   // Logout endpoint
   const logoutHandler = async (req: Request, res: Response) => {
     try {
+      setAntiCachingHeaders(res);
       await oauthProvider.handleLogout(req, res);
     } catch (error) {
       logger.error("Logout error", error);
+      setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
   };

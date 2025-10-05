@@ -24,9 +24,18 @@ export function setupDCRRoutes(
   router: Router,
   clientStore: OAuthRegisteredClientsStore
 ): void {
+  // Helper to set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
+  // Prevents Vercel edge cache from serving stale OAuth responses
+  const setAntiCachingHeaders = (res: Response): void => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  };
+
   // OAuth 2.0 Dynamic Client Registration Endpoint (RFC 7591)
   const registerClientHandler = async (req: Request, res: Response): Promise<void> => {
     try {
+      setAntiCachingHeaders(res);
       logger.info('Client registration request received', {
         clientName: req.body.client_name,
         redirectUris: req.body.redirect_uris,
@@ -81,6 +90,7 @@ export function setupDCRRoutes(
       res.status(201).json(registeredClient);
     } catch (error) {
       logger.error('Client registration error', error);
+      setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error),
@@ -92,6 +102,7 @@ export function setupDCRRoutes(
   // Client Configuration Endpoint - GET /register/:client_id (RFC 7592 Section 2.1)
   const getClientHandler = async (req: Request, res: Response): Promise<void> => {
     try {
+      setAntiCachingHeaders(res);
       const clientId = req.params.client_id;
       if (!clientId) {
         logger.warn('Client ID missing in request');
@@ -116,6 +127,7 @@ export function setupDCRRoutes(
       res.json(client);
     } catch (error) {
       logger.error('Get client error', error);
+      setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error),
@@ -127,6 +139,7 @@ export function setupDCRRoutes(
   // Client Configuration Endpoint - DELETE /register/:client_id (RFC 7592 Section 2.3)
   const deleteClientHandler = async (req: Request, res: Response): Promise<void> => {
     try {
+      setAntiCachingHeaders(res);
       const clientId = req.params.client_id;
       if (!clientId) {
         logger.warn('Client ID missing in request');
@@ -151,6 +164,7 @@ export function setupDCRRoutes(
       res.status(204).send();
     } catch (error) {
       logger.error('Delete client error', error);
+      setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
         error_description: error instanceof Error ? error.message : String(error),
