@@ -135,7 +135,7 @@ These tests simulate:
 ## Future Enhancements
 
 Planned test additions:
-- [ ] Redis/Vercel KV integration tests (requires test infrastructure)
+- [ ] Redis integration tests (requires test infrastructure)
 - [ ] Load testing with multiple concurrent sessions
 - [ ] Session TTL expiration tests
 - [ ] Auth info preservation after reconstruction

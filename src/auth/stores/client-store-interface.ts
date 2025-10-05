@@ -5,8 +5,7 @@
  * registered OAuth clients. Implementations can use various backends:
  * - In-memory (development, testing)
  * - File-based (development with persistence)
- * - Redis/Vercel KV (production, serverless)
- * - PostgreSQL (production, self-hosted)
+ * - Redis (production, serverless)
  */
 
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
@@ -136,9 +135,6 @@ export interface ClientStoreOptions {
  */
 export type ClientStoreType =
   | 'memory'      // In-memory only (lost on restart)
-  | 'file'        // File-based persistence
-  | 'hybrid'      // Memory + file backup
-  | 'vercel-kv'   // Vercel KV (Redis-compatible)
-  | 'redis'       // Redis
-  | 'postgres'    // PostgreSQL
+  | 'file'        // File-based persistence (single instance)
+  | 'redis'       // Redis (multi-instance, production)
   | 'auto';       // Auto-detect based on environment

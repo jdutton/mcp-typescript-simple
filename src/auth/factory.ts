@@ -37,7 +37,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   private tokenStore: OAuthTokenStore;
 
   constructor() {
-    // Initialize stores (auto-detect Vercel KV vs memory)
+    // Initialize stores (auto-detect Redis vs memory)
     this.sessionStore = createSessionStore();
     this.tokenStore = createOAuthTokenStore();
   }

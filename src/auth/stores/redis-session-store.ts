@@ -1,22 +1,20 @@
 /**
- * Vercel KV OAuth Session Store
+ * Redis OAuth Session Store
  *
  * Redis-compatible session storage for OAuth state persistence across
- * serverless function invocations.
+ * serverless function invocations and multi-instance deployments.
  *
  * Features:
- * - Serverless-native (no persistent connections)
- * - Global edge network with low latency
+ * - Works with any Redis deployment (Vercel, Docker, AWS, etc.)
+ * - No vendor lock-in (uses standard ioredis client)
  * - Automatic TTL support (10 minute session timeout)
  * - Multi-instance deployment support
  *
  * Setup:
- * 1. Add Vercel KV integration: `vercel link` then add KV storage
- * 2. Environment variables auto-set: KV_REST_API_URL, KV_REST_API_TOKEN
- * 3. No code changes needed - factory auto-detects Vercel environment
+ * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 import { OAuthSessionStore } from './session-store-interface.js';
 import { OAuthSession } from '../providers/types.js';
 import { logger } from '../../observability/logger.js';
@@ -27,9 +25,53 @@ import { logger } from '../../observability/logger.js';
 const KEY_PREFIX = 'oauth:session:';
 const SESSION_TIMEOUT = 10 * 60; // 10 minutes in seconds
 
-export class VercelKVSessionStore implements OAuthSessionStore {
-  constructor() {
-    logger.info('VercelKVSessionStore initialized');
+export class RedisSessionStore implements OAuthSessionStore {
+  private redis: Redis;
+
+  constructor(redisUrl?: string) {
+    const url = redisUrl || process.env.REDIS_URL;
+    if (!url) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+    }
+
+    this.redis = new Redis(url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+
+    this.redis.on('error', (error) => {
+      logger.error('Redis connection error', { error });
+    });
+
+    this.redis.on('connect', () => {
+      logger.info('Redis connected successfully for OAuth sessions');
+    });
+
+    // Connect immediately
+    this.redis.connect().catch((error) => {
+      logger.error('Failed to connect to Redis', { error });
+    });
+
+    logger.info('RedisSessionStore initialized', { url: this.maskUrl(url) });
+  }
+
+  /**
+   * Mask Redis URL for logging (hide credentials)
+   */
+  private maskUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.password) {
+        parsed.password = '***';
+      }
+      return parsed.toString();
+    } catch {
+      return 'redis://***';
+    }
   }
 
   /**
@@ -44,7 +86,7 @@ export class VercelKVSessionStore implements OAuthSessionStore {
 
     try {
       // Store with TTL matching session timeout
-      await kv.setex(key, SESSION_TIMEOUT, JSON.stringify(session));
+      await this.redis.setex(key, SESSION_TIMEOUT, JSON.stringify(session));
 
       logger.debug('Session stored', {
         state: state.substring(0, 8) + '...',
@@ -64,7 +106,7 @@ export class VercelKVSessionStore implements OAuthSessionStore {
     const key = this.getSessionKey(state);
 
     try {
-      const data = await kv.get<string>(key);
+      const data = await this.redis.get(key);
 
       if (!data) {
         logger.debug('Session not found', {
@@ -104,7 +146,7 @@ export class VercelKVSessionStore implements OAuthSessionStore {
     const key = this.getSessionKey(state);
 
     try {
-      await kv.del(key);
+      await this.redis.del(key);
 
       logger.debug('Session deleted', {
         state: state.substring(0, 8) + '...'
@@ -119,7 +161,7 @@ export class VercelKVSessionStore implements OAuthSessionStore {
   }
 
   async cleanup(): Promise<number> {
-    // With Vercel KV, TTL handles automatic cleanup
+    // With Redis TTL, automatic cleanup happens
     // This method is for compatibility with the interface
     logger.debug('Session cleanup skipped (TTL-based)');
     return 0;
@@ -128,7 +170,7 @@ export class VercelKVSessionStore implements OAuthSessionStore {
   async getSessionCount(): Promise<number> {
     try {
       // Scan for all session keys
-      const keys = await kv.keys(`${KEY_PREFIX}*`);
+      const keys = await this.redis.keys(`${KEY_PREFIX}*`);
       return keys.length;
     } catch (error) {
       logger.error('Failed to get session count', { error });
@@ -137,7 +179,8 @@ export class VercelKVSessionStore implements OAuthSessionStore {
   }
 
   dispose(): void {
-    // No resources to dispose (Vercel KV handles connections)
-    logger.info('VercelKVSessionStore disposed');
+    // Disconnect from Redis
+    this.redis.disconnect();
+    logger.info('RedisSessionStore disposed');
   }
 }

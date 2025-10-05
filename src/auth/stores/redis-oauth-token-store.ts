@@ -1,16 +1,21 @@
 /**
- * Vercel KV OAuth Token Store
+ * Redis OAuth Token Store
  *
- * Redis-based token storage for Vercel serverless deployments.
- * Provides persistent token storage across serverless function invocations.
+ * Redis-based token storage for OAuth deployments.
+ * Provides persistent token storage across serverless function invocations
+ * and multi-instance deployments.
  *
  * Features:
  * - Automatic expiration using Redis TTL
- * - Scales across multiple serverless instances
+ * - Scales across multiple instances
+ * - O(1) refresh token lookups via secondary index
  * - No cleanup needed (Redis handles expiration)
+ *
+ * Setup:
+ * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 import { OAuthTokenStore } from './oauth-token-store-interface.js';
 import { StoredTokenInfo } from '../providers/types.js';
 import { logger } from '../../observability/logger.js';
@@ -18,7 +23,55 @@ import { logger } from '../../observability/logger.js';
 const KEY_PREFIX = 'oauth:token:';
 const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
 
-export class VercelKVOAuthTokenStore implements OAuthTokenStore {
+export class RedisOAuthTokenStore implements OAuthTokenStore {
+  private redis: Redis;
+
+  constructor(redisUrl?: string) {
+    const url = redisUrl || process.env.REDIS_URL;
+    if (!url) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+    }
+
+    this.redis = new Redis(url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+
+    this.redis.on('error', (error) => {
+      logger.error('Redis connection error', { error });
+    });
+
+    this.redis.on('connect', () => {
+      logger.info('Redis connected successfully for OAuth tokens');
+    });
+
+    // Connect immediately
+    this.redis.connect().catch((error) => {
+      logger.error('Failed to connect to Redis', { error });
+    });
+
+    logger.info('RedisOAuthTokenStore initialized', { url: this.maskUrl(url) });
+  }
+
+  /**
+   * Mask Redis URL for logging (hide credentials)
+   */
+  private maskUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.password) {
+        parsed.password = '***';
+      }
+      return parsed.toString();
+    } catch {
+      return 'redis://***';
+    }
+  }
+
   private getTokenKey(accessToken: string): string {
     return `${KEY_PREFIX}${accessToken}`;
   }
@@ -37,18 +90,18 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
 
     // Store token data and secondary index in parallel
     const storePromises = [
-      kv.setex(key, ttlSeconds, JSON.stringify(tokenInfo))
+      this.redis.setex(key, ttlSeconds, JSON.stringify(tokenInfo))
     ];
 
     // Maintain secondary index for O(1) refresh token lookups
     if (tokenInfo.refreshToken) {
       const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
-      storePromises.push(kv.setex(refreshIndexKey, ttlSeconds, accessToken));
+      storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, accessToken));
     }
 
     await Promise.all(storePromises);
 
-    logger.debug('OAuth token stored in Vercel KV', {
+    logger.debug('OAuth token stored in Redis', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider,
       ttlSeconds,
@@ -58,10 +111,10 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
 
   async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
     const key = this.getTokenKey(accessToken);
-    const data = await kv.get<string>(key);
+    const data = await this.redis.get(key);
 
     if (!data) {
-      logger.debug('OAuth token not found in Vercel KV', {
+      logger.debug('OAuth token not found in Redis', {
         tokenPrefix: accessToken.substring(0, 8)
       });
       return null;
@@ -79,7 +132,7 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token retrieved from Vercel KV', {
+    logger.debug('OAuth token retrieved from Redis', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -90,10 +143,10 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
     // O(1) lookup using secondary index
     const refreshIndexKey = this.getRefreshIndexKey(refreshToken);
-    const accessToken = await kv.get<string>(refreshIndexKey);
+    const accessToken = await this.redis.get(refreshIndexKey);
 
     if (!accessToken) {
-      logger.debug('OAuth token not found by refresh token in Vercel KV', {
+      logger.debug('OAuth token not found by refresh token in Redis', {
         refreshTokenPrefix: refreshToken.substring(0, 8)
       });
       return null;
@@ -101,12 +154,12 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
 
     // Fetch token data
     const key = this.getTokenKey(accessToken);
-    const data = await kv.get<string>(key);
+    const data = await this.redis.get(key);
 
     if (!data) {
       // Clean up stale index entry
-      await kv.del(refreshIndexKey);
-      logger.debug('OAuth token not found by refresh token in Vercel KV (stale index)', {
+      await this.redis.del(refreshIndexKey);
+      logger.debug('OAuth token not found by refresh token in Redis (stale index)', {
         refreshTokenPrefix: refreshToken.substring(0, 8)
       });
       return null;
@@ -124,7 +177,7 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token found by refresh token in Vercel KV', {
+    logger.debug('OAuth token found by refresh token in Redis', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -136,22 +189,22 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
     const key = this.getTokenKey(accessToken);
 
     // Fetch token info to get refresh token for index cleanup
-    const data = await kv.get<string>(key);
+    const data = await this.redis.get(key);
 
     // Delete token and secondary index in parallel
-    const deletePromises = [kv.del(key)];
+    const deletePromises = [this.redis.del(key)];
 
     if (data) {
       const tokenInfo = JSON.parse(data) as StoredTokenInfo;
       if (tokenInfo.refreshToken) {
         const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
-        deletePromises.push(kv.del(refreshIndexKey));
+        deletePromises.push(this.redis.del(refreshIndexKey));
       }
     }
 
     await Promise.all(deletePromises);
 
-    logger.debug('OAuth token deleted from Vercel KV', {
+    logger.debug('OAuth token deleted from Redis', {
       tokenPrefix: accessToken.substring(0, 8)
     });
   }
@@ -164,20 +217,20 @@ export class VercelKVOAuthTokenStore implements OAuthTokenStore {
 
   async getTokenCount(): Promise<number> {
     // Scan for all keys with our prefix
-    let cursor = 0;
+    let cursor = '0';
     let count = 0;
 
     do {
-      const result = await kv.scan(cursor, { match: `${KEY_PREFIX}*`, count: 100 });
-      cursor = typeof result[0] === 'string' ? parseInt(result[0], 10) : result[0];
+      const result = await this.redis.scan(cursor, 'MATCH', `${KEY_PREFIX}*`, 'COUNT', 100);
+      cursor = result[0];
       count += result[1].length;
-    } while (cursor !== 0);
+    } while (cursor !== '0');
 
     return count;
   }
 
   dispose(): void {
-    // No resources to dispose (Vercel KV handles connections)
-    logger.info('VercelKVOAuthTokenStore disposed');
+    this.redis.disconnect();
+    logger.info('RedisOAuthTokenStore disposed');
   }
 }

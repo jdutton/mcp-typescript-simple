@@ -12,7 +12,7 @@ import { StoredTokenInfo } from '../providers/types.js';
  *
  * Implementations:
  * - MemoryOAuthTokenStore: Development/testing (not persistent across instances)
- * - VercelKVOAuthTokenStore: Vercel serverless deployments with Redis-compatible KV
+ * - RedisOAuthTokenStore: Vercel serverless deployments with Redis-compatible KV
  */
 export interface OAuthTokenStore {
   /**

@@ -13,6 +13,7 @@ import { OAuthProviderFactory } from '../build/auth/factory.js';
 import { createOAuthDiscoveryMetadata } from '../build/auth/discovery-metadata.js';
 import type { OAuthProvider } from '../build/auth/providers/types.js';
 import { logger } from '../build/utils/logger.js';
+import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
 // Global OAuth provider instance for reuse
 let oauthProviderInstance: OAuthProvider | null = null;
@@ -48,13 +49,15 @@ function getBaseUrl(req: VercelRequest): string {
 }
 
 /**
- * Set common CORS headers
+ * Set common CORS headers and anti-caching headers
  */
 function setCORSHeaders(res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, mcp-protocol-version, mcp-session-id, Accept, User-Agent');
-  res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+  // Set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
+  setOAuthAntiCachingHeaders(res);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

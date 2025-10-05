@@ -1,26 +1,19 @@
 /**
- * Vercel KV Initial Access Token Store
+ * Redis Initial Access Token Store
  *
- * Redis-compatible token storage for Vercel serverless deployments.
+ * Redis-compatible token storage for DCR (Dynamic Client Registration).
  *
  * Features:
- * - Serverless-native (no persistent connections)
- * - Global edge network with low latency
- * - Automatic TTL support for expiration
- * - Scales to millions of tokens
+ * - Works with any Redis deployment (no vendor lock-in)
+ * - Automatic TTL support for token expiration
  * - Multi-instance deployment support
+ * - Scales to millions of tokens
  *
  * Setup:
- * 1. Add Vercel KV integration: `vercel link` then add KV storage
- * 2. Environment variables auto-set: KV_REST_API_URL, KV_REST_API_TOKEN
- * 3. No code changes needed - factory auto-detects Vercel environment
- *
- * Limitations:
- * - Requires Vercel KV subscription (free tier: 256MB, 10K commands/day)
- * - Network latency for token operations (optimized with edge caching)
+ * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 import { randomBytes, randomUUID } from 'crypto';
 import {
   InitialAccessTokenStore,
@@ -38,9 +31,53 @@ const KEY_PREFIX = 'dcr:token:';
 const VALUE_PREFIX = 'dcr:value:';
 const INDEX_KEY = 'dcr:tokens:all';
 
-export class VercelKVTokenStore implements InitialAccessTokenStore {
-  constructor() {
-    logger.info('VercelKVTokenStore initialized');
+export class RedisTokenStore implements InitialAccessTokenStore {
+  private redis: Redis;
+
+  constructor(redisUrl?: string) {
+    const url = redisUrl || process.env.REDIS_URL;
+    if (!url) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+    }
+
+    this.redis = new Redis(url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+
+    this.redis.on('error', (error) => {
+      logger.error('Redis connection error', { error });
+    });
+
+    this.redis.on('connect', () => {
+      logger.info('Redis connected successfully for DCR tokens');
+    });
+
+    // Connect immediately
+    this.redis.connect().catch((error) => {
+      logger.error('Failed to connect to Redis', { error });
+    });
+
+    logger.info('RedisTokenStore initialized', { url: this.maskUrl(url) });
+  }
+
+  /**
+   * Mask Redis URL for logging (hide credentials)
+   */
+  private maskUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.password) {
+        parsed.password = '***';
+      }
+      return parsed.toString();
+    } catch {
+      return 'redis://***';
+    }
   }
 
   /**
@@ -82,17 +119,17 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
 
     // Store token metadata
     if (ttlSeconds) {
-      await kv.set(tokenKey, JSON.stringify(tokenData), { ex: ttlSeconds });
-      await kv.set(valueKey, id, { ex: ttlSeconds });
+      await this.redis.setex(tokenKey, ttlSeconds, JSON.stringify(tokenData));
+      await this.redis.setex(valueKey, ttlSeconds, id);
     } else {
-      await kv.set(tokenKey, JSON.stringify(tokenData));
-      await kv.set(valueKey, id);
+      await this.redis.set(tokenKey, JSON.stringify(tokenData));
+      await this.redis.set(valueKey, id);
     }
 
     // Add to index (for listing)
-    await kv.sadd(INDEX_KEY, id);
+    await this.redis.sadd(INDEX_KEY, id);
 
-    logger.info('Initial access token created in Vercel KV', {
+    logger.info('Initial access token created in Redis', {
       tokenId: id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
@@ -106,7 +143,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
   async validateAndUseToken(token: string): Promise<TokenValidationResult> {
     // Look up token ID from value
     const valueKey = this.getValueKey(token);
-    const id = await kv.get<string>(valueKey);
+    const id = await this.redis.get(valueKey);
 
     if (!id) {
       logger.warn('Token validation failed: token not found', { token: token.substring(0, 8) + '...' });
@@ -118,7 +155,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
 
     // Get token data
     const tokenKey = this.getTokenKey(id);
-    const tokenJson = await kv.get<string>(tokenKey);
+    const tokenJson = await this.redis.get(tokenKey);
 
     if (!tokenJson) {
       logger.warn('Token validation failed: token data not found', { tokenId: id });
@@ -138,8 +175,8 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
       result.token.usage_count++;
       result.token.last_used_at = Math.floor(Date.now() / 1000);
 
-      // Update token in KV
-      await kv.set(tokenKey, JSON.stringify(result.token));
+      // Update token in Redis
+      await this.redis.set(tokenKey, JSON.stringify(result.token));
 
       logger.info('Token validated and used', {
         tokenId: result.token.id,
@@ -153,7 +190,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
 
   async getToken(id: string): Promise<InitialAccessToken | undefined> {
     const tokenKey = this.getTokenKey(id);
-    const tokenJson = await kv.get<string>(tokenKey);
+    const tokenJson = await this.redis.get(tokenKey);
 
     if (!tokenJson) {
       return undefined;
@@ -164,7 +201,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
 
   async getTokenByValue(token: string): Promise<InitialAccessToken | undefined> {
     const valueKey = this.getValueKey(token);
-    const id = await kv.get<string>(valueKey);
+    const id = await this.redis.get(valueKey);
 
     if (!id) {
       return undefined;
@@ -178,15 +215,14 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
     includeExpired?: boolean;
   }): Promise<InitialAccessToken[]> {
     // Get all token IDs from index
-    const idsResult = await kv.smembers(INDEX_KEY);
-    const ids = Array.isArray(idsResult) ? idsResult : [];
+    const ids = await this.redis.smembers(INDEX_KEY);
 
     if (ids.length === 0) {
       return [];
     }
 
     // Fetch all tokens in parallel
-    const tokenPromises = ids.map((id) => this.getToken(String(id)));
+    const tokenPromises = ids.map((id) => this.getToken(id));
     const tokens = (await Promise.all(tokenPromises)).filter((t): t is InitialAccessToken => t !== undefined);
 
     const now = Math.floor(Date.now() / 1000);
@@ -215,7 +251,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
     token.revoked = true;
 
     const tokenKey = this.getTokenKey(id);
-    await kv.set(tokenKey, JSON.stringify(token));
+    await this.redis.set(tokenKey, JSON.stringify(token));
 
     logger.info('Token revoked', { tokenId: id });
     return true;
@@ -230,12 +266,12 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
     const tokenKey = this.getTokenKey(id);
     const valueKey = this.getValueKey(token.token);
 
-    // Delete from KV
-    await kv.del(tokenKey);
-    await kv.del(valueKey);
+    // Delete from Redis
+    await this.redis.del(tokenKey);
+    await this.redis.del(valueKey);
 
     // Remove from index
-    await kv.srem(INDEX_KEY, id);
+    await this.redis.srem(INDEX_KEY, id);
 
     logger.info('Token deleted', { tokenId: id });
     return true;
@@ -279,7 +315,7 @@ export class VercelKVTokenStore implements InitialAccessTokenStore {
   }
 
   async dispose(): Promise<void> {
-    // Vercel KV is connectionless (REST API), no cleanup needed
-    logger.info('VercelKVTokenStore disposed');
+    this.redis.disconnect();
+    logger.info('RedisTokenStore disposed');
   }
 }

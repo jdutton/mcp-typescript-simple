@@ -160,6 +160,7 @@ The documentation includes:
 
 ### Docker Deployment
 
+#### Single Instance Deployment
 ```bash
 # Build production Docker image
 npm run run:docker:build
@@ -173,6 +174,25 @@ npm run run:docker:microsoft  # Microsoft OAuth
 docker build -t mcp-typescript-simple:latest .
 docker run --rm -p 3000:3000 --env-file .env.google mcp-typescript-simple:latest
 ```
+
+#### Multi-Node Load Balanced Deployment
+For production-grade horizontal scaling with Redis session persistence:
+
+```bash
+# Start 3 MCP servers + Redis + Nginx load balancer
+docker-compose --profile loadbalanced up -d
+
+# Test the load-balanced deployment
+curl http://localhost:8080/health
+```
+
+**Features:**
+- 3 MCP server instances with round-robin load balancing
+- Redis-backed session persistence and recovery
+- Session handoff across instances
+- OpenTelemetry observability integration
+
+📘 **[Multi-Node Deployment Guide](./docs/docker-multi-node-deployment-and-test.md)** - Complete guide for horizontally scaled deployment with testing instructions
 
 ### Progressive Production Fidelity Testing
 

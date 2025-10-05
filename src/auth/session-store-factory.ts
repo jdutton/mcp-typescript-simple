@@ -2,7 +2,7 @@
  * OAuth Session Store Factory
  *
  * Auto-detects the best session store implementation based on environment:
- * - Vercel: VercelKVSessionStore (serverless-optimized with Redis)
+ * - Redis: RedisSessionStore (multi-instance with Redis)
  * - Development/Production: MemorySessionStore (fast, ephemeral)
  *
  * Note: Unlike token stores, session stores don't need file-based persistence
@@ -11,17 +11,17 @@
 
 import { OAuthSessionStore } from './stores/session-store-interface.js';
 import { MemorySessionStore } from './stores/memory-session-store.js';
-import { VercelKVSessionStore } from './stores/vercel-kv-session-store.js';
+import { RedisSessionStore } from './stores/redis-session-store.js';
 import { logger } from '../observability/logger.js';
 
-export type SessionStoreType = 'memory' | 'vercel-kv' | 'auto';
+export type SessionStoreType = 'memory' | 'redis' | 'auto';
 
 export interface SessionStoreFactoryOptions {
   /**
    * Store type to create
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent across instances)
-   * - 'vercel-kv': Vercel KV store (serverless-optimized)
+   * - 'redis': Redis store (multi-instance deployments)
    */
   type?: SessionStoreType;
 }
@@ -41,8 +41,8 @@ export class SessionStoreFactory {
       case 'memory':
         return this.createMemoryStore();
 
-      case 'vercel-kv':
-        return this.createVercelKVStore();
+      case 'redis':
+        return this.createRedisStore();
 
       default:
         throw new Error(`Unknown session store type: ${storeType}`);
@@ -53,16 +53,16 @@ export class SessionStoreFactory {
    * Auto-detect the best store for current environment
    */
   private static createAutoDetected(): OAuthSessionStore {
-    // Check for Vercel environment with KV configured
-    if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.info('Creating Vercel KV session store', { detected: true });
-      return this.createVercelKVStore();
+    // Check for Redis configured
+    if (process.env.REDIS_URL) {
+      logger.info('Creating Redis session store', { detected: true });
+      return this.createRedisStore();
     }
 
     // Default to memory store for local development
     logger.info('Creating in-memory session store', { detected: true });
     logger.warn('Memory session store does not persist across serverless instances', {
-      recommendation: 'Configure Vercel KV for multi-instance deployments'
+      recommendation: 'Configure REDIS_URL for multi-instance deployments'
     });
     return this.createMemoryStore();
   }
@@ -75,17 +75,16 @@ export class SessionStoreFactory {
   }
 
   /**
-   * Create Vercel KV session store
+   * Create Redis session store
    */
-  private static createVercelKVStore(): VercelKVSessionStore {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+  private static createRedisStore(): RedisSessionStore {
+    if (!process.env.REDIS_URL) {
       throw new Error(
-        'Vercel KV environment variables not configured. ' +
-        'Add Vercel KV integration via: vercel link && vercel env pull'
+        'Redis URL not configured. Set REDIS_URL environment variable.'
       );
     }
 
-    return new VercelKVSessionStore();
+    return new RedisSessionStore();
   }
 
   /**
@@ -101,8 +100,8 @@ export class SessionStoreFactory {
 
     if (type === 'auto') {
       // Determine what would be auto-detected
-      if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        detectedType = 'vercel-kv';
+      if (process.env.REDIS_URL) {
+        detectedType = 'redis';
       } else {
         detectedType = 'memory';
         warnings.push('Memory store does not persist across serverless instances');
@@ -114,12 +113,12 @@ export class SessionStoreFactory {
 
     // Validate selected/detected type
     switch (detectedType) {
-      case 'vercel-kv':
-        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      case 'redis':
+        if (!process.env.REDIS_URL) {
           return {
             valid: false,
             storeType: detectedType,
-            warnings: ['Vercel KV environment variables not configured'],
+            warnings: ['REDIS_URL environment variable not configured'],
           };
         }
         break;

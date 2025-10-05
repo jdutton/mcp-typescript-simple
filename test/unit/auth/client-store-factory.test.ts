@@ -6,8 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { ClientStoreFactory } from '../../../src/auth/client-store-factory.js';
 import { InMemoryClientStore } from '../../../src/auth/stores/memory-client-store.js';
 import { FileClientStore } from '../../../src/auth/stores/file-client-store.js';
-import { HybridClientStore } from '../../../src/auth/stores/hybrid-client-store.js';
-import { VercelKVClientStore } from '../../../src/auth/stores/vercel-kv-client-store.js';
+import { RedisClientStore } from '../../../src/auth/stores/redis-client-store.js';
 
 describe('ClientStoreFactory', () => {
   const originalEnv = process.env;
@@ -17,9 +16,6 @@ describe('ClientStoreFactory', () => {
     process.env = { ...originalEnv };
     delete process.env.DCR_STORE_TYPE;
     delete process.env.VERCEL;
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
-    delete process.env.DATABASE_URL;
     delete process.env.REDIS_URL;
     delete process.env.NODE_ENV;
   });
@@ -45,24 +41,12 @@ describe('ClientStoreFactory', () => {
       (store as FileClientStore).dispose();
     });
 
-    it('should create hybrid store when type is hybrid', () => {
-      const store = ClientStoreFactory.create({ storeType: 'hybrid' });
 
-      expect(store).toBeInstanceOf(HybridClientStore);
 
-      (store as HybridClientStore).dispose();
-    });
-
-    it('should throw error for unimplemented postgres type', () => {
-      expect(() => {
-        ClientStoreFactory.create({ storeType: 'postgres' });
-      }).toThrow('PostgreSQL store not yet implemented');
-    });
-
-    it('should throw error for unimplemented redis type', () => {
+    it('should throw error when Redis URL not configured', () => {
       expect(() => {
         ClientStoreFactory.create({ storeType: 'redis' });
-      }).toThrow('Redis store not yet implemented');
+      }).toThrow('Redis URL not configured');
     });
 
     it('should throw error for unknown type', () => {
@@ -73,22 +57,22 @@ describe('ClientStoreFactory', () => {
   });
 
   describe('auto-detection', () => {
-    it('should detect Vercel KV when VERCEL and KV credentials are set', () => {
-      process.env.VERCEL = '1';
-      process.env.KV_REST_API_URL = 'https://test-kv.vercel.com';
-      process.env.KV_REST_API_TOKEN = 'test-token';
+    it('should detect Redis when REDIS_URL is set', () => {
+      process.env.REDIS_URL = 'redis://localhost:6379';
 
       const store = ClientStoreFactory.create({ storeType: 'auto' });
 
-      expect(store).toBeInstanceOf(VercelKVClientStore);
+      expect(store).toBeInstanceOf(RedisClientStore);
+
+      delete process.env.REDIS_URL;
     });
 
-    it('should use hybrid store for development (default)', () => {
+    it('should use file store for development (default)', () => {
       const store = ClientStoreFactory.create({ storeType: 'auto' });
 
-      expect(store).toBeInstanceOf(HybridClientStore);
+      expect(store).toBeInstanceOf(FileClientStore);
 
-      (store as HybridClientStore).dispose();
+      (store as FileClientStore).dispose();
     });
 
     it('should warn and use memory store in production without persistence', () => {
@@ -111,26 +95,16 @@ describe('ClientStoreFactory', () => {
       (store as InMemoryClientStore).dispose();
     });
 
-    it('should fallback to hybrid when DATABASE_URL is set but postgres not implemented', () => {
-      process.env.DATABASE_URL = 'postgresql://localhost/test';
 
-      const store = ClientStoreFactory.create({ storeType: 'auto' });
-
-      // Should fallback to hybrid since postgres is not implemented
-      expect(store).toBeInstanceOf(HybridClientStore);
-
-      (store as HybridClientStore).dispose();
-    });
-
-    it('should fallback to hybrid when REDIS_URL is set but redis not implemented', () => {
+    it('should use Redis when REDIS_URL is configured', () => {
       process.env.REDIS_URL = 'redis://localhost:6379';
 
       const store = ClientStoreFactory.create({ storeType: 'auto' });
 
-      // Should fallback to hybrid since redis is not implemented
-      expect(store).toBeInstanceOf(HybridClientStore);
+      // Redis is now implemented - should use RedisClientStore
+      expect(store).toBeInstanceOf(RedisClientStore);
 
-      (store as HybridClientStore).dispose();
+      delete process.env.REDIS_URL;
     });
   });
 
@@ -218,10 +192,10 @@ describe('ClientStoreFactory', () => {
     it('should use auto-detection when DCR_STORE_TYPE not set', () => {
       const store = ClientStoreFactory.createFromEnvironment();
 
-      // Should default to hybrid in development
-      expect(store).toBeInstanceOf(HybridClientStore);
+      // Should default to file in development
+      expect(store).toBeInstanceOf(FileClientStore);
 
-      (store as HybridClientStore).dispose();
+      (store as FileClientStore).dispose();
     });
 
     it('should handle missing environment variables gracefully', () => {
@@ -232,7 +206,7 @@ describe('ClientStoreFactory', () => {
 
   describe('getOptionsFromEnvironment', () => {
     it('should parse all environment variables', () => {
-      process.env.DCR_STORE_TYPE = 'hybrid';
+      process.env.DCR_STORE_TYPE = 'file';
       process.env.DCR_FILE_PATH = '/custom/path.json';
       process.env.DCR_DEFAULT_SECRET_EXPIRY = '3600';
       process.env.DCR_ENABLE_AUTO_CLEANUP = 'true';
@@ -240,7 +214,7 @@ describe('ClientStoreFactory', () => {
 
       const options = ClientStoreFactory.getOptionsFromEnvironment();
 
-      expect(options.storeType).toBe('hybrid');
+      expect(options.storeType).toBe('file');
       expect(options.filePath).toBe('/custom/path.json');
       expect(options.defaultSecretExpirySeconds).toBe(3600);
       expect(options.enableAutoCleanup).toBe(true);
@@ -276,20 +250,21 @@ describe('ClientStoreFactory', () => {
     });
   });
 
-  describe('Vercel KV validation', () => {
-    it('should throw error when creating Vercel KV without credentials', () => {
+  describe('Redis validation', () => {
+    it('should throw error when creating Redis store without REDIS_URL', () => {
       expect(() => {
-        ClientStoreFactory.create({ storeType: 'vercel-kv' });
-      }).toThrow('Vercel KV credentials not found');
+        ClientStoreFactory.create({ storeType: 'redis' });
+      }).toThrow('Redis URL not configured');
     });
 
-    it('should succeed when creating Vercel KV with credentials', () => {
-      process.env.KV_REST_API_URL = 'https://test-kv.vercel.com';
-      process.env.KV_REST_API_TOKEN = 'test-token';
+    it('should succeed when creating Redis store with REDIS_URL', () => {
+      process.env.REDIS_URL = 'redis://localhost:6379';
 
-      const store = ClientStoreFactory.create({ storeType: 'vercel-kv' });
+      const store = ClientStoreFactory.create({ storeType: 'redis' });
 
-      expect(store).toBeInstanceOf(VercelKVClientStore);
+      expect(store).toBeInstanceOf(RedisClientStore);
+
+      delete process.env.REDIS_URL;
     });
   });
 

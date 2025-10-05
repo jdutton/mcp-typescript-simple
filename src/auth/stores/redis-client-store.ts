@@ -1,27 +1,22 @@
 /**
- * Vercel KV OAuth Client Store
+ * Redis OAuth Client Store
  *
- * Uses Vercel KV (Redis-compatible) for client storage. Perfect for:
- * - Vercel serverless deployments
+ * Uses Redis for client storage. Perfect for:
  * - Multi-instance production environments
- * - Global edge network deployments
+ * - Serverless deployments
+ * - Any Redis-compatible infrastructure
  *
  * Features:
- * - Serverless-native (no connection pools)
+ * - No vendor lock-in (works with any Redis)
  * - Auto-scaling with traffic
- * - Global replication (low latency worldwide)
  * - TTL support (automatic secret expiration)
  * - Multi-instance safe (shared state)
  *
  * Setup:
- * 1. Run `vercel link` in your project
- * 2. Add Vercel KV storage via dashboard or CLI
- * 3. Environment variables are auto-configured:
- *    - KV_REST_API_URL
- *    - KV_REST_API_TOKEN
+ * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import { kv } from '@vercel/kv';
+import Redis from 'ioredis';
 import { randomUUID, randomBytes } from 'crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
@@ -31,26 +26,66 @@ import {
 } from './client-store-interface.js';
 import { logger } from '../../utils/logger.js';
 
-const KV_PREFIX = 'oauth:client:';
-const KV_INDEX_KEY = 'oauth:clients:index';
+const KEY_PREFIX = 'oauth:client:';
+const INDEX_KEY = 'oauth:clients:index';
 
-export class VercelKVClientStore implements OAuthRegisteredClientsStore {
-  constructor(private options: ClientStoreOptions = {}) {
-    // Set defaults
-    this.options.defaultSecretExpirySeconds =
-      options.defaultSecretExpirySeconds ?? 30 * 24 * 60 * 60; // 30 days
-    this.options.maxClients = options.maxClients ?? 10000;
+export class RedisClientStore implements OAuthRegisteredClientsStore {
+  private redis: Redis;
+  private options: ClientStoreOptions;
 
-    logger.info('VercelKVClientStore initialized', {
-      defaultSecretExpiry: this.options.defaultSecretExpirySeconds,
-      maxClients: this.options.maxClients,
-      kvConfigured: !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN),
+  constructor(redisUrl?: string, options: ClientStoreOptions = {}) {
+    const url = redisUrl || process.env.REDIS_URL;
+    if (!url) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+    }
+
+    this.redis = new Redis(url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
     });
 
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      logger.warn(
-        'Vercel KV credentials not found. Run `vercel link` and ensure KV storage is configured.'
-      );
+    this.redis.on('error', (error) => {
+      logger.error('Redis connection error', { error });
+    });
+
+    this.redis.on('connect', () => {
+      logger.info('Redis connected successfully for OAuth clients');
+    });
+
+    // Connect immediately
+    this.redis.connect().catch((error) => {
+      logger.error('Failed to connect to Redis', { error });
+    });
+
+    // Set defaults
+    this.options = {
+      defaultSecretExpirySeconds: options.defaultSecretExpirySeconds ?? 30 * 24 * 60 * 60, // 30 days
+      maxClients: options.maxClients ?? 10000,
+    };
+
+    logger.info('RedisClientStore initialized', {
+      url: this.maskUrl(url),
+      defaultSecretExpiry: this.options.defaultSecretExpirySeconds,
+      maxClients: this.options.maxClients,
+    });
+  }
+
+  /**
+   * Mask Redis URL for logging (hide credentials)
+   */
+  private maskUrl(url: string): string {
+    try {
+      const parsed = new URL(url);
+      if (parsed.password) {
+        parsed.password = '***';
+      }
+      return parsed.toString();
+    } catch {
+      return 'redis://***';
     }
   }
 
@@ -59,7 +94,7 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
   ): Promise<OAuthClientInformationFull> {
     try {
       // Check max clients limit
-      const currentCount = await kv.scard(KV_INDEX_KEY);
+      const currentCount = await this.redis.scard(INDEX_KEY);
       if (currentCount >= this.options.maxClients!) {
         logger.warn('Client registration failed: max clients limit reached', {
           currentCount,
@@ -91,22 +126,22 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
         registered_at: Date.now(),
       };
 
-      // Store in KV
-      const key = `${KV_PREFIX}${clientId}`;
+      // Store in Redis
+      const key = `${KEY_PREFIX}${clientId}`;
 
       if (expiresAt) {
         // Set with TTL (automatic expiration)
         const ttl = expiresAt - issuedAt;
-        await kv.setex(key, ttl, JSON.stringify(fullClient));
+        await this.redis.setex(key, ttl, JSON.stringify(fullClient));
       } else {
         // Set without expiration
-        await kv.set(key, JSON.stringify(fullClient));
+        await this.redis.set(key, JSON.stringify(fullClient));
       }
 
       // Add to index set for listing
-      await kv.sadd(KV_INDEX_KEY, clientId);
+      await this.redis.sadd(INDEX_KEY, clientId);
 
-      logger.info('Client registered in Vercel KV', {
+      logger.info('Client registered in Redis', {
         clientId,
         clientName: client.client_name,
         redirectUris: client.redirect_uris,
@@ -116,56 +151,56 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
 
       return fullClient;
     } catch (error) {
-      logger.error('Failed to register client in Vercel KV', error);
+      logger.error('Failed to register client in Redis', error);
       throw error;
     }
   }
 
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
     try {
-      const key = `${KV_PREFIX}${clientId}`;
-      const data = await kv.get<string>(key);
+      const key = `${KEY_PREFIX}${clientId}`;
+      const data = await this.redis.get(key);
 
       if (!data) {
-        logger.debug('Client not found in Vercel KV', { clientId });
+        logger.debug('Client not found in Redis', { clientId });
         return undefined;
       }
 
       const client: ExtendedOAuthClientInformation = JSON.parse(data);
 
-      logger.debug('Client retrieved from Vercel KV', {
+      logger.debug('Client retrieved from Redis', {
         clientId,
         clientName: client.client_name,
       });
 
       return client;
     } catch (error) {
-      logger.error('Failed to get client from Vercel KV', { clientId, error });
+      logger.error('Failed to get client from Redis', { clientId, error });
       throw error;
     }
   }
 
   async deleteClient(clientId: string): Promise<boolean> {
     try {
-      const key = `${KV_PREFIX}${clientId}`;
+      const key = `${KEY_PREFIX}${clientId}`;
 
       // Check if client exists
-      const exists = await kv.exists(key);
+      const exists = await this.redis.exists(key);
       if (!exists) {
-        logger.debug('Client delete failed: not found in Vercel KV', { clientId });
+        logger.debug('Client delete failed: not found in Redis', { clientId });
         return false;
       }
 
-      // Delete from KV and index
+      // Delete from Redis and index
       await Promise.all([
-        kv.del(key),
-        kv.srem(KV_INDEX_KEY, clientId),
+        this.redis.del(key),
+        this.redis.srem(INDEX_KEY, clientId),
       ]);
 
-      logger.info('Client deleted from Vercel KV', { clientId });
+      logger.info('Client deleted from Redis', { clientId });
       return true;
     } catch (error) {
-      logger.error('Failed to delete client from Vercel KV', { clientId, error });
+      logger.error('Failed to delete client from Redis', { clientId, error });
       throw error;
     }
   }
@@ -173,15 +208,15 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
   async listClients(): Promise<OAuthClientInformationFull[]> {
     try {
       // Get all client IDs from index
-      const clientIds = await kv.smembers(KV_INDEX_KEY) as string[];
+      const clientIds = await this.redis.smembers(INDEX_KEY);
 
       if (!clientIds || clientIds.length === 0) {
         return [];
       }
 
       // Fetch all clients in parallel
-      const keys = clientIds.map((id: string) => `${KV_PREFIX}${id}`);
-      const results = await kv.mget(...keys) as (string | null)[];
+      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
+      const results = await this.redis.mget(...keys);
 
       // Filter out null values (expired clients) and parse
       const clients: OAuthClientInformationFull[] = [];
@@ -198,20 +233,20 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
 
       // Clean up expired client IDs from index
       if (expiredIds.length > 0) {
-        await kv.srem(KV_INDEX_KEY, ...expiredIds);
+        await this.redis.srem(INDEX_KEY, ...expiredIds);
         logger.debug('Removed expired clients from index', {
           count: expiredIds.length,
         });
       }
 
-      logger.debug('Listed clients from Vercel KV', {
+      logger.debug('Listed clients from Redis', {
         count: clients.length,
         expiredRemoved: expiredIds.length,
       });
 
       return clients;
     } catch (error) {
-      logger.error('Failed to list clients from Vercel KV', error);
+      logger.error('Failed to list clients from Redis', error);
       throw error;
     }
   }
@@ -219,17 +254,17 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
   async cleanupExpired(): Promise<number> {
     try {
       // Get all client IDs from index
-      const clientIds = await kv.smembers(KV_INDEX_KEY) as string[];
+      const clientIds = await this.redis.smembers(INDEX_KEY);
 
       if (!clientIds || clientIds.length === 0) {
         return 0;
       }
 
       // Check which clients still exist (non-expired)
-      const keys = clientIds.map((id: string) => `${KV_PREFIX}${id}`);
-      const exists = await Promise.all(keys.map((key: string) => kv.exists(key)));
+      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
+      const exists = await Promise.all(keys.map((key: string) => this.redis.exists(key)));
 
-      // Find expired clients (in index but not in KV)
+      // Find expired clients (in index but not in Redis)
       const expiredIds: string[] = [];
       for (let i = 0; i < clientIds.length; i++) {
         if (!exists[i]) {
@@ -239,15 +274,15 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
 
       // Remove expired client IDs from index
       if (expiredIds.length > 0) {
-        await kv.srem(KV_INDEX_KEY, ...expiredIds);
-        logger.info('Expired clients cleaned up from Vercel KV', {
+        await this.redis.srem(INDEX_KEY, ...expiredIds);
+        logger.info('Expired clients cleaned up from Redis', {
           count: expiredIds.length,
         });
       }
 
       return expiredIds.length;
     } catch (error) {
-      logger.error('Failed to cleanup expired clients from Vercel KV', error);
+      logger.error('Failed to cleanup expired clients from Redis', error);
       throw error;
     }
   }
@@ -257,9 +292,9 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
    */
   async getClientCount(): Promise<number> {
     try {
-      return await kv.scard(KV_INDEX_KEY);
+      return await this.redis.scard(INDEX_KEY);
     } catch (error) {
-      logger.error('Failed to get client count from Vercel KV', error);
+      logger.error('Failed to get client count from Redis', error);
       return 0;
     }
   }
@@ -269,19 +304,19 @@ export class VercelKVClientStore implements OAuthRegisteredClientsStore {
    */
   async clear(): Promise<void> {
     try {
-      const clientIds = await kv.smembers(KV_INDEX_KEY) as string[];
+      const clientIds = await this.redis.smembers(INDEX_KEY);
 
       if (!clientIds || clientIds.length === 0) {
         return;
       }
 
       // Delete all client keys
-      const keys = clientIds.map((id: string) => `${KV_PREFIX}${id}`);
-      await kv.del(...keys, KV_INDEX_KEY);
+      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
+      await this.redis.del(...keys, INDEX_KEY);
 
-      logger.warn('All clients cleared from Vercel KV', { count: clientIds.length });
+      logger.warn('All clients cleared from Redis', { count: clientIds.length });
     } catch (error) {
-      logger.error('Failed to clear clients from Vercel KV', error);
+      logger.error('Failed to clear clients from Redis', error);
       throw error;
     }
   }

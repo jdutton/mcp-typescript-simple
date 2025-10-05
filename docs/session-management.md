@@ -26,9 +26,11 @@ interface MCPSessionMetadata {
 }
 ```
 
-**Storage Options** (auto-detected):
-- **Vercel KV** (Redis): For serverless/multi-instance deployments
-- **Memory**: For local development and single-instance deployments
+**Storage Options** (auto-detected, priority order):
+1. **Redis** (via `REDIS_URL`): For serverless/multi-instance deployments
+2. **Vercel KV** (legacy): Backward compatibility for existing deployments
+3. **File** (development): Persistent local storage
+4. **Memory** (fallback): Single-instance, non-persistent
 
 #### 2. Instance Layer (Ephemeral, Non-Serializable)
 Server + Transport instances are reconstructed on-demand:
@@ -40,11 +42,11 @@ Server + Transport instances are reconstructed on-demand:
 ### Session Lifecycle
 1. **Initialization**: Client sends MCP `initialize` request
    - Server creates new StreamableHTTPServerTransport
-   - Session metadata stored in Vercel KV/Redis (if available)
+   - Session metadata stored in Redis (if `REDIS_URL` configured)
 2. **Session ID**: Server generates UUID and returns in `mcp-session-id` header
 3. **Subsequent Requests**: Client includes `mcp-session-id` header
    - Server checks local instance cache (10-min TTL)
-   - On cache miss: Fetches metadata from Vercel KV/Redis
+   - On cache miss: Fetches metadata from Redis
    - Reconstructs Server + Transport from metadata
    - Caches instance locally for future requests
 4. **Cleanup**: Sessions can be terminated via `DELETE /mcp` endpoint or automatic timeout (30 minutes)
@@ -59,33 +61,33 @@ Server + Transport instances are reconstructed on-demand:
 - **No configuration needed** - automatically uses memory store
 
 ### Vercel Serverless ✅
-**Fully supported with Vercel KV**
+**Fully supported with Redis Cloud (Vercel Marketplace)**
 - Horizontal auto-scaling across function instances
 - Sessions survive cold starts and instance restarts
 - Any function instance can handle any session
-- **Setup**: Add Vercel KV integration (`vercel link` → add KV storage)
+- **Setup**: Add Redis integration from Vercel Marketplace (automatically sets `REDIS_URL`)
 
 **How it works:**
 ```
 Request → Vercel Function Instance A
   ├─ Check local cache (miss - cold start)
-  ├─ Fetch metadata from Vercel KV
+  ├─ Fetch metadata from Redis Cloud
   ├─ Reconstruct Server + Transport
   └─ Process request
 
 Request → Vercel Function Instance B (different instance)
   ├─ Check local cache (miss - first time)
-  ├─ Fetch SAME metadata from Vercel KV
+  ├─ Fetch SAME metadata from Redis Cloud
   ├─ Reconstruct Server + Transport
   └─ Process request successfully ✅
 ```
 
 ### Load Balanced Deployments ✅
-**No sticky sessions required with Vercel KV/Redis**
+**No sticky sessions required with Redis**
 - Multiple identical server instances
 - Round-robin load balancing works perfectly
 - Sessions accessible from any instance
-- **Setup**: Configure `REDIS_URL` environment variable OR use Vercel KV
+- **Setup**: Configure `REDIS_URL` environment variable pointing to shared Redis instance
 
 **Without external storage** (fallback to memory):
 - **Requires sticky sessions** - clients must route to same instance
@@ -133,10 +135,12 @@ spec:
 - Perfect for development and testing
 
 ### 2. Production - Serverless (Vercel/AWS Lambda)
-**Horizontal scaling with Vercel KV/Redis**
+**Horizontal scaling with Redis**
 - Auto-scaling across multiple function instances
 - Sessions accessible from any instance
-- **Setup**: Add Vercel KV integration or configure `REDIS_URL`
+- **Setup**: Configure `REDIS_URL` environment variable
+  - Vercel: Add Redis from Marketplace (auto-configures `REDIS_URL`)
+  - Other platforms: Set `REDIS_URL` to your Redis connection string
 - No sticky sessions required - requests can hit any instance
 - Sessions survive cold starts and instance restarts
 
@@ -351,10 +355,11 @@ async function makeRequest(method: string, params: any) {
 
 ### Deployment Recommendations
 
-**Production deployments should use Vercel KV/Redis** to avoid session loss:
-- **Vercel**: Add Vercel KV integration (`vercel link` → add KV storage)
+**Production deployments should use Redis** to avoid session loss:
+- **Vercel**: Add Redis Cloud from Marketplace (automatically sets `REDIS_URL`)
 - **AWS Lambda**: Configure `REDIS_URL` environment variable
-- **Kubernetes**: Deploy Redis service and configure `REDIS_URL`
+- **Kubernetes/Docker**: Deploy Redis service and configure `REDIS_URL`
+- **Docker Compose**: Use included `docker-compose.yml` with local Redis
 
 **Memory-only mode** is suitable for:
 - Local development and testing

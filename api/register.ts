@@ -6,6 +6,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { InMemoryClientStore } from '../build/auth/stores/memory-client-store.js';
 import { logger } from '../build/observability/logger.js';
+import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
 // Global client store instance for reuse across function invocations
 let clientStoreInstance: InMemoryClientStore | null = null;
@@ -46,6 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    // Set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
+    setOAuthAntiCachingHeaders(res);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {

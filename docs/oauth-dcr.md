@@ -27,15 +27,16 @@ Dynamic Client Registration allows OAuth clients like Claude.ai and MCP Inspecto
 
 Three pluggable storage implementations with auto-detection:
 
-1. **Hybrid Store** (Development)
-   - In-memory + file-backed persistence
+1. **File Store** (Development)
+   - File-backed persistence
    - Survives restarts
    - File location: `./data/oauth-clients.json`
 
-2. **Vercel KV Store** (Production - Vercel)
-   - Redis-compatible, serverless-native
-   - Global edge network, auto-scaling
+2. **Redis Store** (Production)
+   - Multi-instance deployments
+   - Auto-scaling with traffic
    - Automatic TTL for secret expiration
+   - Works with any Redis deployment
 
 3. **In-Memory Store** (Testing)
    - Fast, ephemeral storage
@@ -213,36 +214,34 @@ POST /admin/tokens/cleanup
 
 ```bash
 # Store type (auto-detected by default)
-DCR_STORE_TYPE=auto|memory|file|hybrid|vercel-kv
+DCR_STORE_TYPE=auto|memory|file|redis
 
 # File store path (default: ./data/oauth-clients.json)
 DCR_FILE_PATH=./data/oauth-clients.json
 
 # Token store type (auto-detected by default)
-DCR_TOKEN_STORE=auto|memory|file|vercel-kv
+DCR_TOKEN_STORE=auto|memory|file|redis
 
 # Token file path (default: ./data/access-tokens.json)
 DCR_TOKEN_FILE_PATH=./data/access-tokens.json
 
-# Vercel KV (automatically set by Vercel)
-KV_REST_API_URL=https://your-kv-store.vercel.com
-KV_REST_API_TOKEN=your-token-here
+# Redis URL for multi-instance deployments
+REDIS_URL=redis://localhost:6379
 ```
 
 ### Auto-Detection Logic
 
-1. **Vercel Environment**: Uses Vercel KV if `VERCEL` env var and KV credentials exist
+1. **Redis Environment**: Uses Redis if `REDIS_URL` is set
 2. **Test Environment**: Uses in-memory store if `NODE_ENV=test` or `JEST_WORKER_ID` set
-3. **Default**: Uses hybrid (memory + file) store for development
+3. **Default**: Uses file store for development
 
 ### Storage Backend Comparison
 
 | Backend | Persistent | Multi-Instance | Use Case |
 |---------|-----------|---------------|----------|
 | **Memory** | ❌ No | ❌ No | Testing only |
-| **File** | ✅ Yes | ❌ No | Single-instance dev |
-| **Hybrid** | ✅ Yes | ❌ No | Development (default) |
-| **Vercel KV** | ✅ Yes | ✅ Yes | Production (serverless) |
+| **File** | ✅ Yes | ❌ No | Development (default) |
+| **Redis** | ✅ Yes | ✅ Yes | Production (multi-instance) |
 
 ## Discovery Metadata
 
@@ -371,16 +370,15 @@ await client.connect({
 
 ### Token Store Not Persisting
 
-**Cause:** Using in-memory store or Vercel KV not configured
+**Cause:** Using in-memory store or Redis not configured
 
 **Solution:**
 ```bash
 # Development: Use file store
 DCR_STORE_TYPE=file
 
-# Production (Vercel): Configure KV
-vercel link
-vercel env pull
+# Production: Configure Redis
+REDIS_URL=redis://your-redis-host:6379
 # Restart server
 ```
 

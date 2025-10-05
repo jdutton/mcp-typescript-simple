@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # Redis service for session storage
+  # Note: Using external Redis container if already running
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis-lb
+    ports:
+      - "6380:6379"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    profiles:
+      - loadbalanced
+
+  # Single-instance profiles (original setup)
+  # MCP server with Google OAuth
+  mcp-server-google:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-google
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.google
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - google
+
+  # MCP server with GitHub OAuth
+  mcp-server-github:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-github
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.github
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - github
+
+  # MCP server with Microsoft OAuth
+  mcp-server-microsoft:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-microsoft
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.microsoft
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - microsoft
+
+  # Load-balanced multi-instance setup
+  # MCP server instance 1
+  mcp-server-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379
+      NODE_ENV: development
+      MCP_DEV_SKIP_AUTH: "true"
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_SERVICE_NAME: "mcp-server-1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mcp-network
+    profiles:
+      - loadbalanced
+
+  # MCP server instance 2
+  mcp-server-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379
+      NODE_ENV: development
+      MCP_DEV_SKIP_AUTH: "true"
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_SERVICE_NAME: "mcp-server-2"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mcp-network
+    profiles:
+      - loadbalanced
+
+  # MCP server instance 3
+  mcp-server-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://host.docker.internal:6379
+      NODE_ENV: development
+      MCP_DEV_SKIP_AUTH: "true"
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_SERVICE_NAME: "mcp-server-3"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - mcp-network
+    profiles:
+      - loadbalanced
+
+  # Nginx load balancer
+  nginx:
+    image: nginx:alpine
+    container_name: mcp-nginx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - mcp-server-1
+      - mcp-server-2
+      - mcp-server-3
+    networks:
+      - mcp-network
+    profiles:
+      - loadbalanced
+
+networks:
+  mcp-network:
+    driver: bridge

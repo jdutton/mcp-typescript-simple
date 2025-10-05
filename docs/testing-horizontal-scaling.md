@@ -2,25 +2,13 @@
 
 This guide shows how to manually test the horizontal scalability features and observe session recovery across server instances.
 
-## Test Scenario 1: Session Recovery with Vercel KV (Production Behavior)
+## Test Scenario 1: Session Recovery with Redis (Production Behavior)
 
 ### Prerequisites
-- Vercel KV configured (or local Redis instance)
-- `REDIS_URL` environment variable set (for Redis)
-- OR Vercel KV environment variables (for Vercel)
+- Redis configured
+- `REDIS_URL` environment variable set
 
-### Setup Vercel KV (Recommended)
-```bash
-# Link project to Vercel and add KV storage
-vercel link
-vercel env pull .env.local  # Pull Vercel KV credentials
-
-# Verify KV environment variables are present
-grep KV_ .env.local
-# Should see: KV_URL, KV_REST_API_URL, KV_REST_API_TOKEN, etc.
-```
-
-### Alternatively: Use Local Redis
+### Setup Local Redis
 ```bash
 # Start local Redis in Docker
 docker run -d -p 6379:6379 redis:7-alpine
@@ -33,11 +21,11 @@ export REDIS_URL=redis://localhost:6379
 
 #### Step 1: Start First Server Instance
 ```bash
-# Terminal 1: Start server with Vercel KV or Redis
+# Terminal 1: Start server with Redis
 NODE_OPTIONS="--env-file=.env.local" npm run dev:http
 
 # Should see:
-# [info] MCPInstanceManager initialized { storeType: 'VercelKVMCPMetadataStore' }
+# [info] MCPInstanceManager initialized { storeType: 'RedisMCPMetadataStore' }
 # OR
 # [info] MCPInstanceManager initialized { storeType: 'MemoryMCPMetadataStore' }  # if Redis unavailable
 ```
@@ -112,7 +100,7 @@ curl -X POST http://localhost:3000/mcp \
     }
   }'
 
-# ✅ WITH VERCEL KV/REDIS: Should succeed!
+# ✅ WITH REDIS: Should succeed!
 # Server logs show:
 # [info] Reconstructing MCP server instance { sessionId: '550e8400...', age: '30s', hasAuth: false }
 # [debug] MCP instance cached { sessionId: '550e8400...', cacheSize: 1 }
@@ -169,7 +157,7 @@ curl -X POST http://localhost:3001/mcp \
     }
   }'
 
-# ✅ WITH VERCEL KV/REDIS: Should succeed!
+# ✅ WITH REDIS: Should succeed!
 # Instance 2 logs show:
 # [info] Reconstructing MCP server instance { sessionId: '550e8400...', ... }
 # [debug] MCP instance cached { sessionId: '550e8400...', cacheSize: 1 }
@@ -350,7 +338,7 @@ NODE_ENV=development NODE_OPTIONS="--env-file=.env.local" npm run dev:http
 
 ## Expected Behavior Summary
 
-| Scenario | With Vercel KV/Redis | Without (Memory Only) |
+| Scenario | With Redis | Without (Memory Only) |
 |----------|---------------------|----------------------|
 | Server restart | ✅ Session survives | ❌ Session lost |
 | Multi-instance | ✅ Works seamlessly | ❌ Session not found |
@@ -361,9 +349,9 @@ NODE_ENV=development NODE_OPTIONS="--env-file=.env.local" npm run dev:http
 
 ## Troubleshooting
 
-**"Session not found" despite Vercel KV:**
-- Check environment variables: `echo $KV_REST_API_URL`
-- Verify Vercel KV is accessible: `vercel env pull`
+**"Session not found" despite Redis:**
+- Check environment variables: `echo $REDIS_URL`
+- Verify Redis is accessible: `redis-cli ping` (should return PONG)
 - Check server logs for metadata store type
 
 **Reconstruction not happening:**

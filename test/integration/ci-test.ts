@@ -269,9 +269,21 @@ class CITestRunner {
       await execAsync('docker --version');
 
       // Build the Docker image
-      const { stdout: _stdout, stderr: _stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
-        timeout: 120000 // 2 minutes timeout
+      // Note: Docker buildkit outputs to stderr, which is normal
+      const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
+        timeout: 300000 // 5 minutes timeout (uncached builds can take longer)
       });
+
+      // Check for success indicators in either stdout or stderr (buildkit uses stderr)
+      const output = stdout + stderr;
+      const hasSuccess = output.includes('writing image') ||
+                        output.includes('Successfully built') ||
+                        output.includes('Successfully tagged') ||
+                        output.includes('naming to docker.io');
+
+      if (!hasSuccess) {
+        throw new Error(`Docker build failed: no success indicators found\n${output.substring(output.length - 500)}`);
+      }
 
       // Clean up test image
       await execAsync('docker rmi mcp-typescript-simple-test').catch(() => {

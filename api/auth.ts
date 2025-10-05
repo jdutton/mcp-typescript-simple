@@ -5,6 +5,7 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../build/auth/factory.js';
 import { logger } from '../build/utils/logger.js';
+import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
 // Global OAuth provider instance for reuse
 let oauthProviderInstance: any = null;
@@ -38,6 +39,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, mcp-protocol-version, mcp-session-id, Accept, User-Agent');
+
+    // Set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
+    setOAuthAntiCachingHeaders(res);
 
     // Handle preflight requests
     if (req.method === 'OPTIONS') {

@@ -11,6 +11,7 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
 - **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design
 - **Environment Configuration**: Never use dotenv - use Node.js --env-file or --env-file-if-exists flags instead
+- **Redis Storage**: NEVER use Vercel KV (@vercel/kv package) - use standard Redis with ioredis + REDIS_URL environment variable
 
 ## Development Commands
 
@@ -81,11 +82,25 @@ npm run run:oauth:google         # Google OAuth
 npm run run:oauth:github         # GitHub OAuth
 npm run run:oauth:microsoft      # Microsoft OAuth
 
-# Docker deployment
-npm run run:docker:build         # Build Docker image
-npm run run:docker:google        # Run Docker with Google OAuth
-npm run run:docker:github        # Run Docker with GitHub OAuth
-npm run run:docker:microsoft     # Run Docker with Microsoft OAuth
+# Docker deployment (standalone containers)
+npm run run:docker:build                # Build Docker image
+npm run run:docker:google               # Run Docker with Google OAuth
+npm run run:docker:github               # Run Docker with GitHub OAuth
+npm run run:docker:microsoft            # Run Docker with Microsoft OAuth
+
+# Docker deployment (with local Redis - self-contained testing)
+npm run run:docker:redis:start          # Start Redis container
+npm run run:docker:with-redis:google    # Run with Redis + Google OAuth
+npm run run:docker:with-redis:github    # Run with Redis + GitHub OAuth
+npm run run:docker:with-redis:microsoft # Run with Redis + Microsoft OAuth
+npm run run:docker:redis:stop           # Stop and remove Redis container
+
+# Docker Compose (self-contained with local Redis - requires docker-compose)
+# Note: Uses docker-compose.yml with profiles for provider selection
+docker compose --profile google up      # Google OAuth with local Redis
+docker compose --profile github up      # GitHub OAuth with local Redis
+docker compose --profile microsoft up   # Microsoft OAuth with local Redis
+docker compose down -v                  # Stop and clean up
 
 # Vercel deployment (Preview Only)
 npm run dev:vercel               # Local Vercel development server

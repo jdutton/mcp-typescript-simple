@@ -2,7 +2,7 @@
  * Initial Access Token Store Factory
  *
  * Auto-detects the best token store implementation based on environment:
- * - Vercel: VercelKVTokenStore (serverless-optimized with Redis)
+ * - Redis: RedisTokenStore (multi-instance with Redis)
  * - Development: FileTokenStore (persistence with restart tolerance)
  * - Testing: InMemoryTokenStore (fast, ephemeral)
  *
@@ -12,10 +12,10 @@
 import { InitialAccessTokenStore } from './stores/token-store-interface.js';
 import { InMemoryTokenStore } from './stores/memory-token-store.js';
 import { FileTokenStore } from './stores/file-token-store.js';
-import { VercelKVTokenStore } from './stores/vercel-kv-token-store.js';
+import { RedisTokenStore } from './stores/redis-token-store.js';
 import { logger } from '../utils/logger.js';
 
-export type TokenStoreType = 'memory' | 'file' | 'vercel-kv' | 'auto';
+export type TokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
 
 export interface TokenStoreFactoryOptions {
   /**
@@ -23,7 +23,7 @@ export interface TokenStoreFactoryOptions {
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent)
    * - 'file': File-based store (persistent, single-instance)
-   * - 'vercel-kv': Vercel KV store (serverless-optimized)
+   * - 'redis': Redis store (multi-instance deployments)
    */
   type?: TokenStoreType;
 
@@ -70,8 +70,8 @@ export class TokenStoreFactory {
       case 'file':
         return this.createFileStore(options);
 
-      case 'vercel-kv':
-        return this.createVercelKVStore();
+      case 'redis':
+        return this.createRedisStore();
 
       default:
         throw new Error(`Unknown token store type: ${storeType}`);
@@ -82,10 +82,10 @@ export class TokenStoreFactory {
    * Auto-detect the best store for current environment
    */
   private static createAutoDetected(options: TokenStoreFactoryOptions): InitialAccessTokenStore {
-    // Check for Vercel environment
-    if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.info('Creating Vercel KV token store', { detected: true });
-      return this.createVercelKVStore();
+    // Check for Redis configured
+    if (process.env.REDIS_URL) {
+      logger.info('Creating Redis token store', { detected: true });
+      return this.createRedisStore();
     }
 
     // Check for test environment
@@ -120,17 +120,14 @@ export class TokenStoreFactory {
   }
 
   /**
-   * Create Vercel KV token store
+   * Create Redis token store
    */
-  private static createVercelKVStore(): VercelKVTokenStore {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      throw new Error(
-        'Vercel KV environment variables not configured. ' +
-        'Add Vercel KV integration via: vercel link && vercel env pull'
-      );
+  private static createRedisStore(): RedisTokenStore {
+    if (!process.env.REDIS_URL) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
-    return new VercelKVTokenStore();
+    return new RedisTokenStore();
   }
 
   /**
@@ -146,8 +143,8 @@ export class TokenStoreFactory {
 
     if (type === 'auto') {
       // Determine what would be auto-detected
-      if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        detectedType = 'vercel-kv';
+      if (process.env.REDIS_URL) {
+        detectedType = 'redis';
       } else if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
         detectedType = 'memory';
         warnings.push('Memory store is not persistent - tokens will be lost on restart');
@@ -160,12 +157,12 @@ export class TokenStoreFactory {
 
     // Validate selected/detected type
     switch (detectedType) {
-      case 'vercel-kv':
-        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      case 'redis':
+        if (!process.env.REDIS_URL) {
           return {
             valid: false,
             storeType: detectedType,
-            warnings: ['Vercel KV environment variables not configured'],
+            warnings: ['REDIS_URL environment variable not configured'],
           };
         }
         break;
