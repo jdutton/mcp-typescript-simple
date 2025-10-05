@@ -2,8 +2,7 @@
  * MCP Session Metadata Store Factory
  *
  * Auto-detects the best session metadata store implementation based on environment:
- * - Vercel with KV: VercelKVMCPMetadataStore (horizontal scalability)
- * - Redis configured: (Future) RedisM CPMetadataStore
+ * - Redis configured: RedisMCPMetadataStore (horizontal scalability)
  * - Default: MemoryMCPMetadataStore (single-instance, existing behavior)
  *
  * This enables horizontal scalability without requiring code changes.
@@ -13,10 +12,10 @@ import { MCPSessionMetadataStore } from './mcp-session-metadata-store-interface.
 import { MemoryMCPMetadataStore } from './memory-mcp-metadata-store.js';
 import { FileMCPMetadataStore } from './file-mcp-metadata-store.js';
 import { CachingMCPMetadataStore } from './caching-mcp-metadata-store.js';
-import { VercelKVMCPMetadataStore } from './vercel-kv-mcp-metadata-store.js';
+import { RedisMCPMetadataStore } from './redis-mcp-metadata-store.js';
 import { logger } from '../observability/logger.js';
 
-export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'hybrid' | 'vercel-kv' | 'redis' | 'auto';
+export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'redis' | 'auto';
 
 export interface MCPMetadataStoreFactoryOptions {
   /**
@@ -24,10 +23,8 @@ export interface MCPMetadataStoreFactoryOptions {
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent across instances)
    * - 'file': File-based store (persistent, development)
-   * - 'caching': Caching store (memory + optional file/redis/vercel-kv)
-   * - 'hybrid': Alias for 'caching' (backwards compatibility)
-   * - 'vercel-kv': Vercel KV store (serverless-optimized)
-   * - 'redis': Generic Redis store (future implementation)
+   * - 'caching': Caching store (memory + optional file/redis)
+   * - 'redis': Redis store (production, serverless-optimized)
    */
   type?: MCPMetadataStoreType;
 
@@ -61,11 +58,7 @@ export class MCPMetadataStoreFactory {
         return this.createFileStore(options.filePath);
 
       case 'caching':
-      case 'hybrid': // Backwards compatibility
         return this.createCachingStore(options);
-
-      case 'vercel-kv':
-        return this.createVercelKVStore();
 
       case 'redis':
         return this.createRedisStore(options.redisUrl);
@@ -77,30 +70,18 @@ export class MCPMetadataStoreFactory {
 
   /**
    * Auto-detect the best store for current environment
+   * Priority: Actual configuration > Environment detection
    */
   private static createAutoDetected(options: MCPMetadataStoreFactoryOptions): MCPSessionMetadataStore {
     const isProduction = process.env.NODE_ENV === 'production';
-    const isVercel = !!process.env.VERCEL;
 
-    // 1. Production + Vercel KV: Use caching with Vercel KV backend
-    if (isProduction && isVercel && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.info('Creating caching MCP metadata store with Vercel KV backend', {
-        detected: true,
-        scalable: true,
-        persistent: true,
-      });
-      return this.createCachingStore({
-        ...options,
-        type: 'vercel-kv',
-      });
-    }
-
-    // 2. Production + Redis: Use caching with Redis backend
-    if (isProduction && (options.redisUrl || process.env.REDIS_URL)) {
+    // 1. Redis configured: Use Redis (regardless of environment)
+    if (options.redisUrl || process.env.REDIS_URL) {
       logger.info('Creating caching MCP metadata store with Redis backend', {
         detected: true,
         scalable: true,
         persistent: true,
+        source: options.redisUrl ? 'options' : 'REDIS_URL',
       });
       return this.createCachingStore({
         ...options,
@@ -109,12 +90,13 @@ export class MCPMetadataStoreFactory {
       });
     }
 
-    // 3. Development or local: Use caching with file backend
+    // 3. Development with file preference: Use file backend
     if (!isProduction || process.env.USE_FILE_STORE) {
       logger.info('Creating caching MCP metadata store with file backend', {
         detected: true,
         scalable: false,
         persistent: true,
+        environment: isProduction ? 'production-override' : 'development',
       });
       return this.createCachingStore({
         ...options,
@@ -123,18 +105,15 @@ export class MCPMetadataStoreFactory {
       });
     }
 
-    // 4. Fallback: Caching with no secondary (memory-only)
-    logger.info('Creating caching MCP metadata store with no secondary (memory-only)', {
-      detected: true,
+    // 4. Production without external store: Memory-only (not recommended)
+    logger.warn('Creating memory-only metadata store in production', {
       scalable: false,
       persistent: false,
-    });
-    logger.warn('Memory-only metadata store does not persist across instances', {
-      recommendation: 'Configure Vercel KV or Redis for multi-instance deployments',
+      recommendation: 'Configure REDIS_URL for multi-instance deployments',
     });
     return this.createCachingStore({
       ...options,
-      type: 'memory', // Will create caching store with no secondary
+      type: 'memory',
     });
   }
 
@@ -155,7 +134,7 @@ export class MCPMetadataStoreFactory {
   /**
    * Create caching session metadata store
    * Primary: Memory (fast cache with LRU + TTL)
-   * Secondary: Optional persistent backend (File/Redis/VercelKV)
+   * Secondary: Optional persistent backend (File/Redis)
    */
   private static createCachingStore(options: MCPMetadataStoreFactoryOptions): CachingMCPMetadataStore {
     const primaryStore = this.createMemoryStore();
@@ -163,9 +142,7 @@ export class MCPMetadataStoreFactory {
     // Determine secondary store based on options (optional)
     let secondaryStore: MCPSessionMetadataStore | undefined;
 
-    if (options.type === 'vercel-kv') {
-      secondaryStore = this.createVercelKVStore();
-    } else if (options.type === 'redis') {
+    if (options.type === 'redis') {
       secondaryStore = this.createRedisStore(options.redisUrl);
     } else if (options.type === 'file') {
       secondaryStore = this.createFileStore(options.filePath);
@@ -176,20 +153,6 @@ export class MCPMetadataStoreFactory {
       enablePeriodicSync: true,
       syncIntervalMs: 5 * 60 * 1000, // 5 minutes
     });
-  }
-
-  /**
-   * Create Vercel KV session metadata store
-   */
-  private static createVercelKVStore(): VercelKVMCPMetadataStore {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      throw new Error(
-        'Vercel KV environment variables not configured. ' +
-        'Add Vercel KV integration via: vercel link && vercel env pull'
-      );
-    }
-
-    return new VercelKVMCPMetadataStore();
   }
 
   /**
@@ -205,13 +168,7 @@ export class MCPMetadataStoreFactory {
       );
     }
 
-    // TODO: Implement RedisMCPMetadataStore
-    // For now, fall back to memory store with warning
-    logger.warn('Generic Redis store not yet implemented, using memory store', {
-      redisUrl,
-      recommendation: 'Use Vercel KV for serverless deployments',
-    });
-    return this.createMemoryStore();
+    return new RedisMCPMetadataStore(redisUrl);
   }
 
   /**
@@ -227,9 +184,7 @@ export class MCPMetadataStoreFactory {
 
     if (type === 'auto') {
       // Determine what would be auto-detected
-      if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        detectedType = 'vercel-kv';
-      } else if (process.env.REDIS_URL) {
+      if (process.env.REDIS_URL) {
         detectedType = 'redis';
       } else {
         detectedType = 'memory';
@@ -243,16 +198,6 @@ export class MCPMetadataStoreFactory {
 
     // Validate selected/detected type
     switch (detectedType) {
-      case 'vercel-kv':
-        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-          return {
-            valid: false,
-            storeType: detectedType,
-            warnings: ['Vercel KV environment variables not configured'],
-          };
-        }
-        break;
-
       case 'redis':
         if (!process.env.REDIS_URL) {
           return {
@@ -261,7 +206,6 @@ export class MCPMetadataStoreFactory {
             warnings: ['REDIS_URL environment variable not configured'],
           };
         }
-        warnings.push('Generic Redis store not yet fully implemented');
         break;
 
       case 'memory':

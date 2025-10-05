@@ -269,9 +269,18 @@ class CITestRunner {
       await execAsync('docker --version');
 
       // Build the Docker image
-      const { stdout: _stdout, stderr: _stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
+      // Note: Docker legacy builder deprecation warning goes to stderr but build succeeds
+      const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
         timeout: 120000 // 2 minutes timeout
       });
+
+      // Check if build actually failed (look for error indicators, not just stderr)
+      if (stderr && !stderr.includes('DEPRECATED') && !stderr.includes('Successfully built')) {
+        // Check if stdout indicates success
+        if (!stdout.includes('Successfully built') && !stdout.includes('Successfully tagged')) {
+          throw new Error(`Docker build failed: ${stderr}`);
+        }
+      }
 
       // Clean up test image
       await execAsync('docker rmi mcp-typescript-simple-test').catch(() => {

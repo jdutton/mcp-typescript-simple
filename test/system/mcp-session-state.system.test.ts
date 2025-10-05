@@ -100,7 +100,13 @@ class MCPTestClient {
   }
 }
 
-describe('MCP Session State Management System Tests', () => {
+// Skip this test suite in STDIO mode - session management requires HTTP transport
+const testEnv = process.env.TEST_ENV || '';
+const shouldSkip = testEnv.includes('stdio');
+
+const describeOrSkip = shouldSkip ? describe.skip : describe;
+
+describeOrSkip('MCP Session State Management System Tests', () => {
   let serverProcess: ChildProcess;
   let client: MCPTestClient;
 

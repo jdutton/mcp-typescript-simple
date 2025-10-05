@@ -262,23 +262,6 @@ describe('MCPMetadataStoreFactory', () => {
       }).toThrow('Unknown MCP metadata store type: unknown');
     });
 
-    it('should throw error for vercel-kv without environment variables', () => {
-      // Save original env vars
-      const originalKvUrl = process.env.KV_REST_API_URL;
-      const originalKvToken = process.env.KV_REST_API_TOKEN;
-
-      // Clear Vercel KV env vars
-      delete process.env.KV_REST_API_URL;
-      delete process.env.KV_REST_API_TOKEN;
-
-      expect(() => {
-        MCPMetadataStoreFactory.create({ type: 'vercel-kv' });
-      }).toThrow('Vercel KV environment variables not configured');
-
-      // Restore env vars
-      if (originalKvUrl) process.env.KV_REST_API_URL = originalKvUrl;
-      if (originalKvToken) process.env.KV_REST_API_TOKEN = originalKvToken;
-    });
   });
 
   describe('validateEnvironment', () => {
@@ -290,25 +273,6 @@ describe('MCPMetadataStoreFactory', () => {
       expect(result.warnings.length).toBeGreaterThan(0);
     });
 
-    it('should validate vercel-kv as invalid without env vars', () => {
-      // Save original env vars
-      const originalKvUrl = process.env.KV_REST_API_URL;
-      const originalKvToken = process.env.KV_REST_API_TOKEN;
-
-      // Clear Vercel KV env vars
-      delete process.env.KV_REST_API_URL;
-      delete process.env.KV_REST_API_TOKEN;
-
-      const result = MCPMetadataStoreFactory.validateEnvironment('vercel-kv');
-
-      expect(result.valid).toBe(false);
-      expect(result.storeType).toBe('vercel-kv');
-      expect(result.warnings).toContain('Vercel KV environment variables not configured');
-
-      // Restore env vars
-      if (originalKvUrl) process.env.KV_REST_API_URL = originalKvUrl;
-      if (originalKvToken) process.env.KV_REST_API_TOKEN = originalKvToken;
-    });
 
     it('should auto-detect memory store when no external stores configured', () => {
       // Save original env vars

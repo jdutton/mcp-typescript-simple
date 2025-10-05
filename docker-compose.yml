@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Redis service for session storage
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # MCP server with Google OAuth
+  mcp-server-google:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-google
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.google
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - google
+
+  # MCP server with GitHub OAuth
+  mcp-server-github:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-github
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.github
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - github
+
+  # MCP server with Microsoft OAuth
+  mcp-server-microsoft:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-microsoft
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    env_file:
+      - .env.microsoft
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - mcp-network
+    profiles:
+      - microsoft
+
+networks:
+  mcp-network:
+    driver: bridge
