@@ -5,7 +5,7 @@
  * reconstruction from persistent metadata.
  *
  * Architecture:
- * - Metadata: Stored in Redis/Vercel KV (serializable, persistent)
+ * - Metadata: Stored in Redis (serializable, persistent)
  * - Instances: Cached in-memory (non-serializable, reconstructed on-demand)
  * - Any server instance can handle any session (horizontal scalability)
  *
@@ -298,7 +298,7 @@ export class MCPInstanceManager {
    * Dispose of resources
    *
    * Note: Does NOT dispose the metadata store as it may be shared across
-   * multiple instances (e.g., Redis/Vercel KV). The metadata store should
+   * multiple instances (e.g., Redis). The metadata store should
    * be managed separately by the application lifecycle.
    */
   dispose(): void {

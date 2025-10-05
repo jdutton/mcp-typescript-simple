@@ -22,7 +22,7 @@ describe('Session Reconstruction Integration Tests', () => {
   let llmManager: LLMManager;
 
   beforeEach(async () => {
-    // Create shared metadata store (simulates Redis/Vercel KV)
+    // Create shared metadata store (simulates Redis)
     metadataStore = new MemoryMCPMetadataStore();
 
     // Create LLM manager

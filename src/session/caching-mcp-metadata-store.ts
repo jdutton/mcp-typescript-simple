@@ -3,7 +3,7 @@
  *
  * Write-through caching pattern with immutable metadata:
  * - Primary store: Fast in-memory cache (MemoryMCPMetadataStore)
- * - Secondary store: Optional persistent backend (File/Redis/VercelKV)
+ * - Secondary store: Optional persistent backend (File/Redis/Redis)
  *
  * Perfect for development and production environments where you want:
  * - Fast O(1) lookups with LRU eviction (primary cache)
@@ -21,7 +21,7 @@
  * Architecture:
  * - Interface-based composition (no tight coupling)
  * - Primary is always MemoryMCPMetadataStore with LRU + TTL
- * - Secondary is optional: File/Redis/VercelKV (pluggable)
+ * - Secondary is optional: File/Redis/Redis (pluggable)
  * - No stale cache issues (metadata is immutable after creation)
  */
 

@@ -11,6 +11,7 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Comprehensive testing**: Full CI/CD pipeline with protocol compliance testing
 - **OpenTelemetry observability**: Structured logging, metrics, and tracing with security-first design
 - **Environment Configuration**: Never use dotenv - use Node.js --env-file or --env-file-if-exists flags instead
+- **Redis Storage**: NEVER use Vercel KV (@vercel/kv package) - use standard Redis with ioredis + REDIS_URL environment variable
 
 ## Development Commands
 

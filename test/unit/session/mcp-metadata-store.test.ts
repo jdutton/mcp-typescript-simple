@@ -3,7 +3,7 @@
  *
  * Tests all store implementations:
  * - MemoryMCPMetadataStore (in-memory, single-instance)
- * - VercelKVMCPMetadataStore (Redis-backed, multi-instance)
+ * - RedisMCPMetadataStore (Redis-backed, multi-instance)
  * - MCPMetadataStoreFactory (auto-detection and creation)
  */
 
@@ -234,14 +234,10 @@ describe('MCPMetadataStoreFactory', () => {
     it('should create memory store by default (auto-detection)', () => {
       // Save original env vars
       const originalVercel = process.env.VERCEL;
-      const originalKvUrl = process.env.KV_REST_API_URL;
-      const originalKvToken = process.env.KV_REST_API_TOKEN;
       const originalRedisUrl = process.env.REDIS_URL;
 
       // Clear Vercel/Redis env vars
       delete process.env.VERCEL;
-      delete process.env.KV_REST_API_URL;
-      delete process.env.KV_REST_API_TOKEN;
       delete process.env.REDIS_URL;
 
       const store = MCPMetadataStoreFactory.create({ type: 'auto' });
@@ -251,8 +247,6 @@ describe('MCPMetadataStoreFactory', () => {
 
       // Restore env vars
       if (originalVercel) process.env.VERCEL = originalVercel;
-      if (originalKvUrl) process.env.KV_REST_API_URL = originalKvUrl;
-      if (originalKvToken) process.env.KV_REST_API_TOKEN = originalKvToken;
       if (originalRedisUrl) process.env.REDIS_URL = originalRedisUrl;
     });
 
@@ -277,14 +271,10 @@ describe('MCPMetadataStoreFactory', () => {
     it('should auto-detect memory store when no external stores configured', () => {
       // Save original env vars
       const originalVercel = process.env.VERCEL;
-      const originalKvUrl = process.env.KV_REST_API_URL;
-      const originalKvToken = process.env.KV_REST_API_TOKEN;
       const originalRedisUrl = process.env.REDIS_URL;
 
       // Clear all external store env vars
       delete process.env.VERCEL;
-      delete process.env.KV_REST_API_URL;
-      delete process.env.KV_REST_API_TOKEN;
       delete process.env.REDIS_URL;
 
       const result = MCPMetadataStoreFactory.validateEnvironment('auto');
@@ -295,8 +285,6 @@ describe('MCPMetadataStoreFactory', () => {
 
       // Restore env vars
       if (originalVercel) process.env.VERCEL = originalVercel;
-      if (originalKvUrl) process.env.KV_REST_API_URL = originalKvUrl;
-      if (originalKvToken) process.env.KV_REST_API_TOKEN = originalKvToken;
       if (originalRedisUrl) process.env.REDIS_URL = originalRedisUrl;
     });
   });

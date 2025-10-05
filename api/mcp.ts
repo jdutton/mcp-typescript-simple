@@ -84,7 +84,7 @@ async function getInstanceManager(): Promise<MCPInstanceManager> {
   logger.info("Initializing MCP instance manager for Vercel");
   const llmManager = await getLLMManager();
 
-  // Instance manager auto-detects Vercel KV when available
+  // Instance manager auto-detects Redis when available
   instanceManagerInstance = new MCPInstanceManager(llmManager);
 
   logger.info("MCP instance manager initialized");

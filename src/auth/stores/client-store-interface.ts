@@ -5,7 +5,7 @@
  * registered OAuth clients. Implementations can use various backends:
  * - In-memory (development, testing)
  * - File-based (development with persistence)
- * - Redis/Vercel KV (production, serverless)
+ * - Redis (production, serverless)
  * - PostgreSQL (production, self-hosted)
  */
 
@@ -138,7 +138,6 @@ export type ClientStoreType =
   | 'memory'      // In-memory only (lost on restart)
   | 'file'        // File-based persistence
   | 'hybrid'      // Memory + file backup
-  | 'vercel-kv'   // Vercel KV (Redis-compatible)
   | 'redis'       // Redis
   | 'postgres'    // PostgreSQL
   | 'auto';       // Auto-detect based on environment

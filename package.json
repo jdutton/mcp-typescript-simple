@@ -99,7 +99,6 @@
     "@opentelemetry/semantic-conventions": "^1.37.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
-    "@vercel/kv": "^3.0.0",
     "@vercel/otel": "^2.0.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

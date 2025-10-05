@@ -14,8 +14,6 @@ describe('TokenStoreFactory', () => {
     // Reset environment
     process.env = { ...originalEnv };
     delete process.env.VERCEL;
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
     delete process.env.NODE_ENV;
     delete process.env.JEST_WORKER_ID;
   });

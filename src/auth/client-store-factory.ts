@@ -3,22 +3,21 @@
  *
  * Creates the appropriate client store based on:
  * - Explicit configuration (DCR_STORE_TYPE env var)
- * - Environment detection (Vercel, development, etc.)
- * - Available resources (database, KV, filesystem)
+ * - Environment detection (Redis, development, etc.)
+ * - Available resources (database, Redis, filesystem)
  *
  * Auto-detection priority:
- * 1. Vercel production: Vercel KV (if KV configured)
+ * 1. Redis: RedisClientStore (if REDIS_URL set)
  * 2. Database: PostgreSQL (if DATABASE_URL set) [future]
- * 3. Redis: Redis (if REDIS_URL set) [future]
- * 4. Development: Hybrid (memory + file)
- * 5. Fallback: Memory-only (with warning)
+ * 3. Development: Hybrid (memory + file)
+ * 4. Fallback: Memory-only (with warning)
  */
 
 import { OAuthRegisteredClientsStore, ClientStoreType } from './stores/client-store-interface.js';
 import { InMemoryClientStore } from './stores/memory-client-store.js';
 import { FileClientStore } from './stores/file-client-store.js';
 import { HybridClientStore } from './stores/hybrid-client-store.js';
-import { VercelKVClientStore } from './stores/vercel-kv-client-store.js';
+import { RedisClientStore } from './stores/redis-client-store.js';
 import { logger } from '../utils/logger.js';
 
 export interface ClientStoreFactoryOptions {
@@ -61,14 +60,11 @@ export class ClientStoreFactory {
       case 'hybrid':
         return this.createHybridStore(options);
 
-      case 'vercel-kv':
-        return this.createVercelKVStore(options);
+      case 'redis':
+        return this.createRedisStore(options);
 
       case 'postgres':
         throw new Error('PostgreSQL store not yet implemented');
-
-      case 'redis':
-        throw new Error('Redis store not yet implemented');
 
       case 'auto':
         // Recursively call with detected type
@@ -90,10 +86,10 @@ export class ClientStoreFactory {
       return envStoreType;
     }
 
-    // 2. Vercel production with KV
-    if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.debug('Detected Vercel with KV configured');
-      return 'vercel-kv';
+    // 2. Redis
+    if (process.env.REDIS_URL) {
+      logger.debug('Detected Redis');
+      return 'redis';
     }
 
     // 3. PostgreSQL database
@@ -104,24 +100,16 @@ export class ClientStoreFactory {
       return 'hybrid';
     }
 
-    // 4. Redis
-    if (process.env.REDIS_URL) {
-      logger.debug('Detected Redis');
-      // return 'redis'; // TODO: Implement Redis store
-      logger.warn('Redis store not yet implemented, falling back to hybrid');
-      return 'hybrid';
-    }
-
-    // 5. Production without persistence (not recommended)
+    // 4. Production without persistence (not recommended)
     if (process.env.NODE_ENV === 'production') {
       logger.warn(
         'Production environment detected but no persistent storage configured. ' +
-        'Consider setting up Vercel KV, PostgreSQL, or Redis for production deployments.'
+        'Consider setting up Redis or PostgreSQL for production deployments.'
       );
       return 'memory'; // Fallback, but log warning
     }
 
-    // 6. Development (default)
+    // 5. Development (default)
     logger.debug('Using hybrid store for development');
     return 'hybrid';
   }
@@ -167,19 +155,14 @@ export class ClientStoreFactory {
   }
 
   /**
-   * Create a Vercel KV client store
+   * Create a Redis client store
    */
-  private static createVercelKVStore(options: ClientStoreFactoryOptions): VercelKVClientStore {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      throw new Error(
-        'Vercel KV credentials not found. Ensure KV storage is configured:\n' +
-        '1. Run `vercel link` in your project\n' +
-        '2. Add Vercel KV via dashboard or CLI\n' +
-        '3. Ensure KV_REST_API_URL and KV_REST_API_TOKEN are set'
-      );
+  private static createRedisStore(options: ClientStoreFactoryOptions): RedisClientStore {
+    if (!process.env.REDIS_URL) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
-    return new VercelKVClientStore({
+    return new RedisClientStore(undefined, {
       defaultSecretExpirySeconds: options.defaultSecretExpirySeconds,
       maxClients: options.maxClients,
     });

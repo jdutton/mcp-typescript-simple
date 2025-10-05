@@ -2,7 +2,7 @@
  * OAuth Token Store Factory
  *
  * Auto-detects the best token store implementation based on environment:
- * - Vercel: VercelKVOAuthTokenStore (serverless-optimized with Redis)
+ * - Redis: RedisOAuthTokenStore (multi-instance with Redis)
  * - Development/Production: MemoryOAuthTokenStore (fast, ephemeral)
  *
  * Note: OAuth tokens benefit from external persistence in serverless
@@ -11,17 +11,17 @@
 
 import { OAuthTokenStore } from './stores/oauth-token-store-interface.js';
 import { MemoryOAuthTokenStore } from './stores/memory-oauth-token-store.js';
-import { VercelKVOAuthTokenStore } from './stores/vercel-kv-oauth-token-store.js';
+import { RedisOAuthTokenStore } from './stores/redis-oauth-token-store.js';
 import { logger } from '../observability/logger.js';
 
-export type OAuthTokenStoreType = 'memory' | 'vercel-kv' | 'auto';
+export type OAuthTokenStoreType = 'memory' | 'redis' | 'auto';
 
 export interface OAuthTokenStoreFactoryOptions {
   /**
    * Store type to create
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent across instances)
-   * - 'vercel-kv': Vercel KV store (serverless-optimized)
+   * - 'redis': Redis store (multi-instance deployments)
    */
   type?: OAuthTokenStoreType;
 }
@@ -41,8 +41,8 @@ export class OAuthTokenStoreFactory {
       case 'memory':
         return this.createMemoryStore();
 
-      case 'vercel-kv':
-        return this.createVercelKVStore();
+      case 'redis':
+        return this.createRedisStore();
 
       default:
         throw new Error(`Unknown OAuth token store type: ${storeType}`);
@@ -53,16 +53,16 @@ export class OAuthTokenStoreFactory {
    * Auto-detect the best store for current environment
    */
   private static createAutoDetected(): OAuthTokenStore {
-    // Check for Vercel environment with KV configured
-    if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-      logger.info('Creating Vercel KV OAuth token store', { detected: true });
-      return this.createVercelKVStore();
+    // Check for Redis configured
+    if (process.env.REDIS_URL) {
+      logger.info('Creating Redis OAuth token store', { detected: true });
+      return this.createRedisStore();
     }
 
     // Default to memory store for local development
     logger.info('Creating in-memory OAuth token store', { detected: true });
     logger.warn('Memory OAuth token store does not persist across serverless instances', {
-      recommendation: 'Configure Vercel KV for multi-instance deployments'
+      recommendation: 'Configure REDIS_URL for multi-instance deployments'
     });
     return this.createMemoryStore();
   }
@@ -75,17 +75,14 @@ export class OAuthTokenStoreFactory {
   }
 
   /**
-   * Create Vercel KV OAuth token store
+   * Create Redis OAuth token store
    */
-  private static createVercelKVStore(): VercelKVOAuthTokenStore {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      throw new Error(
-        'Vercel KV environment variables not configured. ' +
-        'Add Vercel KV integration via: vercel link && vercel env pull'
-      );
+  private static createRedisStore(): RedisOAuthTokenStore {
+    if (!process.env.REDIS_URL) {
+      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
-    return new VercelKVOAuthTokenStore();
+    return new RedisOAuthTokenStore();
   }
 
   /**
@@ -101,8 +98,8 @@ export class OAuthTokenStoreFactory {
 
     if (type === 'auto') {
       // Determine what would be auto-detected
-      if (process.env.VERCEL && process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-        detectedType = 'vercel-kv';
+      if (process.env.REDIS_URL) {
+        detectedType = 'redis';
       } else {
         detectedType = 'memory';
         warnings.push('Memory store does not persist across serverless instances');
@@ -114,12 +111,12 @@ export class OAuthTokenStoreFactory {
 
     // Validate selected/detected type
     switch (detectedType) {
-      case 'vercel-kv':
-        if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      case 'redis':
+        if (!process.env.REDIS_URL) {
           return {
             valid: false,
             storeType: detectedType,
-            warnings: ['Vercel KV environment variables not configured'],
+            warnings: ['REDIS_URL environment variable not configured'],
           };
         }
         break;
