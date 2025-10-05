@@ -8,15 +8,13 @@
  *
  * Auto-detection priority:
  * 1. Redis: RedisClientStore (if REDIS_URL set)
- * 2. Database: PostgreSQL (if DATABASE_URL set) [future]
- * 3. Development: Hybrid (memory + file)
- * 4. Fallback: Memory-only (with warning)
+ * 2. Development: File (persistent across restarts)
+ * 3. Fallback: Memory-only (with warning)
  */
 
 import { OAuthRegisteredClientsStore, ClientStoreType } from './stores/client-store-interface.js';
 import { InMemoryClientStore } from './stores/memory-client-store.js';
 import { FileClientStore } from './stores/file-client-store.js';
-import { HybridClientStore } from './stores/hybrid-client-store.js';
 import { RedisClientStore } from './stores/redis-client-store.js';
 import { logger } from '../utils/logger.js';
 
@@ -57,14 +55,8 @@ export class ClientStoreFactory {
       case 'file':
         return this.createFileStore(options);
 
-      case 'hybrid':
-        return this.createHybridStore(options);
-
       case 'redis':
         return this.createRedisStore(options);
-
-      case 'postgres':
-        throw new Error('PostgreSQL store not yet implemented');
 
       case 'auto':
         // Recursively call with detected type
@@ -92,26 +84,18 @@ export class ClientStoreFactory {
       return 'redis';
     }
 
-    // 3. PostgreSQL database
-    if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres')) {
-      logger.debug('Detected PostgreSQL database');
-      // return 'postgres'; // TODO: Implement PostgreSQL store
-      logger.warn('PostgreSQL store not yet implemented, falling back to hybrid');
-      return 'hybrid';
-    }
-
-    // 4. Production without persistence (not recommended)
+    // 3. Production without persistence (not recommended)
     if (process.env.NODE_ENV === 'production') {
       logger.warn(
         'Production environment detected but no persistent storage configured. ' +
-        'Consider setting up Redis or PostgreSQL for production deployments.'
+        'Consider setting up Redis for production deployments.'
       );
       return 'memory'; // Fallback, but log warning
     }
 
-    // 5. Development (default)
-    logger.debug('Using hybrid store for development');
-    return 'hybrid';
+    // 4. Development (default)
+    logger.debug('Using file store for development');
+    return 'file';
   }
 
   /**
@@ -134,23 +118,6 @@ export class ClientStoreFactory {
     return new FileClientStore(filePath, {
       defaultSecretExpirySeconds: options.defaultSecretExpirySeconds,
       maxClients: options.maxClients,
-    });
-  }
-
-  /**
-   * Create a hybrid (memory + file) client store
-   */
-  private static createHybridStore(options: ClientStoreFactoryOptions): HybridClientStore {
-    const filePath = options.filePath ?? process.env.DCR_FILE_PATH ?? './data/oauth-clients.json';
-
-    return new HybridClientStore({
-      filePath,
-      defaultSecretExpirySeconds: options.defaultSecretExpirySeconds,
-      enableAutoCleanup: options.enableAutoCleanup,
-      maxClients: options.maxClients,
-      debounceMs: 1000, // 1 second debounce for writes
-      enablePeriodicSync: true,
-      syncIntervalMs: 5 * 60 * 1000, // 5 minutes
     });
   }
 

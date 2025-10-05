@@ -6,7 +6,6 @@
  * - In-memory (development, testing)
  * - File-based (development with persistence)
  * - Redis (production, serverless)
- * - PostgreSQL (production, self-hosted)
  */
 
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
@@ -136,8 +135,6 @@ export interface ClientStoreOptions {
  */
 export type ClientStoreType =
   | 'memory'      // In-memory only (lost on restart)
-  | 'file'        // File-based persistence
-  | 'hybrid'      // Memory + file backup
-  | 'redis'       // Redis
-  | 'postgres'    // PostgreSQL
+  | 'file'        // File-based persistence (single instance)
+  | 'redis'       // Redis (multi-instance, production)
   | 'auto';       // Auto-detect based on environment

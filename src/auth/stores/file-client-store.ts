@@ -94,7 +94,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
 
   /**
    * Save clients to file (asynchronous, atomic)
-   * Made public for hybrid store sync
+   * Made public for internal use sync
    */
   async save(): Promise<void> {
     // Serialize write operations to prevent concurrent writes
@@ -286,7 +286,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
   }
 
   /**
-   * Set client directly (internal use only - for hybrid store sync)
+   * Set client directly (internal use only - for internal use sync)
    * @internal
    */
   setClient(clientId: string, client: ExtendedOAuthClientInformation): void {
@@ -294,7 +294,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
   }
 
   /**
-   * Get all clients as readonly map (internal use only - for hybrid store sync)
+   * Get all clients as readonly map (internal use only - for internal use sync)
    * @internal
    */
   getAllClients(): ReadonlyMap<string, ExtendedOAuthClientInformation> {

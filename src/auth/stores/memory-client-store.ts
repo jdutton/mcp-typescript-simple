@@ -169,7 +169,7 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
   }
 
   /**
-   * Set client directly (internal use only - for hybrid store sync)
+   * Set client directly (internal use only - for internal use sync)
    * @internal
    */
   setClient(clientId: string, client: ExtendedOAuthClientInformation): void {
@@ -177,7 +177,7 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
   }
 
   /**
-   * Get all clients as readonly map (internal use only - for hybrid store sync)
+   * Get all clients as readonly map (internal use only - for internal use sync)
    * @internal
    */
   getAllClients(): ReadonlyMap<string, ExtendedOAuthClientInformation> {

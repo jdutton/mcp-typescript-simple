@@ -27,8 +27,8 @@ Dynamic Client Registration allows OAuth clients like Claude.ai and MCP Inspecto
 
 Three pluggable storage implementations with auto-detection:
 
-1. **Hybrid Store** (Development)
-   - In-memory + file-backed persistence
+1. **File Store** (Development)
+   - File-backed persistence
    - Survives restarts
    - File location: `./data/oauth-clients.json`
 
@@ -214,7 +214,7 @@ POST /admin/tokens/cleanup
 
 ```bash
 # Store type (auto-detected by default)
-DCR_STORE_TYPE=auto|memory|file|hybrid|redis
+DCR_STORE_TYPE=auto|memory|file|redis
 
 # File store path (default: ./data/oauth-clients.json)
 DCR_FILE_PATH=./data/oauth-clients.json
@@ -233,15 +233,14 @@ REDIS_URL=redis://localhost:6379
 
 1. **Redis Environment**: Uses Redis if `REDIS_URL` is set
 2. **Test Environment**: Uses in-memory store if `NODE_ENV=test` or `JEST_WORKER_ID` set
-3. **Default**: Uses hybrid (memory + file) store for development
+3. **Default**: Uses file store for development
 
 ### Storage Backend Comparison
 
 | Backend | Persistent | Multi-Instance | Use Case |
 |---------|-----------|---------------|----------|
 | **Memory** | ❌ No | ❌ No | Testing only |
-| **File** | ✅ Yes | ❌ No | Single-instance dev |
-| **Hybrid** | ✅ Yes | ❌ No | Development (default) |
+| **File** | ✅ Yes | ❌ No | Development (default) |
 | **Redis** | ✅ Yes | ✅ Yes | Production (multi-instance) |
 
 ## Discovery Metadata

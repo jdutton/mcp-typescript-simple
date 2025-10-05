@@ -327,11 +327,11 @@ npm run dev:vercel
 
 ### Database Testing
 
-If using a database, configure local connection strings:
+If using Redis, configure local connection string:
 
 ```bash
-# Example for PostgreSQL
-DATABASE_URL="postgresql://localhost:5432/mcp_dev"
+# Example for local Redis
+REDIS_URL="redis://localhost:6379"
 ```
 
 ### External API Testing

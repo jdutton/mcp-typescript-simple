@@ -245,6 +245,3 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
     logger.info('CachingMCPMetadataStore disposed');
   }
 }
-
-// Backwards compatibility export
-export { CachingMCPMetadataStore as HybridMCPMetadataStore };

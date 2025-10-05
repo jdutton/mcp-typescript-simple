@@ -102,7 +102,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
 
   /**
    * Save sessions to file (asynchronous, atomic)
-   * Made public for hybrid store sync
+   * Made public for caching store sync
    */
   async save(): Promise<void> {
     // Serialize write operations to prevent concurrent writes
@@ -239,7 +239,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
   }
 
   /**
-   * Set session directly (internal use only - for hybrid store sync)
+   * Set session directly (internal use only - for caching store sync)
    * @internal
    */
   setSession(sessionId: string, metadata: MCPSessionMetadata): void {
@@ -247,7 +247,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
   }
 
   /**
-   * Get all sessions as readonly map (internal use only - for hybrid store sync)
+   * Get all sessions as readonly map (internal use only - for caching store sync)
    * @internal
    */
   getAllSessions(): ReadonlyMap<string, MCPSessionMetadata> {
