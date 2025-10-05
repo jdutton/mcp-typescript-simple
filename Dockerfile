@@ -16,6 +16,9 @@ COPY tsconfig.json ./
 # Build the TypeScript project
 RUN npm run build
 
+# Copy runtime files needed for server
+COPY openapi.yaml ./
+
 # Remove dev dependencies and source files to reduce image size
 RUN rm -rf src/ tsconfig.json
 RUN npm ci --only=production
@@ -31,5 +34,5 @@ USER mcpuser
 # Expose port (MCP typically uses stdio, but this can be useful for HTTP variants)
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "build/index.js"]
+# Start the server with observability instrumentation
+CMD ["node", "--import", "./build/observability/register.js", "build/index.js"]

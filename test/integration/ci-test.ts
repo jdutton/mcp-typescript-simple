@@ -269,17 +269,20 @@ class CITestRunner {
       await execAsync('docker --version');
 
       // Build the Docker image
-      // Note: Docker legacy builder deprecation warning goes to stderr but build succeeds
+      // Note: Docker buildkit outputs to stderr, which is normal
       const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {
-        timeout: 120000 // 2 minutes timeout
+        timeout: 300000 // 5 minutes timeout (uncached builds can take longer)
       });
 
-      // Check if build actually failed (look for error indicators, not just stderr)
-      if (stderr && !stderr.includes('DEPRECATED') && !stderr.includes('Successfully built')) {
-        // Check if stdout indicates success
-        if (!stdout.includes('Successfully built') && !stdout.includes('Successfully tagged')) {
-          throw new Error(`Docker build failed: ${stderr}`);
-        }
+      // Check for success indicators in either stdout or stderr (buildkit uses stderr)
+      const output = stdout + stderr;
+      const hasSuccess = output.includes('writing image') ||
+                        output.includes('Successfully built') ||
+                        output.includes('Successfully tagged') ||
+                        output.includes('naming to docker.io');
+
+      if (!hasSuccess) {
+        throw new Error(`Docker build failed: no success indicators found\n${output.substring(output.length - 500)}`);
       }
 
       // Clean up test image
