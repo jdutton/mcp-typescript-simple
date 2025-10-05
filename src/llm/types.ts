@@ -171,8 +171,8 @@ export const DEFAULT_TOOL_LLM_MAPPING: ToolLLMMapping = {
   },
   'explain': {
     provider: 'claude',
-    model: 'claude-3-7-sonnet-20250219',
-    description: 'Clear explanations with Claude 3.7 Sonnet'
+    model: 'claude-3-5-haiku-20241022',
+    description: 'Fast, clear explanations with Claude 3.5 Haiku'
   }
 };
 
