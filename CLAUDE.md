@@ -722,3 +722,4 @@ gh pr create --title "Brief description" --body "Detailed description"
 - `@vercel/node` - Vercel serverless function support
 - `typescript` - TypeScript compiler with strict configuration
 - Always run CI tests locally before pushing to PR to ensure PR tests will pass
+- DO NOT ask to commit any code unless you have first run 'npm run validate' on the changes successfully

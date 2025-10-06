@@ -87,8 +87,8 @@ export class OAuthDiscoveryMetadata {
 
     const metadata: AuthorizationServerMetadata = {
       issuer: this.baseUrl,
-      authorization_endpoint: `${this.baseUrl}/authorize`, // Generic authorize endpoint for MCP Inspector compatibility
-      token_endpoint: `${this.baseUrl}/token`, // Generic token endpoint for MCP Inspector compatibility
+      authorization_endpoint: `${this.baseUrl}/auth/authorize`, // Generic authorize endpoint for MCP Inspector compatibility
+      token_endpoint: `${this.baseUrl}/auth/token`, // Generic token endpoint for MCP Inspector compatibility
       registration_endpoint: `${this.baseUrl}/register`, // RFC 7591 Dynamic Client Registration
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
