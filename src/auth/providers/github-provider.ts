@@ -52,7 +52,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   }
 
   getDefaultScopes(): string[] {
-    return ['user:email'];
+    return ['read:user', 'user:email'];
   }
 
   /**

@@ -33,9 +33,15 @@ export function setupHealthRoutes(
   const healthHandler = (req: Request, res: Response) => {
     const sessionStats = sessionManager.getStats();
 
-    // Check OAuth credentials availability
-    const oauthProviderType = process.env.OAUTH_PROVIDER || 'google';
-    const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProviderType);
+    // Check OAuth credentials availability (multi-provider)
+    const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
+    const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
+    const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
+    const configuredOAuthProviders = [
+      googleConfigured && 'google',
+      githubConfigured && 'github',
+      microsoftConfigured && 'microsoft'
+    ].filter(Boolean) as string[];
 
     // Check LLM providers
     const llmProviders = EnvironmentConfig.checkLLMProviders();
@@ -45,8 +51,8 @@ export function setupHealthRoutes(
       timestamp: new Date().toISOString(),
       deployment: 'local',
       mode: 'streamable_http',
-      auth: hasOAuthCredentials ? 'enabled' : 'disabled',
-      oauth_provider: oauthProviderType,
+      auth: configuredOAuthProviders.length > 0 ? 'enabled' : 'disabled',
+      oauth_providers: configuredOAuthProviders,
       llm_providers: llmProviders,
       version: process.env.npm_package_version || '1.0.0',
       node_version: process.version,

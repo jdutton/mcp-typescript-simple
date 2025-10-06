@@ -579,15 +579,21 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     additionalParams: Record<string, string> = {},
     redirectUri?: string
   ): Promise<ProviderTokenResponse> {
-    const params = new URLSearchParams({
+    const params: Record<string, string> = {
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
       code,
-      code_verifier: codeVerifier,
       grant_type: 'authorization_code',
       redirect_uri: redirectUri || this.config.redirectUri,
       ...additionalParams,
-    });
+    };
+
+    // Only include code_verifier if provided (GitHub doesn't support PKCE)
+    if (codeVerifier) {
+      params.code_verifier = codeVerifier;
+    }
+
+    const urlParams = new URLSearchParams(params);
 
     const response = await fetch(tokenUrl, {
       method: 'POST',
@@ -595,11 +601,19 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
       },
-      body: params.toString(),
+      body: urlParams.toString(),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
+      logger.oauthError('Token exchange failed', {
+        provider: this.getProviderType(),
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+        redirectUri: redirectUri || this.config.redirectUri,
+        hasCodeVerifier: !!codeVerifier
+      });
       throw new OAuthTokenError(
         `Token exchange failed: ${response.status} ${response.statusText}`,
         this.getProviderType(),

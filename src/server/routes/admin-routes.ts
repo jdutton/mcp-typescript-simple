@@ -56,8 +56,14 @@ export function setupAdminRoutes(
   // Admin metrics endpoint (matches Vercel API)
   const metricsHandler = (req: Request, res: Response) => {
     const sessionStats = sessionManager.getStats();
-    const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-    const hasOAuthCredentials = EnvironmentConfig.checkOAuthCredentials(oauthProvider);
+    const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
+    const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
+    const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
+    const configuredOAuthProviders = [
+      googleConfigured && 'google',
+      githubConfigured && 'github',
+      microsoftConfigured && 'microsoft'
+    ].filter(Boolean) as string[];
     const llmProviders = EnvironmentConfig.checkLLMProviders();
 
     const metrics = {
@@ -75,8 +81,7 @@ export function setupAdminRoutes(
         environment: process.env.NODE_ENV || 'development',
       },
       configuration: {
-        oauth_provider: oauthProvider,
-        oauth_configured: hasOAuthCredentials,
+        oauth_providers: configuredOAuthProviders,
         llm_providers: llmProviders,
         transport_mode: 'streamable_http',
       },

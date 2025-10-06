@@ -123,14 +123,7 @@ export class MCPStreamableHttpServer {
         this.oauthProvider = multiProviders.values().next().value;
       } else {
         // No OAuth providers configured
-        const env = EnvironmentConfig.get();
-        const providerType = env.OAUTH_PROVIDER;
-
-        if (!providerType) {
-          throw new Error('OAuth authentication is required but no OAuth provider is configured. Set provider credentials (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET) or OAUTH_PROVIDER environment variable.');
-        } else {
-          throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
-        }
+        throw new Error('OAuth authentication is required but no OAuth providers are configured. Set provider credentials for at least one provider (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET).');
       }
     }
 
