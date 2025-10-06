@@ -15,26 +15,30 @@ import type { OAuthProvider } from '../build/auth/providers/types.js';
 import { logger } from '../build/utils/logger.js';
 import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
-// Global OAuth provider instance for reuse
-let oauthProviderInstance: OAuthProvider | null = null;
+// Global OAuth providers map for multi-provider support
+let oauthProvidersInstance: Map<string, OAuthProvider> | null = null;
 
 /**
- * Initialize OAuth provider for serverless environment
+ * Initialize OAuth providers for serverless environment (multi-provider support)
  */
-async function initializeOAuthProvider() {
-  if (oauthProviderInstance) {
-    return oauthProviderInstance;
+async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | null> {
+  if (oauthProvidersInstance) {
+    return oauthProvidersInstance;
   }
 
   try {
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-    if (provider) {
-      oauthProviderInstance = provider;
-      logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
+    if (providers && providers.size > 0) {
+      oauthProvidersInstance = providers;
+      logger.info("Multi-provider OAuth initialized for discovery endpoints", {
+        providers: Array.from(providers.keys()),
+        count: providers.size
+      });
+      return providers;
     }
-    return provider;
+    return null;
   } catch (error) {
-    logger.error("Failed to initialize OAuth provider", error);
+    logger.error("Failed to initialize OAuth providers", error);
     return null;
   }
 }
@@ -96,25 +100,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const baseUrl = getBaseUrl(req);
-    const oauthProvider = await initializeOAuthProvider();
+    const oauthProviders = await initializeOAuthProviders();
 
     // Route to appropriate discovery handler
     switch (discoveryPath) {
       case 'oauth-authorization-server':
-        await handleAuthorizationServerMetadata(req, res, baseUrl, oauthProvider);
+        await handleAuthorizationServerMetadata(req, res, baseUrl, oauthProviders);
         break;
 
       case 'oauth-protected-resource':
-        await handleProtectedResourceMetadata(req, res, baseUrl, oauthProvider);
+        await handleProtectedResourceMetadata(req, res, baseUrl, oauthProviders);
         break;
 
       case 'oauth-protected-resource/mcp':
       case 'mcp-oauth-discovery': // Legacy endpoint for older MCP Inspector versions
-        await handleMCPProtectedResourceMetadata(req, res, baseUrl, oauthProvider);
+        await handleMCPProtectedResourceMetadata(req, res, baseUrl, oauthProviders);
         break;
 
       case 'openid-configuration':
-        await handleOpenIDConnectConfiguration(req, res, baseUrl, oauthProvider);
+        await handleOpenIDConnectConfiguration(req, res, baseUrl, oauthProviders);
         break;
 
       default:
@@ -146,14 +150,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 /**
  * Handle OAuth 2.0 Authorization Server Metadata (RFC 8414)
+ * Multi-provider support: Returns metadata for all configured providers
  */
 async function handleAuthorizationServerMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: OAuthProvider | null
+  oauthProviders: Map<string, OAuthProvider> | null
 ): Promise<void> {
-  if (!oauthProvider) {
+  if (!oauthProviders || oauthProviders.size === 0) {
     res.json({
       error: 'OAuth not configured',
       message: 'OAuth provider not available. Configure OAuth credentials to enable authentication.',
@@ -163,25 +168,37 @@ async function handleAuthorizationServerMetadata(
     return;
   }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+  // Use first provider for backward compatibility (clients expect single metadata response)
+  // Note: Multi-provider clients should query per-provider endpoints or use MCP metadata
+  const primaryProvider = oauthProviders.values().next().value;
+
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
   });
 
   const metadata = discoveryMetadata.generateAuthorizationServerMetadata();
+
+  // Add multi-provider hint
+  if (oauthProviders.size > 1) {
+    (metadata as any).available_providers = Array.from(oauthProviders.keys());
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+  }
+
   res.json(metadata);
 }
 
 /**
  * Handle OAuth 2.0 Protected Resource Metadata (RFC 9728)
+ * Multi-provider support: Returns metadata with all authorization servers
  */
 async function handleProtectedResourceMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: OAuthProvider | null
+  oauthProviders: Map<string, OAuthProvider> | null
 ): Promise<void> {
-  if (!oauthProvider) {
+  if (!oauthProviders || oauthProviders.size === 0) {
     res.json({
       resource: baseUrl,
       authorization_servers: [],
@@ -192,25 +209,40 @@ async function handleProtectedResourceMetadata(
     return;
   }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+  // Use first provider for base metadata
+  const primaryProvider = oauthProviders.values().next().value;
+
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
   });
 
   const metadata = discoveryMetadata.generateProtectedResourceMetadata();
+
+  // Add all provider authorization servers
+  if (oauthProviders.size > 1) {
+    const authServers: string[] = [];
+    for (const providerType of oauthProviders.keys()) {
+      authServers.push(`${baseUrl}/api/auth/${providerType}`);
+    }
+    (metadata as any).authorization_servers = authServers;
+    (metadata as any).available_providers = Array.from(oauthProviders.keys());
+  }
+
   res.json(metadata);
 }
 
 /**
  * Handle MCP-specific Protected Resource Metadata
+ * Multi-provider support: Returns MCP metadata with all providers
  */
 async function handleMCPProtectedResourceMetadata(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: OAuthProvider | null
+  oauthProviders: Map<string, OAuthProvider> | null
 ): Promise<void> {
-  if (!oauthProvider) {
+  if (!oauthProviders || oauthProviders.size === 0) {
     res.json({
       resource: baseUrl,
       authorization_servers: [],
@@ -226,25 +258,41 @@ async function handleMCPProtectedResourceMetadata(
     return;
   }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+  // Use first provider for base metadata
+  const primaryProvider = oauthProviders.values().next().value;
+
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
   });
 
   const metadata = discoveryMetadata.generateMCPProtectedResourceMetadata();
+
+  // Add multi-provider information
+  if (oauthProviders.size > 1) {
+    const authServers: string[] = [];
+    for (const providerType of oauthProviders.keys()) {
+      authServers.push(`${baseUrl}/api/auth/${providerType}`);
+    }
+    (metadata as any).authorization_servers = authServers;
+    (metadata as any).available_providers = Array.from(oauthProviders.keys());
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+  }
+
   res.json(metadata);
 }
 
 /**
  * Handle OpenID Connect Discovery Configuration
+ * Multi-provider support: Returns OIDC metadata for primary provider
  */
 async function handleOpenIDConnectConfiguration(
   req: VercelRequest,
   res: VercelResponse,
   baseUrl: string,
-  oauthProvider: OAuthProvider | null
+  oauthProviders: Map<string, OAuthProvider> | null
 ): Promise<void> {
-  if (!oauthProvider) {
+  if (!oauthProviders || oauthProviders.size === 0) {
     res.json({
       issuer: baseUrl,
       authorization_endpoint: `${baseUrl}/api/auth/login`,
@@ -257,11 +305,21 @@ async function handleOpenIDConnectConfiguration(
     return;
   }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+  // Use first provider for base metadata
+  const primaryProvider = oauthProviders.values().next().value;
+
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
   });
 
   const metadata = discoveryMetadata.generateOpenIDConnectConfiguration();
+
+  // Add multi-provider hint
+  if (oauthProviders.size > 1) {
+    (metadata as any).available_providers = Array.from(oauthProviders.keys());
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+  }
+
   res.json(metadata);
 }

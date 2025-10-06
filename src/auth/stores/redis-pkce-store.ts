@@ -22,10 +22,12 @@ export class RedisPKCEStore implements PKCEStore {
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
+      connectTimeout: 5000, // 5 second timeout for initial connection
       retryStrategy: (times) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
+      lazyConnect: false, // Connect immediately to detect issues early
     });
 
     this.redis.on('error', (error) => {

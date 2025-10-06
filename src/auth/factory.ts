@@ -197,52 +197,6 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   }
 
   /**
-   * Create provider from environment configuration (single provider mode)
-   * @deprecated Use createAllFromEnvironment() for multi-provider support
-   */
-  static async createFromEnvironment(): Promise<OAuthProvider | null> {
-    const factory = OAuthProviderFactory.getInstance();
-
-    // Check if OAuth provider is configured
-    const providerType = process.env.OAUTH_PROVIDER as OAuthProviderType;
-
-    if (!providerType) {
-      logger.oauthWarn('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
-      return null;
-    }
-
-    if (!factory.isProviderSupported(providerType)) {
-      logger.oauthWarn('Unsupported OAuth provider', {
-        provider: providerType,
-        supportedProviders: factory.getSupportedProviders()
-      });
-      return null;
-    }
-
-    try {
-      switch (providerType) {
-        case 'google':
-          return await factory.createGoogleProvider();
-
-        case 'github':
-          return factory.createGitHubProvider();
-
-        case 'microsoft':
-          return factory.createMicrosoftProvider();
-
-        case 'generic':
-          return factory.createGenericProvider();
-
-        default:
-          return null;
-      }
-    } catch (error) {
-      logger.oauthError('Failed to create OAuth provider from environment', error);
-      return null;
-    }
-  }
-
-  /**
    * Create all configured OAuth providers from environment
    *
    * Detects which providers have credentials configured and creates instances for each.

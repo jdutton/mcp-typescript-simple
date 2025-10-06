@@ -23,7 +23,7 @@ import { InitialAccessTokenStore } from '../auth/stores/token-store-interface.js
 import { MCPInstanceManager } from './mcp-instance-manager.js';
 import { LLMManager } from '../llm/manager.js';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
-import { setupOAuthRoutes, setupMultiProviderOAuthRoutes } from './routes/oauth-routes.js';
+import { setupMultiProviderOAuthRoutes } from './routes/oauth-routes.js';
 import { OAuthProviderType } from '../auth/providers/types.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
@@ -122,24 +122,15 @@ export class MCPStreamableHttpServer {
         // Set primary provider for auth middleware (use first provider)
         this.oauthProvider = multiProviders.values().next().value;
       } else {
-        // Fall back to single provider mode (legacy)
-        const provider = await OAuthProviderFactory.createFromEnvironment();
-        if (!provider) {
-          const env = EnvironmentConfig.get();
-          const providerType = env.OAUTH_PROVIDER;
+        // No OAuth providers configured
+        const env = EnvironmentConfig.get();
+        const providerType = env.OAUTH_PROVIDER;
 
-          if (!providerType) {
-            throw new Error('OAuth authentication is required but no OAuth provider is configured. Set provider credentials (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET) or OAUTH_PROVIDER environment variable.');
-          } else {
-            throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
-          }
+        if (!providerType) {
+          throw new Error('OAuth authentication is required but no OAuth provider is configured. Set provider credentials (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET) or OAUTH_PROVIDER environment variable.');
+        } else {
+          throw new Error(`OAuth authentication is required but the configured provider "${providerType}" could not be initialized. Check your OAuth credentials and configuration.`);
         }
-        this.oauthProvider = provider;
-
-        logger.info('Single-provider OAuth enabled', { provider: process.env.OAUTH_PROVIDER });
-
-        // Setup single-provider OAuth routes (legacy)
-        setupOAuthRoutes(this.app, this.oauthProvider, this.clientStore);
       }
     }
 
@@ -469,12 +460,14 @@ export class MCPStreamableHttpServer {
         logger.debug("Sending error response", { requestId, statusCode });
 
         if (statusCode === 401) {
-          res.status(401).json({
-            error: 'Unauthorized',
-            message: EnvironmentConfig.isDevelopment() ? error.message : 'Something went wrong',
-            requestId: requestId,
-            timestamp: new Date().toISOString()
-          });
+          res.status(401)
+            .setHeader('WWW-Authenticate', 'Bearer realm="MCP Server", error="invalid_token"')
+            .json({
+              error: 'Unauthorized',
+              message: EnvironmentConfig.isDevelopment() ? error.message : 'Something went wrong',
+              requestId: requestId,
+              timestamp: new Date().toISOString()
+            });
         } else {
           res.status(statusCode).json({
             error: 'Internal server error',

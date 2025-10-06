@@ -36,6 +36,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   protected readonly DEFAULT_TOKEN_EXPIRATION_SECONDS = 60 * 60; // 1 hour default when provider doesn't supply expiration
+  protected readonly PKCE_TTL_SECONDS = 600; // 10 minutes - PKCE data expires after this duration
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
 
@@ -64,13 +65,60 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
-   * Resolve code_verifier for token exchange
-   * In OAuth proxy flows: returns server's stored code_verifier
-   * In direct OAuth flows: returns client's provided code_verifier
+   * Resolve code_verifier for token exchange with security validation
+   *
+   * Security Model:
+   * - OAuth Proxy Flow: Server generates PKCE, stores code_verifier, client gets authorization code
+   *   → MUST use server-stored code_verifier (client doesn't have it)
+   * - Direct OAuth Flow: Client generates PKCE, sends code_challenge to server
+   *   → MUST use client-provided code_verifier (server doesn't store it)
+   *
+   * This prevents PKCE bypass attacks where a malicious client could provide their own
+   * code_verifier for a code issued through the OAuth proxy flow.
+   *
+   * @param code Authorization code from OAuth provider
+   * @param clientCodeVerifier code_verifier provided by client in token exchange request
+   * @returns code_verifier to use for token exchange, or undefined if invalid
    */
   protected async resolveCodeVerifierForTokenExchange(code: string, clientCodeVerifier?: string): Promise<string | undefined> {
     const storedCodeVerifier = await this.getStoredCodeVerifier(code);
-    return storedCodeVerifier || clientCodeVerifier;
+
+    // OAuth Proxy Flow: Server generated PKCE and stored it
+    // Client MUST NOT provide code_verifier (they don't have it)
+    if (storedCodeVerifier) {
+      if (clientCodeVerifier) {
+        logger.oauthWarn('OAuth Proxy Flow: Client attempted to provide code_verifier when server already stored one', {
+          provider: this.getProviderType(),
+          codePrefix: code.substring(0, 10),
+          storedVerifierPrefix: storedCodeVerifier.substring(0, 10),
+          clientVerifierPrefix: clientCodeVerifier.substring(0, 10),
+          message: 'Ignoring client code_verifier for security (using server-stored)'
+        });
+      }
+      return storedCodeVerifier;
+    }
+
+    // Direct OAuth Flow: Client generated PKCE (sent code_challenge)
+    // Client MUST provide code_verifier
+    if (clientCodeVerifier) {
+      logger.oauthDebug('Direct OAuth Flow: Using client-provided code_verifier', {
+        provider: this.getProviderType(),
+        codePrefix: code.substring(0, 10),
+        verifierPrefix: clientCodeVerifier.substring(0, 10)
+      });
+      return clientCodeVerifier;
+    }
+
+    // Invalid: No code_verifier available from either source
+    logger.oauthError('Token exchange failed: No code_verifier available', {
+      provider: this.getProviderType(),
+      codePrefix: code.substring(0, 10),
+      hasStored: !!storedCodeVerifier,
+      hasClient: !!clientCodeVerifier,
+      message: 'Authorization code may have expired or been used already'
+    });
+
+    return undefined;
   }
 
   /**
@@ -118,7 +166,38 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
   /**
    * Check if this provider has a stored code_verifier for the given authorization code
-   * This is used for multi-provider routing to identify which provider issued the code
+   *
+   * Multi-Provider Routing Mechanism:
+   * ===================================
+   * When multiple OAuth providers are enabled simultaneously (Google, GitHub, Microsoft),
+   * the server needs to route token exchange requests to the correct provider.
+   *
+   * How It Works:
+   * -------------
+   * 1. Authorization Request: Client initiates OAuth flow with specific provider
+   *    Example: GET /auth/google/authorize
+   *
+   * 2. Provider Stores Code: When provider redirects back with authorization code,
+   *    server stores code → { codeVerifier, state } in PKCE store with provider-specific key
+   *
+   * 3. Token Exchange: Client calls unified endpoint with authorization code
+   *    Example: POST /auth/token with { code: "abc123" }
+   *
+   * 4. Provider Identification: Server checks each provider's PKCE store:
+   *    - googleProvider.hasStoredCodeForProvider("abc123") → true ✅
+   *    - githubProvider.hasStoredCodeForProvider("abc123") → false
+   *    - microsoftProvider.hasStoredCodeForProvider("abc123") → false
+   *
+   * 5. Route to Correct Provider: Token exchange is routed to Google provider
+   *
+   * Code Collision Prevention:
+   * --------------------------
+   * Authorization codes are globally unique UUIDs issued by OAuth providers, making
+   * collisions between different providers virtually impossible (2^128 possibilities).
+   * Each provider maintains its own PKCE store namespace.
+   *
+   * @param code Authorization code from OAuth provider
+   * @returns true if this provider has PKCE data for the code, false otherwise
    */
   async hasStoredCodeForProvider(code: string): Promise<boolean> {
     return await this.pkceStore.hasCodeVerifier(code);
@@ -693,6 +772,18 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       // DON'T clean up session yet - client still needs it for token exchange!
       // Session will be cleaned up in handleTokenExchange after successful token exchange
+      //
+      // Session Lifecycle in OAuth Proxy Flow:
+      // 1. Session created during authorization request (SESSION_TIMEOUT = 10 minutes)
+      // 2. Authorization code returned to client
+      // 3. Session preserved (not deleted) - client needs it for token exchange
+      // 4. Client performs token exchange → cleanupAfterTokenExchange() removes session
+      // 5. If client never completes token exchange, session expires after SESSION_TIMEOUT
+      //
+      // Note: Abandoned sessions (client never exchanges code) will be cleaned up by:
+      // - Session expiration timer (10 minutes from creation)
+      // - Periodic cleanup task (runs every 5 minutes via cleanup() method)
+      // This prevents memory leaks and session ID exhaustion in high-traffic scenarios
 
       // CRITICAL: Store authorization code → { code_verifier, state } mapping for PKCE
       // This is needed when server generated PKCE (client didn't provide code_challenge)
@@ -702,12 +793,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         await this.pkceStore.storeCodeVerifier(code, {
           codeVerifier: session.codeVerifier,
           state: state
-        });
+        }, this.PKCE_TTL_SECONDS);
         logger.oauthDebug('Stored code_verifier and state for OAuth proxy flow', {
           provider: providerName,
           codePrefix: code.substring(0, 10),
           codeVerifierPrefix: session.codeVerifier.substring(0, 10),
-          statePrefix: state.substring(0, 8)
+          statePrefix: state.substring(0, 8),
+          ttlSeconds: this.PKCE_TTL_SECONDS
         });
       }
 

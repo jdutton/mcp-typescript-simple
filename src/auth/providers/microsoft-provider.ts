@@ -206,9 +206,13 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       // Resolve code_verifier (OAuth proxy vs direct flow)
       const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
 
-      // Log token exchange request
+      // Log token exchange request (includes client's redirect_uri for debugging)
       await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
 
+      // IMPORTANT: Always use server's registered redirect_uri for token exchange
+      // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
+      // registered redirect URI. Client-provided redirect_uri is logged but not used
+      // for security - prevents redirect_uri substitution attacks.
       const tokenData = await this.exchangeCodeForTokens(
         this.MICROSOFT_TOKEN_URL,
         code!,

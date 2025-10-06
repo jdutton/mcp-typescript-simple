@@ -18,8 +18,8 @@ import { logger } from "../build/observability/logger.js";
 // Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;
 
-// Global OAuth provider instance for authentication
-let oauthProviderInstance: OAuthProvider | null = null;
+// Global OAuth providers map for multi-provider authentication
+let oauthProvidersInstance: Map<string, OAuthProvider> | null = null;
 
 // Global MCP instance manager for horizontal scalability
 let instanceManagerInstance: MCPInstanceManager | null = null;
@@ -53,22 +53,26 @@ async function getLLMManager(): Promise<LLMManager> {
 }
 
 /**
- * Get or initialize OAuth provider (singleton)
+ * Get or initialize OAuth providers (singleton - multi-provider support)
  */
-async function getOAuthProvider() {
-  if (oauthProviderInstance) {
-    return oauthProviderInstance;
+async function getOAuthProviders(): Promise<Map<string, OAuthProvider> | null> {
+  if (oauthProvidersInstance) {
+    return oauthProvidersInstance;
   }
 
   try {
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-    if (provider) {
-      oauthProviderInstance = provider;
-      logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
+    if (providers && providers.size > 0) {
+      oauthProvidersInstance = providers;
+      logger.info("Multi-provider OAuth initialized for MCP endpoint", {
+        providers: Array.from(providers.keys()),
+        count: providers.size
+      });
+      return providers;
     }
-    return provider;
+    return null;
   } catch (error) {
-    logger.warn("OAuth provider initialization failed - auth will not be enforced", { error });
+    logger.warn("OAuth providers initialization failed - auth will not be enforced", { error });
     return null;
   }
 }
@@ -154,13 +158,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // New initialization request - create new transport and server
       logger.debug("Creating new transport for initialize request", { requestId });
 
-      // Check authentication if OAuth is configured
-      const oauthProvider = await getOAuthProvider();
-      const requireAuth = !!oauthProvider;
+      // Check authentication if OAuth is configured (multi-provider support)
+      const oauthProviders = await getOAuthProviders();
+      const requireAuth = !!(oauthProviders && oauthProviders.size > 0);
       let authInfo: { provider: string; userId?: string; email?: string } | undefined;
 
-      if (requireAuth && oauthProvider) {
-        logger.debug("Validating bearer token", { requestId });
+      if (requireAuth && oauthProviders) {
+        logger.debug("Validating bearer token (multi-provider)", { requestId, providerCount: oauthProviders.size });
 
         // Validate Bearer token
         const authHeader = req.headers.authorization;
@@ -177,46 +181,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return;
         }
 
-        // Verify token with OAuth provider
-        try {
-          const token = authHeader.substring(7);
-          const authResult = await oauthProvider.verifyAccessToken(token);
-          if (!authResult) {
-            logger.warn("Token verification failed", { requestId });
-            res.status(401).json({
-              jsonrpc: '2.0',
-              error: {
-                code: -32000,
-                message: 'Unauthorized: Invalid bearer token',
-              },
-              id: null,
-            });
-            return;
-          }
-          logger.info("Token verified successfully", {
-            requestId,
-            clientId: authResult.clientId
-          });
+        // Verify token with any configured provider (try all providers)
+        const token = authHeader.substring(7);
+        let authResult = null;
+        let successfulProvider: OAuthProvider | null = null;
 
-          // Extract auth info for metadata
-          const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
-          authInfo = {
-            provider: oauthProvider.getProviderType(),
-            userId: userInfo?.sub,
-            email: userInfo?.email,
-          };
-        } catch (error) {
-          logger.error("Token verification error", { requestId, error });
+        for (const [providerType, provider] of oauthProviders.entries()) {
+          try {
+            logger.debug("Trying token verification with provider", { provider: providerType, requestId });
+            authResult = await provider.verifyAccessToken(token);
+            if (authResult) {
+              successfulProvider = provider;
+              logger.info("Token verified successfully", {
+                requestId,
+                provider: providerType,
+                clientId: authResult.clientId
+              });
+              break; // Success
+            }
+          } catch (error) {
+            logger.debug("Token verification failed with provider", { provider: providerType, requestId });
+            // Try next provider
+            continue;
+          }
+        }
+
+        // No provider could verify the token
+        if (!authResult || !successfulProvider) {
+          logger.warn("Token verification failed with all providers", { requestId });
           res.status(401).json({
             jsonrpc: '2.0',
             error: {
               code: -32000,
-              message: 'Unauthorized: Token verification failed',
+              message: 'Unauthorized: Invalid bearer token',
             },
             id: null,
           });
           return;
         }
+
+        // Extract auth info for metadata
+        const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
+        authInfo = {
+          provider: successfulProvider.getProviderType(),
+          userId: userInfo?.sub,
+          email: userInfo?.email,
+        };
       }
 
       // Create new transport

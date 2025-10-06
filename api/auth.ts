@@ -4,31 +4,35 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../build/auth/factory.js';
+import { OAuthProvider, OAuthProviderType } from '../build/auth/providers/types.js';
 import { logger } from '../build/utils/logger.js';
 import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
-// Global OAuth provider instance for reuse
-let oauthProviderInstance: any = null;
+// Global OAuth providers map for multi-provider support
+let oauthProvidersInstance: Map<OAuthProviderType, OAuthProvider> | null = null;
 
 /**
- * Initialize OAuth provider for serverless environment
+ * Initialize OAuth providers for serverless environment (multi-provider support)
  */
-async function initializeOAuthProvider() {
-  if (oauthProviderInstance) {
-    return oauthProviderInstance;
+async function initializeOAuthProviders(): Promise<Map<OAuthProviderType, OAuthProvider>> {
+  if (oauthProvidersInstance) {
+    return oauthProvidersInstance;
   }
 
   try {
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-    if (!provider) {
-      throw new Error('OAuth provider could not be created from environment configuration');
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
+    if (!providers || providers.size === 0) {
+      throw new Error('No OAuth providers could be created from environment configuration');
     }
 
-    oauthProviderInstance = provider;
-    logger.info("OAuth provider initialized", { providerType: provider.getProviderType() });
-    return provider;
+    oauthProvidersInstance = providers;
+    logger.info("Multi-provider OAuth initialized", {
+      providers: Array.from(providers.keys()),
+      count: providers.size
+    });
+    return providers;
   } catch (error) {
-    logger.error("Failed to initialize OAuth provider", error);
+    logger.error("Failed to initialize OAuth providers", error);
     throw error;
   }
 }
@@ -87,56 +91,162 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       fullQuery: req.query
     });
 
-    // Initialize OAuth provider
-    const oauthProvider = await initializeOAuthProvider();
-    const endpoints = oauthProvider.getEndpoints();
+    // Initialize OAuth providers (multi-provider support)
+    const providers = await initializeOAuthProviders();
+
+    // Extract provider type from path (e.g., /google/callback -> google)
+    const providerMatch = oauthPath.match(/^\/(google|github|microsoft)(\/|$)/);
+    const providerType = providerMatch ? providerMatch[1] as OAuthProviderType : null;
+    const provider = providerType ? providers.get(providerType) : null;
 
     // Route to appropriate OAuth handler based on path
     // Paths come as: /github, /github/callback, /google, /google/callback, etc.
 
-    // Match generic /authorize endpoint (MCP Inspector compatibility)
+    // Generic /authorize endpoint - redirect to /login for provider selection
     if (oauthPath === '/authorize') {
       if (req.method === 'GET') {
-        logger.debug("Handling generic OAuth authorization request", { path: oauthPath });
-        await oauthProvider.handleAuthorizationRequest(req, res);
+        logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
+
+        // If only one provider, redirect directly
+        if (providers.size === 1) {
+          const [singleProviderType] = providers.keys();
+          const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+          res.redirect(302, `/api/auth/${singleProviderType}${queryString ? `?${queryString}` : ''}`);
+          return;
+        }
+
+        // Multiple providers - redirect to login page
+        const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
+        res.redirect(302, `/api/auth/login${queryString ? `?${queryString}` : ''}`);
         return;
       }
     }
 
-    // Match generic /token endpoint (MCP Inspector compatibility)
+    // Provider selection/login page
+    if (oauthPath === '/login') {
+      if (req.method === 'GET') {
+        logger.debug("Rendering provider selection page", { path: oauthPath });
+
+        const availableProviders = Array.from(providers.keys());
+        const clientState = req.query.state as string | undefined;
+        const clientRedirectUri = req.query.redirect_uri as string | undefined;
+
+        // Simple HTML provider selection page
+        const loginHtml = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Sign in to MCP Server</title>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      body { font-family: system-ui, -apple-system, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
+      h1 { text-align: center; }
+      .providers { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+      .provider-btn { display: block; padding: 12px 24px; text-align: center; border: 2px solid #ddd; border-radius: 6px; text-decoration: none; color: #333; transition: all 0.2s; }
+      .provider-btn:hover { border-color: #0066cc; background: #f0f9ff; }
+    </style>
+  </head>
+  <body>
+    <h1>Sign in to MCP Server</h1>
+    <p style="text-align: center; color: #666;">Choose your authentication provider</p>
+    <div class="providers">
+      ${availableProviders.includes('google') ? `<a href="/api/auth/google${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Google</a>` : ''}
+      ${availableProviders.includes('github') ? `<a href="/api/auth/github${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with GitHub</a>` : ''}
+      ${availableProviders.includes('microsoft') ? `<a href="/api/auth/microsoft${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Microsoft</a>` : ''}
+    </div>
+  </body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(loginHtml);
+        return;
+      }
+    }
+
+    // Universal /token endpoint (tries all providers)
     if (oauthPath === '/token') {
       if (req.method === 'POST') {
-        logger.debug("Handling generic token request", {
+        logger.debug("Handling universal token request", {
           path: oauthPath,
           contentType: req.headers['content-type'],
           grantType: req.body?.grant_type
         });
 
         try {
-          const { grant_type, refresh_token } = req.body || {};
+          const { grant_type, refresh_token, code } = req.body || {};
 
-          // Determine operation based on grant_type (RFC 6749 Section 4.1.3)
+          // Authorization Code Grant - find correct provider
           if (grant_type === 'authorization_code') {
-            // Authorization Code Grant token exchange (RFC 6749 Section 4.1.3)
-            // Supports PKCE (RFC 7636)
-            if (oauthProvider && 'handleTokenExchange' in oauthProvider) {
-              const provider = oauthProvider as any;
-              await provider.handleTokenExchange(req, res);
-            } else {
-              res.status(501).json({
-                error: 'not_implemented',
-                error_description: 'Token exchange not supported by current OAuth provider'
+            logger.debug("Processing authorization_code grant", { hasCode: !!code });
+
+            // Try each provider until one succeeds
+            const errors: Array<{ provider: string; error: string }> = [];
+
+            for (const [providerType, provider] of providers.entries()) {
+              if (res.headersSent) {
+                logger.debug("Response already sent, stopping provider iteration");
+                return;
+              }
+
+              if ('handleTokenExchange' in provider) {
+                try {
+                  logger.debug("Trying token exchange with provider", { provider: providerType });
+                  // Type cast required: Vercel types are not fully compatible with Express types
+                  await (provider as any).handleTokenExchange(req as any, res as any);
+                  logger.debug("Token exchange succeeded", { provider: providerType });
+                  return; // Success
+                } catch (error) {
+                  if (!res.headersSent) {
+                    const errorMsg = error instanceof Error ? error.message : String(error);
+                    logger.debug("Token exchange failed with provider", { provider: providerType, error: errorMsg });
+                    errors.push({ provider: providerType, error: errorMsg });
+                  } else {
+                    logger.debug("Provider sent error response, stopping iteration");
+                    return;
+                  }
+                }
+              }
+            }
+
+            // No provider succeeded
+            if (!res.headersSent) {
+              logger.warn("Token exchange failed with all providers", { errors });
+              res.status(400).json({
+                error: 'invalid_grant',
+                error_description: 'The provided authorization grant is invalid or expired',
+                details: errors
               });
             }
+            return;
           } else if (grant_type === 'refresh_token' || refresh_token) {
-            // Refresh Token Grant (RFC 6749 Section 6)
-            await oauthProvider.handleTokenRefresh(req, res);
+            // Refresh Token Grant - try all providers
+            logger.debug("Processing refresh_token grant");
+
+            for (const provider of providers.values()) {
+              try {
+                // Type cast required: Vercel types are not fully compatible with Express types
+                await provider.handleTokenRefresh(req as any, res as any);
+                return; // Success
+              } catch (error) {
+                // Try next provider
+                continue;
+              }
+            }
+
+            // No provider succeeded
+            res.status(400).json({
+              error: 'invalid_grant',
+              error_description: 'The provided refresh token is invalid or expired'
+            });
+            return;
           } else {
-            // Invalid grant type (RFC 6749 Section 5.2)
+            // Invalid grant type
             res.status(400).json({
               error: 'unsupported_grant_type',
               error_description: 'Supported grant types: authorization_code, refresh_token'
             });
+            return;
           }
         } catch (error) {
           logger.error("Token endpoint error", error);
@@ -151,39 +261,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Match authorization endpoints: /github, /google, /microsoft, /oauth
-    if (oauthPath === '/github' || oauthPath === '/google' || oauthPath === '/microsoft' || oauthPath === '/oauth' || oauthPath === endpoints.authEndpoint) {
-      if (req.method === 'GET') {
-        logger.debug("Handling OAuth authorization request", { provider: oauthPath });
-        await oauthProvider.handleAuthorizationRequest(req, res);
-        return;
-      }
-    }
+    // Provider-specific routes
+    if (provider) {
+      const endpoints = provider.getEndpoints();
 
-    // Match callback endpoints: /github/callback, /google/callback, etc.
-    if (oauthPath.endsWith('/callback')) {
-      if (req.method === 'GET') {
-        logger.debug("Handling OAuth callback", { path: oauthPath });
-        await oauthProvider.handleAuthorizationCallback(req, res);
-        return;
+      // Authorization endpoint: /google, /github, /microsoft
+      if (oauthPath === `/${providerType}`) {
+        if (req.method === 'GET') {
+          logger.debug("Handling OAuth authorization request", { provider: providerType });
+          // Type cast required: Vercel types are not fully compatible with Express types
+          await provider.handleAuthorizationRequest(req as any, res as any);
+          return;
+        }
       }
-    }
 
-    // Match refresh endpoints: /github/refresh, /google/refresh, etc.
-    if (oauthPath.endsWith('/refresh')) {
-      if (req.method === 'POST') {
-        logger.debug("Handling token refresh", { path: oauthPath });
-        await oauthProvider.handleTokenRefresh(req, res);
-        return;
+      // Callback endpoint: /google/callback, /github/callback, etc.
+      if (oauthPath === `/${providerType}/callback`) {
+        if (req.method === 'GET') {
+          logger.debug("Handling OAuth callback", { provider: providerType });
+          // Type cast required: Vercel types are not fully compatible with Express types
+          await provider.handleAuthorizationCallback(req as any, res as any);
+          return;
+        }
       }
-    }
 
-    // Match logout endpoints: /github/logout, /google/logout, etc.
-    if (oauthPath.endsWith('/logout')) {
-      if (req.method === 'POST') {
-        logger.debug("Handling logout", { path: oauthPath });
-        await oauthProvider.handleLogout(req, res);
-        return;
+      // Logout endpoint: /google/logout, /github/logout, etc.
+      if (oauthPath === `/${providerType}/logout`) {
+        if (req.method === 'POST') {
+          logger.debug("Handling logout", { provider: providerType });
+          // Type cast required: Vercel types are not fully compatible with Express types
+          await provider.handleLogout(req as any, res as any);
+          return;
+        }
       }
     }
 
@@ -191,7 +300,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(404).json({
       error: 'Not found',
       message: `OAuth endpoint not found: ${oauthPath}`,
-      available_endpoints: endpoints
+      available_providers: Array.from(providers.keys()),
+      available_endpoints: {
+        login: '/login',
+        authorize: '/authorize',
+        token: '/token',
+        providers: Array.from(providers.keys()).map(p => ({
+          type: p,
+          auth: `/auth/${p}`,
+          callback: `/auth/${p}/callback`,
+          logout: `/auth/${p}/logout`
+        }))
+      }
     });
 
   } catch (error) {
