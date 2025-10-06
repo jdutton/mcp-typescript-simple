@@ -60,8 +60,8 @@ export function setupOAuthRoutes(
   };
   router.get(endpoints.authEndpoint, authHandler);
 
-  // Generic OAuth authorize endpoint (for MCP Inspector compatibility)
-  router.get('/authorize', authHandler);
+  // Generic OAuth authorize endpoint (for MCP Inspector compatibility) - now under /auth/authorize
+  router.get('/auth/authorize', authHandler);
 
   // OAuth callback endpoint
   const callbackHandler = async (req: Request, res: Response) => {
@@ -132,7 +132,7 @@ export function setupOAuthRoutes(
   router.post(endpoints.refreshEndpoint, universalTokenHandler);
 
   // Generic OAuth 2.0 token endpoint (RFC 6749 Section 3.2) - uses same universal handler
-  router.post('/token', universalTokenHandler);
+  router.post('/auth/token', universalTokenHandler);
 
   // Logout endpoint
   const logoutHandler = async (req: Request, res: Response) => {
@@ -171,7 +171,7 @@ export function setupMultiProviderOAuthRoutes(
   };
 
   // Provider selection/login page
-  router.get('/login', (req: Request, res: Response) => {
+  router.get('/auth/login', (req: Request, res: Response) => {
     setAntiCachingHeaders(res);
 
     const availableProviders = Array.from(providers.keys());
@@ -373,7 +373,7 @@ export function setupMultiProviderOAuthRoutes(
   }
 
   // Generic OAuth 2.0 authorize endpoint (redirects to login page)
-  router.get('/authorize', (req: Request, res: Response) => {
+  router.get('/auth/authorize', (req: Request, res: Response) => {
     setAntiCachingHeaders(res);
 
     // If only one provider, redirect directly
@@ -386,7 +386,7 @@ export function setupMultiProviderOAuthRoutes(
 
     // Multiple providers - redirect to login page
     const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-    res.redirect(302, `/login${queryString ? `?${queryString}` : ''}`);
+    res.redirect(302, `/auth/login${queryString ? `?${queryString}` : ''}`);
   });
 
   // Universal OAuth 2.0 token handler (works with any provider)
@@ -529,7 +529,7 @@ export function setupMultiProviderOAuthRoutes(
     }
   };
 
-  router.post('/token', universalTokenHandler);
+  router.post('/auth/token', universalTokenHandler);
 
   // OAuth 2.0 Dynamic Client Registration routes (RFC 7591/7592)
   setupDCRRoutes(router, clientStore);

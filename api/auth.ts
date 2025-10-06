@@ -108,16 +108,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
 
         // If only one provider, redirect directly
+        // Note: Use /auth/* paths (not /api/auth/*) to match Express behavior
         if (providers.size === 1) {
           const [singleProviderType] = providers.keys();
           const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-          res.redirect(302, `/api/auth/${singleProviderType}${queryString ? `?${queryString}` : ''}`);
+          res.redirect(302, `/auth/${singleProviderType}${queryString ? `?${queryString}` : ''}`);
           return;
         }
 
         // Multiple providers - redirect to login page
         const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-        res.redirect(302, `/api/auth/login${queryString ? `?${queryString}` : ''}`);
+        res.redirect(302, `/auth/login${queryString ? `?${queryString}` : ''}`);
         return;
       }
     }
@@ -132,6 +133,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const clientRedirectUri = req.query.redirect_uri as string | undefined;
 
         // Simple HTML provider selection page
+        // Note: Links use /auth/* paths (not /api/auth/*) to match Express behavior
+        // Vercel rewrites /auth/* → /api/auth handler
         const loginHtml = `
 <!DOCTYPE html>
 <html>
@@ -151,9 +154,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     <h1>Sign in to MCP Server</h1>
     <p style="text-align: center; color: #666;">Choose your authentication provider</p>
     <div class="providers">
-      ${availableProviders.includes('google') ? `<a href="/api/auth/google${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Google</a>` : ''}
-      ${availableProviders.includes('github') ? `<a href="/api/auth/github${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with GitHub</a>` : ''}
-      ${availableProviders.includes('microsoft') ? `<a href="/api/auth/microsoft${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Microsoft</a>` : ''}
+      ${availableProviders.includes('google') ? `<a href="/auth/google${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Google</a>` : ''}
+      ${availableProviders.includes('github') ? `<a href="/auth/github${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with GitHub</a>` : ''}
+      ${availableProviders.includes('microsoft') ? `<a href="/auth/microsoft${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Microsoft</a>` : ''}
     </div>
   </body>
 </html>`;

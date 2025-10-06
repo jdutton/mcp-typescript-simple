@@ -255,8 +255,8 @@ GET /.well-known/oauth-authorization-server
 ```json
 {
   "issuer": "https://your-server.com",
-  "authorization_endpoint": "https://your-server.com/authorize",
-  "token_endpoint": "https://your-server.com/token",
+  "authorization_endpoint": "https://your-server.com/auth/authorize",
+  "token_endpoint": "https://your-server.com/auth/token",
   "registration_endpoint": "https://your-server.com/oauth/register",
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "response_types_supported": ["code"],

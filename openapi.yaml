@@ -330,7 +330,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /token:
+  /auth/token:
     post:
       tags:
         - OAuth Authentication

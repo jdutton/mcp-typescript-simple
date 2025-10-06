@@ -63,7 +63,7 @@ describe('OpenAPI Specification Validation', () => {
       expect(openapiSpec.paths['/auth']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/authorize']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/callback']).toBeDefined();
-      expect(openapiSpec.paths['/token']).toBeDefined();
+      expect(openapiSpec.paths['/auth/token']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/logout']).toBeDefined();
     });
 
