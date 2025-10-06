@@ -607,6 +607,11 @@ export class MCPStreamableHttpServer {
       }
     };
     this.app.all(this.options.endpoint, authMiddleware, mcpHandler);
+
+    // Root redirect to documentation
+    this.app.get('/', (_req: Request, res: Response) => {
+      res.redirect(302, '/docs');
+    });
   }
 
   /**

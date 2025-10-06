@@ -25,9 +25,6 @@ info:
   contact:
     name: Jeff Dutton
     url: https://github.com/jdutton/mcp-typescript-simple
-  license:
-    name: MIT
-    url: https://github.com/jdutton/mcp-typescript-simple/blob/main/LICENSE
 
 servers:
   - url: http://localhost:3000
