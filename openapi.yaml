@@ -240,6 +240,101 @@ paths:
               schema:
                 $ref: '#/components/schemas/OAuthProviderInfo'
 
+  /auth/login:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Provider selection page
+      description: |
+        Displays HTML page with available OAuth providers for user selection.
+        Used when multiple OAuth providers are configured (Google, GitHub, Microsoft).
+
+        If only one provider is configured, automatically redirects to that provider.
+      operationId: oauthLogin
+      security: []
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth client state parameter (preserved through provider selection)
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+          description: OAuth client redirect URI (preserved through provider selection)
+      responses:
+        '200':
+          description: HTML provider selection page
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Redirect to single provider (when only one provider configured)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/authorize:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Generic OAuth authorization endpoint
+      description: |
+        Generic OAuth 2.0 authorization endpoint that redirects to provider selection.
+        Compatible with standard OAuth 2.0 clients that use `/authorize` endpoint.
+
+        Redirects to `/auth/login` for provider selection.
+      operationId: genericAuthorize
+      security: []
+      parameters:
+        - name: response_type
+          in: query
+          schema:
+            type: string
+            enum: [code]
+          description: OAuth response type (always 'code')
+        - name: client_id
+          in: query
+          schema:
+            type: string
+          description: OAuth client ID
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+          description: OAuth client redirect URI
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth client state parameter
+        - name: scope
+          in: query
+          schema:
+            type: string
+          description: Requested OAuth scopes
+        - name: code_challenge
+          in: query
+          schema:
+            type: string
+          description: PKCE code challenge
+        - name: code_challenge_method
+          in: query
+          schema:
+            type: string
+            enum: [S256]
+          description: PKCE challenge method
+      responses:
+        '302':
+          description: Redirect to provider selection or single provider
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /auth/{provider}/authorize:
     get:
       tags:

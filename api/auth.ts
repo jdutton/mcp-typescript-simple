@@ -54,33 +54,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Parse the OAuth path from Vercel's catch-all route parameter
-    // For /auth/github, Vercel passes query.path = ['github']
-    // For /auth/github/callback, Vercel passes query.path = ['github', 'callback']
+    // Vercel rewrite: /auth/:path(.*)  →  /api/auth?path=:path
+    // Examples:
+    //   /auth/login          → query.path = "login"
+    //   /auth/authorize      → query.path = "authorize"
+    //   /auth/token          → query.path = "token"
+    //   /auth/github         → query.path = "github"
+    //   /auth/github/callback → query.path = "github/callback"
 
-    // Try to get path from query parameter first
-    let pathArray: string[] = [];
-    if (req.query.path) {
-      pathArray = Array.isArray(req.query.path) ? req.query.path : [req.query.path];
-      pathArray = pathArray.filter(Boolean);
+    if (!req.query.path) {
+      logger.error("Missing path parameter from Vercel rewrite", {
+        url: req.url,
+        query: req.query
+      });
+      res.status(400).json({
+        error: 'Bad Request',
+        message: 'Missing path parameter. OAuth requests must go through /auth/* endpoints.'
+      });
+      return;
     }
 
-    // Fallback: parse from URL if query.path is empty
-    if (pathArray.length === 0 && req.url) {
-      // Extract path after /auth/ or /api/auth/
-      // Also handle direct /authorize and /token endpoints
-      const urlMatch = req.url.match(/\/(?:api\/)?(?:auth(?:\/(.+?))?|authorize|token)(?:\?|$)/);
-      if (urlMatch) {
-        if (req.url.includes('/authorize')) {
-          pathArray = ['authorize'];
-        } else if (req.url.includes('/token')) {
-          pathArray = ['token'];
-        } else if (urlMatch[1]) {
-          pathArray = urlMatch[1].split('/').filter(Boolean);
-        }
-      }
-    }
+    const pathArray = Array.isArray(req.query.path)
+      ? req.query.path.filter(Boolean)
+      : [req.query.path].filter(Boolean);
 
-    const oauthPath = pathArray.length > 0 ? '/' + pathArray.join('/') : '/';
+    const oauthPath = '/' + pathArray.join('/');
 
     logger.info("OAuth request received", {
       method: req.method,
@@ -99,8 +97,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const providerType = providerMatch ? providerMatch[1] as OAuthProviderType : null;
     const provider = providerType ? providers.get(providerType) : null;
 
-    // Route to appropriate OAuth handler based on path
-    // Paths come as: /github, /github/callback, /google, /google/callback, etc.
+    /**
+     * OAuth Route Handling
+     *
+     * All routes handled here (no fallbacks):
+     *
+     * Generic endpoints:
+     *   /auth/login      → /login      (provider selection page)
+     *   /auth/authorize  → /authorize  (generic OAuth start, redirects to /login)
+     *   /auth/token      → /token      (universal token exchange)
+     *
+     * Provider-specific endpoints:
+     *   /auth/google              → /google              (start Google OAuth)
+     *   /auth/google/callback     → /google/callback     (Google callback)
+     *   /auth/google/logout       → /google/logout       (Google logout)
+     *   /auth/github              → /github              (start GitHub OAuth)
+     *   /auth/github/callback     → /github/callback     (GitHub callback)
+     *   /auth/github/logout       → /github/logout       (GitHub logout)
+     *   /auth/microsoft           → /microsoft           (start Microsoft OAuth)
+     *   /auth/microsoft/callback  → /microsoft/callback  (Microsoft callback)
+     *   /auth/microsoft/logout    → /microsoft/logout    (Microsoft logout)
+     */
 
     // Generic /authorize endpoint - redirect to /login for provider selection
     if (oauthPath === '/authorize') {

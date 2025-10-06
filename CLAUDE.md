@@ -183,6 +183,9 @@ When running the server locally or in production, access documentation at:
 
 ### Documentation Workflow
 
+#### Spec-Driven Development (CRITICAL)
+**ALWAYS update `openapi.yaml` FIRST before making any URL/API changes.** The OpenAPI spec is the authoritative API contract - update the spec, then implement the code to match it.
+
 #### When to Update Documentation
 
 Update `openapi.yaml` whenever you:
