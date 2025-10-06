@@ -21,6 +21,7 @@ import {
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
+import { PKCEStore } from '../stores/pkce-store-interface.js';
 
 /**
  * Google OAuth provider implementation
@@ -29,8 +30,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   private oauth2Client: OAuth2Client;
   protected config: GoogleOAuthConfig; // Override with specific config type
 
-  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
-    super(config, sessionStore, tokenStore);
+  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, tokenStore, pkceStore);
     this.config = config; // Explicitly set the properly typed config
 
     this.oauth2Client = new OAuth2Client(
@@ -71,6 +72,14 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Setup PKCE parameters (handles both client and server-generated codes)
       const { state, codeVerifier, codeChallenge } = this.setupPKCE(clientCodeChallenge);
+
+      logger.oauthInfo('Authorization request PKCE', {
+        provider: 'google',
+        hasClientCodeChallenge: !!clientCodeChallenge,
+        codeChallengePrefix: codeChallenge.substring(0, 10),
+        hasCodeVerifier: !!codeVerifier,
+        codeVerifierLength: codeVerifier?.length
+      });
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
@@ -123,7 +132,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
-      if (this.handleClientRedirect(session, code, state, res)) {
+      if (await this.handleClientRedirect(session, code, state, res)) {
         return;
       }
 
@@ -435,18 +444,26 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         return; // Response already sent by validation
       }
 
-      const { code, code_verifier } = validation;
+      const { code, code_verifier, redirect_uri } = validation;
 
-      // Exchange authorization code for tokens using Google OAuth
-      // Use our configured redirect_uri (which was used in authorization request)
-      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
-      const { tokens } = await this.oauth2Client.getToken({
+      // Resolve code_verifier (OAuth proxy vs direct flow)
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+
+      // Log token exchange request
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+
+      const redirectUriToUse = this.config.redirectUri;
+
+      // Use the correct code_verifier (server's stored one for proxy flows, client's for direct flows)
+      const result = await this.oauth2Client.getToken({
         code: code!,
-        codeVerifier: code_verifier!, // Use client's code_verifier for PKCE
-        redirect_uri: this.config.redirectUri, // Use our registered redirect URI
+        codeVerifier: codeVerifierToUse,
+        redirect_uri: redirectUriToUse,
       });
 
-      if (!tokens.access_token) {
+      const tokens = result.tokens;
+
+      if (!tokens || !tokens.access_token) {
         throw new OAuthTokenError('No access token received', 'google');
       }
 
@@ -483,6 +500,9 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       };
 
       await this.storeToken(tokens.access_token, tokenInfo);
+
+      // Clean up authorization code mapping and session after successful token exchange
+      await this.cleanupAfterTokenExchange(code!);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);

@@ -99,7 +99,10 @@ describe('MicrosoftOAuthProvider', () => {
     jest.clearAllMocks();
   });
 
-  const createProvider = () => new MicrosoftOAuthProvider(baseConfig);
+  const createProvider = () => {
+    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
+    return new MicrosoftOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+  };
 
   it('redirects to Microsoft authorization URL and stores session data', async () => {
     const provider = createProvider();

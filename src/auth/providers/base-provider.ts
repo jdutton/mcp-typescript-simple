@@ -24,6 +24,7 @@ import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { MemorySessionStore } from '../stores/memory-session-store.js';
 import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
 import { MemoryOAuthTokenStore } from '../stores/memory-oauth-token-store.js';
+import { PKCEStore } from '../stores/pkce-store-interface.js';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -31,20 +32,113 @@ import { MemoryOAuthTokenStore } from '../stores/memory-oauth-token-store.js';
 export abstract class BaseOAuthProvider implements OAuthProvider {
   protected sessionStore: OAuthSessionStore;
   protected tokenStore: OAuthTokenStore;
+  protected pkceStore: PKCEStore;
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   protected readonly DEFAULT_TOKEN_EXPIRATION_SECONDS = 60 * 60; // 1 hour default when provider doesn't supply expiration
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
 
+  /**
+   * Get stored code_verifier for an authorization code (OAuth proxy PKCE)
+   * Returns the server's code_verifier if it was stored, undefined otherwise
+   */
+  protected async getStoredCodeVerifier(code: string): Promise<string | undefined> {
+    const data = await this.pkceStore.getCodeVerifier(code);
+    if (data) {
+      logger.oauthDebug('Retrieved stored code_verifier', {
+        provider: this.getProviderName(),
+        codePrefix: code.substring(0, 10),
+        verifierPrefix: data.codeVerifier.substring(0, 10)
+      });
+      return data.codeVerifier;
+    }
+
+    // Warning: PKCE lookup failed - could indicate multi-instance issue or code reuse
+    logger.oauthWarn('PKCE lookup failed - code_verifier not found', {
+      provider: this.getProviderName(),
+      codePrefix: code.substring(0, 10)
+    });
+
+    return undefined;
+  }
+
+  /**
+   * Resolve code_verifier for token exchange
+   * In OAuth proxy flows: returns server's stored code_verifier
+   * In direct OAuth flows: returns client's provided code_verifier
+   */
+  protected async resolveCodeVerifierForTokenExchange(code: string, clientCodeVerifier?: string): Promise<string | undefined> {
+    const storedCodeVerifier = await this.getStoredCodeVerifier(code);
+    return storedCodeVerifier || clientCodeVerifier;
+  }
+
+  /**
+   * Log token exchange request with standardized format
+   */
+  protected async logTokenExchangeRequest(
+    code: string,
+    clientCodeVerifier?: string,
+    redirectUri?: string
+  ): Promise<void> {
+    const storedCodeVerifier = await this.getStoredCodeVerifier(code);
+    const codeVerifierToUse = storedCodeVerifier || clientCodeVerifier;
+
+    logger.oauthInfo('Token exchange request', {
+      provider: this.getProviderType(),
+      clientProvidedRedirectUri: redirectUri,
+      clientProvidedCodeVerifier: clientCodeVerifier?.substring(0, 10),
+      serverStoredCodeVerifier: storedCodeVerifier?.substring(0, 10),
+      usingCodeVerifier: codeVerifierToUse?.substring(0, 10),
+      serverRedirectUri: this.config.redirectUri,
+      hasCode: !!code,
+      codeLength: code?.length
+    });
+  }
+
+  /**
+   * Clean up after successful token exchange
+   * Removes the authorization code mapping and the associated session
+   * Uses atomic get-and-delete to prevent code reuse attacks
+   */
+  protected async cleanupAfterTokenExchange(code: string): Promise<void> {
+    // Atomically retrieve and delete PKCE data to prevent code reuse
+    const data = await this.pkceStore.getAndDeleteCodeVerifier(code);
+    if (data) {
+      // Clean up session
+      await this.removeSession(data.state);
+
+      logger.oauthDebug('Cleaned up after token exchange', {
+        provider: this.getProviderName(),
+        codePrefix: code.substring(0, 10),
+        statePrefix: data.state.substring(0, 8)
+      });
+    }
+  }
+
+  /**
+   * Check if this provider has a stored code_verifier for the given authorization code
+   * This is used for multi-provider routing to identify which provider issued the code
+   */
+  async hasStoredCodeForProvider(code: string): Promise<boolean> {
+    return await this.pkceStore.hasCodeVerifier(code);
+  }
+
   constructor(
     protected config: OAuthConfig,
     sessionStore?: OAuthSessionStore,
-    tokenStore?: OAuthTokenStore
+    tokenStore?: OAuthTokenStore,
+    pkceStore?: PKCEStore
   ) {
     // Use provided stores or default to memory stores
     this.sessionStore = sessionStore || new MemorySessionStore();
     this.tokenStore = tokenStore || new MemoryOAuthTokenStore();
+
+    // PKCE store is required - throw error if not provided
+    if (!pkceStore) {
+      throw new Error('PKCEStore is required for OAuth providers. Use RedisPKCEStore for multi-instance deployments.');
+    }
+    this.pkceStore = pkceStore;
 
     // Load allowlist configuration
     this.allowlistConfig = loadAllowlistConfig();
@@ -403,7 +497,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     tokenUrl: string,
     code: string,
     codeVerifier: string,
-    additionalParams: Record<string, string> = {}
+    additionalParams: Record<string, string> = {},
+    redirectUri?: string
   ): Promise<ProviderTokenResponse> {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
@@ -411,7 +506,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       code,
       code_verifier: codeVerifier,
       grant_type: 'authorization_code',
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: redirectUri || this.config.redirectUri,
       ...additionalParams,
     });
 
@@ -565,12 +660,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Handle client redirect flow for MCP Inspector and Claude Code compatibility
    * Returns true if client redirect was handled, false if should continue with normal flow
    */
-  protected handleClientRedirect(
+  protected async handleClientRedirect(
     session: OAuthSession,
     code: string,
     state: string,
     res: Response
-  ): boolean {
+  ): Promise<boolean> {
     const providerName = this.getProviderName();
 
     if (session.clientRedirectUri) {
@@ -596,8 +691,30 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         });
       }
 
-      // Clean up session since we're done with this flow
-      this.removeSession(state);
+      // DON'T clean up session yet - client still needs it for token exchange!
+      // Session will be cleaned up in handleTokenExchange after successful token exchange
+
+      // CRITICAL: Store authorization code → { code_verifier, state } mapping for PKCE
+      // This is needed when server generated PKCE (client didn't provide code_challenge)
+      // but client will perform the token exchange with the code
+      // Also stores state for session cleanup after successful token exchange
+      if (session.codeVerifier) {
+        await this.pkceStore.storeCodeVerifier(code, {
+          codeVerifier: session.codeVerifier,
+          state: state
+        });
+        logger.oauthDebug('Stored code_verifier and state for OAuth proxy flow', {
+          provider: providerName,
+          codePrefix: code.substring(0, 10),
+          codeVerifierPrefix: session.codeVerifier.substring(0, 10),
+          statePrefix: state.substring(0, 8)
+        });
+      }
+
+      logger.oauthDebug('Preserving session for client token exchange', {
+        provider: providerName,
+        serverState: state.substring(0, 8)
+      });
 
       this.setAntiCachingHeaders(res);
       res.redirect(redirectUrl.toString());

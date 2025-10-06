@@ -99,7 +99,10 @@ describe('GitHubOAuthProvider', () => {
     jest.clearAllMocks();
   });
 
-  const createProvider = () => new GitHubOAuthProvider(baseConfig);
+  const createProvider = () => {
+    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
+    return new GitHubOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+  };
 
   it('redirects to GitHub authorization URL and stores session data', async () => {
     const provider = createProvider();

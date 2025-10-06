@@ -19,6 +19,7 @@ import {
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
+import { PKCEStore } from '../stores/pkce-store-interface.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -29,8 +30,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
-    super(config, sessionStore, tokenStore);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, tokenStore, pkceStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -113,7 +114,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
-      if (this.handleClientRedirect(session, code, state, res)) {
+      if (await this.handleClientRedirect(session, code, state, res)) {
         return;
       }
 
@@ -194,15 +195,20 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return; // Response already sent by validation
       }
 
-      const { code, code_verifier } = validation;
+      const { code, code_verifier, redirect_uri } = validation;
 
-      // Exchange authorization code for tokens using GitHub OAuth
-      // Use our configured redirect_uri (which was used in authorization request)
-      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
+      // Resolve code_verifier (OAuth proxy vs direct flow)
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+
+      // Log token exchange request
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+
       const tokenData = await this.exchangeCodeForTokens(
         this.GITHUB_TOKEN_URL,
         code!,
-        code_verifier! // Use client's code_verifier for PKCE
+        codeVerifierToUse!, // Use correct code_verifier (server's or client's)
+        {}, // No additional params
+        this.config.redirectUri // MUST match authorization request redirect_uri
       );
 
       if (!tokenData.access_token) {
@@ -223,6 +229,9 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       };
 
       await this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Clean up authorization code mapping and session after successful token exchange
+      await this.cleanupAfterTokenExchange(code!);
 
       // Return standard OAuth token response
       const response: OAuthTokenResponse = {

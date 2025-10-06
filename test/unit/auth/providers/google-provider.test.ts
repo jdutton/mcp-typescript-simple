@@ -90,7 +90,10 @@ const createMockResponse = (): MockResponse => {
 };
 
 describe('GoogleOAuthProvider', () => {
-  const createProvider = () => new GoogleOAuthProvider(baseConfig);
+  const createProvider = () => {
+    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
+    return new GoogleOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -374,7 +377,8 @@ describe('GoogleOAuthProvider', () => {
         ...baseConfig,
         scopes: []
       };
-      const provider = new GoogleOAuthProvider(configWithEmptyScopes);
+      const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
+      const provider = new GoogleOAuthProvider(configWithEmptyScopes, undefined, undefined, new MemoryPKCEStore());
 
       const pkceSpy = jest.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
         .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
@@ -538,9 +542,11 @@ describe('GoogleOAuthProvider', () => {
 
       expect(res.redirect).toHaveBeenCalledWith('https://client.example.com/callback?code=auth_code&state=state123');
 
-      // Session should be cleaned up
+      // Session should NOT be cleaned up yet - preserved for token exchange
+      // It will be cleaned up in handleTokenExchange after successful exchange
       const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
-      expect(sessionAfter).toBeNull();
+      expect(sessionAfter).not.toBeNull();
+      expect(sessionAfter?.state).toBe('state123');
 
       dateSpy.mockRestore();
       provider.dispose();
