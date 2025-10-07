@@ -19,6 +19,7 @@ import {
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
+import { PKCEStore } from '../stores/pkce-store-interface.js';
 
 /**
  * GitHub OAuth provider implementation
@@ -29,8 +30,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
-    super(config, sessionStore, tokenStore);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, tokenStore, pkceStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -51,7 +52,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   }
 
   getDefaultScopes(): string[] {
-    return ['user:email'];
+    return ['read:user', 'user:email'];
   }
 
   /**
@@ -69,7 +70,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
       this.storeSession(state, session);
 
-      // Build authorization URL
+      // Build authorization URL with PKCE
       const authUrl = this.buildAuthorizationUrl(
         this.GITHUB_AUTH_URL,
         state,
@@ -113,11 +114,11 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
-      if (this.handleClientRedirect(session, code, state, res)) {
+      if (await this.handleClientRedirect(session, code, state, res)) {
         return;
       }
 
-      // Exchange authorization code for tokens
+      // Exchange authorization code for tokens with PKCE validation
       const tokenData = await this.exchangeCodeForTokens(
         this.GITHUB_TOKEN_URL,
         code,
@@ -194,15 +195,39 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return; // Response already sent by validation
       }
 
-      const { code, code_verifier } = validation;
+      const { code, code_verifier, redirect_uri } = validation;
 
-      // Exchange authorization code for tokens using GitHub OAuth
-      // Use our configured redirect_uri (which was used in authorization request)
-      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
+      // Resolve code_verifier (OAuth proxy vs direct flow)
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+
+      // Log token exchange request (includes client's redirect_uri for debugging)
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+
+      // Validate code_verifier is available (required for PKCE)
+      if (!codeVerifierToUse) {
+        logger.oauthError('Token exchange failed: code_verifier not available', {
+          provider: 'github',
+          hasClientVerifier: !!code_verifier,
+          codePrefix: code!.substring(0, 10)
+        });
+        this.setAntiCachingHeaders(res);
+        res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Authorization code is invalid, expired, or already used'
+        });
+        return;
+      }
+
+      // IMPORTANT: Always use server's registered redirect_uri for token exchange
+      // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
+      // registered redirect URI. Client-provided redirect_uri is logged but not used
+      // for security - prevents redirect_uri substitution attacks.
       const tokenData = await this.exchangeCodeForTokens(
         this.GITHUB_TOKEN_URL,
         code!,
-        code_verifier! // Use client's code_verifier for PKCE
+        codeVerifierToUse, // Required for PKCE validation
+        {}, // No additional params
+        this.config.redirectUri // MUST match authorization request redirect_uri
       );
 
       if (!tokenData.access_token) {
@@ -223,6 +248,9 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       };
 
       await this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Clean up authorization code mapping and session after successful token exchange
+      await this.cleanupAfterTokenExchange(code!);
 
       // Return standard OAuth token response
       const response: OAuthTokenResponse = {

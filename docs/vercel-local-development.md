@@ -144,8 +144,7 @@ ANTHROPIC_API_KEY=your_claude_api_key
 OPENAI_API_KEY=your_openai_api_key
 GOOGLE_API_KEY=your_gemini_api_key
 
-# OAuth Configuration (optional)
-OAUTH_PROVIDER=google
+# OAuth Configuration (optional - server auto-detects providers)
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 

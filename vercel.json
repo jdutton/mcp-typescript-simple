@@ -24,16 +24,8 @@
       "destination": "/api/register"
     },
     {
-      "source": "/authorize",
-      "destination": "/api/auth"
-    },
-    {
-      "source": "/token",
-      "destination": "/api/auth"
-    },
-    {
-      "source": "/auth/:path*",
-      "destination": "/api/auth"
+      "source": "/auth/:path(.*)",
+      "destination": "/api/auth?path=:path"
     },
     {
       "source": "/admin/:path*",

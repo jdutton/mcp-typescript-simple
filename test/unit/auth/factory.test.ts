@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 import { logger } from '../../../src/utils/logger.js';
+import { EnvironmentConfig } from '../../../src/config/environment.js';
 
 const originalEnv = process.env;
 
@@ -18,7 +19,23 @@ jest.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
 
 describe('OAuthProviderFactory', () => {
   beforeEach(() => {
-    process.env = { ...originalEnv };
+    // CRITICAL: Clear EnvironmentConfig singleton cache to ensure tests don't inherit
+    // cached env vars from previous tests. EnvironmentConfig.load() caches env vars in
+    // a singleton _instance (src/config/environment.ts:102-104). Without this reset,
+    // test 2 would see OAuth credentials cached from test 1 even after clearing process.env.
+    EnvironmentConfig.reset();
+
+    // Reset factory singleton instance after clearing env config
+    OAuthProviderFactory.resetInstance();
+
+    // Create clean environment without OAuth credentials
+    // Don't use originalEnv as it may contain credentials from actual environment
+    process.env = {
+      NODE_ENV: 'test',
+      // Keep only essential non-OAuth vars
+      PATH: originalEnv.PATH || '',
+      HOME: originalEnv.HOME || '',
+    };
   });
 
   afterEach(() => {
@@ -32,59 +49,52 @@ describe('OAuthProviderFactory', () => {
   });
 
   it('creates Google provider when credentials are present', async () => {
-    process.env.OAUTH_PROVIDER = 'google';
     process.env.GOOGLE_CLIENT_ID = 'id';
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
     process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
 
-    const provider = await OAuthProviderFactory.createFromEnvironment();
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
 
-    expect(provider).toMatchObject({ type: 'google' });
+    expect(providers).not.toBeNull();
+    expect(providers?.has('google')).toBe(true);
+    expect(providers?.get('google')).toMatchObject({ type: 'google' });
   });
 
-  it('returns null when no OAuth provider is configured', async () => {
+  it('returns null when no OAuth providers are configured', async () => {
     const warnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-    delete process.env.OAUTH_PROVIDER;
+    // No OAuth credentials set - beforeEach already cleared environment
 
-    const provider = await OAuthProviderFactory.createFromEnvironment();
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
 
-    expect(provider).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
+    expect(providers).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, or Microsoft).');
   });
 
-  it('returns null when provider type is unsupported', async () => {
-    const warnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-    process.env.OAUTH_PROVIDER = 'unsupported';
+  it('creates multiple providers when multiple credentials are configured', async () => {
+    process.env.GOOGLE_CLIENT_ID = 'google-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'google-secret';
+    process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
+    process.env.GITHUB_CLIENT_ID = 'github-id';
+    process.env.GITHUB_CLIENT_SECRET = 'github-secret';
+    process.env.GITHUB_REDIRECT_URI = 'https://example.com/callback';
 
-    const provider = await OAuthProviderFactory.createFromEnvironment();
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
 
-    expect(provider).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith('Unsupported OAuth provider', expect.objectContaining({
-      provider: 'unsupported'
-    }));
-  });
-
-  it('returns null and logs an error when credentials are missing', async () => {
-    const errorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
-    process.env.OAUTH_PROVIDER = 'github';
-    process.env.GITHUB_CLIENT_ID = '';
-    process.env.GITHUB_CLIENT_SECRET = '';
-
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-
-    expect(provider).toBeNull();
-    expect(errorSpy).toHaveBeenCalled();
+    expect(providers).not.toBeNull();
+    expect(providers?.size).toBe(2);
+    expect(providers?.has('google')).toBe(true);
+    expect(providers?.has('github')).toBe(true);
   });
 
   it('disposes tracked providers via disposeAll', async () => {
-    process.env.OAUTH_PROVIDER = 'google';
     process.env.GOOGLE_CLIENT_ID = 'id';
     process.env.GOOGLE_CLIENT_SECRET = 'secret';
     process.env.GOOGLE_REDIRECT_URI = 'https://example.com/callback';
 
-    const provider = await OAuthProviderFactory.createFromEnvironment();
-    expect(provider).toBeTruthy();
+    const providers = await OAuthProviderFactory.createAllFromEnvironment();
+    expect(providers).toBeTruthy();
 
+    const provider = providers?.get('google');
     const typedProvider = provider as unknown as { dispose: jest.Mock };
     expect(typedProvider.dispose).not.toHaveBeenCalled();
 

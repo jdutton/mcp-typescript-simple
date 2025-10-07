@@ -123,10 +123,7 @@ To add additional URLs:
 
 2. **Configure your `.env` file**:
    ```bash
-   # OAuth Provider Selection
-   OAUTH_PROVIDER=microsoft
-
-   # Microsoft OAuth Credentials (fill these in)
+   # Microsoft OAuth Credentials (auto-detected by server)
    MICROSOFT_CLIENT_ID=your_application_client_id_here
    MICROSOFT_CLIENT_SECRET=your_client_secret_here
    MICROSOFT_REDIRECT_URI=http://localhost:3000/auth/microsoft/callback
@@ -242,7 +239,7 @@ Test authenticated requests:
 | `/auth/microsoft/callback` | GET | Handles OAuth callback with authorization code |
 | `/auth/microsoft/refresh` | POST | Refreshes access token using refresh token |
 | `/auth/microsoft/logout` | POST | Logs out and invalidates token |
-| `/token` | POST | OAuth 2.0 standard token exchange endpoint |
+| `/auth/token` | POST | OAuth 2.0 standard token exchange endpoint |
 | `/.well-known/oauth-authorization-server` | GET | OAuth discovery metadata |
 | `/.well-known/oauth-protected-resource` | GET | Protected resource metadata |
 
@@ -253,7 +250,7 @@ Test authenticated requests:
 curl -X GET http://localhost:3000/auth/microsoft
 
 # Token exchange (for OAuth clients)
-curl -X POST http://localhost:3000/token \
+curl -X POST http://localhost:3000/auth/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=authorization_code&code=YOUR_AUTH_CODE&code_verifier=YOUR_CODE_VERIFIER"
 

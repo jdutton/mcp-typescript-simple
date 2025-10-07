@@ -28,6 +28,7 @@ describe('OAuthDiscoveryMetadata', () => {
       isTokenValid: jest.fn(),
       getSessionCount: jest.fn(),
       getTokenCount: jest.fn(),
+      removeToken: jest.fn(),
       cleanup: jest.fn(),
       dispose: jest.fn()
     } as jest.Mocked<OAuthProvider>;
@@ -74,8 +75,8 @@ describe('OAuthDiscoveryMetadata', () => {
 
       expect(metadata).toMatchObject({
         issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/authorize`,
-        token_endpoint: `${baseUrl}/token`,
+        authorization_endpoint: `${baseUrl}/auth/authorize`,
+        token_endpoint: `${baseUrl}/auth/token`,
         token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
         response_types_supported: ['code'],
         grant_types_supported: ['authorization_code', 'refresh_token'],
@@ -240,8 +241,8 @@ describe('OAuthDiscoveryMetadata', () => {
 
       expect(config).toMatchObject({
         issuer: baseUrl,
-        authorization_endpoint: `${baseUrl}/authorize`,
-        token_endpoint: `${baseUrl}/token`,
+        authorization_endpoint: `${baseUrl}/auth/authorize`,
+        token_endpoint: `${baseUrl}/auth/token`,
         subject_types_supported: ['public'],
         id_token_signing_alg_values_supported: ['RS256'],
         ui_locales_supported: ['en-US']

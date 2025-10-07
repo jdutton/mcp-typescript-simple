@@ -19,6 +19,7 @@ import {
 import { logger } from '../../utils/logger.js';
 import { OAuthSessionStore } from '../stores/session-store-interface.js';
 import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
+import { PKCEStore } from '../stores/pkce-store-interface.js';
 
 /**
  * Microsoft Azure AD OAuth provider implementation
@@ -29,8 +30,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   private readonly MICROSOFT_TOKEN_URL: string;
   private readonly MICROSOFT_USER_URL = 'https://graph.microsoft.com/v1.0/me';
 
-  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore) {
-    super(config, sessionStore, tokenStore);
+  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, tokenStore, pkceStore);
 
     this.tenantId = config.tenantId || 'common';
     this.MICROSOFT_AUTH_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize`;
@@ -117,7 +118,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       const session = await this.validateState(state);
 
       // Handle client redirect flow (returns true if redirect was handled)
-      if (this.handleClientRedirect(session, code, state, res)) {
+      if (await this.handleClientRedirect(session, code, state, res)) {
         return;
       }
 
@@ -200,15 +201,24 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         return; // Response already sent by validation
       }
 
-      const { code, code_verifier } = validation;
+      const { code, code_verifier, redirect_uri } = validation;
 
-      // Exchange authorization code for tokens using Microsoft OAuth
-      // Use our configured redirect_uri (which was used in authorization request)
-      // Use the code_verifier provided by the OAuth client (PKCE RFC 7636)
+      // Resolve code_verifier (OAuth proxy vs direct flow)
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+
+      // Log token exchange request (includes client's redirect_uri for debugging)
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+
+      // IMPORTANT: Always use server's registered redirect_uri for token exchange
+      // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
+      // registered redirect URI. Client-provided redirect_uri is logged but not used
+      // for security - prevents redirect_uri substitution attacks.
       const tokenData = await this.exchangeCodeForTokens(
         this.MICROSOFT_TOKEN_URL,
         code!,
-        code_verifier! // Use client's code_verifier for PKCE
+        codeVerifierToUse!, // Use correct code_verifier (server's or client's)
+        {}, // No additional params
+        this.config.redirectUri // MUST match authorization request redirect_uri
       );
 
       if (!tokenData.access_token) {
@@ -229,6 +239,9 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       };
 
       await this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Clean up authorization code mapping and session after successful token exchange
+      await this.cleanupAfterTokenExchange(code!);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const response: OAuthTokenResponse = {

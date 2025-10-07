@@ -46,21 +46,21 @@ export class SessionManager {
   /**
    * Create a new session
    */
-  createSession(authInfo?: AuthInfo, metadata?: Record<string, unknown>): SessionInfo {
-    const sessionId = this.generateSessionId();
+  createSession(authInfo?: AuthInfo, metadata?: Record<string, unknown>, sessionId?: string): SessionInfo {
+    const id = sessionId || this.generateSessionId();
     const now = Date.now();
 
     const sessionInfo: SessionInfo = {
-      sessionId,
+      sessionId: id,
       createdAt: now,
       expiresAt: now + this.SESSION_TIMEOUT,
       authInfo,
       metadata,
     };
 
-    this.sessions.set(sessionId, sessionInfo);
+    this.sessions.set(id, sessionInfo);
 
-    logger.debug("Created new session", { sessionId });
+    logger.debug("Created new session", { sessionId: id });
     return sessionInfo;
   }
 

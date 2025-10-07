@@ -13,6 +13,9 @@ import type {
   StoredTokenInfo
 } from '../../../../src/auth/providers/types.js';
 import { OAuthTokenError } from '../../../../src/auth/providers/types.js';
+import { OAuthSessionStore } from '../../../../src/auth/stores/session-store-interface.js';
+import { OAuthTokenStore } from '../../../../src/auth/stores/oauth-token-store-interface.js';
+import { PKCEStore } from '../../../../src/auth/stores/pkce-store-interface.js';
 
 type MockResponse = Response & {
   statusCode?: number;
@@ -49,8 +52,8 @@ type SessionAccess = {
 };
 
 class TestOAuthProvider extends BaseOAuthProvider {
-  constructor(config: OAuthConfig) {
-    super(config);
+  constructor(config: OAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, tokenStore, pkceStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -132,7 +135,8 @@ describe('BaseOAuthProvider', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     fetchMock.mockReset();
-    provider = new TestOAuthProvider(baseConfig);
+    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
+    provider = new TestOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
     sessionAccess = provider as unknown as SessionAccess;
   });
 
@@ -303,7 +307,7 @@ describe('BaseOAuthProvider', () => {
       expect(session.clientRedirectUri).toBe(clientRedirectUri);
     });
 
-    it('handles client redirect with client original state', () => {
+    it('handles client redirect with client original state', async () => {
       const res = createResponse();
       const serverState = 'server-state-abc';
       const clientState = 'client-state-xyz';
@@ -323,7 +327,7 @@ describe('BaseOAuthProvider', () => {
 
       sessionAccess.storeSession(serverState, session);
 
-      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
 
       expect(handled).toBe(true);
       expect(res.redirect).toHaveBeenCalledWith(
@@ -337,7 +341,7 @@ describe('BaseOAuthProvider', () => {
       );
     });
 
-    it('falls back to server state when client state not provided', () => {
+    it('falls back to server state when client state not provided', async () => {
       const res = createResponse();
       const serverState = 'server-state-only';
       const authCode = 'auth-code-456';
@@ -356,7 +360,7 @@ describe('BaseOAuthProvider', () => {
 
       sessionAccess.storeSession(serverState, session);
 
-      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
 
       expect(handled).toBe(true);
       expect(res.redirect).toHaveBeenCalledWith(
@@ -364,7 +368,7 @@ describe('BaseOAuthProvider', () => {
       );
     });
 
-    it('does not handle redirect when clientRedirectUri not provided', () => {
+    it('does not handle redirect when clientRedirectUri not provided', async () => {
       const res = createResponse();
       const serverState = 'server-state-123';
       const authCode = 'auth-code-789';
@@ -380,7 +384,7 @@ describe('BaseOAuthProvider', () => {
         expiresAt: Date.now() + 600000
       };
 
-      const handled = provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
 
       expect(handled).toBe(false);
       expect(res.redirect).not.toHaveBeenCalled();

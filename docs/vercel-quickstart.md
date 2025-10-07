@@ -41,9 +41,8 @@ OPENAI_API_KEY=your_openai_key
 GOOGLE_API_KEY=your_gemini_key
 ```
 
-**Optional OAuth**:
+**Optional OAuth** (server auto-detects configured providers):
 ```
-OAUTH_PROVIDER=google
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```

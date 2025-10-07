@@ -77,11 +77,6 @@ npm run otel:validate           # Validate OTEL setup and connectivity
 # Production Deployment Testing
 npm run build                    # Build for deployment
 
-# Production mode (compiled JavaScript with OAuth)
-npm run run:oauth:google         # Google OAuth
-npm run run:oauth:github         # GitHub OAuth
-npm run run:oauth:microsoft      # Microsoft OAuth
-
 # Docker deployment (standalone containers)
 npm run run:docker:build                # Build Docker image
 npm run run:docker:google               # Run Docker with Google OAuth
@@ -110,10 +105,9 @@ npm run dev:vercel               # Local Vercel development server
 
 Test with increasing production-like fidelity:
 
-1. **Development (TypeScript)**: `npm run dev:oauth:google` - Fast iteration with tsx
-2. **Production Build (JavaScript)**: `npm run run:oauth:google` - Compiled code with Node.js
-3. **Docker Container**: `npm run run:docker:google` - Containerized deployment
-4. **Vercel Serverless**: `npm run deploy:vercel` - Production serverless (GitHub Actions only)
+1. **Development (TypeScript)**: `npm run dev:oauth` - Fast iteration with tsx (uses `.env.oauth`)
+2. **Docker Container**: `npm run run:docker:google` - Containerized deployment (uses `.env.google`)
+3. **Vercel Serverless**: Production serverless (GitHub Actions only - automatic on PR merge to main)
 
 ```
 
@@ -182,6 +176,9 @@ When running the server locally or in production, access documentation at:
 - **`/openapi.json`** - OpenAPI specification in JSON format
 
 ### Documentation Workflow
+
+#### Spec-Driven Development (CRITICAL)
+**ALWAYS update `openapi.yaml` FIRST before making any URL/API changes.** The OpenAPI spec is the authoritative API contract - update the spec, then implement the code to match it.
 
 #### When to Update Documentation
 
@@ -262,6 +259,9 @@ npm run dev:vercel        # Local Vercel development server
 - **Only GitHub Actions deploys to production after all CI checks pass**
 - **Preview deployments are for testing during PR development**
 
+#### Vercel Deployment Critical Behavior
+**CRITICAL**: Vercel deploys from git commits only - local file changes are ignored until committed and pushed.
+
 **Vercel Features:**
 - Auto-scaling serverless functions
 - Built-in monitoring and metrics
@@ -276,8 +276,26 @@ npm run dev:vercel        # Local Vercel development server
 - `GOOGLE_API_KEY` - Gemini models
 
 ### OAuth Configuration (optional)
-- `OAUTH_PROVIDER` - google, github, microsoft, generic
-- Provider-specific client ID/secret pairs
+Configure one or more OAuth providers. The server will detect all configured providers and present them as login options:
+
+**Google OAuth:**
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI` (optional, auto-generated if not set)
+- `GOOGLE_SCOPES` (optional, defaults to: openid,email,profile)
+
+**GitHub OAuth:**
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GITHUB_REDIRECT_URI` (optional, auto-generated if not set)
+- `GITHUB_SCOPES` (optional, defaults to: read:user,user:email)
+
+**Microsoft OAuth:**
+- `MICROSOFT_CLIENT_ID`
+- `MICROSOFT_CLIENT_SECRET`
+- `MICROSOFT_TENANT_ID` (optional, defaults to: common)
+- `MICROSOFT_REDIRECT_URI` (optional, auto-generated if not set)
+- `MICROSOFT_SCOPES` (optional, defaults to: openid,email,profile)
 
 ## OAuth Client Integration
 
@@ -293,9 +311,7 @@ The MCP server supports **managed OAuth flows** for agentic clients like Claude 
 
 1. **Start the MCP server with OAuth**:
    ```bash
-   npm run dev:oauth:google    # Development mode with Google OAuth
-   # OR
-   npm run run:oauth:google    # Production mode with Google OAuth
+   npm run dev:oauth    # Development mode with OAuth (uses .env.oauth)
    ```
 
 2. **Register with Claude Code**:
@@ -722,3 +738,4 @@ gh pr create --title "Brief description" --body "Detailed description"
 - `@vercel/node` - Vercel serverless function support
 - `typescript` - TypeScript compiler with strict configuration
 - Always run CI tests locally before pushing to PR to ensure PR tests will pass
+- DO NOT ask to commit any code unless you have first run 'npm run validate' on the changes successfully

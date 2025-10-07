@@ -339,7 +339,10 @@ The following environment variables affect API behavior:
 - `MCP_DEV_SKIP_AUTH`: Skip authentication in development (not recommended)
 - `HTTP_PORT`: Server port (default: 3000)
 - `HTTP_HOST`: Server host (default: localhost)
-- `OAUTH_PROVIDER`: OAuth provider selection (`google`, `github`, `microsoft`, `generic`)
+- **OAuth Providers**: Configure one or more by setting their respective credentials (auto-detected):
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` for Google OAuth
+  - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` for GitHub OAuth
+  - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` for Microsoft OAuth
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
 - `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
 - `SESSION_SECRET`: Secret key for session management

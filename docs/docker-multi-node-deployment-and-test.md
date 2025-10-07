@@ -373,7 +373,7 @@ To deploy with OAuth authentication enabled:
 ```bash
 # Step 1: Create .env file with OAuth credentials
 cat > .env.google << EOF
-OAUTH_PROVIDER=google
+# Google OAuth (server auto-detects configured providers)
 GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_REDIRECT_URI=http://localhost:8080/auth/callback

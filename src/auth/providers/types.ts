@@ -212,6 +212,11 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   getTokenCount(): Promise<number>;
 
   /**
+   * Remove a token from the provider's token store (RFC 7009 token revocation)
+   */
+  removeToken(token: string): Promise<void>;
+
+  /**
    * Clean up expired sessions and tokens
    */
   cleanup(): void;

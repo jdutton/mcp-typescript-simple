@@ -145,8 +145,7 @@ Before setting up Google OAuth, ensure you have:
 Create a `.env` file in your project root:
 
 ```bash
-# OAuth Configuration
-OAUTH_PROVIDER=google
+# Google OAuth Configuration (auto-detected by server)
 GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=GOCSPX-your_secret_here
 GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
@@ -202,11 +201,7 @@ Expected response:
 
 Using Vercel CLI:
 ```bash
-# Set OAuth provider
-vercel env add OAUTH_PROVIDER production
-# Enter: google
-
-# Set Google credentials
+# Set Google credentials (server will auto-detect provider)
 vercel env add GOOGLE_CLIENT_ID production
 # Enter: your_client_id.apps.googleusercontent.com
 
@@ -270,7 +265,6 @@ In MCP Inspector, use these settings:
   "env": {
     "MCP_MODE": "streamable_http",
     "HTTP_SERVER_URL": "http://localhost:3000",
-    "OAUTH_PROVIDER": "google",
     "GOOGLE_CLIENT_ID": "your_client_id.apps.googleusercontent.com",
     "GOOGLE_CLIENT_SECRET": "GOCSPX-your_secret",
     "USER_ALLOWLIST": "your.email@gmail.com"

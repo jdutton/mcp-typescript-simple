@@ -73,9 +73,29 @@ export function setupDocsRoutes(app: Express): void {
         margin: 0;
         padding: 0;
       }
+      .api-docs-link {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        padding: 10px 20px;
+        background: #4990e2;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-family: 'Roboto', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        transition: background 0.2s;
+      }
+      .api-docs-link:hover {
+        background: #357abd;
+      }
     </style>
   </head>
   <body>
+    <a href="/api-docs/" class="api-docs-link">Try it out (Swagger UI) →</a>
     <div id="redoc-container"></div>
     <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
     <script>

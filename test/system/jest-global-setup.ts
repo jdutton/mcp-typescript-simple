@@ -7,6 +7,49 @@ import { spawn, ChildProcess } from 'child_process';
 
 let globalHttpServer: ChildProcess | null = null;
 
+/**
+ * Filter and conditionally log server output
+ * Only shows error/warn level logs to reduce noise during tests
+ * Set SYSTEM_TEST_VERBOSE=true to see all server output
+ */
+function filterAndLogServerOutput(text: string, isStderr: boolean = false): void {
+  // Verbose mode: show all output
+  if (process.env.SYSTEM_TEST_VERBOSE === 'true') {
+    if (isStderr) {
+      console.error('[Server stderr]:', text);
+    } else {
+      console.log('[Server stdout]:', text);
+    }
+    return;
+  }
+
+  // Quiet mode: only show errors and warnings
+  const lines = text.split('\n').filter(line => line.trim());
+
+  for (const line of lines) {
+    // Try to parse as JSON (structured logs from pino/winston)
+    try {
+      const log = JSON.parse(line);
+      // Only show error and warn levels (pino levels: 50=error, 40=warn)
+      if (log.level === 'error' || log.level === 'warn' || log.level === 50 || log.level === 40) {
+        console.error(`[Server ${log.level}]:`, log.msg || line);
+      }
+    } catch {
+      // Not JSON - check for error keywords in plain text
+      const lowerLine = line.toLowerCase();
+      if (lowerLine.includes('error') || lowerLine.includes('fail') ||
+          lowerLine.includes('exception') || lowerLine.includes('warn')) {
+        if (isStderr) {
+          console.error('[Server stderr]:', line);
+        } else {
+          console.log('[Server]:', line);
+        }
+      }
+      // Otherwise, silently collect in buffer (already being done)
+    }
+  }
+}
+
 // Inline utility functions to avoid module resolution issues in Jest global setup
 interface TestEnvironment {
   name: string;
@@ -98,7 +141,8 @@ export default async function globalSetup(): Promise<void> {
         MCP_MODE: 'streamable_http',
         MCP_DEV_SKIP_AUTH: 'true',
         HTTP_PORT: httpPort,
-        HTTP_HOST: 'localhost'
+        HTTP_HOST: 'localhost',
+        LOG_LEVEL: 'error'  // Suppress info/debug logs during system tests
       }
     });
 
@@ -115,7 +159,10 @@ export default async function globalSetup(): Promise<void> {
         const text = data.toString();
         startupOutput += text;
 
-        // Check for server ready patterns without logging the output
+        // Filter and conditionally log (only errors/warnings)
+        filterAndLogServerOutput(text, false);
+
+        // Check for server ready patterns
         if (text.includes(`Streamable HTTP server listening on localhost:${httpPort}`) ||
             text.includes(`server running on localhost:${httpPort}`) ||
             text.includes(`server listening on localhost:${httpPort}`) ||
@@ -132,7 +179,10 @@ export default async function globalSetup(): Promise<void> {
         const text = data.toString();
         errorOutput += text;
 
-        // Check stderr for server ready messages without logging the output
+        // Filter and conditionally log (only errors/warnings)
+        filterAndLogServerOutput(text, true);
+
+        // Check stderr for server ready messages
         if (text.includes(`Streamable HTTP server listening on localhost:${httpPort}`) ||
             text.includes(`server running on localhost:${httpPort}`) ||
             text.includes(`server listening on localhost:${httpPort}`) ||

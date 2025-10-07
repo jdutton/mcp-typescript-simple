@@ -246,8 +246,7 @@ ANTHROPIC_API_KEY=your_claude_key
 OPENAI_API_KEY=your_openai_key
 GOOGLE_API_KEY=your_gemini_key
 
-# OAuth Configuration (for auth testing)
-OAUTH_PROVIDER=google
+# OAuth Configuration (for auth testing - server auto-detects providers)
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
@@ -267,7 +266,7 @@ MCP_MODE=streamable_http
 ### Common Issues
 
 #### OAuth Testing Issues
-- **Browser not opening**: Check `OAUTH_PROVIDER` configuration
+- **Browser not opening**: Verify OAuth provider credentials are configured
 - **Token validation fails**: Verify client ID/secret and redirect URLs
 - **Server not responding**: Ensure server is running on correct port
 

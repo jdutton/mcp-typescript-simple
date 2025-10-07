@@ -93,11 +93,6 @@ npm run build
 # Production STDIO mode
 npm start
 
-# Production Streamable HTTP mode (with OAuth)
-npm run run:oauth:google     # Google OAuth
-npm run run:oauth:github     # GitHub OAuth
-npm run run:oauth:microsoft  # Microsoft OAuth
-
 # Type checking
 npm run typecheck
 
@@ -200,25 +195,17 @@ Test with increasing production-like fidelity:
 
 **Level 1: Development Mode (TypeScript via tsx)**
 ```bash
-npm run dev:oauth:google
+npm run dev:oauth
 ```
 
-**Level 2: Production Build (Compiled JavaScript)**
-```bash
-npm run build
-npm run run:oauth:google
-```
-
-**Level 3: Docker Container**
+**Level 2: Docker Container**
 ```bash
 npm run run:docker:build
 npm run run:docker:google
 ```
 
-**Level 4: Vercel Serverless (Future)**
-```bash
-npm run deploy:vercel
-```
+**Level 3: Vercel Serverless**
+Automatic deployment via GitHub Actions on PR merge to main.
 
 ## Project Structure
 

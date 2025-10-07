@@ -61,9 +61,11 @@ describe('OpenAPI Specification Validation', () => {
 
     it('should document OAuth endpoints', () => {
       expect(openapiSpec.paths['/auth']).toBeDefined();
+      expect(openapiSpec.paths['/auth/login']).toBeDefined();
+      expect(openapiSpec.paths['/auth/authorize']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/authorize']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/callback']).toBeDefined();
-      expect(openapiSpec.paths['/token']).toBeDefined();
+      expect(openapiSpec.paths['/auth/token']).toBeDefined();
       expect(openapiSpec.paths['/auth/{provider}/logout']).toBeDefined();
     });
 

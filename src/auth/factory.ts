@@ -24,6 +24,8 @@ import { createSessionStore } from './session-store-factory.js';
 import { OAuthSessionStore } from './stores/session-store-interface.js';
 import { createOAuthTokenStore } from './oauth-token-store-factory.js';
 import { OAuthTokenStore } from './stores/oauth-token-store-interface.js';
+import { createPKCEStore } from './pkce-store-factory.js';
+import { PKCEStore } from './stores/pkce-store-interface.js';
 
 /**
  * Factory for creating OAuth provider instances
@@ -35,11 +37,13 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   private readonly activeProviders = new Set<OAuthProvider>();
   private sessionStore: OAuthSessionStore;
   private tokenStore: OAuthTokenStore;
+  private pkceStore: PKCEStore;
 
   constructor() {
     // Initialize stores (auto-detect Redis vs memory)
     this.sessionStore = createSessionStore();
     this.tokenStore = createOAuthTokenStore();
+    this.pkceStore = createPKCEStore();
   }
 
   /**
@@ -79,13 +83,13 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   createProvider(config: OAuthConfig): OAuthProvider {
     switch (config.type) {
       case 'google':
-        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig, this.sessionStore, this.tokenStore));
+        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
 
       case 'github':
-        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig, this.sessionStore, this.tokenStore));
+        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
 
       case 'microsoft':
-        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig, this.sessionStore, this.tokenStore));
+        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
 
       case 'generic':
         // TODO: Implement Generic provider
@@ -193,48 +197,52 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   }
 
   /**
-   * Create provider from environment configuration
+   * Create all configured OAuth providers from environment
+   *
+   * Detects which providers have credentials configured and creates instances for each.
+   * This enables multi-provider support where users can choose their preferred provider.
+   *
+   * @returns Map of provider type to provider instance, or null if no providers configured
    */
-  static async createFromEnvironment(): Promise<OAuthProvider | null> {
+  static async createAllFromEnvironment(): Promise<Map<OAuthProviderType, OAuthProvider> | null> {
     const factory = OAuthProviderFactory.getInstance();
+    const providers = new Map<OAuthProviderType, OAuthProvider>();
 
-    // Check if OAuth provider is configured
-    const providerType = process.env.OAUTH_PROVIDER as OAuthProviderType;
+    // Try to create each provider if credentials are present
+    const providerAttempts: Array<{
+      type: OAuthProviderType;
+      create: () => Promise<OAuthProvider> | OAuthProvider;
+    }> = [
+      { type: 'google', create: () => factory.createGoogleProvider() },
+      { type: 'github', create: () => factory.createGitHubProvider() },
+      { type: 'microsoft', create: () => factory.createMicrosoftProvider() },
+    ];
 
-    if (!providerType) {
-      logger.oauthWarn('No OAuth provider configured. Set OAUTH_PROVIDER environment variable to enable OAuth authentication.');
-      return null;
-    }
-
-    if (!factory.isProviderSupported(providerType)) {
-      logger.oauthWarn('Unsupported OAuth provider', {
-        provider: providerType,
-        supportedProviders: factory.getSupportedProviders()
-      });
-      return null;
-    }
-
-    try {
-      switch (providerType) {
-        case 'google':
-          return await factory.createGoogleProvider();
-
-        case 'github':
-          return factory.createGitHubProvider();
-
-        case 'microsoft':
-          return factory.createMicrosoftProvider();
-
-        case 'generic':
-          return factory.createGenericProvider();
-
-        default:
-          return null;
+    for (const { type, create } of providerAttempts) {
+      try {
+        const provider = await create();
+        providers.set(type, provider);
+        logger.info('OAuth provider initialized', { provider: type });
+      } catch (error) {
+        // Provider not configured - skip silently (credentials missing)
+        logger.debug('OAuth provider not configured', {
+          provider: type,
+          reason: error instanceof Error ? error.message : String(error)
+        });
       }
-    } catch (error) {
-      logger.oauthError('Failed to create OAuth provider from environment', error);
+    }
+
+    if (providers.size === 0) {
+      logger.oauthWarn('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, or Microsoft).');
       return null;
     }
+
+    logger.info('Multi-provider OAuth initialized', {
+      providers: Array.from(providers.keys()),
+      count: providers.size
+    });
+
+    return providers;
   }
 
   /**

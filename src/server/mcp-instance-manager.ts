@@ -295,6 +295,34 @@ export class MCPInstanceManager {
   }
 
   /**
+   * Delete a session and clean up all associated resources
+   *
+   * This method provides proper encapsulation for session cleanup, removing the need
+   * for external code to access private members via type assertions.
+   *
+   * @param sessionId - The session ID to delete
+   * @returns Promise that resolves when cleanup is complete
+   */
+  async deleteSession(sessionId: string): Promise<void> {
+    // Remove from instance cache
+    const instance = this.instanceCache.get(sessionId);
+    if (instance) {
+      this.instanceCache.delete(sessionId);
+      logger.debug('Deleted session from instance cache', {
+        sessionId: sessionId.substring(0, 8) + '...',
+      });
+    }
+
+    // Remove from metadata store
+    await this.metadataStore.deleteSession(sessionId);
+
+    logger.debug('Session fully deleted', {
+      sessionId: sessionId.substring(0, 8) + '...',
+      hadInstance: !!instance,
+    });
+  }
+
+  /**
    * Dispose of resources
    *
    * Note: Does NOT dispose the metadata store as it may be shared across

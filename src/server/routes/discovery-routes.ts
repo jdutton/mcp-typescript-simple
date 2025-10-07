@@ -24,12 +24,12 @@ export interface DiscoveryRoutesOptions {
  * Setup OAuth discovery routes
  *
  * @param router - Express router to attach routes to
- * @param oauthProvider - OAuth provider (may be undefined if OAuth not configured)
+ * @param oauthProviders - OAuth providers (may be undefined if OAuth not configured)
  * @param options - Server configuration options
  */
 export function setupDiscoveryRoutes(
   router: Router,
-  oauthProvider: OAuthProvider | undefined,
+  oauthProviders: Map<string, OAuthProvider> | undefined,
   options: DiscoveryRoutesOptions
 ): void {
   // Helper function to get base URL for the current request
@@ -49,7 +49,7 @@ export function setupDiscoveryRoutes(
   // OAuth 2.0 Authorization Server Metadata (RFC 8414)
   router.get('/.well-known/oauth-authorization-server', async (req: Request, res: Response) => {
     try {
-      if (!oauthProvider) {
+      if (!oauthProviders || oauthProviders.size === 0) {
         // Return minimal metadata indicating OAuth is not configured
         setAntiCachingHeaders(res);
         res.json({
@@ -62,12 +62,22 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
-        enableResumability: options.enableResumability,
-        toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
-      });
 
-      const metadata = discoveryMetadata.generateAuthorizationServerMetadata();
+      // Return generic metadata for all provider configurations
+      // Provider-specific endpoints are available at /auth/{provider}/authorize etc.
+      const metadata = {
+        issuer: baseUrl,
+        authorization_endpoint: `${baseUrl}/auth/authorize`,
+        token_endpoint: `${baseUrl}/auth/token`,
+        registration_endpoint: `${baseUrl}/register`,
+        token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+        scopes_supported: ['openid', 'profile', 'email'],
+        response_types_supported: ['code'],
+        grant_types_supported: ['authorization_code', 'refresh_token'],
+        code_challenge_methods_supported: ['S256'],
+        available_providers: Array.from(oauthProviders.keys()),
+        provider_selection_endpoint: `${baseUrl}/auth/login`
+      };
       setAntiCachingHeaders(res);
       res.json(metadata);
     } catch (error) {
@@ -83,7 +93,7 @@ export function setupDiscoveryRoutes(
   // OAuth 2.0 Protected Resource Metadata (RFC 9728)
   router.get('/.well-known/oauth-protected-resource', async (req: Request, res: Response) => {
     try {
-      if (!oauthProvider) {
+      if (!oauthProviders || oauthProviders.size === 0) {
         // Return minimal metadata indicating OAuth is not configured
         setAntiCachingHeaders(res);
         res.json({
@@ -97,7 +107,8 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+      const firstProvider = oauthProviders.values().next().value!;
+      const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
       });
@@ -120,7 +131,7 @@ export function setupDiscoveryRoutes(
     try {
       const baseUrl = getBaseUrl(req);
 
-      if (!oauthProvider) {
+      if (!oauthProviders || oauthProviders.size === 0) {
         // Return MCP metadata even without OAuth configured
         setAntiCachingHeaders(res);
         res.json({
@@ -139,7 +150,8 @@ export function setupDiscoveryRoutes(
         return;
       }
 
-      const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+      const firstProvider = oauthProviders.values().next().value!;
+      const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
       });
@@ -160,7 +172,7 @@ export function setupDiscoveryRoutes(
   // OpenID Connect Discovery Configuration
   router.get('/.well-known/openid-configuration', async (req: Request, res: Response) => {
     try {
-      if (!oauthProvider) {
+      if (!oauthProviders || oauthProviders.size === 0) {
         // Return minimal OpenID Connect metadata indicating OAuth is not configured
         setAntiCachingHeaders(res);
         res.json({
@@ -176,7 +188,8 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const discoveryMetadata = createOAuthDiscoveryMetadata(oauthProvider, baseUrl, {
+      const firstProvider = oauthProviders.values().next().value!;
+      const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
       });

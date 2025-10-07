@@ -383,12 +383,11 @@ describe('Session Correlation', () => {
       expect(() => extractSessionContext(corruptedSession)).not.toThrow();
 
       const context = extractSessionContext(corruptedSession);
-      expect(context).toEqual({
-        sessionId: null,
-        createdAt: 'invalid_date',
-        expiresAt: Date.now() + 3600000,
-        authenticated: true  // !!('not_an_object') is true
-      });
+      expect(context.sessionId).toBeNull();
+      expect(context.createdAt).toBe('invalid_date');
+      expect(context.authenticated).toBe(true);  // !!('not_an_object') is true
+      expect(context.expiresAt).toBeGreaterThan(Date.now() + 3599000); // Allow 1s variance
+      expect(context.expiresAt).toBeLessThanOrEqual(Date.now() + 3600000);
     });
 
 

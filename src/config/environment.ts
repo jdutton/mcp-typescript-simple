@@ -20,9 +20,6 @@ export const ConfigurationSchema = z.object({
   HTTP_PORT: z.number().int().min(1).max(65535).default(3000),
   HTTP_HOST: z.string().default('localhost'),
 
-  // OAuth provider configuration
-  OAUTH_PROVIDER: z.enum(['google', 'github', 'microsoft', 'generic']).optional(),
-
   // Legacy client compatibility
   MCP_LEGACY_CLIENT_SUPPORT: z.boolean().default(true),
 
@@ -109,9 +106,6 @@ export class EnvironmentConfig {
       MCP_DEV_SKIP_AUTH: process.env.MCP_DEV_SKIP_AUTH === 'true',
       HTTP_PORT: parseInt(process.env.HTTP_PORT || '3000', 10),
       HTTP_HOST: process.env.HTTP_HOST || 'localhost',
-
-      // OAuth provider selection
-      OAUTH_PROVIDER: process.env.OAUTH_PROVIDER,
 
       // Google OAuth
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -228,16 +222,20 @@ export class EnvironmentConfig {
       missing: status.secrets.missing.join(', ') || 'none'
     });
 
-    // OAuth provider validation
-    const oauthProvider = status.configuration.OAUTH_PROVIDER;
-    if (oauthProvider) {
-      const hasOAuthCredentials = this.checkOAuthCredentials(oauthProvider);
-      logger.info('OAuth configuration status', {
-        provider: oauthProvider,
-        configured: hasOAuthCredentials
-      });
+    // OAuth provider validation (multi-provider)
+    const googleConfigured = this.checkOAuthCredentials('google');
+    const githubConfigured = this.checkOAuthCredentials('github');
+    const microsoftConfigured = this.checkOAuthCredentials('microsoft');
+    const configuredProviders = [
+      googleConfigured && 'google',
+      githubConfigured && 'github',
+      microsoftConfigured && 'microsoft'
+    ].filter(Boolean);
+
+    if (configuredProviders.length > 0) {
+      logger.info('OAuth providers configured', { providers: configuredProviders });
     } else {
-      logger.warn('OAuth: no provider configured');
+      logger.warn('OAuth: no providers configured');
     }
 
     // LLM provider validation
