@@ -318,4 +318,329 @@ describe('FileOAuthTokenStore', () => {
       newStore.dispose();
     });
   });
+
+  describe('concurrent operations', () => {
+    it('should handle concurrent token storage', async () => {
+      const tokens = Array.from({ length: 10 }, (_, i) => ({
+        accessToken: `access-token-${i}`,
+        tokenInfo: {
+          accessToken: `access-token-${i}`,
+          provider: 'google' as const,
+          scopes: ['openid'],
+          expiresAt: Date.now() + 3600000,
+          refreshToken: `refresh-token-${i}`,
+          userInfo: {
+            sub: `user-${i}`,
+            email: `user${i}@example.com`,
+            name: `User ${i}`,
+            provider: 'google',
+          },
+        },
+      }));
+
+      // Store all tokens concurrently
+      await Promise.all(
+        tokens.map(({ accessToken, tokenInfo }) =>
+          store.storeToken(accessToken, tokenInfo)
+        )
+      );
+
+      // Wait for debounced writes
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify all tokens were stored
+      const count = await store.getTokenCount();
+      expect(count).toBe(10);
+
+      // Verify all can be retrieved
+      for (const { accessToken, tokenInfo } of tokens) {
+        const retrieved = await store.getToken(accessToken);
+        expect(retrieved).not.toBeNull();
+        expect(retrieved?.userInfo.sub).toBe(tokenInfo.userInfo.sub);
+      }
+    });
+
+    it('should handle concurrent reads and writes', async () => {
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: 'access-token-123',
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() + 3600000,
+        refreshToken: 'refresh-token-123',
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      // Store initial token
+      await store.storeToken('access-token-123', tokenInfo);
+
+      // Concurrent reads and writes
+      const operations = [
+        store.getToken('access-token-123'),
+        store.getToken('access-token-123'),
+        store.storeToken('access-token-456', {
+          ...tokenInfo,
+          accessToken: 'access-token-456',
+          refreshToken: 'refresh-token-456',
+        }),
+        store.findByRefreshToken('refresh-token-123'),
+        store.getTokenCount(),
+      ];
+
+      const results = await Promise.all(operations);
+
+      expect(results[0]).not.toBeNull(); // First read
+      expect(results[1]).not.toBeNull(); // Second read
+      expect(results[3]).not.toBeNull(); // findByRefreshToken
+      expect(results[4]).toBeGreaterThanOrEqual(1); // Token count
+    });
+
+    it('should handle concurrent deletes', async () => {
+      const tokens = Array.from({ length: 5 }, (_, i) => ({
+        accessToken: `access-token-${i}`,
+        tokenInfo: {
+          accessToken: `access-token-${i}`,
+          provider: 'google' as const,
+          scopes: ['openid'],
+          expiresAt: Date.now() + 3600000,
+          userInfo: {
+            sub: `user-${i}`,
+            email: `user${i}@example.com`,
+            name: `User ${i}`,
+            provider: 'google',
+          },
+        },
+      }));
+
+      // Store all tokens
+      for (const { accessToken, tokenInfo } of tokens) {
+        await store.storeToken(accessToken, tokenInfo);
+      }
+
+      // Delete all concurrently
+      await Promise.all(
+        tokens.map(({ accessToken }) => store.deleteToken(accessToken))
+      );
+
+      // Wait for writes
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify all deleted
+      const count = await store.getTokenCount();
+      expect(count).toBe(0);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle very long token strings', async () => {
+      const longToken = 'a'.repeat(10000);
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: longToken,
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() + 3600000,
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken(longToken, tokenInfo);
+
+      const retrieved = await store.getToken(longToken);
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.provider).toBe('google');
+    });
+
+    it('should handle special characters in tokens', async () => {
+      const specialToken = 'token-with-special-chars-!@#$%^&*()_+-=[]{}|;:,.<>?';
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: specialToken,
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() + 3600000,
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken(specialToken, tokenInfo);
+
+      const retrieved = await store.getToken(specialToken);
+      expect(retrieved).not.toBeNull();
+    });
+
+    it('should handle rapid sequential updates to same token', async () => {
+      const accessToken = 'access-token-123';
+
+      // Rapid updates
+      for (let i = 0; i < 10; i++) {
+        const tokenInfo: StoredTokenInfo = {
+          accessToken,
+          provider: 'google',
+          scopes: ['openid'],
+          expiresAt: Date.now() + 3600000 + i * 1000,
+          refreshToken: `refresh-token-${i}`,
+          userInfo: {
+            sub: `user-${i}`,
+            email: `user${i}@example.com`,
+            name: `User ${i}`,
+            provider: 'google',
+          },
+        };
+
+        await store.storeToken(accessToken, tokenInfo);
+      }
+
+      // Wait for debounced write
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Verify latest version is stored
+      const retrieved = await store.getToken(accessToken);
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.userInfo.sub).toBe('user-9'); // Latest update
+    });
+
+    it('should handle empty scopes array', async () => {
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: 'access-token-123',
+        provider: 'google',
+        scopes: [], // Empty scopes
+        expiresAt: Date.now() + 3600000,
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken('access-token-123', tokenInfo);
+
+      const retrieved = await store.getToken('access-token-123');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.scopes).toEqual([]);
+    });
+
+    it('should handle missing optional fields', async () => {
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: 'access-token-123',
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() + 3600000,
+        // No refreshToken, idToken
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken('access-token-123', tokenInfo);
+
+      const retrieved = await store.getToken('access-token-123');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.refreshToken).toBeUndefined();
+      expect(retrieved?.idToken).toBeUndefined();
+    });
+  });
+
+  describe('cleanup edge cases', () => {
+    it('should handle cleanup with no expired tokens', async () => {
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: 'access-token-123',
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() + 3600000,
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken('access-token-123', tokenInfo);
+
+      const cleanedCount = await store.cleanup();
+      expect(cleanedCount).toBe(0);
+
+      const count = await store.getTokenCount();
+      expect(count).toBe(1); // Token still there
+    });
+
+    it('should handle cleanup with all tokens expired', async () => {
+      const expiredTokens = Array.from({ length: 5 }, (_, i) => ({
+        accessToken: `access-token-${i}`,
+        tokenInfo: {
+          accessToken: `access-token-${i}`,
+          provider: 'google' as const,
+          scopes: ['openid'],
+          expiresAt: Date.now() - (i + 1) * 1000, // All expired
+          userInfo: {
+            sub: `user-${i}`,
+            email: `user${i}@example.com`,
+            name: `User ${i}`,
+            provider: 'google',
+          },
+        },
+      }));
+
+      for (const { accessToken, tokenInfo } of expiredTokens) {
+        await store.storeToken(accessToken, tokenInfo);
+      }
+
+      const cleanedCount = await store.cleanup();
+      expect(cleanedCount).toBe(5);
+
+      const count = await store.getTokenCount();
+      expect(count).toBe(0);
+    });
+
+    it('should cleanup stale refresh token index entries', async () => {
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: 'access-token-123',
+        provider: 'google',
+        scopes: ['openid'],
+        expiresAt: Date.now() - 1000, // Expired
+        refreshToken: 'refresh-token-123',
+        userInfo: { sub: 'user-123', email: 'test@example.com', name: 'Test User', provider: 'google' },
+      };
+
+      await store.storeToken('access-token-123', tokenInfo);
+      await store.cleanup();
+
+      // Refresh token index should be cleaned up
+      const result = await store.findByRefreshToken('refresh-token-123');
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('performance', () => {
+    it('should handle large dataset efficiently', async () => {
+      const startTime = Date.now();
+      const tokenCount = 100;
+
+      // Store many tokens
+      for (let i = 0; i < tokenCount; i++) {
+        const tokenInfo: StoredTokenInfo = {
+          accessToken: `access-token-${i}`,
+          provider: 'google',
+          scopes: ['openid'],
+          expiresAt: Date.now() + 3600000,
+          refreshToken: `refresh-token-${i}`,
+          userInfo: {
+            sub: `user-${i}`,
+            email: `user${i}@example.com`,
+            name: `User ${i}`,
+            provider: 'google',
+          },
+        };
+
+        await store.storeToken(`access-token-${i}`, tokenInfo);
+      }
+
+      const storeTime = Date.now() - startTime;
+
+      // Verify count
+      const count = await store.getTokenCount();
+      expect(count).toBe(tokenCount);
+
+      // Test lookup performance
+      const lookupStart = Date.now();
+      const retrieved = await store.getToken('access-token-50');
+      const lookupTime = Date.now() - lookupStart;
+
+      expect(retrieved).not.toBeNull();
+      expect(lookupTime).toBeLessThan(10); // O(1) lookup should be fast
+
+      // Test refresh token index lookup performance
+      const refreshLookupStart = Date.now();
+      const refreshResult = await store.findByRefreshToken('refresh-token-75');
+      const refreshLookupTime = Date.now() - refreshLookupStart;
+
+      expect(refreshResult).not.toBeNull();
+      expect(refreshLookupTime).toBeLessThan(10); // O(1) lookup via index
+    });
+  });
 });

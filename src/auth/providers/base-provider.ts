@@ -515,6 +515,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
+   * Get token store instance (for optimized multi-provider routing)
+   * @internal Used by oauth-routes for efficient provider selection
+   */
+  getTokenStore(): OAuthTokenStore {
+    return this.tokenStore;
+  }
+
+  /**
    * Find token by refresh token
    */
   protected async findTokenByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | undefined> {

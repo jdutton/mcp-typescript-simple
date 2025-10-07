@@ -235,7 +235,51 @@ export function setupOAuthRoutes(
           error_description: 'No OAuth providers available'
         });
       } else if (grant_type === 'refresh_token' || refresh_token) {
-        // For refresh tokens, try each provider
+        // Optimized refresh token routing: Look up token first to determine correct provider
+        let correctProvider: OAuthProvider | null = null;
+        let correctProviderType: string | null = null;
+
+        // Get token store from any provider (they all share the same store)
+        const firstProvider = providers.values().next().value;
+        if (firstProvider && 'getTokenStore' in firstProvider) {
+          const tokenStore = (firstProvider as any).getTokenStore();
+
+          try {
+            const tokenData = await tokenStore.findByRefreshToken(refresh_token);
+
+            if (tokenData && tokenData.tokenInfo) {
+              const providerType = tokenData.tokenInfo.provider;
+              correctProvider = providers.get(providerType) || null;
+              correctProviderType = providerType;
+
+              if (correctProvider) {
+                logger.debug('Routing refresh token to correct provider', { provider: correctProviderType });
+              }
+            }
+          } catch (error) {
+            // Token store lookup failed, fallback to sequential approach
+            logger.debug('Token store lookup failed, falling back to sequential provider trial', { error });
+          }
+        }
+
+        // If we found the correct provider, use it directly
+        if (correctProvider) {
+          try {
+            await correctProvider.handleTokenRefresh(req, res);
+            return; // Success
+          } catch (error) {
+            // Correct provider failed, don't try others
+            logger.error('Token refresh failed with correct provider', { provider: correctProviderType, error });
+            res.status(400).json({
+              error: 'invalid_grant',
+              error_description: error instanceof Error ? error.message : 'The provided refresh token is invalid or expired'
+            });
+            return;
+          }
+        }
+
+        // Fallback: Try each provider (for direct OAuth flows or if lookup failed)
+        logger.debug('Trying each provider for refresh token');
         for (const provider of providers.values()) {
           try {
             await provider.handleTokenRefresh(req, res);
