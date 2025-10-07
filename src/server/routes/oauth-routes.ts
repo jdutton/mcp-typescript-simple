@@ -139,8 +139,18 @@ export function setupOAuthRoutes(
 
       // For authorization code exchange, we need to determine which provider issued the code
       // Strategy: Check which provider has a stored code_verifier for this authorization code
-      // This is more efficient and accurate than trying each provider sequentially
       if (grant_type === 'authorization_code') {
+        // Log complete request body for debugging (redact sensitive fields)
+        logger.debug("Token exchange request body", {
+          grant_type,
+          code: code?.substring(0, 10) + '...',
+          hasCodeVerifier: !!req.body.code_verifier,
+          codeVerifierPrefix: req.body.code_verifier?.substring(0, 8),
+          hasClientId: !!req.body.client_id,
+          hasRedirectUri: !!req.body.redirect_uri,
+          allBodyKeys: Object.keys(req.body)
+        });
+
         // Find the correct provider by checking who has the authorization code
         let correctProvider: OAuthProvider | null = null;
         let correctProviderType: OAuthProviderType | null = null;
@@ -157,56 +167,27 @@ export function setupOAuthRoutes(
           }
         }
 
-        // If no stored code found, try each provider (fallback for direct OAuth flows)
+        // No stored code_verifier found - this indicates either:
+        // 1. Direct OAuth flow where client should provide code_verifier
+        // 2. Authorization code expired or already used
+        // 3. Wrong provider tried (code issued by different provider)
         if (!correctProvider) {
-          logger.debug("No stored code_verifier found, trying each provider");
-          const errors: Array<{ provider: string; error: string }> = [];
+          logger.error("No provider found for authorization code", {
+            codePrefix: code?.substring(0, 10),
+            availableProviders: Array.from(providers.keys()),
+            hasCodeVerifier: !!req.body.code_verifier,
+            message: 'Authorization code not found in any provider PKCE store. Either code expired, already used, or client must provide code_verifier for direct OAuth flow.'
+          });
 
-          for (const [providerType, provider] of providers.entries()) {
-            // Skip if response already sent by previous provider attempt
-            if (res.headersSent) {
-              logger.debug("Response already sent, stopping provider iteration");
-              return;
-            }
-
-            if ('handleTokenExchange' in provider) {
-              try {
-                logger.debug("Trying token exchange with provider", { provider: providerType });
-                const tokenProvider = provider as OAuthProvider & {
-                  handleTokenExchange: (req: Request, res: Response) => Promise<void>
-                };
-                await tokenProvider.handleTokenExchange(req, res);
-                logger.debug("Token exchange succeeded", { provider: providerType });
-                return; // Success - response already sent
-              } catch (error) {
-                // Only collect error if response wasn't sent (provider didn't send error response)
-                if (!res.headersSent) {
-                  const errorMsg = error instanceof Error ? error.message : String(error);
-                  logger.debug("Token exchange failed with provider", { provider: providerType, error: errorMsg });
-                  errors.push({ provider: providerType, error: errorMsg });
-                } else {
-                  logger.debug("Provider sent error response, stopping iteration");
-                  return;
-                }
-                // Try next provider
-                continue;
-              }
-            }
-          }
-
-          // No provider succeeded - return detailed error (only if no response sent)
-          if (!res.headersSent) {
-            logger.warn("Token exchange failed with all providers", { errors });
-            res.status(400).json({
-              error: 'invalid_grant',
-              error_description: 'The provided authorization grant is invalid or expired',
-              details: errors
-            });
-          }
+          res.status(400).json({
+            error: 'invalid_grant',
+            error_description: 'The provided authorization grant is invalid, expired, or was issued by a different provider',
+            detail: 'No OAuth provider found with stored code_verifier for this authorization code'
+          });
           return;
         }
 
-        // Use the correct provider
+        // Use the correct provider for token exchange
         if (correctProvider && 'handleTokenExchange' in correctProvider) {
           try {
             logger.debug("Using correct provider for token exchange", { provider: correctProviderType });
@@ -227,8 +208,7 @@ export function setupOAuthRoutes(
           }
         }
 
-        // This code is unreachable - errors variable is in the fallback block above
-        // If we reach here, no providers were available
+        // No providers were available (should never reach here)
         logger.warn("No OAuth providers available for token exchange");
         res.status(400).json({
           error: 'invalid_grant',

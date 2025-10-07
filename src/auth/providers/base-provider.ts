@@ -865,6 +865,19 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
     logger.oauthDebug('Handling token exchange from form data', { provider: providerName });
 
+    // Log complete request body structure for debugging (redacted)
+    const bodyKeys = Object.keys(req.body);
+    logger.oauthDebug('Token exchange request body structure', {
+      provider: providerName,
+      bodyKeys,
+      hasGrantType: 'grant_type' in req.body,
+      hasCode: 'code' in req.body,
+      hasCodeVerifier: 'code_verifier' in req.body,
+      hasClientId: 'client_id' in req.body,
+      hasRedirectUri: 'redirect_uri' in req.body,
+      bodyKeyCount: bodyKeys.length
+    });
+
     const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
 
     // Validate grant_type (RFC 6749 Section 4.1.3)
@@ -885,9 +898,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       return { isValid: false };
     }
 
-    logger.oauthDebug('Using code_verifier from client', {
+    logger.oauthDebug('Token exchange parameters', {
       provider: providerName,
-      codeVerifierPrefix: code_verifier?.substring(0, 8)
+      codePrefix: code?.substring(0, 10),
+      hasCodeVerifier: !!code_verifier,
+      codeVerifierPrefix: code_verifier?.substring(0, 8),
+      hasClientId: !!client_id,
+      clientIdPrefix: client_id?.substring(0, 10),
+      hasRedirectUri: !!redirect_uri
     });
     logger.oauthDebug('Using redirect_uri', { provider: providerName, redirectUri: this.config.redirectUri });
 
