@@ -259,6 +259,9 @@ npm run dev:vercel        # Local Vercel development server
 - **Only GitHub Actions deploys to production after all CI checks pass**
 - **Preview deployments are for testing during PR development**
 
+#### Vercel Deployment Critical Behavior
+**CRITICAL**: Vercel deploys from git commits only - local file changes are ignored until committed and pushed.
+
 **Vercel Features:**
 - Auto-scaling serverless functions
 - Built-in monitoring and metrics
