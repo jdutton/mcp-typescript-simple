@@ -155,13 +155,23 @@ export function setupOAuthRoutes(
         let correctProvider: OAuthProvider | null = null;
         let correctProviderType: OAuthProviderType | null = null;
 
+        logger.info("Searching for provider with stored authorization code", {
+          codePrefix: code?.substring(0, 10),
+          availableProviders: Array.from(providers.keys())
+        });
+
         for (const [providerType, provider] of providers.entries()) {
           if ('hasStoredCodeForProvider' in provider) {
             const hasCode = await (provider as any).hasStoredCodeForProvider(code);
+            logger.info("Provider code check result", {
+              provider: providerType,
+              hasCode,
+              codePrefix: code?.substring(0, 10)
+            });
             if (hasCode) {
               correctProvider = provider;
               correctProviderType = providerType as OAuthProviderType;
-              logger.debug("Found provider for authorization code", { provider: providerType });
+              logger.info("Found provider for authorization code", { provider: providerType });
               break;
             }
           }
