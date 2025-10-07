@@ -198,8 +198,10 @@ npm run test:system:docker
 - `ANTHROPIC_API_KEY` - Claude API key (enables LLM tools)
 - `OPENAI_API_KEY` - OpenAI API key (enables LLM tools)
 - `GOOGLE_API_KEY` - Google/Gemini API key (enables LLM tools)
-- `OAUTH_PROVIDER` - OAuth provider (google, github, microsoft, generic)
-- Provider-specific OAuth credentials (CLIENT_ID, CLIENT_SECRET, etc.)
+- **OAuth Providers** - Configure one or more (server auto-detects):
+  - Google: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - GitHub: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+  - Microsoft: `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`
 
 ### Test Configuration
 

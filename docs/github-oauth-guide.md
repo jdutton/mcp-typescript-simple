@@ -75,10 +75,7 @@ For different environments, configure these redirect URLs:
 
 2. **Add GitHub OAuth configuration**:
    ```bash
-   # OAuth Provider Selection
-   OAUTH_PROVIDER=github
-
-   # GitHub OAuth Credentials
+   # GitHub OAuth Credentials (auto-detected by server)
    GITHUB_CLIENT_ID=your_client_id_here
    GITHUB_CLIENT_SECRET=your_client_secret_here
    GITHUB_REDIRECT_URI=http://localhost:3000/auth/github/callback

@@ -123,10 +123,7 @@ To add additional URLs:
 
 2. **Configure your `.env` file**:
    ```bash
-   # OAuth Provider Selection
-   OAUTH_PROVIDER=microsoft
-
-   # Microsoft OAuth Credentials (fill these in)
+   # Microsoft OAuth Credentials (auto-detected by server)
    MICROSOFT_CLIENT_ID=your_application_client_id_here
    MICROSOFT_CLIENT_SECRET=your_client_secret_here
    MICROSOFT_REDIRECT_URI=http://localhost:3000/auth/microsoft/callback

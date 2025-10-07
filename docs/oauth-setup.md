@@ -2,6 +2,10 @@
 
 This guide explains how to configure and test OAuth authentication with different providers for the MCP TypeScript server.
 
+## Multi-Provider Architecture
+
+The MCP server supports **multi-provider OAuth**, allowing users to choose their preferred authentication method at login time. Configure one or more OAuth providers, and the server will automatically detect and present all available options.
+
 ## Quick Start
 
 1. **Set up environment file**:
@@ -19,28 +23,21 @@ This guide explains how to configure and test OAuth authentication with differen
    MCP_MODE=sse             # Legacy but supported
    ```
 
-3. **Choose an OAuth provider**:
-   ```bash
-   # Add to your .env file:
-   OAUTH_PROVIDER=google    # Default
-   # OR
-   OAUTH_PROVIDER=github
-   # OR
-   OAUTH_PROVIDER=microsoft
-   # OR
-   OAUTH_PROVIDER=generic
-   ```
+3. **Configure OAuth providers** (one or more):
+   - The server automatically detects all configured providers
+   - Users will see a login page with all available providers
+   - No `OAUTH_PROVIDER` variable needed - providers are auto-detected from credentials
 
-4. **Configure provider credentials** (see provider-specific sections below)
+   See provider-specific sections below for setup instructions.
 
-5. **Start the server**:
+4. **Start the server**:
    ```bash
    npm run dev:oauth  # Development with OAuth
    # OR
    npm start         # Production mode
    ```
 
-6. **Test OAuth flow** (see Testing section below)
+5. **Test OAuth flow** (see Testing section below)
 
 ## Provider Configuration
 
@@ -84,7 +81,6 @@ This guide explains how to configure and test OAuth authentication with differen
 
 **2. Environment Variables:**
 ```bash
-export OAUTH_PROVIDER=google
 export GOOGLE_CLIENT_ID=your_google_client_id
 export GOOGLE_CLIENT_SECRET=your_google_client_secret
 export GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
@@ -106,7 +102,6 @@ export GOOGLE_SCOPES="openid,email,profile"
 
 **2. Environment Variables:**
 ```bash
-export OAUTH_PROVIDER=github
 export GITHUB_CLIENT_ID=your_github_client_id
 export GITHUB_CLIENT_SECRET=your_github_client_secret
 export GITHUB_REDIRECT_URI=http://localhost:3000/auth/github/callback
@@ -169,7 +164,6 @@ export GITHUB_SCOPES="user:email,read:user"
 
 **2. Environment Variables:**
 ```bash
-export OAUTH_PROVIDER=microsoft
 export MICROSOFT_CLIENT_ID=your_application_client_id
 export MICROSOFT_CLIENT_SECRET=your_client_secret_value
 export MICROSOFT_REDIRECT_URI=http://localhost:3000/auth/microsoft/callback
@@ -189,7 +183,7 @@ For custom OAuth providers (GitLab, Okta, Auth0, etc.)
 
 **Environment Variables:**
 ```bash
-export OAUTH_PROVIDER=generic
+# Note: Generic OAuth provider is not yet implemented
 export OAUTH_CLIENT_ID=your_client_id
 export OAUTH_CLIENT_SECRET=your_client_secret
 export OAUTH_REDIRECT_URI=http://localhost:3000/auth/oauth/callback

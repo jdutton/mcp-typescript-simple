@@ -55,11 +55,7 @@ ALLOWED_USERS=user1@example.com,user2@example.com,admin@company.com
 
 ### Required: OAuth Configuration
 
-Choose ONE OAuth provider:
-
-```bash
-OAUTH_PROVIDER=google  # google, github, microsoft, generic
-```
+**Multi-Provider Support**: Configure one or more OAuth providers. The server automatically detects all configured providers and presents them as login options. Users choose their preferred provider at login time.
 
 ### Optional: LLM Provider Keys (for AI-powered tools)
 
@@ -73,10 +69,9 @@ GOOGLE_API_KEY=your_gemini_api_key
 
 **Note**: Without LLM keys, only basic tools (`echo`, `hello`, `current-time`) will work.
 
-#### Option 1: Google OAuth
+#### Google OAuth (Optional)
 
 ```bash
-OAUTH_PROVIDER=google
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_REDIRECT_URI=https://your-app.vercel.app/auth/google/callback
@@ -89,10 +84,9 @@ GOOGLE_REDIRECT_URI=https://your-app.vercel.app/auth/google/callback
 4. Add authorized redirect URI: `https://your-app.vercel.app/auth/google/callback`
 5. Copy Client ID and Client Secret to Vercel environment variables
 
-#### Option 2: GitHub OAuth
+#### GitHub OAuth (Optional)
 
 ```bash
-OAUTH_PROVIDER=github
 GITHUB_CLIENT_ID=your-github-client-id
 GITHUB_CLIENT_SECRET=your-github-client-secret
 GITHUB_REDIRECT_URI=https://your-app.vercel.app/auth/github/callback
@@ -105,10 +99,9 @@ GITHUB_REDIRECT_URI=https://your-app.vercel.app/auth/github/callback
 4. Generate client secret
 5. Copy Client ID and Client Secret to Vercel environment variables
 
-#### Option 3: Microsoft OAuth
+#### Microsoft OAuth (Optional)
 
 ```bash
-OAUTH_PROVIDER=microsoft
 MICROSOFT_CLIENT_ID=your-azure-client-id
 MICROSOFT_CLIENT_SECRET=your-azure-client-secret
 MICROSOFT_REDIRECT_URI=https://your-app.vercel.app/auth/microsoft/callback
@@ -122,17 +115,9 @@ MICROSOFT_TENANT_ID=common  # or your-tenant-id for single-tenant
 4. Certificates & secrets → New client secret
 5. Copy Application (client) ID and client secret value to Vercel
 
-#### Option 4: Generic OAuth
+#### Generic OAuth (Optional, Not Yet Implemented)
 
-```bash
-OAUTH_PROVIDER=generic
-OAUTH_CLIENT_ID=your_oauth_client_id
-OAUTH_CLIENT_SECRET=your_oauth_client_secret
-OAUTH_AUTHORIZATION_URL=https://provider.com/oauth/authorize
-OAUTH_TOKEN_URL=https://provider.com/oauth/token
-OAUTH_USER_INFO_URL=https://provider.com/oauth/userinfo
-OAUTH_REDIRECT_URI=https://your-app.vercel.app/auth/generic/callback
-```
+Generic OAuth provider support is planned but not yet implemented. Currently supported providers are Google, GitHub, and Microsoft.
 
 ### Optional Configuration
 
@@ -151,9 +136,12 @@ REQUIRE_HTTPS=true
 ```bash
 NODE_ENV=production
 ALLOWED_USERS=your-real-users@company.com
-OAUTH_PROVIDER=google
+
+# Configure one or more OAuth providers
 GOOGLE_CLIENT_ID=production-client-id
 GOOGLE_CLIENT_SECRET=production-secret
+
+# LLM API keys
 ANTHROPIC_API_KEY=production-key
 ```
 
@@ -170,7 +158,8 @@ ANTHROPIC_API_KEY=production-key
 ```bash
 NODE_ENV=preview
 ALLOWED_USERS=test@example.com,dev@example.com
-OAUTH_PROVIDER=google
+
+# Configure OAuth providers
 GOOGLE_CLIENT_ID=preview-client-id
 GOOGLE_CLIENT_SECRET=preview-secret
 ```
@@ -185,7 +174,8 @@ GOOGLE_CLIENT_SECRET=preview-secret
 ```bash
 # Create .env.local file
 ALLOWED_USERS=dev@example.com
-OAUTH_PROVIDER=google
+
+# Configure one or more OAuth providers
 GOOGLE_CLIENT_ID=dev-client-id
 GOOGLE_CLIENT_SECRET=dev-secret
 GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback

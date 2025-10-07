@@ -276,8 +276,26 @@ npm run dev:vercel        # Local Vercel development server
 - `GOOGLE_API_KEY` - Gemini models
 
 ### OAuth Configuration (optional)
-- `OAUTH_PROVIDER` - google, github, microsoft, generic
-- Provider-specific client ID/secret pairs
+Configure one or more OAuth providers. The server will detect all configured providers and present them as login options:
+
+**Google OAuth:**
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI` (optional, auto-generated if not set)
+- `GOOGLE_SCOPES` (optional, defaults to: openid,email,profile)
+
+**GitHub OAuth:**
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `GITHUB_REDIRECT_URI` (optional, auto-generated if not set)
+- `GITHUB_SCOPES` (optional, defaults to: read:user,user:email)
+
+**Microsoft OAuth:**
+- `MICROSOFT_CLIENT_ID`
+- `MICROSOFT_CLIENT_SECRET`
+- `MICROSOFT_TENANT_ID` (optional, defaults to: common)
+- `MICROSOFT_REDIRECT_URI` (optional, auto-generated if not set)
+- `MICROSOFT_SCOPES` (optional, defaults to: openid,email,profile)
 
 ## OAuth Client Integration
 
