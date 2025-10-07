@@ -11,8 +11,9 @@ import { StoredTokenInfo } from '../providers/types.js';
  * OAuth Token Store Interface
  *
  * Implementations:
- * - MemoryOAuthTokenStore: Development/testing (not persistent across instances)
- * - RedisOAuthTokenStore: Vercel serverless deployments with Redis-compatible KV
+ * - MemoryOAuthTokenStore: Testing only (not persistent across instances)
+ * - FileOAuthTokenStore: Development/single-instance (persistent across restarts)
+ * - RedisOAuthTokenStore: Serverless/multi-instance deployments with Redis
  */
 export interface OAuthTokenStore {
   /**

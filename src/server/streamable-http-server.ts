@@ -9,7 +9,6 @@ import cors from 'cors';
 import * as OpenApiValidator from 'express-openapi-validator';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { EnvironmentConfig } from '../config/environment.js';
 import { OAuthProviderFactory } from '../auth/factory.js';
@@ -23,7 +22,7 @@ import { InitialAccessTokenStore } from '../auth/stores/token-store-interface.js
 import { MCPInstanceManager } from './mcp-instance-manager.js';
 import { LLMManager } from '../llm/manager.js';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
-import { setupMultiProviderOAuthRoutes } from './routes/oauth-routes.js';
+import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { OAuthProviderType } from '../auth/providers/types.js';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
@@ -51,7 +50,6 @@ type AuthenticatedRequest = Request & { auth?: AuthInfo };
 export class MCPStreamableHttpServer {
   private app: Express;
   private server?: HttpServer;
-  private oauthProvider?: OAuthProvider; // Legacy single provider
   private oauthProviders?: Map<OAuthProviderType, OAuthProvider>; // Multi-provider support
   private clientStore?: OAuthRegisteredClientsStore;
   private tokenStore?: InitialAccessTokenStore;
@@ -79,7 +77,7 @@ export class MCPStreamableHttpServer {
     this.setupMiddleware();
 
     // Setup health and utility routes
-    setupHealthRoutes(this.app, this.sessionManager, this.oauthProvider, {
+    setupHealthRoutes(this.app, this.sessionManager, this.oauthProviders, {
       enableResumability: this.options.enableResumability,
       enableJsonResponse: this.options.enableJsonResponse
     });
@@ -117,10 +115,7 @@ export class MCPStreamableHttpServer {
         });
 
         // Setup multi-provider OAuth routes
-        setupMultiProviderOAuthRoutes(this.app, this.oauthProviders, this.clientStore);
-
-        // Set primary provider for auth middleware (use first provider)
-        this.oauthProvider = multiProviders.values().next().value;
+        setupOAuthRoutes(this.app, this.oauthProviders, this.clientStore);
       } else {
         // No OAuth providers configured
         throw new Error('OAuth authentication is required but no OAuth providers are configured. Set provider credentials for at least one provider (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET).');
@@ -449,7 +444,7 @@ export class MCPStreamableHttpServer {
 
       // Don't send response if headers already sent
       if (!res.headersSent) {
-        const statusCode = error.name === 'UnauthorizedError' || error.message.includes('auth') ? 401 : 500;
+        const statusCode = error.name === 'UnauthorizedError' || error.message.toLowerCase().includes('auth') ? 401 : 500;
         logger.debug("Sending error response", { requestId, statusCode });
 
         if (statusCode === 401) {
@@ -480,7 +475,7 @@ export class MCPStreamableHttpServer {
    * Set up OAuth discovery endpoints (RFC 8414, RFC 9728, OpenID Connect Discovery)
    */
   private setupOAuthDiscoveryRoutes(): void {
-    setupDiscoveryRoutes(this.app, this.oauthProvider, {
+    setupDiscoveryRoutes(this.app, this.oauthProviders, {
       endpoint: this.options.endpoint,
       host: this.options.host,
       port: this.options.port,
@@ -490,117 +485,98 @@ export class MCPStreamableHttpServer {
 
 
   /**
+   * Send a 401 Unauthorized response with WWW-Authenticate header
+   */
+  private sendUnauthorizedResponse(res: Response, requestId: string, message: string): void {
+    res.status(401)
+      .setHeader('WWW-Authenticate', 'Bearer realm="MCP Server", error="invalid_token"')
+      .json({
+        error: 'Unauthorized',
+        message,
+        requestId,
+        timestamp: new Date().toISOString()
+      });
+  }
+
+  /**
    * Set up Streamable HTTP endpoints for MCP communication
    */
   private setupStreamableHTTPRoutes(): void {
     // Create custom auth middleware with multi-provider support
-    const authMiddleware = this.options.requireAuth && (this.oauthProvider || this.oauthProviders)
+    const authMiddleware = this.options.requireAuth && this.oauthProviders
       ? async (req: Request, res: Response, next: NextFunction) => {
           const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+
+          // Allow OPTIONS requests without authentication (CORS preflight)
+          if (req.method === 'OPTIONS') {
+            logger.debug("Allowing OPTIONS request without auth (CORS preflight)", { requestId });
+            return next();
+          }
+
           logger.debug("Auth middleware verifying Bearer token", { requestId });
 
-          // Multi-provider mode: determine provider from token store metadata
-          if (this.oauthProviders && this.oauthProviders.size > 0) {
-            try {
-              // Allow unauthenticated 'initialize' requests for OAuth discovery (MCP spec)
-              if (req.method === 'POST' && req.body?.method === 'initialize') {
-                logger.debug("Allowing unauthenticated initialize request for OAuth discovery", { requestId });
-                return next();
-              }
-
-              // Extract Bearer token from Authorization header
-              const authHeader = req.headers.authorization;
-              if (!authHeader || !authHeader.startsWith('Bearer ')) {
-                throw new Error('Missing or invalid Authorization header');
-              }
-
-              const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-
-              // Look up token in each provider's token store to find which provider issued it
-              // This is secure because we check local storage first, not external provider APIs
-              let providerType: OAuthProviderType | undefined;
-              let correctProvider: OAuthProvider | undefined;
-
-              for (const [type, provider] of this.oauthProviders.entries()) {
-                // Check if this provider's token store has this token
-                // This calls getToken() which is a local store lookup, NOT an API call
-                if ('getToken' in provider && typeof provider.getToken === 'function') {
-                  const tokenInfo = await provider.getToken(token);
-
-                  if (tokenInfo && tokenInfo.provider === type) {
-                    providerType = type;
-                    correctProvider = provider;
-                    logger.debug("Token belongs to provider", { provider: type, requestId });
-                    break;
-                  }
-                }
-              }
-
-              if (!correctProvider || !providerType) {
-                throw new Error('Token not found in any provider token store');
-              }
-
-              // Now verify ONLY with the correct provider (secure - no token leakage)
-              logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
-              const authInfo = await correctProvider.verifyAccessToken(token);
-
-              // Attach auth info to request
-              (req as AuthenticatedRequest).auth = authInfo;
-
-              // Log success
-              const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
-              logger.info("Auth success", {
-                requestId,
-                provider: providerType,
-                clientId: authInfo.clientId,
-                scopes: authInfo.scopes?.join(', ') || 'none',
-                user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
-              });
-
-              next();
-            } catch (error) {
-              logger.error("Auth failed", {
-                requestId,
-                error: error instanceof Error ? error.message : error
-              });
-              next(error);
-            }
+          // Extract Bearer token from Authorization header
+          const authHeader = req.headers.authorization;
+          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            logger.warn("Auth failed: Missing or invalid Authorization header", { requestId });
+            this.sendUnauthorizedResponse(res, requestId, 'Missing or invalid Authorization header');
             return;
           }
 
-          // Single provider mode (legacy)
-          if (this.oauthProvider) {
-            // Allow unauthenticated 'initialize' requests for OAuth discovery (MCP spec)
-            if (req.method === 'POST' && req.body?.method === 'initialize') {
-              logger.debug("Allowing unauthenticated initialize request for OAuth discovery", { requestId });
-              return next();
+          const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+          try {
+            // Look up token in each provider's token store to find which provider issued it
+            // This is secure because we check local storage first, not external provider APIs
+            let providerType: OAuthProviderType | undefined;
+            let correctProvider: OAuthProvider | undefined;
+
+            for (const [type, provider] of this.oauthProviders!.entries()) {
+              // Check if this provider's token store has this token
+              // This calls getToken() which is a local store lookup, NOT an API call
+              if ('getToken' in provider && typeof provider.getToken === 'function') {
+                const tokenInfo = await provider.getToken(token);
+
+                if (tokenInfo && tokenInfo.provider === type) {
+                  providerType = type;
+                  correctProvider = provider;
+                  logger.debug("Token belongs to provider", { provider: type, requestId });
+                  break;
+                }
+              }
             }
 
-            const bearerAuthMiddleware = requireBearerAuth({ verifier: this.oauthProvider });
-            bearerAuthMiddleware(req, res, (error?: unknown) => {
-              if (error) {
-                logger.error("Auth failed", {
-                  requestId,
-                  error: error instanceof Error ? error.message : error
-                });
-                return next(error);
-              }
+            if (!correctProvider || !providerType) {
+              logger.warn("Auth failed: Token not found in any provider token store", { requestId });
+              this.sendUnauthorizedResponse(res, requestId, 'Invalid or expired access token');
+              return;
+            }
 
-              const authInfo = (req as AuthenticatedRequest).auth;
-              if (authInfo) {
-                const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
-                logger.info("Auth success", {
-                  requestId,
-                  clientId: authInfo.clientId,
-                  scopes: authInfo.scopes?.join(', ') || 'none',
-                  user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
-                });
-              } else {
-                logger.warn("Auth info missing despite successful verification", { requestId });
-              }
+            // Now verify ONLY with the correct provider (secure - no token leakage)
+            logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
+            const authInfo = await correctProvider.verifyAccessToken(token);
 
-              next();
+            // Attach auth info to request
+            (req as AuthenticatedRequest).auth = authInfo;
+
+            // Log success
+            const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
+            logger.info("Auth success", {
+              requestId,
+              provider: providerType,
+              clientId: authInfo.clientId,
+              scopes: authInfo.scopes?.join(', ') || 'none',
+              user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
             });
+
+            next();
+          } catch (error) {
+            logger.warn("Auth failed: Token verification error", {
+              requestId,
+              error: error instanceof Error ? error.message : error
+            });
+            this.sendUnauthorizedResponse(res, requestId, 'Token verification failed');
+            return;
           }
         }
       : (req: Request, res: Response, next: NextFunction) => {
@@ -1157,8 +1133,12 @@ export class MCPStreamableHttpServer {
           }
 
           // Cleanup OAuth provider resources
-          if (this.oauthProvider && 'dispose' in this.oauthProvider && typeof this.oauthProvider.dispose === 'function') {
-            this.oauthProvider.dispose();
+          if (this.oauthProviders) {
+            for (const provider of this.oauthProviders.values()) {
+              if ('dispose' in provider && typeof provider.dispose === 'function') {
+                provider.dispose();
+              }
+            }
           }
 
           resolve();

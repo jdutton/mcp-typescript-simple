@@ -3,27 +3,37 @@
  *
  * Auto-detects the best token store implementation based on environment:
  * - Redis: RedisOAuthTokenStore (multi-instance with Redis)
- * - Development/Production: MemoryOAuthTokenStore (fast, ephemeral)
+ * - File: FileOAuthTokenStore (persistent, single-instance)
+ * - Memory: MemoryOAuthTokenStore (fast, ephemeral - test only)
  *
- * Note: OAuth tokens benefit from external persistence in serverless
- * environments to avoid token lookup failures across function instances.
+ * Auto-detection logic:
+ * 1. If REDIS_URL configured → Redis store
+ * 2. If test environment (NODE_ENV=test or JEST_WORKER_ID) → Memory store
+ * 3. Otherwise (development/production) → File store
  */
 
 import { OAuthTokenStore } from './stores/oauth-token-store-interface.js';
 import { MemoryOAuthTokenStore } from './stores/memory-oauth-token-store.js';
+import { FileOAuthTokenStore, FileOAuthTokenStoreOptions } from './stores/file-oauth-token-store.js';
 import { RedisOAuthTokenStore } from './stores/redis-oauth-token-store.js';
 import { logger } from '../observability/logger.js';
 
-export type OAuthTokenStoreType = 'memory' | 'redis' | 'auto';
+export type OAuthTokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
 
 export interface OAuthTokenStoreFactoryOptions {
   /**
    * Store type to create
    * - 'auto': Auto-detect based on environment (default)
    * - 'memory': In-memory store (not persistent across instances)
+   * - 'file': File-based store (persistent across restarts, single-instance)
    * - 'redis': Redis store (multi-instance deployments)
    */
   type?: OAuthTokenStoreType;
+
+  /**
+   * File store options (only used when type is 'file')
+   */
+  fileOptions?: FileOAuthTokenStoreOptions;
 }
 
 export class OAuthTokenStoreFactory {
@@ -40,6 +50,9 @@ export class OAuthTokenStoreFactory {
     switch (storeType) {
       case 'memory':
         return this.createMemoryStore();
+
+      case 'file':
+        return this.createFileStore(options.fileOptions);
 
       case 'redis':
         return this.createRedisStore();
@@ -59,12 +72,15 @@ export class OAuthTokenStoreFactory {
       return this.createRedisStore();
     }
 
-    // Default to memory store for local development
-    logger.info('Creating in-memory OAuth token store', { detected: true });
-    logger.warn('Memory OAuth token store does not persist across serverless instances', {
-      recommendation: 'Configure REDIS_URL for multi-instance deployments'
-    });
-    return this.createMemoryStore();
+    // Check for test environment
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+      logger.info('Creating in-memory OAuth token store (test environment)', { detected: true });
+      return this.createMemoryStore();
+    }
+
+    // Default to file-based store for development/production
+    logger.info('Creating file-based OAuth token store', { detected: true });
+    return this.createFileStore();
   }
 
   /**
@@ -72,6 +88,13 @@ export class OAuthTokenStoreFactory {
    */
   private static createMemoryStore(): MemoryOAuthTokenStore {
     return new MemoryOAuthTokenStore();
+  }
+
+  /**
+   * Create file-based OAuth token store
+   */
+  private static createFileStore(options?: FileOAuthTokenStoreOptions): FileOAuthTokenStore {
+    return new FileOAuthTokenStore(options);
   }
 
   /**

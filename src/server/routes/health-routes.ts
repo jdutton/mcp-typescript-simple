@@ -20,13 +20,13 @@ export interface HealthRoutesOptions {
  *
  * @param router - Express router to attach routes to
  * @param sessionManager - Session manager for stats
- * @param oauthProvider - OAuth provider (optional, for debug info)
+ * @param oauthProviders - OAuth providers (optional, for debug info)
  * @param options - Server configuration options
  */
 export function setupHealthRoutes(
   router: Router,
   sessionManager: SessionManager,
-  oauthProvider: OAuthProvider | undefined,
+  oauthProviders: Map<string, OAuthProvider> | undefined,
   options: HealthRoutesOptions
 ): void {
   // Health check endpoint
@@ -126,11 +126,11 @@ export function setupHealthRoutes(
           headers: Object.fromEntries(emailResponse.headers.entries()),
           data: emailData
         },
-        oauth_provider_info: oauthProvider ? {
-          type: oauthProvider.getProviderType(),
-          name: oauthProvider.getProviderName(),
-          endpoints: oauthProvider.getEndpoints()
-        } : 'No OAuth provider configured'
+        oauth_providers_info: oauthProviders ? Array.from(oauthProviders.entries()).map(([type, provider]) => ({
+          type: provider.getProviderType(),
+          name: provider.getProviderName(),
+          endpoints: provider.getEndpoints()
+        })) : 'No OAuth providers configured'
       });
 
     } catch (error) {

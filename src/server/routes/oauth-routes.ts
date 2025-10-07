@@ -16,190 +16,13 @@ import { logger } from '../../observability/logger.js';
 import { generateLoginPageHTML } from '../../auth/login-page.js';
 
 /**
- * Setup OAuth 2.0 authentication routes (single provider - legacy)
- *
- * @param router - Express router to attach routes to
- * @param oauthProvider - Configured OAuth provider
- * @param clientStore - Client store for DCR
- * @deprecated Use setupMultiProviderOAuthRoutes for multi-provider support
- */
-export function setupOAuthRoutes(
-  router: Router,
-  oauthProvider: OAuthProvider,
-  clientStore: OAuthRegisteredClientsStore
-): void {
-  const endpoints = oauthProvider.getEndpoints();
-
-  // Helper to set anti-caching headers for OAuth endpoints (RFC 6749, RFC 9700)
-  // Prevents Vercel edge cache from serving stale OAuth responses
-  const setAntiCachingHeaders = (res: Response): void => {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-    res.setHeader('Pragma', 'no-cache');
-    res.setHeader('Expires', '0');
-  };
-
-  // Generic auth endpoint for test discovery
-  router.get('/auth', (req: Request, res: Response) => {
-    setAntiCachingHeaders(res);
-    res.json({
-      message: 'OAuth authentication endpoint',
-      providers: ['google', 'github', 'microsoft'],
-      endpoints: endpoints
-    });
-  });
-
-  // OAuth authorization endpoint
-  const authHandler = async (req: Request, res: Response) => {
-    try {
-      setAntiCachingHeaders(res);
-      await oauthProvider.handleAuthorizationRequest(req, res);
-    } catch (error) {
-      logger.error("OAuth authorization error", error);
-      setAntiCachingHeaders(res);
-      res.status(500).json({ error: 'Authorization failed' });
-    }
-  };
-  router.get(endpoints.authEndpoint, authHandler);
-
-  // Generic OAuth authorize endpoint (for MCP Inspector compatibility) - now under /auth/authorize
-  router.get('/auth/authorize', authHandler);
-
-  // OAuth callback endpoint
-  const callbackHandler = async (req: Request, res: Response) => {
-    try {
-      setAntiCachingHeaders(res);
-      await oauthProvider.handleAuthorizationCallback(req, res);
-    } catch (error) {
-      logger.error("OAuth callback error", error);
-      setAntiCachingHeaders(res);
-      res.status(500).json({ error: 'Authorization callback failed' });
-    }
-  };
-  router.get(endpoints.callbackEndpoint, callbackHandler);
-
-  // Universal OAuth 2.0 token handler (RFC 6749 Section 3.2)
-  // Implements OAuth 2.0 Token Endpoint for authorization_code and refresh_token grants
-  // Supports both JSON and form data (RFC 6749 Section 4.1.3 and 6.1)
-  const universalTokenHandler = async (req: Request, res: Response) => {
-    try {
-      setAntiCachingHeaders(res);
-
-      logger.debug("Universal token handler processing", {
-        contentType: req.headers['content-type'],
-        body: req.body
-      });
-
-      // Extract parameters (works for both form data and JSON)
-      const { grant_type, refresh_token } = req.body;
-
-      // Determine operation based on grant_type (RFC 6749 Section 4.1.3)
-      if (grant_type === 'authorization_code') {
-        // Authorization Code Grant token exchange (RFC 6749 Section 4.1.3)
-        // Supports PKCE (RFC 7636) - delegate to provider's handleTokenExchange
-        if (oauthProvider && 'handleTokenExchange' in oauthProvider) {
-          // Type assertion for providers that implement handleTokenExchange
-          const provider = oauthProvider as OAuthProvider & {
-            handleTokenExchange: (req: Request, res: Response) => Promise<void>
-          };
-          await provider.handleTokenExchange(req, res);
-        } else {
-          res.status(501).json({
-            error: 'not_implemented',
-            error_description: 'Token exchange not supported by current OAuth provider'
-          });
-        }
-      } else if (grant_type === 'refresh_token' || refresh_token) {
-        // Refresh Token Grant (RFC 6749 Section 6) - delegate to provider's handleTokenRefresh
-        await oauthProvider.handleTokenRefresh(req, res);
-      } else {
-        // Invalid grant type (RFC 6749 Section 5.2)
-        res.status(400).json({
-          error: 'unsupported_grant_type',
-          error_description: 'Supported grant types: authorization_code, refresh_token'
-        });
-      }
-    } catch (error) {
-      logger.error("OAuth universal token handler error", error);
-      setAntiCachingHeaders(res);
-      res.status(500).json({
-        error: 'server_error',
-        error_description: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-
-  // Use universal handler for both provider-specific refresh endpoint and generic token endpoint
-  router.post(endpoints.refreshEndpoint, universalTokenHandler);
-
-  // Generic OAuth 2.0 token endpoint (RFC 6749 Section 3.2) - uses same universal handler
-  router.post('/auth/token', universalTokenHandler);
-
-  // Universal OAuth 2.0 token revocation endpoint (RFC 7009)
-  const revokeHandler = async (req: Request, res: Response) => {
-    try {
-      setAntiCachingHeaders(res);
-
-      // Extract token parameter (RFC 7009 Section 2.1)
-      const { token, token_type_hint } = req.body || {};
-
-      // Validate required token parameter
-      if (!token || typeof token !== 'string' || token.trim() === '') {
-        res.status(400).json({
-          error: 'invalid_request',
-          error_description: 'Missing or invalid token parameter'
-        });
-        return;
-      }
-
-      // Remove token from provider's store
-      try {
-        await oauthProvider.removeToken(token);
-        logger.debug('Token revoked successfully', { provider: oauthProvider.getProviderType() });
-      } catch (error) {
-        // Per RFC 7009 Section 2.2: "invalid tokens do not cause an error"
-        logger.debug('Token removal failed', { provider: oauthProvider.getProviderType(), error });
-      }
-
-      // Always return 200 OK per RFC 7009 (even if token not found)
-      res.status(200).json({ success: true });
-    } catch (error) {
-      logger.error("OAuth revoke handler error", error);
-      setAntiCachingHeaders(res);
-      res.status(500).json({
-        error: 'server_error',
-        error_description: error instanceof Error ? error.message : String(error),
-        timestamp: new Date().toISOString()
-      });
-    }
-  };
-  router.post('/auth/revoke', revokeHandler);
-
-  // Logout endpoint
-  const logoutHandler = async (req: Request, res: Response) => {
-    try {
-      setAntiCachingHeaders(res);
-      await oauthProvider.handleLogout(req, res);
-    } catch (error) {
-      logger.error("Logout error", error);
-      setAntiCachingHeaders(res);
-      res.status(500).json({ error: 'Logout failed' });
-    }
-  };
-  router.post(endpoints.logoutEndpoint, logoutHandler);
-
-  // OAuth 2.0 Dynamic Client Registration routes (RFC 7591/7592)
-  setupDCRRoutes(router, clientStore);
-}
-
-/**
  * Setup OAuth 2.0 authentication routes with multi-provider support
  *
  * @param router - Express router to attach routes to
  * @param providers - Map of provider type to provider instance
  * @param clientStore - Client store for DCR
  */
-export function setupMultiProviderOAuthRoutes(
+export function setupOAuthRoutes(
   router: Router,
   providers: Map<string, OAuthProvider>,
   clientStore: OAuthRegisteredClientsStore
@@ -296,7 +119,7 @@ export function setupMultiProviderOAuthRoutes(
     if (providers.size === 1) {
       const [providerType] = providers.keys();
       const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-      res.redirect(302, `/auth/${providerType}/authorize${queryString ? `?${queryString}` : ''}`);
+      res.redirect(302, `/auth/${providerType}${queryString ? `?${queryString}` : ''}`);
       return;
     }
 

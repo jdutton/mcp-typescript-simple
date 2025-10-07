@@ -45,7 +45,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Returns the server's code_verifier if it was stored, undefined otherwise
    */
   protected async getStoredCodeVerifier(code: string): Promise<string | undefined> {
-    const data = await this.pkceStore.getCodeVerifier(code);
+    const data = await this.pkceStore.getCodeVerifier(this.getProviderCodeKey(code));
     if (data) {
       logger.oauthDebug('Retrieved stored code_verifier', {
         provider: this.getProviderName(),
@@ -151,7 +151,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    */
   protected async cleanupAfterTokenExchange(code: string): Promise<void> {
     // Atomically retrieve and delete PKCE data to prevent code reuse
-    const data = await this.pkceStore.getAndDeleteCodeVerifier(code);
+    const data = await this.pkceStore.getAndDeleteCodeVerifier(this.getProviderCodeKey(code));
     if (data) {
       // Clean up session
       await this.removeSession(data.state);
@@ -200,7 +200,18 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * @returns true if this provider has PKCE data for the code, false otherwise
    */
   async hasStoredCodeForProvider(code: string): Promise<boolean> {
-    return await this.pkceStore.hasCodeVerifier(code);
+    return await this.pkceStore.hasCodeVerifier(this.getProviderCodeKey(code));
+  }
+
+  /**
+   * Create a provider-namespaced key for PKCE storage.
+   * This prevents code collisions when multiple providers share the same PKCE store.
+   *
+   * @param code Authorization code from OAuth provider
+   * @returns Namespaced key: "{providerType}:{code}"
+   */
+  protected getProviderCodeKey(code: string): string {
+    return `${this.getProviderType()}:${code}`;
   }
 
   constructor(
@@ -805,7 +816,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // but client will perform the token exchange with the code
       // Also stores state for session cleanup after successful token exchange
       if (session.codeVerifier) {
-        await this.pkceStore.storeCodeVerifier(code, {
+        await this.pkceStore.storeCodeVerifier(this.getProviderCodeKey(code), {
           codeVerifier: session.codeVerifier,
           state: state
         }, this.PKCE_TTL_SECONDS);

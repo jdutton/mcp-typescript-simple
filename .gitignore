@@ -17,7 +17,7 @@ yarn-error.log*
 .env.microsoft
 .env.github
 .env.local
-.env.oauth
+.env.oauth*
 .env.development.local
 .env.test.local
 .env.production.local
