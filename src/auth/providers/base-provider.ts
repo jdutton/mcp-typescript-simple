@@ -588,7 +588,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       ...additionalParams,
     };
 
-    // Only include code_verifier if provided (GitHub doesn't support PKCE)
+    // Include code_verifier for PKCE validation (RFC 7636)
     if (codeVerifier) {
       params.code_verifier = codeVerifier;
     }

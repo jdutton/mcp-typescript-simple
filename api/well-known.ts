@@ -170,7 +170,7 @@ async function handleAuthorizationServerMetadata(
 
   // Use first provider for backward compatibility (clients expect single metadata response)
   // Note: Multi-provider clients should query per-provider endpoints or use MCP metadata
-  const primaryProvider = oauthProviders.values().next().value;
+  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -182,7 +182,7 @@ async function handleAuthorizationServerMetadata(
   // Add multi-provider hint
   if (oauthProviders.size > 1) {
     (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
   }
 
   res.json(metadata);
@@ -210,7 +210,7 @@ async function handleProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value;
+  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -223,7 +223,7 @@ async function handleProtectedResourceMetadata(
   if (oauthProviders.size > 1) {
     const authServers: string[] = [];
     for (const providerType of oauthProviders.keys()) {
-      authServers.push(`${baseUrl}/api/auth/${providerType}`);
+      authServers.push(`${baseUrl}/auth/${providerType}`);
     }
     (metadata as any).authorization_servers = authServers;
     (metadata as any).available_providers = Array.from(oauthProviders.keys());
@@ -259,7 +259,7 @@ async function handleMCPProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value;
+  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -272,11 +272,11 @@ async function handleMCPProtectedResourceMetadata(
   if (oauthProviders.size > 1) {
     const authServers: string[] = [];
     for (const providerType of oauthProviders.keys()) {
-      authServers.push(`${baseUrl}/api/auth/${providerType}`);
+      authServers.push(`${baseUrl}/auth/${providerType}`);
     }
     (metadata as any).authorization_servers = authServers;
     (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
   }
 
   res.json(metadata);
@@ -295,8 +295,8 @@ async function handleOpenIDConnectConfiguration(
   if (!oauthProviders || oauthProviders.size === 0) {
     res.json({
       issuer: baseUrl,
-      authorization_endpoint: `${baseUrl}/api/auth/login`,
-      token_endpoint: `${baseUrl}/api/auth/token`,
+      authorization_endpoint: `${baseUrl}/auth/login`,
+      token_endpoint: `${baseUrl}/auth/token`,
       response_types_supported: ['code'],
       subject_types_supported: ['public'],
       id_token_signing_alg_values_supported: ['RS256'],
@@ -306,7 +306,7 @@ async function handleOpenIDConnectConfiguration(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value;
+  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -318,7 +318,7 @@ async function handleOpenIDConnectConfiguration(
   // Add multi-provider hint
   if (oauthProviders.size > 1) {
     (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/api/auth/login`;
+    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
   }
 
   res.json(metadata);

@@ -70,7 +70,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
       this.storeSession(state, session);
 
-      // Build authorization URL
+      // Build authorization URL with PKCE
       const authUrl = this.buildAuthorizationUrl(
         this.GITHUB_AUTH_URL,
         state,
@@ -118,7 +118,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      // Exchange authorization code for tokens
+      // Exchange authorization code for tokens with PKCE validation
       const tokenData = await this.exchangeCodeForTokens(
         this.GITHUB_TOKEN_URL,
         code,
@@ -203,6 +203,21 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       // Log token exchange request (includes client's redirect_uri for debugging)
       await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
 
+      // Validate code_verifier is available (required for PKCE)
+      if (!codeVerifierToUse) {
+        logger.oauthError('Token exchange failed: code_verifier not available', {
+          provider: 'github',
+          hasClientVerifier: !!code_verifier,
+          codePrefix: code!.substring(0, 10)
+        });
+        this.setAntiCachingHeaders(res);
+        res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Authorization code is invalid, expired, or already used'
+        });
+        return;
+      }
+
       // IMPORTANT: Always use server's registered redirect_uri for token exchange
       // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
       // registered redirect URI. Client-provided redirect_uri is logged but not used
@@ -210,7 +225,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       const tokenData = await this.exchangeCodeForTokens(
         this.GITHUB_TOKEN_URL,
         code!,
-        codeVerifierToUse!, // Use correct code_verifier (server's or client's)
+        codeVerifierToUse, // Required for PKCE validation
         {}, // No additional params
         this.config.redirectUri // MUST match authorization request redirect_uri
       );

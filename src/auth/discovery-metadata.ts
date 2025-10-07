@@ -87,8 +87,8 @@ export class OAuthDiscoveryMetadata {
 
     const metadata: AuthorizationServerMetadata = {
       issuer: this.baseUrl,
-      authorization_endpoint: `${this.baseUrl}/auth/authorize`, // Generic authorize endpoint for MCP Inspector compatibility
-      token_endpoint: `${this.baseUrl}/auth/token`, // Generic token endpoint for MCP Inspector compatibility
+      authorization_endpoint: `${this.baseUrl}/auth/authorize`, // Generic authorize endpoint redirects to provider selection
+      token_endpoint: `${this.baseUrl}/auth/token`, // Universal token endpoint (handles all providers)
       registration_endpoint: `${this.baseUrl}/register`, // RFC 7591 Dynamic Client Registration
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
@@ -100,7 +100,7 @@ export class OAuthDiscoveryMetadata {
         'authorization_code',
         'refresh_token'
       ],
-      code_challenge_methods_supported: ['S256'],
+      code_challenge_methods_supported: ['S256'], // Advertise PKCE support (required by MCP Inspector)
     };
 
     // Add provider-specific metadata
