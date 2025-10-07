@@ -281,14 +281,24 @@ class VercelConfigTestRunner {
 
       const deploymentDoc = readFileSync('docs/vercel-deployment.md', 'utf8');
 
-      const requiredEnvVars = [
+      // Check for LLM provider keys
+      const llmProviderVars = [
         'ANTHROPIC_API_KEY',
         'OPENAI_API_KEY',
-        'GOOGLE_API_KEY',
-        'OAUTH_PROVIDER',
-        'GOOGLE_CLIENT_ID',
-        'GOOGLE_CLIENT_SECRET'
+        'GOOGLE_API_KEY'
       ];
+
+      // Check for multi-provider OAuth support (at least one provider should be documented)
+      const oauthProviderVars = [
+        'GOOGLE_CLIENT_ID',
+        'GOOGLE_CLIENT_SECRET',
+        'GITHUB_CLIENT_ID',
+        'GITHUB_CLIENT_SECRET',
+        'MICROSOFT_CLIENT_ID',
+        'MICROSOFT_CLIENT_SECRET'
+      ];
+
+      const requiredEnvVars = [...llmProviderVars, ...oauthProviderVars];
 
       for (const envVar of requiredEnvVars) {
         if (!deploymentDoc.includes(envVar)) {

@@ -712,21 +712,10 @@ export class MCPStreamableHttpServer {
     // Close the session in session manager
     this.sessionManager.closeSession(sessionId);
 
-    // Also clean up instance manager cache and metadata store
+    // Clean up instance manager cache and metadata store using public API
     // This prevents session reconstruction after deletion
     try {
-      // Access private members through type assertion (needed for proper cleanup)
-      type InstanceManager = {
-        instanceCache: Map<string, unknown>;
-        metadataStore: { deleteSession: (id: string) => Promise<void> };
-      };
-      const manager = this.instanceManager as unknown as InstanceManager;
-
-      const instance = manager.instanceCache.get(sessionId);
-      if (instance) {
-        manager.instanceCache.delete(sessionId);
-      }
-      await manager.metadataStore.deleteSession(sessionId);
+      await this.instanceManager.deleteSession(sessionId);
       logger.debug("Cleaned up instance manager metadata", { requestId, sessionId });
     } catch (error) {
       logger.warn("Failed to cleanup instance manager metadata", { requestId, sessionId, error });

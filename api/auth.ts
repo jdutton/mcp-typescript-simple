@@ -199,6 +199,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 } catch (error) {
                   if (!res.headersSent) {
                     const errorMsg = error instanceof Error ? error.message : String(error);
+                    // Log detailed error server-side for debugging
                     logger.debug("Token exchange failed with provider", { provider: providerType, error: errorMsg });
                     errors.push({ provider: providerType, error: errorMsg });
                   } else {
@@ -211,11 +212,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
             // No provider succeeded
             if (!res.headersSent) {
-              logger.warn("Token exchange failed with all providers", { errors });
+              // Log detailed errors server-side only (for debugging)
+              logger.warn("Token exchange failed with all providers", {
+                errors,
+                providersAttempted: errors.map(e => e.provider),
+              });
+
+              // Return generic OAuth error to client (don't expose internal details)
               res.status(400).json({
                 error: 'invalid_grant',
-                error_description: 'The provided authorization grant is invalid or expired',
-                details: errors
+                error_description: 'The provided authorization grant is invalid, expired, or revoked. Please try logging in again.',
+                error_hint: 'If this problem persists, verify your OAuth provider configuration is correct.'
               });
             }
             return;
