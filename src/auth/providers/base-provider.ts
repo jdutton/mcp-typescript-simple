@@ -496,9 +496,10 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
-   * Remove token information
+   * Remove token information (RFC 7009 token revocation)
+   * Public method accessible for universal revoke endpoint
    */
-  protected async removeToken(accessToken: string): Promise<void> {
+  async removeToken(accessToken: string): Promise<void> {
     await this.tokenStore.deleteToken(accessToken);
   }
 

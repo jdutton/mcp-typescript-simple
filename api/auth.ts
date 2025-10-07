@@ -7,6 +7,7 @@ import { OAuthProviderFactory } from '../build/auth/factory.js';
 import { OAuthProvider, OAuthProviderType } from '../build/auth/providers/types.js';
 import { logger } from '../build/utils/logger.js';
 import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
+import { generateLoginPageHTML } from '../build/auth/login-page.js';
 
 // Global OAuth providers map for multi-provider support
 let oauthProvidersInstance: Map<OAuthProviderType, OAuthProvider> | null = null;
@@ -149,40 +150,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const clientState = req.query.state as string | undefined;
         const clientRedirectUri = req.query.redirect_uri as string | undefined;
 
-        // Simple HTML provider selection page
-        // Note: Links use /auth/* paths (not /api/auth/*) to match Express behavior
-        // Vercel rewrites /auth/* → /api/auth handler
-        const loginHtml = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Sign in to MCP Server</title>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-      body { font-family: system-ui, -apple-system, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; }
-      h1 { text-align: center; }
-      .providers { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
-      .provider-btn { display: block; padding: 12px 24px; text-align: center; border: 2px solid #ddd; border-radius: 6px; text-decoration: none; color: #333; transition: all 0.2s; }
-      .provider-btn:hover { border-color: #0066cc; background: #f0f9ff; }
-    </style>
-  </head>
-  <body>
-    <h1>Sign in to MCP Server</h1>
-    <p style="text-align: center; color: #666;">Choose your authentication provider</p>
-    <div class="providers">
-      ${availableProviders.includes('google') ? `<a href="/auth/google${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Google</a>` : ''}
-      ${availableProviders.includes('github') ? `<a href="/auth/github${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with GitHub</a>` : ''}
-      ${availableProviders.includes('microsoft') ? `<a href="/auth/microsoft${clientState ? `?state=${encodeURIComponent(clientState)}` : ''}${clientRedirectUri ? `${clientState ? '&' : '?'}redirect_uri=${encodeURIComponent(clientRedirectUri)}` : ''}" class="provider-btn">Continue with Microsoft</a>` : ''}
-    </div>
-  </body>
-</html>`;
+        // Use shared login page template (ensures consistency with Express)
+        const loginHtml = generateLoginPageHTML({
+          availableProviders,
+          clientState,
+          clientRedirectUri
+        });
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
         res.send(loginHtml);
         return;
       }
     }
+
 
     // Universal /token endpoint (tries all providers)
     if (oauthPath === '/token') {
@@ -281,6 +261,68 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Universal OAuth 2.0 token revocation endpoint (RFC 7009)
+    if (oauthPath === '/revoke') {
+      if (req.method === 'POST') {
+        logger.debug("Handling universal token revocation", { path: oauthPath });
+
+        try {
+          // Extract token parameter (RFC 7009 Section 2.1)
+          const { token, token_type_hint } = req.body || {};
+
+          // Validate required token parameter
+          if (!token || typeof token !== 'string' || token.trim() === '') {
+            res.status(400).json({
+              error: 'invalid_request',
+              error_description: 'Missing or invalid token parameter'
+            });
+            return;
+          }
+
+          // Try to revoke token from each provider
+          // RFC 7009 Section 2.2: "The authorization server responds with HTTP status code 200
+          // if the token has been revoked successfully or if the client submitted an invalid token"
+          for (const [providerType, provider] of providers.entries()) {
+            try {
+              // Check if provider has this token
+              if ('getToken' in provider) {
+                const storedToken = await (provider as any).getToken(token);
+                if (storedToken) {
+                  // Remove token from provider's store
+                  await provider.removeToken(token);
+                  logger.debug('Token revoked successfully', { provider: providerType });
+                  break; // Token found and removed, stop searching
+                }
+              } else {
+                // If provider doesn't support getToken, try removing anyway
+                await provider.removeToken(token);
+                logger.debug('Token removal attempted', { provider: providerType });
+                break;
+              }
+            } catch (error) {
+              // Per RFC 7009 Section 2.2: "invalid tokens do not cause an error"
+              // Continue trying other providers
+              logger.debug('Token removal failed, trying next provider', { provider: providerType, error });
+              continue;
+            }
+          }
+
+          // Always return 200 OK per RFC 7009 (even if token not found)
+          res.status(200).json({ success: true });
+          return;
+        } catch (error) {
+          logger.error("Token revocation error", error);
+          if (!res.headersSent) {
+            res.status(500).json({
+              error: 'server_error',
+              error_description: error instanceof Error ? error.message : 'Unknown error'
+            });
+          }
+        }
+        return;
+      }
+    }
+
     // Provider-specific routes
     if (provider) {
       const endpoints = provider.getEndpoints();
@@ -322,9 +364,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message: `OAuth endpoint not found: ${oauthPath}`,
       available_providers: Array.from(providers.keys()),
       available_endpoints: {
-        login: '/login',
-        authorize: '/authorize',
-        token: '/token',
+        login: '/auth/login',
+        authorize: '/auth/authorize',
+        token: '/auth/token',
+        revoke: '/auth/revoke',
         providers: Array.from(providers.keys()).map(p => ({
           type: p,
           auth: `/auth/${p}`,

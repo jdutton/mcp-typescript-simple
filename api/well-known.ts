@@ -168,24 +168,34 @@ async function handleAuthorizationServerMetadata(
     return;
   }
 
-  // Use first provider for backward compatibility (clients expect single metadata response)
-  // Note: Multi-provider clients should query per-provider endpoints or use MCP metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  // For multi-provider setups, return generic metadata without provider-specific URLs
+  // This prevents OAuth clients from making incorrect assumptions about provider-specific endpoints
+  if (oauthProviders.size > 1) {
+    const metadata = {
+      issuer: baseUrl,
+      authorization_endpoint: `${baseUrl}/auth/authorize`,
+      token_endpoint: `${baseUrl}/auth/token`,
+      registration_endpoint: `${baseUrl}/register`,
+      token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+      scopes_supported: ['openid', 'profile', 'email'],
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'refresh_token'],
+      code_challenge_methods_supported: ['S256'],
+      available_providers: Array.from(oauthProviders.keys()),
+      provider_selection_endpoint: `${baseUrl}/auth/login`
+    };
+    res.json(metadata);
+    return;
+  }
 
+  // Single provider: use provider-specific metadata for backward compatibility
+  const primaryProvider = oauthProviders.values().next().value!;
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
-    enableResumability: false, // Default for serverless
+    enableResumability: false,
     toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
   });
 
-  const metadata = discoveryMetadata.generateAuthorizationServerMetadata();
-
-  // Add multi-provider hint
-  if (oauthProviders.size > 1) {
-    (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
-  }
-
-  res.json(metadata);
+  res.json(discoveryMetadata.generateAuthorizationServerMetadata());
 }
 
 /**

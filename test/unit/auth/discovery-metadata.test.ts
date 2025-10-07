@@ -28,6 +28,7 @@ describe('OAuthDiscoveryMetadata', () => {
       isTokenValid: jest.fn(),
       getSessionCount: jest.fn(),
       getTokenCount: jest.fn(),
+      removeToken: jest.fn(),
       cleanup: jest.fn(),
       dispose: jest.fn()
     } as jest.Mocked<OAuthProvider>;

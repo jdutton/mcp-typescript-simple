@@ -480,6 +480,90 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /auth/revoke:
+    post:
+      tags:
+        - OAuth Authentication
+      summary: Token revocation endpoint
+      description: |
+        Universal OAuth 2.0 token revocation endpoint per RFC 7009.
+
+        Revokes access tokens or refresh tokens from any configured OAuth provider.
+        The endpoint automatically detects which provider issued the token and routes
+        the revocation request accordingly.
+
+        **Important**: Per RFC 7009 Section 2.2, this endpoint returns HTTP 200 even
+        if the token is invalid, expired, or already revoked. This prevents token
+        scanning attacks.
+
+        ## Supported token_type_hint values
+        - `access_token` - Hint that the token is an access token
+        - `refresh_token` - Hint that the token is a refresh token
+
+      operationId: revokeToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: The token to revoke (access token or refresh token)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type_hint:
+                  type: string
+                  description: Hint about the type of token being revoked
+                  enum: [access_token, refresh_token]
+                  example: "access_token"
+            examples:
+              revokeAccessToken:
+                summary: Revoke access token
+                value:
+                  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  token_type_hint: "access_token"
+              revokeRefreshToken:
+                summary: Revoke refresh token
+                value:
+                  token: "8xLOxBtZp8"
+                  token_type_hint: "refresh_token"
+      responses:
+        '200':
+          description: |
+            Token revocation successful or token was already invalid.
+            Per RFC 7009, returns 200 even if token was invalid/expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+              examples:
+                success:
+                  value:
+                    success: true
+        '400':
+          description: Invalid request (missing token parameter)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "invalid_request"
+                  error_description:
+                    type: string
+                    example: "Missing or invalid token parameter"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /auth/{provider}/logout:
     post:
       tags:
