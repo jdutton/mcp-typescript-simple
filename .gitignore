@@ -54,3 +54,4 @@ data/
 # Validation state (never commit - contains git tree hash and validation results)
 .validation-state
 .validation-state.yaml
+test-results/

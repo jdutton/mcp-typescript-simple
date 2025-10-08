@@ -13,6 +13,11 @@ export default {
   testMatch: [
     '**/test/system/**/*.test.ts'
   ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/build/',
+    'headless' // Exclude Playwright tests (run via 'playwright test')
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts'
