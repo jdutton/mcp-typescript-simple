@@ -5,6 +5,9 @@ services:
     container_name: mcp-redis-compose
     ports:
       - "6380:6379"
+    volumes:
+      - redis-data:/data  # Persist Redis session data
+    command: redis-server --save 60 1 --loglevel warning  # Save every 60s if 1+ keys changed
     networks:
       - mcp-network
     healthcheck:
@@ -118,6 +121,8 @@ services:
       - "3200:3000"   # Grafana UI
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP (used by MCP servers)
+    volumes:
+      - grafana-otel-data:/data  # Persist Grafana, Loki, Tempo, Prometheus data
     networks:
       - mcp-network
     restart: unless-stopped
@@ -127,6 +132,12 @@ services:
       timeout: 3s
       retries: 10
       start_period: 10s
+
+volumes:
+  redis-data:
+    driver: local
+  grafana-otel-data:
+    driver: local
 
 networks:
   mcp-network:
