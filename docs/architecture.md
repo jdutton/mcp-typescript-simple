@@ -369,7 +369,7 @@ npm run dev:oauth
 ### Local Development Stack
 - **Grafana OTEL-LGTM**: Complete observability stack (Logs, Grafana, Tempo, Mimir)
 - **Docker Integration**: One-command setup via `npm run otel:start`
-- **Port Management**: Grafana on 3100 to avoid MCP server conflicts (3000-3002)
+- **Port Management**: Grafana on 3200 to avoid MCP server conflicts (3000-3002)
 - **Real-time Validation**: Test observability features during development
 
 ### Production Monitoring Strategy

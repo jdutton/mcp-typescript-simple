@@ -6,7 +6,7 @@ services:
     image: grafana/otel-lgtm:latest
     container_name: mcp-otel-lgtm
     ports:
-      - "3100:3000"    # Grafana UI (avoiding conflict with MCP server on 3000)
+      - "3200:3000"    # Grafana UI (avoiding conflict with MCP server on 3000)
       - "4317:4317"    # OTLP gRPC receiver
       - "4318:4318"    # OTLP HTTP receiver
     environment:

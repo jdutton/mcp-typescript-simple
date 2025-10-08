@@ -24,9 +24,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
 
-    // Check environment variables for OAuth configuration
-    const oauthProvider = process.env.OAUTH_PROVIDER || 'google';
-    const hasOAuthCredentials = checkOAuthCredentials(oauthProvider);
+    // Check environment variables for OAuth configuration (multi-provider)
+    const googleConfigured = checkOAuthCredentials('google');
+    const githubConfigured = checkOAuthCredentials('github');
+    const microsoftConfigured = checkOAuthCredentials('microsoft');
+    const configuredOAuthProviders = [
+      googleConfigured && 'google',
+      githubConfigured && 'github',
+      microsoftConfigured && 'microsoft'
+    ].filter(Boolean) as string[];
 
     // Check LLM provider availability
     const llmProviders = checkLLMProviders();
@@ -36,8 +42,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       timestamp: new Date().toISOString(),
       deployment: 'vercel',
       mode: 'streamable_http',
-      auth: hasOAuthCredentials ? 'enabled' : 'disabled',
-      oauth_provider: oauthProvider,
+      auth: configuredOAuthProviders.length > 0 ? 'enabled' : 'disabled',
+      oauth_providers: configuredOAuthProviders,
       llm_providers: llmProviders,
       version: process.env.npm_package_version || '1.0.0',
       node_version: process.version,

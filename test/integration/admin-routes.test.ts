@@ -155,7 +155,7 @@ describe('Admin Routes Integration', () => {
           environment: expect.stringMatching(/^(development|test|production)$/),
         }),
         configuration: expect.objectContaining({
-          oauth_provider: expect.any(String),
+          oauth_providers: expect.any(Array),
           oauth_configured: expect.any(Boolean),
           llm_providers: expect.any(Object),
           transport_mode: 'streamable_http',
@@ -179,11 +179,13 @@ describe('Admin Routes Integration', () => {
         .get('/admin/metrics')
         .expect(200);
 
-      expect(response.body.configuration).toHaveProperty('oauth_provider');
+      expect(response.body.configuration).toHaveProperty('oauth_providers');
       expect(response.body.configuration).toHaveProperty('oauth_configured');
-      expect(['google', 'github', 'microsoft', 'generic']).toContain(
-        response.body.configuration.oauth_provider
-      );
+      expect(Array.isArray(response.body.configuration.oauth_providers)).toBe(true);
+      // Each configured provider should be one of the supported types
+      response.body.configuration.oauth_providers.forEach((provider: string) => {
+        expect(['google', 'github', 'microsoft', 'generic']).toContain(provider);
+      });
     });
 
     it('should include LLM providers status', async () => {

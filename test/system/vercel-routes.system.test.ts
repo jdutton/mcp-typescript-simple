@@ -172,7 +172,7 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
         expect(response.data).toHaveProperty('mode', 'serverless');
         expect(response.data).toHaveProperty('version');
         expect(response.data).toHaveProperty('node_version');
-        expect(response.data).toHaveProperty('oauth_provider');
+        expect(response.data).toHaveProperty('oauth_providers');
         expect(response.data).toHaveProperty('oauth_configured');
         expect(response.data).toHaveProperty('llm_providers');
       });

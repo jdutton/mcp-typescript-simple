@@ -48,7 +48,7 @@ Implement a **multi-tier observability architecture** with environment-aware con
 │      → LGTM     │    │        External │    │        OTLP     │
 │                 │    │                  │    │                 │
 │ Full OTEL       │    │ Sampled OTEL    │    │ Minimal OTEL    │
-│ Port 3100       │    │ Batch Export    │    │ Conditional     │
+│ Port 3200       │    │ Batch Export    │    │ Conditional     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -93,7 +93,7 @@ Implement a **multi-tier observability architecture** with environment-aware con
   - Session lifecycle events
 
 #### 4. Local Development Environment
-- **Grafana LGTM** container on **port 3100** (avoiding app port conflicts)
+- **Grafana LGTM** container on **port 3200** (avoiding app port conflicts)
 - **Zero configuration** startup with npm scripts
 - **Real-time visualization** of logs, metrics, traces, and profiles
 - **Telemetry validation** during development
@@ -136,7 +136,7 @@ src/observability/
 ### Environment-Specific Configuration
 
 #### Development
-- **Grafana LGTM** on port 3100 with full OTEL stack
+- **Grafana LGTM** on port 3200 with full OTEL stack
 - **100% sampling** for complete visibility
 - **Console logging** with pretty formatting
 - **Full session IDs** for maximum debugging capability
@@ -159,7 +159,7 @@ src/observability/
 |---------|------|-------------|
 | MCP HTTP Server | 3000 | Main application |
 | MCP CI Testing | 3001-3002 | Test instances |
-| **Grafana UI** | **3100** | **Observability dashboard** |
+| **Grafana UI** | **3200** | **Observability dashboard** |
 | OTLP gRPC | 4317 | Telemetry ingestion |
 | OTLP HTTP | 4318 | Telemetry ingestion |
 

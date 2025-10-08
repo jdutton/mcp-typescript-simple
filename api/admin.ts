@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             },
           },
           environment: {
-            oauth_provider: process.env.OAUTH_PROVIDER || 'google',
+            oauth_providers: checkConfiguredOAuthProviders(),
             oauth_configured: checkOAuthConfigured(),
             llm_providers: checkLLMProviders(),
           },
@@ -97,7 +97,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           uptime: process.uptime(),
           memory_usage: process.memoryUsage(),
           cpu_usage: process.cpuUsage(),
-          oauth_provider: process.env.OAUTH_PROVIDER || 'google',
+          oauth_providers: checkConfiguredOAuthProviders(),
           oauth_configured: checkOAuthConfigured(),
           llm_providers: checkLLMProviders(),
         };
@@ -127,7 +127,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             git_branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
           },
           configuration: {
-            oauth_provider: process.env.OAUTH_PROVIDER || 'google',
+            oauth_providers: checkConfiguredOAuthProviders(),
             oauth_configured: checkOAuthConfigured(),
             llm_providers: checkLLMProviders(),
             transport_mode: 'streamable_http',
@@ -165,29 +165,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /**
- * Check if OAuth is properly configured
+ * Check which OAuth providers are configured
+ */
+function checkConfiguredOAuthProviders(): string[] {
+  const providers: string[] = [];
+
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    providers.push('google');
+  }
+  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+    providers.push('github');
+  }
+  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
+    providers.push('microsoft');
+  }
+  if (process.env.OAUTH_CLIENT_ID && process.env.OAUTH_CLIENT_SECRET &&
+      process.env.OAUTH_AUTHORIZATION_URL && process.env.OAUTH_TOKEN_URL &&
+      process.env.OAUTH_USER_INFO_URL) {
+    providers.push('generic');
+  }
+
+  return providers;
+}
+
+/**
+ * Check if OAuth is properly configured (at least one provider)
  */
 function checkOAuthConfigured(): boolean {
-  const provider = process.env.OAUTH_PROVIDER || 'google';
-
-  switch (provider) {
-    case 'google':
-      return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
-    case 'github':
-      return !!(process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET);
-    case 'microsoft':
-      return !!(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
-    case 'generic':
-      return !!(
-        process.env.OAUTH_CLIENT_ID &&
-        process.env.OAUTH_CLIENT_SECRET &&
-        process.env.OAUTH_AUTHORIZATION_URL &&
-        process.env.OAUTH_TOKEN_URL &&
-        process.env.OAUTH_USER_INFO_URL
-      );
-    default:
-      return false;
-  }
+  return checkConfiguredOAuthProviders().length > 0;
 }
 
 /**

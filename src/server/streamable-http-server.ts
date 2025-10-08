@@ -101,29 +101,38 @@ export class MCPStreamableHttpServer {
     // Initialize token store for protected DCR endpoints
     this.tokenStore = TokenStoreFactory.create();
 
-    // OAuth routes (only if auth is required)
-    if (this.options.requireAuth) {
-      // Try multi-provider setup first
-      const multiProviders = await OAuthProviderFactory.createAllFromEnvironment();
+    // Initialize OAuth providers (always try, regardless of requireAuth)
+    const multiProviders = await OAuthProviderFactory.createAllFromEnvironment();
 
-      if (multiProviders && multiProviders.size > 0) {
-        // Multi-provider mode
-        this.oauthProviders = multiProviders;
-        logger.info('Multi-provider OAuth enabled', {
-          providers: Array.from(multiProviders.keys()),
-          count: multiProviders.size
-        });
+    if (multiProviders && multiProviders.size > 0) {
+      // OAuth providers found - store them for discovery endpoints
+      this.oauthProviders = multiProviders;
+      logger.info('OAuth providers configured', {
+        providers: Array.from(multiProviders.keys()),
+        count: multiProviders.size,
+        authRequired: this.options.requireAuth
+      });
 
-        // Setup multi-provider OAuth routes
+      // Setup OAuth routes if auth is required
+      if (this.options.requireAuth) {
         setupOAuthRoutes(this.app, this.oauthProviders, this.clientStore);
+        logger.info('OAuth authentication enabled');
       } else {
-        // No OAuth providers configured
-        throw new Error('OAuth authentication is required but no OAuth providers are configured. Set provider credentials for at least one provider (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET).');
+        logger.info('OAuth authentication skipped (MCP_DEV_SKIP_AUTH=true)');
+        // Set up DCR routes for testing/development
+        const { setupDCRRoutes } = await import('./routes/dcr-routes.js');
+        setupDCRRoutes(this.app, this.clientStore);
       }
     } else {
-      // Even without OAuth, set up DCR routes for testing/development
-      const { setupDCRRoutes } = await import('./routes/dcr-routes.js');
-      setupDCRRoutes(this.app, this.clientStore);
+      // No OAuth providers configured
+      if (this.options.requireAuth) {
+        throw new Error('OAuth authentication is required but no OAuth providers are configured. Set provider credentials for at least one provider (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET).');
+      } else {
+        logger.warn('No OAuth providers configured');
+        // Set up DCR routes for testing/development
+        const { setupDCRRoutes } = await import('./routes/dcr-routes.js');
+        setupDCRRoutes(this.app, this.clientStore);
+      }
     }
 
     // OAuth discovery routes (available even without auth)

@@ -76,7 +76,7 @@ export function setupAdminRoutes(
       mode: 'serverless',
       version: process.env.npm_package_version || '1.0.0',
       node_version: process.version,
-      oauth_provider: configuredOAuthProviders.length > 0 ? configuredOAuthProviders[0] : 'none',
+      oauth_providers: configuredOAuthProviders,
       oauth_configured: configuredOAuthProviders.length > 0,
       llm_providers: llmProviders
     });

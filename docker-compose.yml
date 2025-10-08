@@ -1,11 +1,8 @@
-version: '3.8'
-
 services:
-  # Redis service for session storage
-  # Note: Using external Redis container if already running
+  # Redis service for session storage (shared across all MCP server instances)
   redis:
     image: redis:7-alpine
-    container_name: mcp-redis-lb
+    container_name: mcp-redis-compose
     ports:
       - "6380:6379"
     networks:
@@ -15,94 +12,39 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    profiles:
-      - loadbalanced
-
-  # Single-instance profiles (original setup)
-  # MCP server with Google OAuth
-  mcp-server-google:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mcp-server-google
-    ports:
-      - "3000:3000"
-    environment:
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-    env_file:
-      - .env.google
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - mcp-network
-    profiles:
-      - google
-
-  # MCP server with GitHub OAuth
-  mcp-server-github:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mcp-server-github
-    ports:
-      - "3000:3000"
-    environment:
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-    env_file:
-      - .env.github
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - mcp-network
-    profiles:
-      - github
-
-  # MCP server with Microsoft OAuth
-  mcp-server-microsoft:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mcp-server-microsoft
-    ports:
-      - "3000:3000"
-    environment:
-      REDIS_URL: redis://redis:6379
-      NODE_ENV: production
-    env_file:
-      - .env.microsoft
-    depends_on:
-      redis:
-        condition: service_healthy
-    networks:
-      - mcp-network
-    profiles:
-      - microsoft
 
   # Load-balanced multi-instance setup
+  # Docker is EXCLUSIVELY for multi-node load-balanced testing via nginx on port 8080
+  #
+  # OAuth Configuration:
+  # - Uses .env.oauth.docker (optional) with redirect URIs for localhost:8080
+  # - If .env.oauth.docker exists with MCP_DEV_SKIP_AUTH=false, OAuth is enabled
+  # - If .env.oauth.docker doesn't exist, runs without OAuth for simple multi-node testing
+  # - Redis shared across all instances for session persistence
+
   # MCP server instance 1
   mcp-server-1:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      REDIS_URL: redis://host.docker.internal:6379
+      REDIS_URL: redis://redis:6379
       NODE_ENV: development
-      MCP_DEV_SKIP_AUTH: "true"
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
       OTEL_SERVICE_NAME: "mcp-server-1"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      grafana-otel:
+        condition: service_healthy
     networks:
       - mcp-network
-    profiles:
-      - loadbalanced
 
   # MCP server instance 2
   mcp-server-2:
@@ -110,20 +52,23 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      REDIS_URL: redis://host.docker.internal:6379
+      REDIS_URL: redis://redis:6379
       NODE_ENV: development
-      MCP_DEV_SKIP_AUTH: "true"
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
       OTEL_SERVICE_NAME: "mcp-server-2"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      grafana-otel:
+        condition: service_healthy
     networks:
       - mcp-network
-    profiles:
-      - loadbalanced
 
   # MCP server instance 3
   mcp-server-3:
@@ -131,20 +76,23 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      REDIS_URL: redis://host.docker.internal:6379
+      REDIS_URL: redis://redis:6379
       NODE_ENV: development
-      MCP_DEV_SKIP_AUTH: "true"
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://host.docker.internal:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
       OTEL_SERVICE_NAME: "mcp-server-3"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      grafana-otel:
+        condition: service_healthy
     networks:
       - mcp-network
-    profiles:
-      - loadbalanced
 
   # Nginx load balancer
   nginx:
@@ -160,8 +108,25 @@ services:
       - mcp-server-3
     networks:
       - mcp-network
-    profiles:
-      - loadbalanced
+
+  # Grafana OTEL LGTM Stack - Observability (Logs, Traces, Metrics)
+  # Provides production-like observability pipeline for all MCP server instances
+  grafana-otel:
+    image: grafana/otel-lgtm:latest
+    container_name: mcp-grafana-otel
+    ports:
+      - "3200:3000"   # Grafana UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP (used by MCP servers)
+    networks:
+      - mcp-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
 networks:
   mcp-network:

@@ -69,9 +69,9 @@ npm run dev:clean:tokens        # Clean only access tokens
 npm run dev:clean:oauth         # Clean only OAuth clients
 
 # Observability and Development Monitoring
-npm run otel:start              # Start Grafana OTEL-LGTM stack (port 3100)
+npm run otel:start              # Start Grafana OTEL-LGTM stack (port 3200)
 npm run otel:stop               # Stop observability stack
-npm run otel:ui                 # Open Grafana dashboard (http://localhost:3100)
+npm run otel:ui                 # Open Grafana dashboard (http://localhost:3200)
 npm run dev:with-otel           # Start MCP server with observability
 npm run otel:test               # Send test telemetry data
 npm run otel:validate           # Validate OTEL setup and connectivity
@@ -92,12 +92,28 @@ npm run run:docker:with-redis:github    # Run with Redis + GitHub OAuth
 npm run run:docker:with-redis:microsoft # Run with Redis + Microsoft OAuth
 npm run run:docker:redis:stop           # Stop and remove Redis container
 
-# Docker Compose (self-contained with local Redis - requires docker-compose)
-# Note: Uses docker-compose.yml with profiles for provider selection
-docker compose --profile google up      # Google OAuth with local Redis
-docker compose --profile github up      # GitHub OAuth with local Redis
-docker compose --profile microsoft up   # Microsoft OAuth with local Redis
-docker compose down -v                  # Stop and clean up
+# Docker Compose (EXCLUSIVELY for multi-node load-balanced testing)
+# - Nginx load balancer on port 8080 with 3 backend MCP server instances
+# - Redis for shared session persistence across instances
+# - Grafana OTEL LGTM stack for observability (logs, traces, metrics)
+# - Runs without OAuth by default (MCP_DEV_SKIP_AUTH=true)
+# - Optional .env.oauth.docker to enable OAuth testing (set MCP_DEV_SKIP_AUTH=false)
+
+docker compose up          # Start load-balanced setup with full observability
+docker compose down        # Stop all containers
+docker compose down -v     # Stop and clean up volumes
+
+# Test the load-balanced setup:
+curl http://localhost:8080/health       # MCP server health (via nginx)
+open http://localhost:3200              # Grafana dashboard (user: admin, pass: admin)
+
+# Services running:
+# - nginx:         localhost:8080 (load balancer)
+# - mcp-server-1:  Internal (backend instance 1)
+# - mcp-server-2:  Internal (backend instance 2)
+# - mcp-server-3:  Internal (backend instance 3)
+# - redis:         localhost:6380 (session storage)
+# - grafana-otel:  localhost:3200 (observability UI)
 
 # Vercel deployment (Preview Only)
 npm run dev:vercel               # Local Vercel development server
@@ -298,6 +314,28 @@ Configure one or more OAuth providers. The server will detect all configured pro
 - `MICROSOFT_TENANT_ID` (optional, defaults to: common)
 - `MICROSOFT_REDIRECT_URI` (optional, auto-generated if not set)
 - `MICROSOFT_SCOPES` (optional, defaults to: openid,email,profile)
+
+### Environment File Conventions
+
+**Local Development:**
+- **`.env.oauth`** - OAuth configuration for local TypeScript development
+  - Used by `npm run dev:oauth` (runs on `localhost:3000`)
+  - Contains OAuth redirect URIs for `localhost:3000` (direct server)
+  - Multi-provider support (Google, GitHub, Microsoft)
+
+**Docker Deployment:**
+- **`.env.oauth.docker`** - Docker-specific OAuth configuration (NEVER committed to git)
+  - EXCLUSIVELY used by `docker-compose.yml` for multi-node load-balanced testing
+  - Contains OAuth redirect URIs for `localhost:8080` (nginx load balancer)
+  - **Optional** - if not present, Docker runs without OAuth (`MCP_DEV_SKIP_AUTH=true`)
+  - To enable OAuth: create `.env.oauth.docker` and set `MCP_DEV_SKIP_AUTH=false`
+  - Multi-provider support (Google, GitHub, Microsoft)
+
+**Why separate files?**
+- Local development (`npm run dev:oauth`) uses port 3000 → requires `.env.oauth`
+- Docker Compose uses nginx on port 8080 → requires `.env.oauth.docker`
+- Different OAuth redirect URIs for each deployment method
+- Both files covered by `.env.oauth*` in .gitignore (never committed)
 
 ## OAuth Client Integration
 

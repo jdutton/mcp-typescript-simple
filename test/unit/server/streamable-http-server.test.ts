@@ -227,6 +227,11 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('returns OAuth not configured for authorization server metadata', async () => {
+    // Mock no OAuth providers for this test
+    Object.assign(OAuthProviderFactory, {
+      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+    });
+
     const server = makeServer();
     await server.initialize();
     const app = server.getApp();
@@ -243,6 +248,11 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('returns OAuth not configured for protected resource metadata', async () => {
+    // Mock no OAuth providers for this test
+    Object.assign(OAuthProviderFactory, {
+      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+    });
+
     const server = makeServer();
     await server.initialize();
     const app = server.getApp();
@@ -351,6 +361,11 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('returns MCP metadata without OAuth configured', async () => {
+    // Mock no OAuth providers for this test
+    Object.assign(OAuthProviderFactory, {
+      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+    });
+
     const server = makeServer({
       endpoint: '/custom-mcp',
       enableResumability: true
@@ -390,6 +405,11 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('returns OpenID Connect configuration without OAuth', async () => {
+    // Mock no OAuth providers for this test
+    Object.assign(OAuthProviderFactory, {
+      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+    });
+
     const server = makeServer();
     await server.initialize();
     const app = server.getApp();
@@ -409,6 +429,24 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('uses forwarded headers for base URL calculation', async () => {
+    // Ensure OAuth providers are mocked for this test (testing with OAuth configured)
+    const mockProvider = {
+      getEndpoints: () => ({
+        authEndpoint: '/auth',
+        callbackEndpoint: '/callback',
+        refreshEndpoint: '/refresh',
+        logoutEndpoint: '/logout',
+        tokenExchangeEndpoint: '/token'
+      }),
+      getProviderType: () => 'google',
+      getProviderName: () => 'Google'
+    };
+    Object.assign(OAuthProviderFactory, {
+      createAllFromEnvironment: jest.fn().mockResolvedValue(
+        new Map([['google', mockProvider]])
+      )
+    });
+
     const server = makeServer();
     await server.initialize();
     const app = server.getApp();
@@ -420,7 +458,7 @@ describe('MCPStreamableHttpServer', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.issuer).toBe('https://example.com');
-    expect(response.body.configuration_endpoint).toBe('https://example.com/.well-known/oauth-authorization-server');
+    expect(response.body.authorization_endpoint).toBeDefined();
   });
 
   it('uses secure flag for HTTPS detection', async () => {

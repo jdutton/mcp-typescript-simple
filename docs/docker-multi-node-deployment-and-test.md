@@ -35,7 +35,7 @@ The multi-node deployment consists of:
                     │
                     ▼
           ┌──────────────────────┐
-          │ OpenTelemetry OTEL   │  Port 3100 (Grafana)
+          │ OpenTelemetry OTEL   │  Port 3200 (Grafana)
           │  (Observability)     │  Port 4317-4318 (OTLP)
           └──────────────────────┘
 ```
@@ -133,12 +133,12 @@ curl -X POST http://localhost:8080/mcp \
 | Port | Service | Purpose | Use This For |
 |------|---------|---------|--------------|
 | **8080** | **Nginx Load Balancer** | **MCP Requests** | **All MCP protocol testing** |
-| 3100 | Grafana (OTEL) | Observability UI | Monitoring/logs (separate service) |
+| 3200 | Grafana (OTEL) | Observability UI | Monitoring/logs (separate service) |
 | 6379 | Redis | Session storage | Internal (used by MCP servers) |
 | 6380 | Redis LB | Redis load balancer | Alternative Redis endpoint |
 | 4317-4318 | OTLP | OpenTelemetry ingestion | Telemetry data (internal) |
 
-**Common Mistake**: Port 3100 is the Grafana observability dashboard, NOT the MCP server. Always use port 8080 for MCP requests.
+**Common Mistake**: Port 3200 is the Grafana observability dashboard, NOT the MCP server. Always use port 8080 for MCP requests.
 
 ## Configuration
 
@@ -337,16 +337,16 @@ The multi-node deployment integrates with OpenTelemetry for distributed tracing.
 ### Start Observability Stack
 
 ```bash
-# Start Grafana OTEL stack (port 3100)
+# Start Grafana OTEL stack (port 3200)
 npm run otel:start
 
 # Verify it's running
-curl http://localhost:3100/
+curl http://localhost:3200/
 ```
 
 ### View Distributed Traces
 
-1. **Open Grafana**: http://localhost:3100
+1. **Open Grafana**: http://localhost:3200
 2. **Navigate to Tempo** (distributed tracing)
 3. **Filter by service**: `mcp-server-1`, `mcp-server-2`, `mcp-server-3`
 4. **View traces**: See requests flowing through load balancer to different instances
@@ -403,11 +403,11 @@ docker-compose --profile loadbalanced up -d --scale mcp-server-1=5
 
 ## Troubleshooting
 
-### Port 3100 Not Returning JSON
+### Port 3200 Not Returning JSON
 
-**Problem**: `curl http://localhost:3100/health` returns HTML (Grafana UI) instead of JSON.
+**Problem**: `curl http://localhost:3200/health` returns HTML (Grafana UI) instead of JSON.
 
-**Solution**: Port 3100 is the Grafana observability dashboard, NOT the MCP server. Use port 8080:
+**Solution**: Port 3200 is the Grafana observability dashboard, NOT the MCP server. Use port 8080:
 ```bash
 curl http://localhost:8080/health
 ```
