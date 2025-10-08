@@ -44,6 +44,8 @@ npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
 npm run test:models          # Validate ALL LLM models with real API calls (requires API keys)
 
 npm run validate         # Complete validation (unit → integration → build)
+                         # Skips validation if already passed for current worktree
+npm run validate -- --force  # Force re-validation even if already passed
 
 # Code quality
 npm run lint             # ESLint code checking
@@ -465,6 +467,10 @@ The CI pipeline includes 10 comprehensive test categories:
 10. Docker Build
 
 **ALL tests must pass** before code can be merged. No exceptions.
+
+## Validation Error Handling with Sub-Agents
+
+**When `npm run validate` fails, ALWAYS launch the `validation-fixer` sub-agent to fix errors.** Read `.validation-state` for the ready-to-use `agentPrompt` field.
 
 ## Security Requirements
 

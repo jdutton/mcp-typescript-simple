@@ -68,7 +68,7 @@
     "docs:validate": "redocly lint openapi.yaml",
     "docs:preview": "redocly preview-docs openapi.yaml",
     "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",
-    "validate": "npm run typecheck && npm run lint && npm run test:unit && npm run build && npm run test:openapi && npm run test:integration && npm run test:system:stdio && npm run test:system:ci"
+    "validate": "npx tsx tools/run-validation-with-state.ts"
   },
   "keywords": [
     "mcp",

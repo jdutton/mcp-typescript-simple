@@ -222,6 +222,42 @@ npm run test:mcp            # MCP protocol testing
 2. Run full pre-commit check: `npm run pre-commit`
 3. If merge needed: `git merge origin/main` then `npm run pre-commit`
 
+### Validation State Tracking
+
+The project uses validation state tracking to prevent commits without validation and optimize pre-commit workflow.
+
+#### How It Works
+1. `npm run validate` runs all checks and creates validation state:
+   - `.validation-state` - Git tree hash, timestamp, pass/fail status (git-ignored)
+   - `/tmp/mcp-validation-TIMESTAMP.log` - Full validation output for debugging
+
+2. `npm run pre-commit` checks validation state:
+   - ✅ **Valid & current** → Skip full validation, run fast checks only (⚡ fast mode)
+   - ⚠️ **Stale** → Code changed since validation, must run `npm run validate` first
+   - ❌ **Failed** → Fix errors before committing
+
+3. Git tree hash ensures exact code state match:
+   - Cannot be faked (cryptographic hash)
+   - Any code change invalidates state
+   - Prevents commits without validation
+
+#### For Claude Code Users
+When validation fails, Claude Code should launch the `validation-fixer` sub-agent to preserve context.
+See `CLAUDE.md` for detailed sub-agent usage.
+
+#### For Human Developers
+When validation fails:
+1. Check the log file path shown in error message
+2. `cat /tmp/mcp-validation-TIMESTAMP.log` to see full output
+3. Fix errors manually
+4. Run `npm run validate` to confirm
+5. Run `npm run pre-commit` to proceed
+
+#### Log File Cleanup
+- Log files saved to `/tmp/mcp-validation-*.log`
+- Auto-cleaned by OS (typically 30 days on macOS/Linux)
+- Manual cleanup: Logs >7 days removed automatically on next validation
+
 ### OAuth Flow Validation
 1. Start with health check: `./tools/test-oauth.ts`
 2. Test interactive flow: `./tools/test-oauth.ts --flow`
