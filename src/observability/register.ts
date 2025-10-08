@@ -7,7 +7,7 @@
  */
 
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { resourceFromAttributes, defaultResource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
@@ -40,7 +40,7 @@ if (environment === 'test') {
   console.debug('[OTEL] Skipping initialization in test environment');
 } else {
   try {
-    const serviceName = 'mcp-typescript-simple';
+    const serviceName = process.env.OTEL_SERVICE_NAME || 'mcp-typescript-simple';
     const serviceVersion = process.env.npm_package_version || '1.0.0';
     const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
 
@@ -51,12 +51,13 @@ if (environment === 'test') {
     });
 
     // Create resource with service information
-    const resource = defaultResource().merge(resourceFromAttributes({
+    // Use resourceFromAttributes() directly to ensure our service name takes precedence over defaults
+    const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: serviceName,
       [ATTR_SERVICE_VERSION]: serviceVersion,
       [SEMRESATTRS_SERVICE_NAMESPACE]: environment === 'production' ? 'prod' : 'dev',
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment
-    }));
+    });
 
     // Configure exporters
     const traceExporter = new OTLPTraceExporter({

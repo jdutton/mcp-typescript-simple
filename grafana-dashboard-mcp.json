@@ -1,7 +1,11 @@
 {
   "dashboard": {
     "title": "MCP Server Monitoring",
-    "tags": ["mcp", "oauth", "load-balancer"],
+    "tags": [
+      "mcp",
+      "oauth",
+      "load-balancer"
+    ],
     "timezone": "browser",
     "schemaVersion": 39,
     "version": 1,
@@ -11,20 +15,37 @@
       "to": "now"
     },
     "timepicker": {
-      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m"]
+      "refresh_intervals": [
+        "5s",
+        "10s",
+        "30s",
+        "1m",
+        "5m"
+      ]
     },
     "panels": [
       {
         "id": 1,
         "title": "Log Volume by Service",
         "type": "timeseries",
-        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "sum by (service_name) (rate({service_name=~\"mcp-server-.*\"} [1m]))",
+            "expr": "sum by (service_name) (rate({service_name=\"mcp-typescript-simple\"} [1m]))",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"},
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            },
             "legendFormat": "{{service_name}}"
           }
         ],
@@ -38,25 +59,43 @@
               "axisPlacement": "auto"
             },
             "unit": "logs/s",
-            "color": {"mode": "palette-classic"}
+            "color": {
+              "mode": "palette-classic"
+            }
           }
         },
         "options": {
-          "tooltip": {"mode": "multi"},
-          "legend": {"displayMode": "list", "placement": "bottom"}
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
         }
       },
       {
         "id": 2,
         "title": "Error Logs",
         "type": "timeseries",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "sum by (service_name) (rate({service_name=~\"mcp-server-.*\"} |= \"ERROR\" [1m]))",
+            "expr": "sum by (service_name) (rate({service_name=\"mcp-typescript-simple\"} |= \"ERROR\" [1m]))",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"},
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            },
             "legendFormat": "{{service_name}}"
           }
         ],
@@ -70,37 +109,66 @@
               "axisPlacement": "auto"
             },
             "unit": "errors/s",
-            "color": {"mode": "palette-classic"}
+            "color": {
+              "mode": "palette-classic"
+            }
           }
         },
         "options": {
-          "tooltip": {"mode": "multi"},
-          "legend": {"displayMode": "list", "placement": "bottom"}
+          "tooltip": {
+            "mode": "multi"
+          },
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
         }
       },
       {
         "id": 3,
         "title": "Total Log Lines (5m)",
         "type": "stat",
-        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 8},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 8
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "sum(count_over_time({service_name=~\"mcp-server-.*\"} [5m]))",
+            "expr": "sum(count_over_time({service_name=\"mcp-typescript-simple\"} [5m]))",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "short",
-            "color": {"mode": "thresholds"},
+            "color": {
+              "mode": "thresholds"
+            },
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"value": null, "color": "blue"},
-                {"value": 100, "color": "green"},
-                {"value": 1000, "color": "yellow"}
+                {
+                  "value": null,
+                  "color": "blue"
+                },
+                {
+                  "value": 100,
+                  "color": "green"
+                },
+                {
+                  "value": 1000,
+                  "color": "yellow"
+                }
               ]
             }
           }
@@ -112,7 +180,9 @@
           "orientation": "auto",
           "reduceOptions": {
             "values": false,
-            "calcs": ["lastNotNull"]
+            "calcs": [
+              "lastNotNull"
+            ]
           },
           "textMode": "auto"
         }
@@ -121,25 +191,47 @@
         "id": 4,
         "title": "Error Count (5m)",
         "type": "stat",
-        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 8},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 8
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "sum(count_over_time({service_name=~\"mcp-server-.*\"} |= \"ERROR\" [5m]))",
+            "expr": "sum(count_over_time({service_name=\"mcp-typescript-simple\"} |= \"ERROR\" [5m]))",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "fieldConfig": {
           "defaults": {
             "unit": "short",
-            "color": {"mode": "thresholds"},
+            "color": {
+              "mode": "thresholds"
+            },
             "thresholds": {
               "mode": "absolute",
               "steps": [
-                {"value": null, "color": "green"},
-                {"value": 1, "color": "yellow"},
-                {"value": 10, "color": "red"}
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "yellow"
+                },
+                {
+                  "value": 10,
+                  "color": "red"
+                }
               ]
             }
           }
@@ -151,7 +243,9 @@
           "orientation": "auto",
           "reduceOptions": {
             "values": false,
-            "calcs": ["lastNotNull"]
+            "calcs": [
+              "lastNotNull"
+            ]
           },
           "textMode": "auto"
         }
@@ -160,13 +254,24 @@
         "id": 5,
         "title": "Service Distribution",
         "type": "piechart",
-        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "sum by (service_name) (count_over_time({service_name=~\"mcp-server-.*\"} [5m]))",
+            "expr": "sum by (service_name) (count_over_time({service_name=\"mcp-typescript-simple\"} [5m]))",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"},
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            },
             "legendFormat": "{{service_name}}"
           }
         ],
@@ -174,23 +279,39 @@
           "legend": {
             "displayMode": "table",
             "placement": "right",
-            "values": ["value", "percent"]
+            "values": [
+              "value",
+              "percent"
+            ]
           },
           "pieType": "pie",
-          "tooltip": {"mode": "single"}
+          "tooltip": {
+            "mode": "single"
+          }
         }
       },
       {
         "id": 6,
         "title": "Recent Error Logs",
         "type": "logs",
-        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 16},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 10,
+          "w": 24,
+          "x": 0,
+          "y": 16
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "{service_name=~\"mcp-server-.*\"} |= \"ERROR\"",
+            "expr": "{service_name=\"mcp-typescript-simple\"} |= \"ERROR\"",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "options": {
@@ -208,13 +329,24 @@
         "id": 7,
         "title": "MCP Request Timeline",
         "type": "logs",
-        "gridPos": {"h": 12, "w": 24, "x": 0, "y": 26},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 12,
+          "w": 24,
+          "x": 0,
+          "y": 26
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "{service_name=~\"mcp-server-.*\"} | json | mcpMethod != \"\"",
+            "expr": "{service_name=\"mcp-typescript-simple\"} | json | mcpMethod != \"\"",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "options": {
@@ -232,13 +364,24 @@
         "id": 8,
         "title": "OAuth Flow Events",
         "type": "logs",
-        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 38},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 10,
+          "w": 24,
+          "x": 0,
+          "y": 38
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "{service_name=~\"mcp-server-.*\"} |~ \"OAuth|oauth|authorization|callback\"",
+            "expr": "{service_name=\"mcp-typescript-simple\"} |~ \"OAuth|oauth|authorization|callback\"",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "options": {
@@ -256,13 +399,24 @@
         "id": 9,
         "title": "All MCP Server Logs",
         "type": "logs",
-        "gridPos": {"h": 12, "w": 24, "x": 0, "y": 48},
-        "datasource": {"type": "loki", "uid": "loki"},
+        "gridPos": {
+          "h": 12,
+          "w": 24,
+          "x": 0,
+          "y": 48
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "{service_name=~\"mcp-server-.*\"}",
+            "expr": "{service_name=\"mcp-typescript-simple\"}",
             "refId": "A",
-            "datasource": {"type": "loki", "uid": "loki"}
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            }
           }
         ],
         "options": {
