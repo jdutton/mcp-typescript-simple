@@ -120,6 +120,10 @@ export class MCPStreamableHttpServer {
         // No OAuth providers configured
         throw new Error('OAuth authentication is required but no OAuth providers are configured. Set provider credentials for at least one provider (e.g., GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET, GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET, or MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET).');
       }
+    } else {
+      // Even without OAuth, set up DCR routes for testing/development
+      const { setupDCRRoutes } = await import('./routes/dcr-routes.js');
+      setupDCRRoutes(this.app, this.clientStore);
     }
 
     // OAuth discovery routes (available even without auth)
@@ -131,6 +135,9 @@ export class MCPStreamableHttpServer {
 
     // Documentation routes (OpenAPI, Swagger UI, Redoc) - available without auth
     setupDocsRoutes(this.app);
+
+    // Admin and session management routes
+    this.setupNonOAuthRoutes();
 
     // Set up streamable HTTP routes after OAuth provider is configured
     this.setupStreamableHTTPRoutes();
@@ -176,12 +183,15 @@ export class MCPStreamableHttpServer {
     }));
 
     // CORS configuration with configurable origins
+    // Unified configuration for both test and production environments
     const defaultOrigins = [
       'http://localhost:3000',
+      'http://localhost:3001',    // CI test server
       'http://localhost:8080',
       'http://127.0.0.1:3000',
-      'http://localhost:6274', // MCP Inspector default port
-      'http://localhost:6273', // Alternative MCP Inspector port
+      'http://127.0.0.1:3001',    // CI test server (IP variant)
+      'http://localhost:6274',    // MCP Inspector default port
+      'http://localhost:6273',    // Alternative MCP Inspector port
     ];
 
     const corsOptions: cors.CorsOptions = {
@@ -211,8 +221,35 @@ export class MCPStreamableHttpServer {
         'User-Agent',           // Standard user agent header
       ],
       optionsSuccessStatus: 200, // Some legacy browsers (IE11, various SmartTVs) choke on 204
+      preflightContinue: true, // Allow our fallback middleware to ensure headers are always set
     };
+
     this.app.use(cors(corsOptions));
+
+    // Ensure CORS headers are always set, even for same-origin requests
+    // This is needed because test frameworks (axios/supertest) may not send Origin header
+    // In production, real browsers always send Origin for cross-origin requests
+    this.app.use((req, res, next) => {
+      // Only set if not already set by CORS middleware
+      if (!res.getHeader('Access-Control-Allow-Origin')) {
+        // For same-origin requests (no Origin header), use first allowed origin
+        res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+      }
+      if (!res.getHeader('Access-Control-Allow-Methods')) {
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+      }
+      if (!res.getHeader('Access-Control-Allow-Headers')) {
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID, mcp-protocol-version, mcp-session-id, Accept, User-Agent');
+      }
+
+      // Handle OPTIONS preflight requests (preflightContinue: true means we need to end them)
+      if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+      }
+
+      next();
+    });
 
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));

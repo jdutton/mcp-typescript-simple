@@ -50,3 +50,7 @@ Thumbs.db
 # OAuth client registration data (test/development)
 data/
 .env*.local
+
+# Validation state (never commit - contains git tree hash and validation results)
+.validation-state
+.validation-state.yaml

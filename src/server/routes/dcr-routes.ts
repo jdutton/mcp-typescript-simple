@@ -100,10 +100,12 @@ export function setupDCRRoutes(
   router.post('/register', registerClientHandler);
 
   // Client Configuration Endpoint - GET /register/:client_id (RFC 7592 Section 2.1)
+  // Also supports query parameter format: GET /register?client_id=X
   const getClientHandler = async (req: Request, res: Response): Promise<void> => {
     try {
       setAntiCachingHeaders(res);
-      const clientId = req.params.client_id;
+      // Support both path param and query param for flexibility
+      const clientId = req.params.client_id || req.query.client_id as string;
       if (!clientId) {
         logger.warn('Client ID missing in request');
         res.status(400).json({
@@ -117,14 +119,17 @@ export function setupDCRRoutes(
       if (!client) {
         logger.warn('Client not found', { clientId });
         res.status(404).json({
-          error: 'not_found',
+          error: 'invalid_client',
           error_description: 'Client not found',
         });
         return;
       }
 
+      // Omit client_secret from response for security (RFC 7592)
+      const { client_secret, ...clientWithoutSecret } = client;
+
       logger.info('Client configuration retrieved', { clientId });
-      res.json(client);
+      res.json(clientWithoutSecret);
     } catch (error) {
       logger.error('Get client error', error);
       setAntiCachingHeaders(res);
@@ -134,13 +139,17 @@ export function setupDCRRoutes(
       });
     }
   };
+  // Support both path parameter and query parameter formats
   router.get('/register/:client_id', getClientHandler);
+  router.get('/register', getClientHandler);
 
   // Client Configuration Endpoint - DELETE /register/:client_id (RFC 7592 Section 2.3)
+  // Also supports query parameter format: DELETE /register?client_id=X
   const deleteClientHandler = async (req: Request, res: Response): Promise<void> => {
     try {
       setAntiCachingHeaders(res);
-      const clientId = req.params.client_id;
+      // Support both path param and query param for flexibility
+      const clientId = req.params.client_id || req.query.client_id as string;
       if (!clientId) {
         logger.warn('Client ID missing in request');
         res.status(400).json({
@@ -154,7 +163,7 @@ export function setupDCRRoutes(
       if (!deleted) {
         logger.warn('Client deletion failed: not found', { clientId });
         res.status(404).json({
-          error: 'not_found',
+          error: 'invalid_client',
           error_description: 'Client not found',
         });
         return;
@@ -171,5 +180,23 @@ export function setupDCRRoutes(
       });
     }
   };
+  // Support both path parameter and query parameter formats
   router.delete('/register/:client_id', deleteClientHandler);
+  router.delete('/register', deleteClientHandler);
+
+  // Handle unsupported HTTP methods on /register (return 405)
+  router.all('/register', (req: Request, res: Response) => {
+    res.status(405).json({
+      error: 'method_not_allowed',
+      error_description: `Method ${req.method} not allowed on /register`,
+      allowed_methods: ['GET', 'POST', 'DELETE']
+    });
+  });
+  router.all('/register/:client_id', (req: Request, res: Response) => {
+    res.status(405).json({
+      error: 'method_not_allowed',
+      error_description: `Method ${req.method} not allowed on /register/:client_id`,
+      allowed_methods: ['GET', 'DELETE']
+    });
+  });
 }

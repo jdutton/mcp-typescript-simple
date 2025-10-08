@@ -28,6 +28,14 @@ describeSystemTest('OAuth Flow End-to-End', () => {
     return;
   }
 
+  // Skip OAuth tests when auth is disabled (express:ci mode has MCP_DEV_SKIP_AUTH=true)
+  if (environment.name === 'express:ci') {
+    it('should skip OAuth flow tests when auth is disabled', () => {
+      console.log('ℹ️  OAuth flow tests skipped - auth disabled in express:ci mode (MCP_DEV_SKIP_AUTH=true)');
+    });
+    return;
+  }
+
   describe('Provider Selection Page (/auth/login)', () => {
     it('should return HTML with provider buttons', async () => {
       const response = await request(environment.baseUrl)
