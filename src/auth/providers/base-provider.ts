@@ -15,7 +15,9 @@ import {
   OAuthProviderType,
   OAuthStateError,
   OAuthTokenError,
+  OAuthProviderError,
   OAuthUserInfo,
+  OAuthTokenResponse,
   ProviderTokenResponse
 } from './types.js';
 import { logger } from '../../utils/logger.js';
@@ -275,11 +277,40 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract getEndpoints(): OAuthEndpoints;
   abstract getDefaultScopes(): string[];
   abstract handleAuthorizationRequest(req: Request, res: Response): Promise<void>;
-  abstract handleAuthorizationCallback(req: Request, res: Response): Promise<void>;
   abstract handleTokenRefresh(req: Request, res: Response): Promise<void>;
-  abstract handleLogout(req: Request, res: Response): Promise<void>;
-  abstract verifyAccessToken(token: string): Promise<AuthInfo>;
-  abstract getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+
+  /**
+   * Fetch user information from provider's API
+   *
+   * Each provider implements this to fetch user data from their specific endpoint.
+   * This is the ONLY provider-specific method that differs between implementations.
+   *
+   * @param accessToken - Valid access token
+   * @returns User information in standardized format
+   */
+  protected abstract fetchUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+
+  /**
+   * Get token URL for this provider (must be implemented by subclasses)
+   *
+   * This method returns the token endpoint URL used for token exchange.
+   *
+   * @returns Token endpoint URL
+   */
+  protected abstract getTokenUrl(): string;
+
+  /**
+   * Optional hook for provider-specific token revocation
+   *
+   * Default implementation does nothing. Providers like Microsoft that support
+   * token revocation can override this method.
+   *
+   * @param accessToken - Token to revoke
+   */
+  protected async revokeToken(accessToken: string): Promise<void> {
+    // Default: no-op
+    // Microsoft will override this
+  }
 
   /**
    * Build AuthInfo from cached token information
@@ -732,12 +763,15 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     logger.oauthDebug('Starting authorization request', { provider: providerName });
     logger.oauthDebug('Query parameters', { provider: providerName, query: req.query });
 
+    // Handle case where req.query is undefined (common in tests)
+    const query = req.query || {};
+
     return {
-      clientRedirectUri: req.query.redirect_uri as string,
-      clientCodeChallenge: req.query.code_challenge as string,
-      clientCodeChallengeMethod: req.query.code_challenge_method as string,
-      clientState: req.query.state as string,
-      clientId: req.query.client_id as string,
+      clientRedirectUri: query.redirect_uri as string,
+      clientCodeChallenge: query.code_challenge as string,
+      clientCodeChallengeMethod: query.code_challenge_method as string,
+      clientState: query.state as string,
+      clientId: query.client_id as string,
     };
   }
 
@@ -865,20 +899,23 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
     logger.oauthDebug('Handling token exchange from form data', { provider: providerName });
 
+    // Handle case where req.body is undefined (common in tests)
+    const body = req.body || {};
+
     // Log complete request body structure for debugging (redacted)
-    const bodyKeys = Object.keys(req.body);
+    const bodyKeys = Object.keys(body);
     logger.oauthDebug('Token exchange request body structure', {
       provider: providerName,
       bodyKeys,
-      hasGrantType: 'grant_type' in req.body,
-      hasCode: 'code' in req.body,
-      hasCodeVerifier: 'code_verifier' in req.body,
-      hasClientId: 'client_id' in req.body,
-      hasRedirectUri: 'redirect_uri' in req.body,
+      hasGrantType: 'grant_type' in body,
+      hasCode: 'code' in body,
+      hasCodeVerifier: 'code_verifier' in body,
+      hasClientId: 'client_id' in body,
+      hasRedirectUri: 'redirect_uri' in body,
       bodyKeyCount: bodyKeys.length
     });
 
-    const { grant_type, code, code_verifier, client_id, redirect_uri } = req.body;
+    const { grant_type, code, code_verifier, client_id, redirect_uri } = body;
 
     // Validate grant_type (RFC 6749 Section 4.1.3)
     if (grant_type !== 'authorization_code') {
@@ -951,6 +988,268 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       provider: this.getProviderType(),
       expiresAt: Date.now() + this.SESSION_TIMEOUT,
     };
+  }
+
+  /**
+   * Handle OAuth authorization callback (common implementation)
+   *
+   * This implementation is shared by GitHub, Microsoft, and Generic providers.
+   * Google uses its own implementation due to OAuth2Client library.
+   */
+  async handleAuthorizationCallback(req: Request, res: Response): Promise<void> {
+    try {
+      const { code, state, error } = req.query;
+
+      // Error handling
+      if (error) {
+        logger.oauthError(`${this.getProviderName()} OAuth error`, { error });
+        this.setAntiCachingHeaders(res);
+        res.status(400).json({ error: 'Authorization failed', details: error });
+        return;
+      }
+
+      // Parameter validation
+      if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
+        this.setAntiCachingHeaders(res);
+        res.status(400).json({ error: 'Missing authorization code or state' });
+        return;
+      }
+
+      // Validate session
+      logger.oauthDebug('Validating state', {
+        provider: this.getProviderType(),
+        statePrefix: state.substring(0, 8)
+      });
+      const session = await this.validateState(state);
+
+      // Handle client redirect flow
+      if (await this.handleClientRedirect(session, code, state, res)) {
+        return;
+      }
+
+      // Exchange code for tokens
+      const tokenData = await this.exchangeCodeForTokens(
+        this.getTokenUrl(),
+        code,
+        session.codeVerifier
+      );
+
+      if (!tokenData.access_token) {
+        throw new OAuthTokenError('No access token received', this.getProviderType());
+      }
+
+      // Get user information (calls subclass implementation)
+      const userInfo = await this.fetchUserInfo(tokenData.access_token);
+
+      // Check allowlist
+      const allowlistError = this.checkUserAllowlist(userInfo.email);
+      if (allowlistError) {
+        logger.warn('User denied by allowlist', {
+          email: userInfo.email,
+          provider: this.getProviderType()
+        });
+        this.setAntiCachingHeaders(res);
+        res.status(403).json({
+          error: 'access_denied',
+          error_description: allowlistError
+        });
+        return;
+      }
+
+      // Store token
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || undefined,
+        idToken: tokenData.id_token || undefined,
+        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+        userInfo,
+        provider: this.getProviderType(),
+        scopes: session.scopes,
+      };
+
+      await this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Clean up session
+      this.removeSession(state);
+
+      // Return response
+      const response: OAuthTokenResponse = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        id_token: tokenData.id_token,
+        expires_in: tokenData.expires_in || 3600,
+        token_type: 'Bearer',
+        scope: tokenData.scope,
+        user: userInfo,
+      };
+
+      this.setAntiCachingHeaders(res);
+      res.json(response);
+
+    } catch (error) {
+      logger.oauthError(`${this.getProviderName()} OAuth callback error`, error);
+      this.setAntiCachingHeaders(res);
+      res.status(500).json({
+        error: 'Authorization failed',
+        details: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Handle token exchange (common implementation)
+   */
+  async handleTokenExchange(req: Request, res: Response): Promise<void> {
+    try {
+      const validation = this.validateTokenExchangeRequest(req, res);
+      if (!validation.isValid) {
+        return;
+      }
+
+      const { code, code_verifier, redirect_uri } = validation;
+
+      // Resolve code_verifier
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+
+      // Validate code_verifier is available
+      if (!codeVerifierToUse) {
+        this.setAntiCachingHeaders(res);
+        res.status(400).json({
+          error: 'invalid_grant',
+          error_description: 'Authorization code is invalid, expired, or already used'
+        });
+        return;
+      }
+
+      // Log request
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+
+      // Exchange code for tokens
+      const tokenData = await this.exchangeCodeForTokens(
+        this.getTokenUrl(),
+        code!,
+        codeVerifierToUse,
+        {},
+        this.config.redirectUri
+      );
+
+      if (!tokenData.access_token) {
+        throw new OAuthTokenError('No access token received', this.getProviderType());
+      }
+
+      // Get user info
+      const userInfo = await this.fetchUserInfo(tokenData.access_token);
+
+      // Store token
+      const tokenInfo: StoredTokenInfo = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || undefined,
+        idToken: tokenData.id_token || undefined,
+        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+        userInfo,
+        provider: this.getProviderType(),
+        scopes: tokenData.scope?.split(/[,\s]+/).filter(Boolean) || [],
+      };
+
+      await this.storeToken(tokenData.access_token, tokenInfo);
+
+      // Cleanup
+      await this.cleanupAfterTokenExchange(code!);
+
+      // Response
+      const response: OAuthTokenResponse = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_in: tokenData.expires_in || 3600,
+        token_type: 'Bearer',
+        scope: tokenData.scope,
+        user: userInfo,
+      };
+
+      logger.oauthInfo('Token exchange successful', {
+        provider: this.getProviderType(),
+        userName: userInfo.name
+      });
+      this.setAntiCachingHeaders(res);
+      res.json(response);
+
+    } catch (error) {
+      logger.oauthError('Token exchange error', error);
+      this.setAntiCachingHeaders(res);
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
+  /**
+   * Handle logout (common implementation)
+   */
+  async handleLogout(req: Request, res: Response): Promise<void> {
+    try {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+
+        // Optional provider-specific revocation
+        try {
+          await this.revokeToken(token);
+        } catch (revokeError) {
+          logger.oauthWarn(`Failed to revoke ${this.getProviderName()} token`, { error: revokeError });
+        }
+
+        await this.removeToken(token);
+      }
+
+      this.setAntiCachingHeaders(res);
+      res.json({ success: true });
+    } catch (error) {
+      logger.oauthError(`${this.getProviderName()} logout error`, error);
+      this.setAntiCachingHeaders(res);
+      res.status(500).json({ error: 'Logout failed' });
+    }
+  }
+
+  /**
+   * Verify access token (common implementation)
+   */
+  async verifyAccessToken(token: string): Promise<AuthInfo> {
+    try {
+      // Check local store first
+      const tokenInfo = await this.getToken(token);
+      if (tokenInfo) {
+        return this.buildAuthInfoFromCache(token, tokenInfo);
+      }
+
+      // Fetch from provider API
+      const userInfo = await this.fetchUserInfo(token);
+      return this.buildAuthInfoFromUserInfo(token, userInfo);
+
+    } catch (error) {
+      logger.oauthError(`${this.getProviderName()} token verification error`, error);
+      throw new OAuthTokenError('Invalid or expired token', this.getProviderType());
+    }
+  }
+
+  /**
+   * Get user info (common implementation)
+   */
+  async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
+    try {
+      // Check local store first
+      const tokenInfo = await this.getToken(accessToken);
+      if (tokenInfo) {
+        return tokenInfo.userInfo;
+      }
+
+      // Fetch from provider API
+      return await this.fetchUserInfo(accessToken);
+
+    } catch (error) {
+      logger.oauthError(`${this.getProviderName()} getUserInfo error`, error);
+      throw new OAuthProviderError('Failed to get user information', this.getProviderType());
+    }
   }
 
   /**

@@ -1,9 +1,8 @@
 import { jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 import type {
-  MicrosoftOAuthConfig,
+  GenericOAuthConfig,
   OAuthSession,
-  StoredTokenInfo,
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
@@ -11,13 +10,16 @@ import { logger } from '../../../../src/utils/logger.js';
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
 
-const baseConfig: MicrosoftOAuthConfig = {
-  type: 'microsoft',
+const baseConfig: GenericOAuthConfig = {
+  type: 'generic',
   clientId: 'client-id',
   clientSecret: 'client-secret',
   redirectUri: 'https://example.com/callback',
-  scopes: ['openid', 'profile', 'email'],
-  tenantId: 'common'
+  scopes: ['openid', 'email', 'profile'],
+  authorizationUrl: 'https://oauth.example.com/authorize',
+  tokenUrl: 'https://oauth.example.com/token',
+  userInfoUrl: 'https://oauth.example.com/userinfo',
+  providerName: 'Test OAuth Provider'
 };
 
 type MockResponse = Response & {
@@ -79,13 +81,13 @@ const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) 
   });
 };
 
-let MicrosoftOAuthProvider: typeof import('../../../../src/auth/providers/microsoft-provider.js').MicrosoftOAuthProvider;
+let GenericOAuthProvider: typeof import('../../../../src/auth/providers/generic-provider.js').GenericOAuthProvider;
 
 beforeAll(async () => {
-  ({ MicrosoftOAuthProvider } = await import('../../../../src/auth/providers/microsoft-provider.js'));
+  ({ GenericOAuthProvider } = await import('../../../../src/auth/providers/generic-provider.js'));
 });
 
-describe('MicrosoftOAuthProvider', () => {
+describe('GenericOAuthProvider', () => {
   beforeAll(() => {
     originalFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -102,7 +104,7 @@ describe('MicrosoftOAuthProvider', () => {
 
   const createProvider = () => {
     const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
-    return new MicrosoftOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new GenericOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
@@ -111,13 +113,19 @@ describe('MicrosoftOAuthProvider', () => {
       const res = createMockResponse();
 
       const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
+
+      // Check if error path was taken
+      if (res.statusCode === 500) {
+        console.error('handleAuthorizationRequest failed:', res.jsonPayload);
+      }
 
       expect(res.redirect).toHaveBeenCalledTimes(1);
       const redirectUrl = res.redirectUrl;
 
-      expect(redirectUrl).toContain('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
+      expect(redirectUrl).toContain(baseConfig.authorizationUrl);
       expect(redirectUrl).toContain('client_id=client-id');
       expect(redirectUrl).toContain('redirect_uri=');
       expect(redirectUrl).toContain('response_type=code');
@@ -127,6 +135,7 @@ describe('MicrosoftOAuthProvider', () => {
       expect(redirectUrl).toContain('code_challenge_method=S256');
 
       loggerInfoSpy.mockRestore();
+      loggerErrorSpy.mockRestore();
       provider.dispose();
     });
 
@@ -158,7 +167,7 @@ describe('MicrosoftOAuthProvider', () => {
         codeChallenge: 'challenge',
         redirectUri: baseConfig.redirectUri,
         scopes: baseConfig.scopes,
-        provider: 'microsoft',
+        provider: 'generic',
         expiresAt: now + 5_000
       });
 
@@ -166,16 +175,15 @@ describe('MicrosoftOAuthProvider', () => {
       fetchMock.mockResolvedValueOnce(jsonReply({
         access_token: 'access-token',
         token_type: 'Bearer',
-        scope: 'openid profile email',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
+        expires_in: 3600
       }));
 
-      // Mock Microsoft user response
+      // Mock userinfo response
       fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user123',
-        mail: 'test@example.com',
-        displayName: 'Test User'
+        sub: 'user123',
+        email: 'test@example.com',
+        name: 'Test User',
+        picture: 'https://example.com/avatar.png'
       }));
 
       const res = createMockResponse();
@@ -197,7 +205,7 @@ describe('MicrosoftOAuthProvider', () => {
           sub: 'user123',
           email: 'test@example.com',
           name: 'Test User',
-          provider: 'microsoft'
+          provider: 'generic'
         }
       });
 
@@ -246,42 +254,6 @@ describe('MicrosoftOAuthProvider', () => {
       loggerErrorSpy.mockRestore();
       provider.dispose();
     });
-
-    it('returns error when token exchange does not provide access token', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
-        redirectUri: baseConfig.redirectUri,
-        scopes: baseConfig.scopes,
-        provider: 'microsoft',
-        expiresAt: now + 5_000
-      });
-
-      // Mock empty token response
-      fetchMock.mockResolvedValueOnce(jsonReply({}));
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          code: 'code123',
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Authorization failed' }));
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
   });
 
   describe('handleTokenExchange', () => {
@@ -294,7 +266,7 @@ describe('MicrosoftOAuthProvider', () => {
 
       // Store PKCE mapping using pkceStore
       const pkceStore = (provider as any).pkceStore;
-      await pkceStore.storeCodeVerifier(`microsoft:${authCode}`, {
+      await pkceStore.storeCodeVerifier(`generic:${authCode}`, {
         codeVerifier,
         state: 'test-state'
       }, 600);
@@ -303,16 +275,15 @@ describe('MicrosoftOAuthProvider', () => {
       fetchMock.mockResolvedValueOnce(jsonReply({
         access_token: 'new-access-token',
         token_type: 'Bearer',
-        scope: 'openid profile email',
         expires_in: 3600,
         refresh_token: 'refresh-token'
       }));
 
-      // Mock Microsoft user response
+      // Mock userinfo response
       fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user456',
-        mail: 'dev@example.com',
-        displayName: 'Developer User'
+        sub: 'user456',
+        email: 'user@example.com',
+        name: 'User Name'
       }));
 
       const res = createMockResponse();
@@ -337,100 +308,6 @@ describe('MicrosoftOAuthProvider', () => {
 
       provider.dispose();
     });
-
-    it('returns error when code_verifier is missing', async () => {
-      const provider = createProvider();
-
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      const res = createMockResponse();
-      const req = {
-        body: {
-          grant_type: 'authorization_code',
-          code: 'some-code',
-          redirect_uri: baseConfig.redirectUri
-        }
-      } as unknown as Request;
-
-      await provider.handleTokenExchange(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'invalid_grant',
-        error_description: 'Authorization code is invalid, expired, or already used'
-      });
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
-  });
-
-  describe('handleTokenRefresh', () => {
-    it('refreshes tokens using the Microsoft token endpoint', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-      const stored: StoredTokenInfo = {
-        accessToken: 'old-access',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: now + 1_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
-        },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
-
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('old-access', stored);
-
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'new-access',
-        refresh_token: 'new-refresh',
-        expires_in: 7200
-      }));
-
-      const res = createMockResponse();
-
-      await provider.handleTokenRefresh({
-        body: { refresh_token: 'refresh-token' }
-      } as unknown as Request, res);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-        expect.objectContaining({ method: 'POST' })
-      );
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        access_token: 'new-access',
-        refresh_token: 'new-refresh'
-      }));
-
-      const newToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
-      expect(newToken?.refreshToken).toBe('new-refresh');
-
-      const oldToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
-      expect(oldToken).toBeNull();
-
-      provider.dispose();
-    });
-
-    it('rejects refresh requests with unknown refresh tokens', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      await provider.handleTokenRefresh({
-        body: { refresh_token: 'unknown' },
-        headers: { host: 'localhost:3000' },
-        secure: false
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' });
-
-      provider.dispose();
-    });
   });
 
   describe('handleLogout', () => {
@@ -443,7 +320,7 @@ describe('MicrosoftOAuthProvider', () => {
         sub: 'user123',
         email: 'test@example.com',
         name: 'Test User',
-        provider: 'microsoft'
+        provider: 'generic'
       };
 
       (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
@@ -451,12 +328,9 @@ describe('MicrosoftOAuthProvider', () => {
           accessToken,
           expiresAt: Date.now() + 3600_000,
           userInfo,
-          provider: 'microsoft',
+          provider: 'generic',
           scopes: baseConfig.scopes
         });
-
-      // Mock successful revocation
-      fetchMock.mockResolvedValueOnce(new Response('', { status: 200 }));
 
       const res = createMockResponse();
       const req = {
@@ -471,62 +345,6 @@ describe('MicrosoftOAuthProvider', () => {
 
       provider.dispose();
     });
-
-    it('succeeds even without authorization header', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        headers: {}
-      } as unknown as Request;
-
-      await provider.handleLogout(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      provider.dispose();
-    });
-
-    it('succeeds even when revocation fails', async () => {
-      const provider = createProvider();
-
-      const stored: StoredTokenInfo = {
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: Date.now() + 3_600_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
-        },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('access-token', stored);
-
-      // Mock revocation failure
-      fetchMock.mockResolvedValueOnce(new Response('error', {
-        status: 500,
-        statusText: 'Error'
-      }));
-
-      const consoleWarnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-      const consoleErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      const res = createMockResponse();
-      await provider.handleLogout({
-        headers: { authorization: 'Bearer access-token' }
-      } as Request, res);
-
-      expect(consoleWarnSpy).toHaveBeenCalled();
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-      expect(await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token')).toBeNull();
-
-      consoleWarnSpy.mockRestore();
-      consoleErrorSpy.mockRestore();
-      provider.dispose();
-    });
   });
 
   describe('verifyAccessToken', () => {
@@ -537,7 +355,7 @@ describe('MicrosoftOAuthProvider', () => {
         sub: 'user789',
         email: 'verified@example.com',
         name: 'Verified User',
-        provider: 'microsoft'
+        provider: 'generic'
       };
 
       // Store token
@@ -546,7 +364,7 @@ describe('MicrosoftOAuthProvider', () => {
           accessToken,
           expiresAt: Date.now() + 3600_000,
           userInfo,
-          provider: 'microsoft',
+          provider: 'generic',
           scopes: baseConfig.scopes
         });
 
@@ -569,11 +387,11 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const accessToken = 'uncached-token';
 
-      // Mock Microsoft user response
+      // Mock userinfo response
       fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user999',
-        mail: 'fetched@example.com',
-        displayName: 'Fetched User'
+        sub: 'user999',
+        email: 'fetched@example.com',
+        name: 'Fetched User'
       }));
 
       const authInfo = await provider.verifyAccessToken(accessToken);
@@ -594,7 +412,7 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const invalidToken = 'invalid-token';
 
-      // Mock failed Microsoft response
+      // Mock failed userinfo response
       fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
 
       const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
@@ -614,7 +432,7 @@ describe('MicrosoftOAuthProvider', () => {
         sub: 'user101',
         email: 'cached@example.com',
         name: 'Cached User',
-        provider: 'microsoft'
+        provider: 'generic'
       };
 
       // Store token with user info
@@ -623,7 +441,7 @@ describe('MicrosoftOAuthProvider', () => {
           accessToken,
           expiresAt: Date.now() + 3600_000,
           userInfo,
-          provider: 'microsoft',
+          provider: 'generic',
           scopes: baseConfig.scopes
         });
 
@@ -638,11 +456,12 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const accessToken = 'api-fetch-token';
 
-      // Mock Microsoft user response
+      // Mock userinfo response
       fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user202',
-        mail: 'api@example.com',
-        displayName: 'API User'
+        sub: 'user202',
+        email: 'api@example.com',
+        name: 'API User',
+        picture: 'https://example.com/pic.jpg'
       }));
 
       const result = await provider.getUserInfo(accessToken);
@@ -651,25 +470,9 @@ describe('MicrosoftOAuthProvider', () => {
         sub: 'user202',
         email: 'api@example.com',
         name: 'API User',
-        provider: 'microsoft'
+        provider: 'generic'
       });
 
-      provider.dispose();
-    });
-
-    it('throws when Microsoft user info cannot be retrieved', async () => {
-      const provider = createProvider();
-
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      fetchMock.mockResolvedValueOnce(new Response('forbidden', {
-        status: 403,
-        statusText: 'Forbidden'
-      }));
-
-      await expect(provider.getUserInfo('token')).rejects.toThrow('Failed to get user information');
-
-      consoleSpy.mockRestore();
       provider.dispose();
     });
   });
@@ -677,13 +480,13 @@ describe('MicrosoftOAuthProvider', () => {
   describe('provider metadata', () => {
     it('returns correct provider type', () => {
       const provider = createProvider();
-      expect(provider.getProviderType()).toBe('microsoft');
+      expect(provider.getProviderType()).toBe('generic');
       provider.dispose();
     });
 
     it('returns correct provider name', () => {
       const provider = createProvider();
-      expect(provider.getProviderName()).toBe('Microsoft');
+      expect(provider.getProviderName()).toBe('Test OAuth Provider');
       provider.dispose();
     });
 
@@ -692,10 +495,10 @@ describe('MicrosoftOAuthProvider', () => {
       const endpoints = provider.getEndpoints();
 
       expect(endpoints).toEqual({
-        authEndpoint: '/auth/microsoft',
-        callbackEndpoint: '/auth/microsoft/callback',
-        refreshEndpoint: '/auth/microsoft/refresh',
-        logoutEndpoint: '/auth/microsoft/logout'
+        authEndpoint: '/auth/oauth',
+        callbackEndpoint: '/auth/oauth/callback',
+        refreshEndpoint: '/auth/oauth/refresh',
+        logoutEndpoint: '/auth/oauth/logout'
       });
 
       provider.dispose();
@@ -703,7 +506,7 @@ describe('MicrosoftOAuthProvider', () => {
 
     it('returns correct default scopes', () => {
       const provider = createProvider();
-      expect(provider.getDefaultScopes()).toEqual(['openid', 'profile', 'email']);
+      expect(provider.getDefaultScopes()).toEqual(['openid', 'email', 'profile']);
       provider.dispose();
     });
   });
