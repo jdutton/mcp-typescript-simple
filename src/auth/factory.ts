@@ -17,7 +17,7 @@ import {
 import { GoogleOAuthProvider } from './providers/google-provider.js';
 import { GitHubOAuthProvider } from './providers/github-provider.js';
 import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
-// import { GenericOAuthProvider } from './providers/generic-provider.js';
+import { GenericOAuthProvider } from './providers/generic-provider.js';
 import { EnvironmentConfig } from '../config/environment.js';
 import { logger } from '../utils/logger.js';
 import { createSessionStore } from './session-store-factory.js';
@@ -92,9 +92,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
         return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
 
       case 'generic':
-        // TODO: Implement Generic provider
-        throw new OAuthProviderError(`Generic OAuth provider not yet implemented`, 'generic');
-        // return new GenericOAuthProvider(config as GenericOAuthConfig, this.sessionStore, this.tokenStore);
+        return this.registerProvider(new GenericOAuthProvider(config as GenericOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
 
       default: {
         const { type } = config as { type?: string };
@@ -111,7 +109,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       'google',
       'github',
       'microsoft',
-      // 'generic'      // TODO: Implement
+      'generic'
     ];
   }
 
@@ -216,6 +214,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       { type: 'google', create: () => factory.createGoogleProvider() },
       { type: 'github', create: () => factory.createGitHubProvider() },
       { type: 'microsoft', create: () => factory.createMicrosoftProvider() },
+      { type: 'generic', create: () => factory.createGenericProvider() },
     ];
 
     for (const { type, create } of providerAttempts) {
@@ -233,7 +232,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     }
 
     if (providers.size === 0) {
-      logger.oauthWarn('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, or Microsoft).');
+      logger.oauthWarn('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, Microsoft, or Generic OAuth).');
       return null;
     }
 

@@ -23,6 +23,9 @@ export const ConfigurationSchema = z.object({
   // Legacy client compatibility
   MCP_LEGACY_CLIENT_SUPPORT: z.boolean().default(true),
 
+  // OAuth mock mode (for testing)
+  OAUTH_MOCK_MODE: z.boolean().default(false),
+
   // OAuth redirect URIs (safe to log)
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
   GITHUB_REDIRECT_URI: z.string().url().optional(),
@@ -104,6 +107,7 @@ export class EnvironmentConfig {
     const env = {
       MCP_MODE: process.env.MCP_MODE || 'stdio',
       MCP_DEV_SKIP_AUTH: process.env.MCP_DEV_SKIP_AUTH === 'true',
+      OAUTH_MOCK_MODE: process.env.OAUTH_MOCK_MODE === 'true',
       HTTP_PORT: parseInt(process.env.HTTP_PORT || '3000', 10),
       HTTP_HOST: process.env.HTTP_HOST || 'localhost',
 
@@ -226,10 +230,12 @@ export class EnvironmentConfig {
     const googleConfigured = this.checkOAuthCredentials('google');
     const githubConfigured = this.checkOAuthCredentials('github');
     const microsoftConfigured = this.checkOAuthCredentials('microsoft');
+    const genericConfigured = this.checkOAuthCredentials('generic');
     const configuredProviders = [
       googleConfigured && 'google',
       githubConfigured && 'github',
-      microsoftConfigured && 'microsoft'
+      microsoftConfigured && 'microsoft',
+      genericConfigured && 'generic'
     ].filter(Boolean);
 
     if (configuredProviders.length > 0) {

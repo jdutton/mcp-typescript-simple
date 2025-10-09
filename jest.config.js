@@ -17,7 +17,8 @@ export default {
   ],
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/test/system/'
+    '/test/system/',
+    '/test/playwright/'  // Playwright tests should only run with Playwright, not Jest
   ],
   collectCoverageFrom: [
     'src/**/*.ts',

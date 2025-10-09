@@ -67,7 +67,7 @@ describe('OAuthProviderFactory', () => {
     const providers = await OAuthProviderFactory.createAllFromEnvironment();
 
     expect(providers).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, or Microsoft).');
+    expect(warnSpy).toHaveBeenCalledWith('No OAuth providers configured. Set credentials for at least one provider (Google, GitHub, Microsoft, or Generic OAuth).');
   });
 
   it('creates multiple providers when multiple credentials are configured', async () => {

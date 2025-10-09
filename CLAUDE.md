@@ -638,36 +638,6 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 git push origin <branch-name>
 ```
 
-#### Post-Push PR Monitoring (MANDATORY)
-**After pushing changes to a PR, Claude Code MUST monitor the PR status:**
-
-```bash
-# Monitor PR status every 15 seconds for errors or success
-gh pr checks <pr-number>
-
-# Continue monitoring until either:
-# 1. All checks pass (✅ SUCCESS - stop monitoring)
-# 2. Any check fails (❌ ERROR - analyze and fix immediately)
-```
-
-**Monitoring Protocol:**
-- **Check every 15 seconds** using `gh pr checks <pr-number>`
-- **Stop monitoring when**: All checks are green/passing
-- **Immediate action when**: Any check fails or shows error
-- **Fix immediately**: Analyze the error, implement fix, test locally, push update
-- **Resume monitoring**: After pushing fixes, continue monitoring until all green
-
-**Example monitoring workflow:**
-```bash
-# Monitor until completion
-while true; do
-  gh pr checks 7
-  # If all pass: break and stop monitoring
-  # If any fail: analyze error, fix, commit, push, continue monitoring
-  sleep 15
-done
-```
-
 #### Commit Requirements
 - **MANDATORY validation MUST pass** before any commit/push
 - **All CI checks MUST pass** after push

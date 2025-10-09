@@ -9,6 +9,10 @@ export default defineConfig({
   testDir: './test/system',
   testMatch: '**/*headless*.test.ts',
 
+  // Global setup and teardown for mock OAuth server
+  globalSetup: './test/playwright/global-setup.ts',
+  globalTeardown: './test/playwright/global-teardown.ts',
+
   // Maximum time one test can run
   timeout: 60 * 1000, // 60 seconds
 
