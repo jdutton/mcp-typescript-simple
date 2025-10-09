@@ -22,7 +22,8 @@ const VALIDATION_STEPS = [
   { name: 'OpenAPI validation', command: 'npm run test:openapi' },
   { name: 'Integration tests', command: 'npm run test:integration' },
   { name: 'STDIO system tests', command: 'npm run test:system:stdio' },
-  { name: 'HTTP system tests', command: 'npm run test:system:ci' }
+  { name: 'HTTP system tests', command: 'npm run test:system:ci' },
+  { name: 'Headless browser tests', command: 'npm run test:system:headless' }
 ];
 
 /**

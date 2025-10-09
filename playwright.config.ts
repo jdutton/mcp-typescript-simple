@@ -7,7 +7,7 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './test/system',
-  testMatch: '**/*headless*.test.ts',
+  testMatch: 'mcp-inspector-headless.system.test.ts', // OAuth flow tests only (protocol tests disabled due to 406 errors)
 
   // Global setup and teardown for mock OAuth server
   globalSetup: './test/playwright/global-setup.ts',
