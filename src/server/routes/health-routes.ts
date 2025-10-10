@@ -37,10 +37,12 @@ export function setupHealthRoutes(
     const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
     const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
     const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
+    const genericConfigured = EnvironmentConfig.checkOAuthCredentials('generic');
     const configuredOAuthProviders = [
       googleConfigured && 'google',
       githubConfigured && 'github',
-      microsoftConfigured && 'microsoft'
+      microsoftConfigured && 'microsoft',
+      genericConfigured && 'generic'
     ].filter(Boolean) as string[];
 
     // Check LLM providers

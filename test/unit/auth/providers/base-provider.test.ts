@@ -106,6 +106,19 @@ class TestOAuthProvider extends BaseOAuthProvider {
       name: 'User'
     };
   }
+
+  protected getTokenUrl(): string {
+    return 'https://example.com/token';
+  }
+
+  protected async fetchUserInfo(_accessToken: string): Promise<OAuthUserInfo> {
+    return {
+      sub: '123',
+      provider: 'google',
+      email: 'user@example.com',
+      name: 'User'
+    };
+  }
 }
 
 const baseConfig: OAuthConfig = {

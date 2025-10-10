@@ -9,7 +9,6 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
-import { spawn, ChildProcess } from 'child_process';
 
 interface MCPResponse<T = any> {
   jsonrpc: '2.0';
@@ -107,43 +106,15 @@ const shouldSkip = testEnv.includes('stdio');
 const describeOrSkip = shouldSkip ? describe.skip : describe;
 
 describeOrSkip('MCP Session State Management System Tests', () => {
-  let serverProcess: ChildProcess;
   let client: MCPTestClient;
 
   beforeAll(async () => {
     client = new MCPTestClient();
-
-    // Start the server on port 3001
-    serverProcess = spawn('npm', ['run', 'dev:http'], {
-      env: {
-        ...process.env,
-        HTTP_PORT: '3001',
-        MCP_MODE: 'streamable_http',
-        MCP_DEV_SKIP_AUTH: 'true'
-      },
-      stdio: 'pipe'
-    });
-
-    // Wait for server to start
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-
-    // Verify server is running
-    try {
-      await fetch('http://localhost:3001/mcp', {
-        method: 'GET',
-        headers: { 'Accept': 'text/event-stream' }
-      });
-    } catch {
-      throw new Error('Failed to start test server');
-    }
-  }, 15000);
+    console.log('🔍 Using global HTTP server on port 3001 (managed by Jest global setup)');
+  });
 
   afterAll(async () => {
-    if (serverProcess) {
-      serverProcess.kill();
-      // Wait for cleanup
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
+    console.log('✅ Test cleanup complete (server managed by Jest global teardown)');
   });
 
   describe('Session Initialization', () => {

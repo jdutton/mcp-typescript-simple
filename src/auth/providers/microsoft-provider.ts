@@ -3,7 +3,6 @@
  */
 
 import { Request, Response } from 'express';
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { BaseOAuthProvider } from './base-provider.js';
 import {
   MicrosoftOAuthConfig,
@@ -11,7 +10,6 @@ import {
   OAuthProviderType,
   OAuthUserInfo,
   OAuthTokenResponse,
-  OAuthSession,
   StoredTokenInfo,
   OAuthTokenError,
   OAuthProviderError
@@ -94,181 +92,6 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   }
 
   /**
-   * Handle OAuth authorization callback
-   */
-  async handleAuthorizationCallback(req: Request, res: Response): Promise<void> {
-    try {
-      const { code, state, error } = req.query;
-
-      if (error) {
-        logger.oauthError('Microsoft OAuth error', { error });
-        this.setAntiCachingHeaders(res);
-        res.status(400).json({ error: 'Authorization failed', details: error });
-        return;
-      }
-
-      if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
-        this.setAntiCachingHeaders(res);
-        res.status(400).json({ error: 'Missing authorization code or state' });
-        return;
-      }
-
-      // Validate session
-      logger.oauthDebug('Validating state', { provider: 'microsoft', statePrefix: state.substring(0, 8) });
-      const session = await this.validateState(state);
-
-      // Handle client redirect flow (returns true if redirect was handled)
-      if (await this.handleClientRedirect(session, code, state, res)) {
-        return;
-      }
-
-      // Exchange authorization code for tokens
-      const tokenData = await this.exchangeCodeForTokens(
-        this.MICROSOFT_TOKEN_URL,
-        code,
-        session.codeVerifier
-      );
-
-      if (!tokenData.access_token) {
-        throw new OAuthTokenError('No access token received', 'microsoft');
-      }
-
-      // Get user information
-      const userInfo = await this.fetchMicrosoftUserInfo(tokenData.access_token);
-
-      // Check allowlist authorization
-      const allowlistError = this.checkUserAllowlist(userInfo.email);
-      if (allowlistError) {
-        logger.warn('User denied by allowlist', { email: userInfo.email, provider: 'microsoft' });
-        this.setAntiCachingHeaders(res);
-        res.status(403).json({
-          error: 'access_denied',
-          error_description: allowlistError
-        });
-        return;
-      }
-
-      // Store token information
-      const tokenInfo: StoredTokenInfo = {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || undefined,
-        idToken: tokenData.id_token || undefined,
-        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
-        userInfo,
-        provider: 'microsoft',
-        scopes: session.scopes,
-      };
-
-      await this.storeToken(tokenData.access_token, tokenInfo);
-
-      // Clean up session
-      this.removeSession(state);
-
-      // Return token response
-      const response: OAuthTokenResponse = {
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        id_token: tokenData.id_token,
-        expires_in: tokenData.expires_in || 3600,
-        token_type: 'Bearer',
-        scope: tokenData.scope,
-        user: userInfo,
-      };
-
-      this.setAntiCachingHeaders(res);
-      res.json(response);
-
-    } catch (error) {
-      logger.oauthError('Microsoft OAuth callback error', error);
-      this.setAntiCachingHeaders(res);
-      res.status(500).json({
-        error: 'Authorization failed',
-        details: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
-  /**
-   * Handle token exchange from form data (for /token endpoint)
-   * Implements OAuth 2.0 Authorization Code Grant (RFC 6749 Section 4.1.3)
-   * Used by standard OAuth clients for PKCE token exchange (RFC 7636)
-   */
-  async handleTokenExchange(req: Request, res: Response): Promise<void> {
-    try {
-      // Common validation for token exchange requests
-      const validation = this.validateTokenExchangeRequest(req, res);
-      if (!validation.isValid) {
-        return; // Response already sent by validation
-      }
-
-      const { code, code_verifier, redirect_uri } = validation;
-
-      // Resolve code_verifier (OAuth proxy vs direct flow)
-      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
-
-      // Log token exchange request (includes client's redirect_uri for debugging)
-      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
-
-      // IMPORTANT: Always use server's registered redirect_uri for token exchange
-      // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
-      // registered redirect URI. Client-provided redirect_uri is logged but not used
-      // for security - prevents redirect_uri substitution attacks.
-      const tokenData = await this.exchangeCodeForTokens(
-        this.MICROSOFT_TOKEN_URL,
-        code!,
-        codeVerifierToUse!, // Use correct code_verifier (server's or client's)
-        {}, // No additional params
-        this.config.redirectUri // MUST match authorization request redirect_uri
-      );
-
-      if (!tokenData.access_token) {
-        throw new OAuthTokenError('No access token received', 'microsoft');
-      }
-
-      // Get user information from Microsoft Graph API
-      const userInfo = await this.fetchMicrosoftUserInfo(tokenData.access_token);
-
-      // Store token information (for server-side tracking)
-      const tokenInfo: StoredTokenInfo = {
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || undefined,
-        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
-        userInfo,
-        provider: 'microsoft',
-        scopes: tokenData.scope?.split(' ') || [],
-      };
-
-      await this.storeToken(tokenData.access_token, tokenInfo);
-
-      // Clean up authorization code mapping and session after successful token exchange
-      await this.cleanupAfterTokenExchange(code!);
-
-      // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
-      const response: OAuthTokenResponse = {
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        id_token: tokenData.id_token,
-        expires_in: tokenData.expires_in || 3600,
-        token_type: 'Bearer',
-        scope: tokenData.scope,
-        user: userInfo,
-      };
-
-      logger.oauthInfo('Token exchange successful', { provider: 'microsoft', userName: userInfo.name });
-      this.setAntiCachingHeaders(res);
-      res.json(response);
-
-    } catch (error) {
-      logger.oauthError('Token exchange error', error);
-      this.setAntiCachingHeaders(res);
-      res.status(500).json({
-        error: 'server_error',
-        error_description: error instanceof Error ? error.message : String(error)
-      });
-    }
-  }
-
-  /**
    * Handle token refresh requests
    */
   async handleTokenRefresh(req: Request, res: Response): Promise<void> {
@@ -332,78 +155,16 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   }
 
   /**
-   * Handle logout requests
+   * Get token URL for this provider
    */
-  async handleLogout(req: Request, res: Response): Promise<void> {
-    try {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-
-        // Try to revoke the token with Microsoft
-        try {
-          await this.revokeMicrosoftToken(token);
-        } catch (revokeError) {
-          logger.oauthWarn('Failed to revoke Microsoft token', { error: revokeError });
-        }
-
-        await this.removeToken(token);
-      }
-
-      this.setAntiCachingHeaders(res);
-      res.json({ success: true });
-    } catch (error) {
-      logger.oauthError('Microsoft logout error', error);
-      this.setAntiCachingHeaders(res);
-      res.status(500).json({ error: 'Logout failed' });
-    }
-  }
-
-  /**
-   * Verify an access token and return auth info
-   */
-  async verifyAccessToken(token: string): Promise<AuthInfo> {
-    try {
-      // Check our local token store first
-      const tokenInfo = await this.getToken(token);
-      if (tokenInfo) {
-        return this.buildAuthInfoFromCache(token, tokenInfo);
-      }
-
-      // If not in local store, verify with Microsoft Graph API
-      const userInfo = await this.fetchMicrosoftUserInfo(token);
-      return this.buildAuthInfoFromUserInfo(token, userInfo);
-
-    } catch (error) {
-      logger.oauthError('Microsoft token verification error', error);
-      throw new OAuthTokenError('Invalid or expired token', 'microsoft');
-    }
-  }
-
-  /**
-   * Get user information from an access token
-   */
-  async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
-    try {
-      // Check local store first
-      const tokenInfo = await this.getToken(accessToken);
-      if (tokenInfo) {
-        return tokenInfo.userInfo;
-      }
-
-      // Fetch from Microsoft Graph API
-      return await this.fetchMicrosoftUserInfo(accessToken);
-
-    } catch (error) {
-      logger.oauthError('Microsoft getUserInfo error', error);
-      throw new OAuthProviderError('Failed to get user information', 'microsoft');
-    }
+  protected getTokenUrl(): string {
+    return this.MICROSOFT_TOKEN_URL;
   }
 
   /**
    * Fetch user information from Microsoft Graph API
    */
-  private async fetchMicrosoftUserInfo(accessToken: string): Promise<OAuthUserInfo> {
+  protected async fetchUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
       logger.oauthDebug('Fetching Microsoft user info', { tokenPrefix: accessToken.substring(0, 10) });
 
@@ -469,7 +230,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   /**
    * Revoke a Microsoft access token
    */
-  private async revokeMicrosoftToken(accessToken: string): Promise<void> {
+  protected async revokeToken(accessToken: string): Promise<void> {
     try {
       const revokeUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/logout`;
 

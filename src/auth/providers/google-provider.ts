@@ -542,6 +542,39 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   }
 
   /**
+   * Get token URL for this provider
+   */
+  protected getTokenUrl(): string {
+    return 'https://oauth2.googleapis.com/token';
+  }
+
+  /**
+   * Fetch user information from Google's API
+   */
+  protected async fetchUserInfo(accessToken: string): Promise<OAuthUserInfo> {
+    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new OAuthProviderError(`Failed to fetch user info: ${response.status}`, 'google');
+    }
+
+    const userData = await response.json();
+
+    return {
+      sub: userData.id,
+      email: userData.email,
+      name: userData.name || userData.email,
+      picture: userData.picture,
+      provider: 'google',
+      providerData: userData,
+    };
+  }
+
+  /**
    * Get user information from an access token
    */
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
@@ -553,26 +586,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       }
 
       // Fetch from Google API
-      const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new OAuthProviderError(`Failed to fetch user info: ${response.status}`, 'google');
-      }
-
-      const userData = await response.json();
-
-      return {
-        sub: userData.id,
-        email: userData.email,
-        name: userData.name || userData.email,
-        picture: userData.picture,
-        provider: 'google',
-        providerData: userData,
-      };
+      return await this.fetchUserInfo(accessToken);
 
     } catch (error) {
       logger.oauthError('Google getUserInfo error', error);
