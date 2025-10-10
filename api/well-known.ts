@@ -215,7 +215,7 @@ async function handleAuthorizationServerMetadata(
   const primaryProvider = oauthProviders.values().next().value!;
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false,
-    toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
+    toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
 
   res.json(discoveryMetadata.generateAuthorizationServerMetadata());
@@ -247,7 +247,7 @@ async function handleProtectedResourceMetadata(
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
-    toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
+    toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
 
   const metadata = discoveryMetadata.generateProtectedResourceMetadata();
@@ -281,7 +281,7 @@ async function handleMCPProtectedResourceMetadata(
       authorization_servers: [],
       mcp_version: '1.18.0',
       transport_capabilities: ['streamable_http'],
-      tool_discovery_endpoint: `${baseUrl}/api/mcp`,
+      tool_discovery_endpoint: `${baseUrl}/mcp`,
       supported_tool_types: ['function', 'text_generation', 'analysis'],
       session_management: {
         resumability_supported: false // Default for serverless
@@ -296,7 +296,7 @@ async function handleMCPProtectedResourceMetadata(
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
-    toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
+    toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
 
   const metadata = discoveryMetadata.generateMCPProtectedResourceMetadata();
@@ -343,7 +343,7 @@ async function handleOpenIDConnectConfiguration(
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
-    toolDiscoveryEndpoint: `${baseUrl}/api/mcp`
+    toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
 
   const metadata = discoveryMetadata.generateOpenIDConnectConfiguration();
