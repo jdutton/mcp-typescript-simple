@@ -219,14 +219,16 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
 
     for (const { type, create } of providerAttempts) {
       try {
+        logger.info('Attempting to create OAuth provider', { provider: type });
         const provider = await create();
         providers.set(type, provider);
-        logger.info('OAuth provider initialized', { provider: type });
+        logger.info('OAuth provider initialized successfully', { provider: type });
       } catch (error) {
-        // Provider not configured - skip silently (credentials missing)
-        logger.debug('OAuth provider not configured', {
+        // Provider not configured - log at info level for debugging
+        logger.info('OAuth provider not configured', {
           provider: type,
-          reason: error instanceof Error ? error.message : String(error)
+          reason: error instanceof Error ? error.message : String(error),
+          hasError: !!error
         });
       }
     }

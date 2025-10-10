@@ -31,6 +31,22 @@ export class ObservabilityLogger {
   private createPinoLogger(): pino.Logger {
     const transports: pino.TransportSingleOptions[] = [];
 
+    // CRITICAL: Transports (worker threads) are NEVER supported in Vercel serverless
+    // Detect Vercel environment and skip ALL transports to prevent crashes
+    const isVercel = Boolean(process.env.VERCEL);
+
+    if (isVercel) {
+      // In Vercel, use basic Pino without transports
+      // This prevents "unable to determine transport target" errors
+      return pino({
+        level: this.config.environment === 'development' ? 'debug' : 'info',
+        formatters: {
+          level: (label) => ({ level: label }),
+          log: (object) => this.addTraceContext(object)
+        }
+      });
+    }
+
     // Note: Transports are disabled in Vercel serverless (worker threads not supported)
     // The config detects this and disables exporters automatically
 
