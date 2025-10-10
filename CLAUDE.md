@@ -81,15 +81,11 @@ npm run build                    # Build for deployment
 
 # Docker deployment (standalone containers)
 npm run run:docker:build                # Build Docker image
-npm run run:docker:google               # Run Docker with Google OAuth
-npm run run:docker:github               # Run Docker with GitHub OAuth
-npm run run:docker:microsoft            # Run Docker with Microsoft OAuth
+npm run run:docker                      # Run Docker with multi-provider OAuth (.env.oauth)
 
 # Docker deployment (with local Redis - self-contained testing)
 npm run run:docker:redis:start          # Start Redis container
-npm run run:docker:with-redis:google    # Run with Redis + Google OAuth
-npm run run:docker:with-redis:github    # Run with Redis + GitHub OAuth
-npm run run:docker:with-redis:microsoft # Run with Redis + Microsoft OAuth
+npm run run:docker:with-redis           # Run with Redis + multi-provider OAuth (.env.oauth)
 npm run run:docker:redis:stop           # Stop and remove Redis container
 
 # Docker Compose (EXCLUSIVELY for multi-node load-balanced testing)
@@ -124,7 +120,7 @@ npm run dev:vercel               # Local Vercel development server
 Test with increasing production-like fidelity:
 
 1. **Development (TypeScript)**: `npm run dev:oauth` - Fast iteration with tsx (uses `.env.oauth`)
-2. **Docker Container**: `npm run run:docker:google` - Containerized deployment (uses `.env.google`)
+2. **Docker Container**: `npm run run:docker` - Containerized deployment (uses `.env.oauth`)
 3. **Vercel Serverless**: Production serverless (GitHub Actions only - automatic on PR merge to main)
 
 ```

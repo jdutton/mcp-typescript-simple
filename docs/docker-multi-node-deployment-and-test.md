@@ -371,23 +371,33 @@ docker-compose --profile loadbalanced logs -f nginx
 To deploy with OAuth authentication enabled:
 
 ```bash
-# Step 1: Create .env file with OAuth credentials
-cat > .env.google << EOF
-# Google OAuth (server auto-detects configured providers)
-GOOGLE_CLIENT_ID=your-client-id
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:8080/auth/callback
+# Step 1: Create .env.oauth.docker file with multi-provider OAuth credentials
+cat > .env.oauth.docker << EOF
+# Multi-Provider OAuth (server auto-detects all configured providers)
+# Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:8080/auth/google/callback
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_REDIRECT_URI=http://localhost:8080/auth/github/callback
+
+# Microsoft OAuth
+MICROSOFT_CLIENT_ID=your-microsoft-client-id
+MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
+MICROSOFT_REDIRECT_URI=http://localhost:8080/auth/microsoft/callback
+
+# Disable skip auth to enable OAuth
+MCP_DEV_SKIP_AUTH=false
 EOF
 
-# Step 2: Update docker-compose.yml to use .env.google
-# Modify mcp-server-1, mcp-server-2, mcp-server-3:
-#   env_file:
-#     - .env.google
-#   environment:
-#     MCP_DEV_SKIP_AUTH: "false"  # Enable OAuth
+# Step 2: docker-compose.yml already configured to use .env.oauth.docker
+# The env_file is set to .env.oauth.docker (optional) for all mcp-server instances
 
 # Step 3: Start with OAuth
-docker-compose --profile loadbalanced up -d
+docker compose up
 ```
 
 ### Scaling Instances
