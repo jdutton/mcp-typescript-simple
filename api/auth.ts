@@ -191,7 +191,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
               if ('handleTokenExchange' in provider) {
                 try {
-                  logger.debug("Trying token exchange with provider", { provider: providerType });
+                  logger.info("Trying token exchange with provider", { provider: providerType });
                   // Type cast required: Vercel types are not fully compatible with Express types
                   await (provider as any).handleTokenExchange(req as any, res as any);
 
@@ -204,16 +204,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     });
                   }
 
-                  logger.debug("Token exchange succeeded", { provider: providerType });
+                  logger.info("Token exchange succeeded", { provider: providerType });
                   return; // Success
                 } catch (error) {
                   if (!res.headersSent) {
                     const errorMsg = error instanceof Error ? error.message : String(error);
                     // Log detailed error server-side for debugging
-                    logger.debug("Token exchange failed with provider", { provider: providerType, error: errorMsg });
+                    logger.info("Token exchange failed with provider", { provider: providerType, error: errorMsg });
                     errors.push({ provider: providerType, error: errorMsg });
                   } else {
-                    logger.debug("Provider sent error response, stopping iteration");
+                    logger.info("Provider sent error response, stopping iteration");
                     return;
                   }
                 }

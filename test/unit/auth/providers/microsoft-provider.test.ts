@@ -338,10 +338,8 @@ describe('MicrosoftOAuthProvider', () => {
       provider.dispose();
     });
 
-    it('returns error when code_verifier is missing', async () => {
+    it('returns silently when code_verifier is missing (not my code)', async () => {
       const provider = createProvider();
-
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       const res = createMockResponse();
       const req = {
@@ -354,13 +352,10 @@ describe('MicrosoftOAuthProvider', () => {
 
       await provider.handleTokenExchange(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'invalid_grant',
-        error_description: 'Authorization code is invalid, expired, or already used'
-      });
+      // Should return without sending any response (let loop try next provider)
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json).not.toHaveBeenCalled();
 
-      loggerErrorSpy.mockRestore();
       provider.dispose();
     });
   });
