@@ -14,6 +14,83 @@ The MCP TypeScript Simple server has been adapted to run on Vercel using serverl
 - **Multi-LLM Integration**: Claude, OpenAI, and Gemini AI providers
 - **Observability**: Built-in health checks, metrics, and request logging
 - **Auto-scaling**: Vercel's automatic scaling based on demand
+- **Automated CI/CD**: GitHub Actions automatically deploys to production on merge to main
+
+## Automated Deployment (Recommended)
+
+**The recommended deployment method is via GitHub Actions CI/CD pipeline**, which automatically deploys to Vercel production whenever code is merged to the `main` branch.
+
+### Prerequisites for Automated Deployment
+
+1. **Vercel Project**: Create a new Vercel project (see setup instructions below)
+2. **GitHub Secrets**: Configure required secrets in your GitHub repository
+3. **Vercel Token**: Generate a Vercel API token for CI/CD access
+
+### Initial Vercel Project Setup
+
+**One-time setup to create the Vercel project:**
+
+```bash
+# 1. Login to Vercel
+vercel login
+
+# 2. Link the project (creates new project if it doesn't exist)
+vercel link
+
+# Follow the prompts:
+# - Set up and deploy? Yes
+# - Which scope? Select your account/team
+# - Link to existing project? No (create new)
+# - What's your project's name? mcp-typescript-simple
+# - In which directory is your code located? ./
+
+# 3. Note the Project ID and Org ID from .vercel/project.json
+cat .vercel/project.json
+```
+
+### Configure GitHub Secrets
+
+In your GitHub repository settings, add these secrets (Settings → Secrets and variables → Actions):
+
+#### Required Secrets
+
+```bash
+VERCEL_TOKEN          # Generate at https://vercel.com/account/tokens
+VERCEL_ORG_ID         # From .vercel/project.json (orgId field)
+VERCEL_PROJECT_ID     # From .vercel/project.json (projectId field)
+```
+
+#### Optional LLM Provider Secrets (for AI tools)
+
+```bash
+ANTHROPIC_API_KEY     # For Claude models
+OPENAI_API_KEY        # For GPT models
+GOOGLE_API_KEY        # For Gemini models
+```
+
+### How Automated Deployment Works
+
+1. **Pull Request**: When you create a PR, GitHub Actions runs tests but does NOT deploy
+2. **Merge to Main**: When PR is merged to `main`, GitHub Actions:
+   - Runs complete test suite (unit, integration, Docker, Vercel validation)
+   - Builds the project
+   - Deploys to Vercel production automatically
+3. **Deployment URL**: Check GitHub Actions logs for the production deployment URL
+
+### Verify Automated Deployment
+
+After merging to `main`, monitor the deployment:
+
+```bash
+# 1. Check GitHub Actions status
+# Go to: https://github.com/<your-org>/mcp-typescript-simple/actions
+
+# 2. Once deployed, verify health endpoint
+curl https://your-project.vercel.app/api/health
+
+# 3. Check deployment in Vercel dashboard
+# Go to: https://vercel.com/dashboard
+```
 
 ## Architecture
 
@@ -184,7 +261,9 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 npm run dev:vercel
 ```
 
-## Deployment Steps
+## Manual Deployment (Development/Testing Only)
+
+**⚠️ Warning**: Manual deployments should only be used for development and testing. Production deployments MUST go through the automated GitHub Actions CI/CD pipeline.
 
 ### 1. Prepare the Project
 
@@ -200,7 +279,7 @@ npm install
 npm run build
 ```
 
-### 2. Local Development (Optional)
+### 2. Local Development
 
 Test the Vercel functions locally:
 
@@ -218,26 +297,26 @@ The server will be available at `http://localhost:3000` with these endpoints:
 - `http://localhost:3000/api/auth` - OAuth endpoints
 - `http://localhost:3000/api/admin` - Admin and metrics
 
-### 3. Deploy to Vercel
+### 3. Preview Deployment (Testing Only)
 
-#### Option A: Using Vercel CLI
+For testing purposes, you can deploy to a preview environment:
 
 ```bash
 # Login to Vercel (if not already logged in)
 vercel login
 
-# Deploy to preview (for testing)
+# Deploy to preview environment (for testing)
 vercel
 
-# Deploy to production
-vercel --prod
+# ⚠️ DO NOT use --prod flag
+# Production deployments MUST go through GitHub Actions
 ```
 
-#### Option B: Using Git Integration
-
-1. Connect your GitHub repository to Vercel
-2. Push your code to the main branch
-3. Vercel will automatically deploy
+**Important Notes:**
+- Preview deployments get a unique URL (e.g., `mcp-typescript-simple-abc123.vercel.app`)
+- Use preview deployments to test changes before creating a PR
+- Never manually deploy to production - always use GitHub Actions
+- Production deployments require all CI checks to pass
 
 ### 4. Configure Environment Variables
 
