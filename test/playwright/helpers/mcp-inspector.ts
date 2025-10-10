@@ -8,12 +8,18 @@ import { Page, expect } from '@playwright/test';
 import { ChildProcess, spawn } from 'child_process';
 import axios from 'axios';
 import { setTimeout as sleep } from 'timers/promises';
+import { checkPortsAvailable, verifyPortsFreed } from '../../helpers/port-utils';
+import { stopProcessGroup } from '../../helpers/process-utils';
 
-export const INSPECTOR_PORT = 6274;
+// Use non-standard ports to avoid conflicts
+export const INSPECTOR_PORT = 16274; // Changed from 6274 to avoid conflicts
 export const INSPECTOR_URL = `http://localhost:${INSPECTOR_PORT}`;
 
+// Re-export for convenience
+export { checkPortsAvailable, verifyPortsFreed };
+
 /**
- * Start MCP Inspector process
+ * Start MCP Inspector process in its own process group
  * Returns the child process for cleanup later
  */
 export async function startMCPInspector(mcpServerUrl: string): Promise<ChildProcess> {
@@ -21,18 +27,20 @@ export async function startMCPInspector(mcpServerUrl: string): Promise<ChildProc
   console.log(`   Connecting to MCP server: ${mcpServerUrl}`);
 
   // Inspector uses CLIENT_PORT (UI) and SERVER_PORT (proxy)
-  // For HTTP/SSE servers, pass the URL and transport type
+  // For streamable HTTP servers, pass the URL and transport type
   const inspector = spawn('npx', [
     '@modelcontextprotocol/inspector',
-    mcpServerUrl,
-    '--transport', 'http'  // streamable-http transport
+    '--transport', 'streamable-http',  // Use streamable-http transport
+    '--server-url', mcpServerUrl       // Pass server URL as argument
   ], {
     stdio: ['ignore', 'pipe', 'pipe'],
+    detached: true,  // Run in separate process group for reliable cleanup
     env: {
       ...process.env,
       NODE_ENV: 'test',
       CLIENT_PORT: INSPECTOR_PORT.toString(),        // UI port
-      SERVER_PORT: (INSPECTOR_PORT + 3).toString(),  // Proxy port (6277)
+      SERVER_PORT: (INSPECTOR_PORT + 3).toString(),  // Proxy port (16277)
+      MCP_SERVER_URL: mcpServerUrl,                  // Also pass as env var
       DANGEROUSLY_OMIT_AUTH: 'true',                 // Disable auth for testing
       MCP_AUTO_OPEN_ENABLED: 'false'                 // Don't auto-open browser
     }
@@ -79,28 +87,11 @@ export async function startMCPInspector(mcpServerUrl: string): Promise<ChildProc
 }
 
 /**
- * Stop MCP Inspector gracefully
+ * Stop MCP Inspector forcefully by killing entire process group
+ * This ensures all child processes are killed, including node processes spawned by npx
  */
 export async function stopMCPInspector(inspector: ChildProcess): Promise<void> {
-  return new Promise((resolve) => {
-    if (!inspector.killed) {
-      inspector.on('exit', () => {
-        console.log('🛑 MCP Inspector stopped');
-        resolve();
-      });
-      inspector.kill('SIGTERM');
-
-      // Force kill after 5 seconds if not stopped
-      global.setTimeout(() => {
-        if (!inspector.killed) {
-          console.log('⚠️  Force killing MCP Inspector');
-          inspector.kill('SIGKILL');
-        }
-      }, 5000);
-    } else {
-      resolve();
-    }
-  });
+  return stopProcessGroup(inspector, 'MCP Inspector');
 }
 
 /**

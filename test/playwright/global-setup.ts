@@ -12,6 +12,7 @@ import {
   startMockOAuthServer,
   MOCK_OAUTH_PORT
 } from './helpers/mock-oauth-server.js';
+import { checkPortsAvailable } from '../helpers/port-utils';
 
 let mockOAuthServer: OAuth2Server | null = null;
 
@@ -21,12 +22,13 @@ let mockOAuthServer: OAuth2Server | null = null;
 export default async function globalSetup(_config: FullConfig) {
   console.log('\n🔧 Running Playwright global setup...\n');
 
-  // Check if mock OAuth port is available
-  const isPortAvailable = await checkPortAvailable(MOCK_OAUTH_PORT);
-  if (!isPortAvailable) {
+  // Check if mock OAuth port is available (fail fast with helpful error)
+  try {
+    await checkPortsAvailable([MOCK_OAUTH_PORT]);
+    console.log(`✅ Port ${MOCK_OAUTH_PORT} is available`);
+  } catch (error) {
     console.error(`❌ Port ${MOCK_OAUTH_PORT} is already in use`);
-    console.error(`   Kill the process using this port and try again`);
-    throw new Error(`Port ${MOCK_OAUTH_PORT} is not available`);
+    throw error;
   }
 
   try {
@@ -42,26 +44,4 @@ export default async function globalSetup(_config: FullConfig) {
     console.error('❌ Global setup failed:', error);
     throw error;
   }
-}
-
-/**
- * Check if a port is available
- */
-async function checkPortAvailable(port: number): Promise<boolean> {
-  const { createServer } = await import('net');
-
-  return new Promise((resolve) => {
-    const server = createServer();
-
-    server.once('error', () => {
-      resolve(false);
-    });
-
-    server.once('listening', () => {
-      server.close();
-      resolve(true);
-    });
-
-    server.listen(port);
-  });
 }
