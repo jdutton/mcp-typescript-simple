@@ -176,65 +176,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const { grant_type, refresh_token, code } = req.body || {};
 
-          // Authorization Code Grant - find correct provider
+          // Authorization Code Grant - find correct provider (two-phase approach)
           if (grant_type === 'authorization_code') {
-            logger.debug("Processing authorization_code grant", { hasCode: !!code });
+            logger.info("Searching for provider with stored authorization code", {
+              codePrefix: code?.substring(0, 10),
+              availableProviders: Array.from(providers.keys())
+            });
 
-            // Try each provider until one succeeds
-            const errors: Array<{ provider: string; error: string }> = [];
+            // Phase 1: Find which provider has the authorization code
+            let correctProvider: OAuthProvider | null = null;
+            let correctProviderType: OAuthProviderType | null = null;
 
             for (const [providerType, provider] of providers.entries()) {
-              if (res.headersSent) {
-                logger.debug("Response already sent, stopping provider iteration");
-                return;
-              }
-
-              if ('handleTokenExchange' in provider) {
-                try {
-                  logger.info("Trying token exchange with provider", { provider: providerType });
-                  // Type cast required: Vercel types are not fully compatible with Express types
-                  await (provider as any).handleTokenExchange(req as any, res as any);
-
-                  // BUG DETECTION: If provider sent error response without throwing, we treat it as success
-                  if (res.headersSent) {
-                    logger.warn("Provider sent response without throwing exception", {
-                      provider: providerType,
-                      statusCode: res.statusCode,
-                      message: "This will be treated as success and stop iteration - other providers won't be tried"
-                    });
-                  }
-
-                  logger.info("Token exchange succeeded", { provider: providerType });
-                  return; // Success
-                } catch (error) {
-                  if (!res.headersSent) {
-                    const errorMsg = error instanceof Error ? error.message : String(error);
-                    // Log detailed error server-side for debugging
-                    logger.info("Token exchange failed with provider", { provider: providerType, error: errorMsg });
-                    errors.push({ provider: providerType, error: errorMsg });
-                  } else {
-                    logger.info("Provider sent error response, stopping iteration");
-                    return;
-                  }
+              if ('hasStoredCodeForProvider' in provider) {
+                const hasCode = await (provider as any).hasStoredCodeForProvider(code);
+                logger.info("Provider code check result", {
+                  provider: providerType,
+                  hasCode,
+                  codePrefix: code?.substring(0, 10)
+                });
+                if (hasCode) {
+                  correctProvider = provider;
+                  correctProviderType = providerType;
+                  logger.info("Found provider for authorization code", { provider: providerType });
+                  break;
                 }
               }
             }
 
-            // No provider succeeded
-            if (!res.headersSent) {
-              // Log detailed errors server-side only (for debugging)
-              logger.warn("Token exchange failed with all providers", {
-                errors,
-                providersAttempted: errors.map(e => e.provider),
+            // No provider has this code
+            if (!correctProvider) {
+              logger.error("No provider found for authorization code", {
+                codePrefix: code?.substring(0, 10),
+                availableProviders: Array.from(providers.keys()),
+                hasCodeVerifier: !!req.body.code_verifier,
+                message: 'Authorization code not found in any provider PKCE store'
               });
 
-              // Return generic OAuth error to client (don't expose internal details)
               res.status(400).json({
                 error: 'invalid_grant',
-                error_description: 'The provided authorization grant is invalid, expired, or revoked. Please try logging in again.',
-                error_hint: 'If this problem persists, verify your OAuth provider configuration is correct.'
+                error_description: 'The provided authorization grant is invalid, expired, or was issued by a different provider'
               });
+              return;
             }
+
+            // Phase 2: Use the correct provider for token exchange
+            if (correctProvider && 'handleTokenExchange' in correctProvider) {
+              try {
+                logger.info("Using correct provider for token exchange", { provider: correctProviderType });
+                await (correctProvider as any).handleTokenExchange(req as any, res as any);
+                logger.info("Token exchange succeeded", { provider: correctProviderType });
+                return;
+              } catch (error) {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                logger.error("Token exchange failed with correct provider", { provider: correctProviderType, error: errorMsg });
+                res.status(400).json({
+                  error: 'invalid_grant',
+                  error_description: errorMsg
+                });
+                return;
+              }
+            }
+
+            // Should never reach here
+            logger.warn("No OAuth providers available for token exchange");
+            res.status(400).json({
+              error: 'invalid_grant',
+              error_description: 'No OAuth providers available'
+            });
             return;
           } else if (grant_type === 'refresh_token' || refresh_token) {
             // Refresh Token Grant - try all providers
