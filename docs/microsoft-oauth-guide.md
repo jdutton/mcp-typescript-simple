@@ -116,12 +116,11 @@ To add additional URLs:
 
 ### Step 1: Environment Configuration
 
-1. **Copy environment template**:
-   ```bash
-   cp .env.microsoft .env
-   ```
+1. **Configure your `.env.oauth` file** (supports multi-provider OAuth):
+   - The `.env.oauth` file can contain multiple OAuth providers simultaneously
+   - Server auto-detects all configured providers and presents them as login options
 
-2. **Configure your `.env` file**:
+2. **Add Microsoft OAuth credentials to `.env.oauth`**:
    ```bash
    # Microsoft OAuth Credentials (auto-detected by server)
    MICROSOFT_CLIENT_ID=your_application_client_id_here

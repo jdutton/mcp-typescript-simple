@@ -74,6 +74,15 @@ export class PKCEStoreFactory {
       return this.createMemoryStore();
     }
 
+    // Vercel serverless: use memory store (each function is isolated)
+    if (process.env.VERCEL) {
+      logger.info('Creating in-memory PKCE store for Vercel serverless', {
+        detected: true,
+        reason: 'Serverless functions are ephemeral and isolated'
+      });
+      return this.createMemoryStore();
+    }
+
     // Production: require Redis
     throw new Error(
       'Redis required for PKCE store in production. Set REDIS_URL environment variable.'

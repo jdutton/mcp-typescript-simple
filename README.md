@@ -160,14 +160,12 @@ The documentation includes:
 # Build production Docker image
 npm run run:docker:build
 
-# Run Docker container with OAuth
-npm run run:docker:google     # Google OAuth
-npm run run:docker:github     # GitHub OAuth
-npm run run:docker:microsoft  # Microsoft OAuth
+# Run Docker container with multi-provider OAuth
+npm run run:docker            # Uses .env.oauth (supports Google, GitHub, Microsoft)
 
 # Manual Docker commands
 docker build -t mcp-typescript-simple:latest .
-docker run --rm -p 3000:3000 --env-file .env.google mcp-typescript-simple:latest
+docker run --rm -p 3000:3000 --env-file .env.oauth mcp-typescript-simple:latest
 ```
 
 #### Multi-Node Load Balanced Deployment

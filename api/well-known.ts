@@ -22,12 +22,29 @@ let oauthProvidersInstance: Map<string, OAuthProvider> | null = null;
  * Initialize OAuth providers for serverless environment (multi-provider support)
  */
 async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | null> {
-  if (oauthProvidersInstance) {
+  // Only return cached instance if it exists and has providers
+  if (oauthProvidersInstance && oauthProvidersInstance.size > 0) {
+    logger.info("Returning cached OAuth providers", {
+      providers: Array.from(oauthProvidersInstance.keys())
+    });
     return oauthProvidersInstance;
   }
 
+  logger.info("Initializing OAuth providers from environment", {
+    hasGoogleId: !!process.env.GOOGLE_CLIENT_ID,
+    hasGoogleSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    hasGithubId: !!process.env.GITHUB_CLIENT_ID,
+    hasGithubSecret: !!process.env.GITHUB_CLIENT_SECRET,
+  });
+
   try {
     const providers = await OAuthProviderFactory.createAllFromEnvironment();
+    logger.info("OAuth provider creation completed", {
+      success: !!providers,
+      count: providers?.size || 0,
+      providers: providers ? Array.from(providers.keys()) : []
+    });
+
     if (providers && providers.size > 0) {
       oauthProvidersInstance = providers;
       logger.info("Multi-provider OAuth initialized for discovery endpoints", {
@@ -36,9 +53,15 @@ async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | 
       });
       return providers;
     }
+    // Don't cache null - retry on next request
+    logger.warn("No OAuth providers configured in environment");
     return null;
   } catch (error) {
-    logger.error("Failed to initialize OAuth providers", error);
+    // Don't cache errors - retry on next request
+    logger.error("Failed to initialize OAuth providers", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
     return null;
   }
 }
