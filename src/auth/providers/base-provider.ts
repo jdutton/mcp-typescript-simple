@@ -1113,6 +1113,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       // Validate code_verifier is available
       if (!codeVerifierToUse) {
+        logger.oauthDebug('Token exchange: No code_verifier found - this code may belong to a different provider', {
+          provider: this.getProviderType(),
+          codePrefix: code!.substring(0, 10),
+          hasClientCodeVerifier: !!code_verifier
+        });
         this.setAntiCachingHeaders(res);
         res.status(400).json({
           error: 'invalid_grant',
@@ -1120,6 +1125,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         });
         return;
       }
+
+      logger.oauthDebug('Token exchange: Code verifier resolved successfully', {
+        provider: this.getProviderType(),
+        codePrefix: code!.substring(0, 10)
+      });
 
       // Log request
       await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);

@@ -194,6 +194,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   logger.debug("Trying token exchange with provider", { provider: providerType });
                   // Type cast required: Vercel types are not fully compatible with Express types
                   await (provider as any).handleTokenExchange(req as any, res as any);
+
+                  // BUG DETECTION: If provider sent error response without throwing, we treat it as success
+                  if (res.headersSent) {
+                    logger.warn("Provider sent response without throwing exception", {
+                      provider: providerType,
+                      statusCode: res.statusCode,
+                      message: "This will be treated as success and stop iteration - other providers won't be tried"
+                    });
+                  }
+
                   logger.debug("Token exchange succeeded", { provider: providerType });
                   return; // Success
                 } catch (error) {
