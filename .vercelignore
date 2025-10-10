@@ -38,7 +38,8 @@ node_modules/
 coverage/
 jest-report/
 
-# Lock files (will be rebuilt)
-package-lock.json
+# Lock files - IMPORTANT: Keep package-lock.json for npm ci
+# package-lock.json should NOT be ignored - required for reproducible builds
+# Only ignore alternative lock files if using npm
 yarn.lock
 pnpm-lock.yaml
