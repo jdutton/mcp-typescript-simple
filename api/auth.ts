@@ -70,7 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       res.status(400).json({
         error: 'Bad Request',
-        message: 'Missing path parameter. OAuth requests must go through /auth/* endpoints.'
+        message: 'Missing path parameter. OAuth requests must go through /auth/* endpoints.',
+        timestamp: new Date().toISOString()
       });
       return;
     }
@@ -104,9 +105,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
      * All routes handled here (no fallbacks):
      *
      * Generic endpoints:
-     *   /auth/login      → /login      (provider selection page)
-     *   /auth/authorize  → /authorize  (generic OAuth start, redirects to /login)
-     *   /auth/token      → /token      (universal token exchange)
+     *   /auth                → /             (discovery endpoint - lists available providers)
+     *   /auth/login          → /login        (provider selection page)
+     *   /auth/authorize      → /authorize    (generic OAuth start, redirects to /login)
+     *   /auth/token          → /token        (universal token exchange)
+     *   /auth/revoke         → /revoke       (universal token revocation)
      *
      * Provider-specific endpoints:
      *   /auth/google              → /google              (start Google OAuth)
@@ -119,6 +122,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
      *   /auth/microsoft/callback  → /microsoft/callback  (Microsoft callback)
      *   /auth/microsoft/logout    → /microsoft/logout    (Microsoft logout)
      */
+
+    // Generic auth endpoint (discovery)
+    if (oauthPath === '/') {
+      if (req.method === 'GET') {
+        logger.debug("Returning OAuth discovery information", { path: oauthPath });
+        res.json({
+          message: 'OAuth authentication endpoint',
+          providers: Array.from(providers.keys()),
+          endpoints: {
+            login: '/auth/login',
+            authorize: '/auth/authorize',
+            token: '/auth/token',
+            revoke: '/auth/revoke'
+          }
+        });
+        return;
+      }
+    }
 
     // Generic /authorize endpoint - redirect to /login for provider selection
     if (oauthPath === '/authorize') {
@@ -215,7 +236,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
               res.status(400).json({
                 error: 'invalid_grant',
-                error_description: 'The provided authorization grant is invalid, expired, or was issued by a different provider'
+                error_description: 'The provided authorization grant is invalid, expired, or was issued by a different provider',
+                timestamp: new Date().toISOString()
               });
               return;
             }
@@ -232,7 +254,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 logger.error("Token exchange failed with correct provider", { provider: correctProviderType, error: errorMsg });
                 res.status(400).json({
                   error: 'invalid_grant',
-                  error_description: errorMsg
+                  error_description: errorMsg,
+                  timestamp: new Date().toISOString()
                 });
                 return;
               }
@@ -242,13 +265,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             logger.warn("No OAuth providers available for token exchange");
             res.status(400).json({
               error: 'invalid_grant',
-              error_description: 'No OAuth providers available'
+              error_description: 'No OAuth providers available',
+              timestamp: new Date().toISOString()
             });
             return;
           } else if (grant_type === 'refresh_token' || refresh_token) {
-            // Refresh Token Grant - try all providers
+            // Refresh Token Grant - O(1) lookup using token store
             logger.debug("Processing refresh_token grant");
 
+            // Phase 1: Find which provider owns this refresh token (O(1) lookup)
+            let correctProvider: OAuthProvider | null = null;
+            let correctProviderType: string | null = null;
+
+            // Get token store from any provider (they all share the same store)
+            const firstProvider = providers.values().next().value;
+            if (firstProvider && 'getTokenStore' in firstProvider) {
+              const tokenStore = (firstProvider as any).getTokenStore();
+
+              try {
+                const tokenData = await tokenStore.findByRefreshToken(refresh_token);
+
+                if (tokenData && tokenData.tokenInfo) {
+                  const providerType = tokenData.tokenInfo.provider;
+                  correctProvider = providers.get(providerType) || null;
+                  correctProviderType = providerType;
+
+                  if (correctProvider) {
+                    logger.info('Routing refresh token to correct provider', { provider: correctProviderType });
+                  }
+                }
+              } catch (error) {
+                // Token store lookup failed, fallback to sequential approach
+                logger.debug('Token store lookup failed, falling back to sequential provider trial', { error });
+              }
+            }
+
+            // Phase 2: Use the correct provider directly (O(1) execution)
+            if (correctProvider) {
+              try {
+                // Type cast required: Vercel types are not fully compatible with Express types
+                await correctProvider.handleTokenRefresh(req as any, res as any);
+                return; // Success
+              } catch (error) {
+                // Correct provider failed, don't try others
+                logger.error('Token refresh failed with correct provider', { provider: correctProviderType, error });
+                res.status(400).json({
+                  error: 'invalid_grant',
+                  error_description: error instanceof Error ? error.message : 'The provided refresh token is invalid or expired',
+                  timestamp: new Date().toISOString()
+                });
+                return;
+              }
+            }
+
+            // Fallback: Try each provider (for direct OAuth flows or if lookup failed)
+            logger.debug('Trying each provider for refresh token');
             for (const provider of providers.values()) {
               try {
                 // Type cast required: Vercel types are not fully compatible with Express types
@@ -263,14 +334,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // No provider succeeded
             res.status(400).json({
               error: 'invalid_grant',
-              error_description: 'The provided refresh token is invalid or expired'
+              error_description: 'The provided refresh token is invalid or expired',
+              timestamp: new Date().toISOString()
             });
             return;
           } else {
             // Invalid grant type
             res.status(400).json({
               error: 'unsupported_grant_type',
-              error_description: 'Supported grant types: authorization_code, refresh_token'
+              error_description: 'Supported grant types: authorization_code, refresh_token',
+              timestamp: new Date().toISOString()
             });
             return;
           }
@@ -279,7 +352,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!res.headersSent) {
             res.status(500).json({
               error: 'server_error',
-              error_description: error instanceof Error ? error.message : 'Unknown error'
+              error_description: error instanceof Error ? error.message : 'Unknown error',
+              timestamp: new Date().toISOString()
             });
           }
         }
@@ -300,7 +374,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!token || typeof token !== 'string' || token.trim() === '') {
             res.status(400).json({
               error: 'invalid_request',
-              error_description: 'Missing or invalid token parameter'
+              error_description: 'Missing or invalid token parameter',
+              timestamp: new Date().toISOString()
             });
             return;
           }
@@ -341,7 +416,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!res.headersSent) {
             res.status(500).json({
               error: 'server_error',
-              error_description: error instanceof Error ? error.message : 'Unknown error'
+              error_description: error instanceof Error ? error.message : 'Unknown error',
+              timestamp: new Date().toISOString()
             });
           }
         }
@@ -400,7 +476,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           callback: `/auth/${p}/callback`,
           logout: `/auth/${p}/logout`
         }))
-      }
+      },
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
@@ -409,7 +486,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!res.headersSent) {
       res.status(500).json({
         error: 'OAuth authentication failed',
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
   }
