@@ -9,7 +9,6 @@
  * - Discovery metadata correctness
  */
 
-import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import {
   getCurrentEnvironment,

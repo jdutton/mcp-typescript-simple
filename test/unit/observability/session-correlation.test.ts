@@ -2,23 +2,30 @@
  * Tests for session correlation
  */
 
-// Mock OpenTelemetry API first
-const mockSpan = {
-  setAttributes: jest.fn(),
-  end: jest.fn(),
-  recordException: jest.fn(),
-  setStatus: jest.fn()
-};
+import { vi } from 'vitest';
 
-const mockTrace = {
-  getActiveSpan: jest.fn(() => mockSpan),
-  getTracer: jest.fn(() => ({
-    startActiveSpan: jest.fn((name, callback) => callback(mockSpan))
-  }))
-};
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockSpan: {
+    setAttributes: vi.fn(),
+    end: vi.fn(),
+    recordException: vi.fn(),
+    setStatus: vi.fn()
+  },
+  mockTrace: {
+    getActiveSpan: vi.fn(),
+    getTracer: vi.fn()
+  }
+}));
 
-jest.mock('@opentelemetry/api', () => ({
-  trace: mockTrace
+// Setup mockTrace to return mockSpan
+mocks.mockTrace.getActiveSpan.mockReturnValue(mocks.mockSpan);
+mocks.mockTrace.getTracer.mockReturnValue({
+  startActiveSpan: vi.fn((name, callback) => callback(mocks.mockSpan))
+});
+
+vi.mock('@opentelemetry/api', () => ({
+  trace: mocks.mockTrace
 }));
 
 import {
@@ -85,9 +92,9 @@ describe('Session Correlation', () => {
 
   describe('addSessionToSpan', () => {
     beforeEach(() => {
-      mockSpan.setAttributes.mockClear();
-      mockTrace.getActiveSpan.mockClear();
-      mockTrace.getActiveSpan.mockReturnValue(mockSpan);
+      mocks.mockSpan.setAttributes.mockClear();
+      mocks.mockTrace.getActiveSpan.mockClear();
+      mocks.mockTrace.getActiveSpan.mockReturnValue(mocks.mockSpan);
     });
 
     it('should add session attributes to active span', () => {
@@ -100,8 +107,8 @@ describe('Session Correlation', () => {
 
       addSessionToSpan(sessionContext);
 
-      expect(mockTrace.getActiveSpan).toHaveBeenCalled();
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
+      expect(mocks.mockTrace.getActiveSpan).toHaveBeenCalled();
+      expect(mocks.mockSpan.setAttributes).toHaveBeenCalledWith({
         'mcp.session.id': 'test-uuid-12345',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': true,
@@ -110,7 +117,7 @@ describe('Session Correlation', () => {
     });
 
     it('should handle case when no active span exists', () => {
-      (mockTrace.getActiveSpan as jest.Mock).mockReturnValue(undefined);
+      mocks.mockTrace.getActiveSpan.mockReturnValue(undefined);
 
       const sessionContext = {
         sessionId: 'test-uuid-12345',
@@ -121,11 +128,11 @@ describe('Session Correlation', () => {
 
       // Should not throw when no active span
       expect(() => addSessionToSpan(sessionContext)).not.toThrow();
-      expect(mockSpan.setAttributes).not.toHaveBeenCalled();
+      expect(mocks.mockSpan.setAttributes).not.toHaveBeenCalled();
     });
 
     it('should handle null or undefined span', () => {
-      (mockTrace.getActiveSpan as jest.Mock).mockReturnValue(null);
+      mocks.mockTrace.getActiveSpan.mockReturnValue(null);
 
       const sessionContext = {
         sessionId: 'test-uuid-67890',
@@ -135,7 +142,7 @@ describe('Session Correlation', () => {
       };
 
       expect(() => addSessionToSpan(sessionContext)).not.toThrow();
-      expect(mockSpan.setAttributes).not.toHaveBeenCalled();
+      expect(mocks.mockSpan.setAttributes).not.toHaveBeenCalled();
     });
 
     it('should handle unauthenticated sessions', () => {
@@ -148,7 +155,7 @@ describe('Session Correlation', () => {
 
       addSessionToSpan(sessionContext);
 
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
+      expect(mocks.mockSpan.setAttributes).toHaveBeenCalledWith({
         'mcp.session.id': 'unauth-session-123',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': false,
@@ -166,7 +173,7 @@ describe('Session Correlation', () => {
 
       addSessionToSpan(sessionContext);
 
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
+      expect(mocks.mockSpan.setAttributes).toHaveBeenCalledWith({
         'mcp.session.id': 'minimal-session',
         'mcp.session.created_at': 0,
         'mcp.session.authenticated': false,
@@ -320,7 +327,7 @@ describe('Session Correlation', () => {
 
       addSessionToSpan(sessionContext);
 
-      expect(mockSpan.setAttributes).toHaveBeenCalledWith({
+      expect(mocks.mockSpan.setAttributes).toHaveBeenCalledWith({
         'mcp.session.id': 'test-uuid-12345',
         'mcp.session.created_at': 1234567890000,
         'mcp.session.authenticated': true,
@@ -328,7 +335,7 @@ describe('Session Correlation', () => {
       });
 
       // Verify no additional sensitive attributes are added
-      const calls = mockSpan.setAttributes.mock.calls;
+      const calls = mocks.mockSpan.setAttributes.mock.calls;
       const allAttributes = calls.reduce((acc, call) => ({ ...acc, ...call[0] }), {});
 
       // Check that only expected safe attributes are present

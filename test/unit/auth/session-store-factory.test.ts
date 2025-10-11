@@ -2,7 +2,6 @@
  * Unit tests for OAuth Session Store Factory
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { SessionStoreFactory, createSessionStore } from '../../../src/auth/session-store-factory.js';
 
 describe('SessionStoreFactory', () => {

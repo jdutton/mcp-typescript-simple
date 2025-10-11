@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 import type {
   MicrosoftOAuthConfig,
@@ -7,9 +8,10 @@ import type {
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
+import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 let originalFetch: typeof globalThis.fetch;
-const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
+const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
 
 const baseConfig: MicrosoftOAuthConfig = {
   type: 'microsoft',
@@ -97,11 +99,10 @@ describe('MicrosoftOAuthProvider', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const createProvider = () => {
-    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
     return new MicrosoftOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
   };
 
@@ -110,7 +111,7 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -134,7 +135,7 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -233,7 +234,7 @@ describe('MicrosoftOAuthProvider', () => {
         }
       } as unknown as Request;
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback(req, res);
 
@@ -251,7 +252,7 @@ describe('MicrosoftOAuthProvider', () => {
       const provider = createProvider();
       const now = Date.now();
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
@@ -506,8 +507,8 @@ describe('MicrosoftOAuthProvider', () => {
         statusText: 'Error'
       }));
 
-      const consoleWarnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-      const consoleErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       const res = createMockResponse();
       await provider.handleLogout({
@@ -592,7 +593,7 @@ describe('MicrosoftOAuthProvider', () => {
       // Mock failed Microsoft response
       fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await expect(provider.verifyAccessToken(invalidToken)).rejects.toThrow();
 
@@ -655,7 +656,7 @@ describe('MicrosoftOAuthProvider', () => {
     it('throws when Microsoft user info cannot be retrieved', async () => {
       const provider = createProvider();
 
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       fetchMock.mockResolvedValueOnce(new Response('forbidden', {
         status: 403,

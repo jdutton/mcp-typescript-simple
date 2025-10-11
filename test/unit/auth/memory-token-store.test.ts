@@ -3,8 +3,6 @@
  */
 
 import { InMemoryTokenStore } from '../../../src/auth/stores/memory-token-store.js';
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-
 describe('InMemoryTokenStore', () => {
   let store: InMemoryTokenStore;
 

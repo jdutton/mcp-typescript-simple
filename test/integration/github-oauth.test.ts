@@ -4,6 +4,7 @@
  */
 
 import { GitHubOAuthProvider } from '../../src/auth/providers/github-provider.js';
+import { MemoryPKCEStore } from '../../src/auth/stores/memory-pkce-store.js';
 import express, { Express } from 'express';
 import request from 'supertest';
 import nock from 'nock';
@@ -27,8 +28,8 @@ describe('GitHub OAuth Integration', () => {
     delete process.env.GITHUB_REDIRECT_URI;
     delete process.env.GITHUB_SCOPES;
 
-    // Create fresh instances
-    provider = new GitHubOAuthProvider(mockConfig);
+    // Create fresh instances with PKCE store
+    provider = new GitHubOAuthProvider(mockConfig, undefined, undefined, new MemoryPKCEStore());
 
     // Setup Express app with OAuth routes using provider handlers
     app = express();
@@ -221,7 +222,7 @@ describe('GitHub OAuth Integration', () => {
     });
 
     it('should have correct default scopes', () => {
-      expect(provider.getDefaultScopes()).toEqual(['user:email']);
+      expect(provider.getDefaultScopes()).toEqual(['read:user', 'user:email']);
     });
 
     it('should have correct endpoints', () => {
@@ -244,7 +245,7 @@ describe('GitHub OAuth Integration', () => {
         scopes: []
       };
 
-      expect(() => new GitHubOAuthProvider(validConfig)).not.toThrow();
+      expect(() => new GitHubOAuthProvider(validConfig, undefined, undefined, new MemoryPKCEStore())).not.toThrow();
     });
 
     it('should handle custom scopes correctly', () => {
@@ -254,7 +255,7 @@ describe('GitHub OAuth Integration', () => {
         clientSecret: 'test',
         redirectUri: 'http://localhost:3000/callback',
         scopes: ['repo', 'user:email']
-      });
+      }, undefined, undefined, new MemoryPKCEStore());
 
       expect(customScopeProvider.getProviderType()).toBe('github');
     });

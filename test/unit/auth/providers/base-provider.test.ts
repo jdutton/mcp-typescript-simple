@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 import {
   BaseOAuthProvider
@@ -16,6 +17,7 @@ import { OAuthTokenError } from '../../../../src/auth/providers/types.js';
 import { OAuthSessionStore } from '../../../../src/auth/stores/session-store-interface.js';
 import { OAuthTokenStore } from '../../../../src/auth/stores/oauth-token-store-interface.js';
 import { PKCEStore } from '../../../../src/auth/stores/pkce-store-interface.js';
+import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 type MockResponse = Response & {
   statusCode?: number;
@@ -133,7 +135,7 @@ describe('BaseOAuthProvider', () => {
   let provider: TestOAuthProvider;
   let sessionAccess: SessionAccess;
   let originalFetch: typeof globalThis.fetch;
-  const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
+  const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
 
   beforeAll(() => {
     originalFetch = globalThis.fetch;
@@ -148,7 +150,6 @@ describe('BaseOAuthProvider', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     fetchMock.mockReset();
-    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
     provider = new TestOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
     sessionAccess = provider as unknown as SessionAccess;
   });
@@ -292,7 +293,7 @@ describe('BaseOAuthProvider', () => {
   });
 
   it('clears cleanup timers on dispose', () => {
-    const clearSpy = jest.spyOn(global, 'clearInterval');
+    const clearSpy = vi.spyOn(global, 'clearInterval');
     provider.dispose();
     expect(clearSpy).toHaveBeenCalled();
     clearSpy.mockRestore();

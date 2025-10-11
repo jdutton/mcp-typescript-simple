@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import { LLMConfigManager } from '../../../src/llm/config.js';
 import type { LLMConfig } from '../../../src/llm/types.js';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
@@ -6,11 +7,11 @@ import { logger } from '../../../src/utils/logger.js';
 
 describe('LLMConfigManager', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('uses claude as default provider when LLM_DEFAULT_PROVIDER is not set', async () => {
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'anthropic-key',
       OPENAI_API_KEY: 'openai-key',
       GOOGLE_API_KEY: 'gemini-key',
@@ -25,7 +26,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('returns false from validateConfig when all provider keys are empty', async () => {
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: '',
       GOOGLE_API_KEY: '',
@@ -33,8 +34,8 @@ describe('LLMConfigManager', () => {
     } as any);
 
     const manager = new LLMConfigManager();
-    const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => {});
-    const loggerWarnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+    const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     await expect(manager.validateConfig()).resolves.toBe(false);
     expect(loggerErrorSpy).toHaveBeenCalled();
     expect(loggerWarnSpy).toHaveBeenCalled();
@@ -42,8 +43,8 @@ describe('LLMConfigManager', () => {
   });
 
   it('logs warnings and continues when some API keys are missing', async () => {
-    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: 'openai-key',
       GOOGLE_API_KEY: '',
@@ -63,7 +64,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('validates config and warns when some providers lack keys', async () => {
-    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
     const config: LLMConfig = {
       defaultProvider: 'claude',
       providers: {
@@ -105,7 +106,7 @@ describe('LLMConfigManager', () => {
       maxRetries: 2
     };
 
-    const loadConfigSpy = jest.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
+    const loadConfigSpy = vi.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
     const manager = new LLMConfigManager();
 
     await expect(manager.validateConfig()).resolves.toBe(true);
@@ -118,7 +119,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('throws when requesting a model that does not exist for the provider', async () => {
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',
@@ -132,7 +133,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('throws when the selected model is marked unavailable even if defined', async () => {
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',
@@ -144,14 +145,14 @@ describe('LLMConfigManager', () => {
     const defaultModel = baseConfig.providers.openai.defaultModel;
     baseConfig.providers.openai.models[defaultModel].available = false;
 
-    jest.spyOn(manager, 'loadConfig').mockResolvedValue(baseConfig);
+    vi.spyOn(manager, 'loadConfig').mockResolvedValue(baseConfig);
 
     await expect(manager.getModelConfig('openai', defaultModel))
       .rejects.toThrow(`Model '${defaultModel}' is not available for provider 'openai'`);
   });
 
   it('should not include deprecated Claude 3 models (claude-3-sonnet-20240229, claude-3-opus-20240229)', async () => {
-    const envSpy = jest.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',

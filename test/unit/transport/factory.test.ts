@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import { TransportFactory, StdioTransportManager, StreamableHTTPTransportManager } from '../../../src/transport/factory.js';
 import { EnvironmentConfig, TransportMode } from '../../../src/config/environment.js';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -6,14 +7,14 @@ import { logger } from '../../../src/utils/logger.js';
 
 describe('TransportFactory', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('creates stdio transport when mode is STDIO', () => {
-    jest.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(TransportMode.STDIO);
-    const serverConfigSpy = jest.spyOn(EnvironmentConfig, 'getServerConfig');
-    const securityConfigSpy = jest.spyOn(EnvironmentConfig, 'getSecurityConfig');
-    const skipAuthSpy = jest.spyOn(EnvironmentConfig, 'shouldSkipAuth');
+    vi.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(TransportMode.STDIO);
+    const serverConfigSpy = vi.spyOn(EnvironmentConfig, 'getServerConfig');
+    const securityConfigSpy = vi.spyOn(EnvironmentConfig, 'getSecurityConfig');
+    const skipAuthSpy = vi.spyOn(EnvironmentConfig, 'shouldSkipAuth');
 
     const transport = TransportFactory.createFromEnvironment();
 
@@ -25,10 +26,10 @@ describe('TransportFactory', () => {
 
 
   it('creates streamable HTTP transport with resumability enabled', () => {
-    jest.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(TransportMode.STREAMABLE_HTTP);
-    jest.spyOn(EnvironmentConfig, 'getServerConfig').mockReturnValue({ port: 3000, host: 'localhost', mode: TransportMode.STREAMABLE_HTTP });
-    jest.spyOn(EnvironmentConfig, 'getSecurityConfig').mockReturnValue({ allowedOrigins: undefined, allowedHosts: undefined, sessionSecret: 'secret', requireHttps: false });
-    jest.spyOn(EnvironmentConfig, 'shouldSkipAuth').mockReturnValue(true);
+    vi.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(TransportMode.STREAMABLE_HTTP);
+    vi.spyOn(EnvironmentConfig, 'getServerConfig').mockReturnValue({ port: 3000, host: 'localhost', mode: TransportMode.STREAMABLE_HTTP });
+    vi.spyOn(EnvironmentConfig, 'getSecurityConfig').mockReturnValue({ allowedOrigins: undefined, allowedHosts: undefined, sessionSecret: 'secret', requireHttps: false });
+    vi.spyOn(EnvironmentConfig, 'shouldSkipAuth').mockReturnValue(true);
 
     const transport = TransportFactory.createFromEnvironment();
 
@@ -39,7 +40,7 @@ describe('TransportFactory', () => {
 
 
   it('propagates errors when Streamable HTTP transports fail to close', async () => {
-    jest.spyOn(logger, 'error').mockImplementation(() => {});
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
     const manager = new StreamableHTTPTransportManager({
       port: 3000,
       host: 'localhost',
@@ -136,7 +137,7 @@ describe('TransportFactory', () => {
     });
 
     it('starts successfully after initialization', async () => {
-      const loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
 
       await manager.initialize(mockServer);
       await manager.start();
@@ -204,7 +205,7 @@ describe('TransportFactory', () => {
         initialize: jest.fn<() => Promise<void>>().mockResolvedValue(),
         start: jest.fn<() => Promise<void>>().mockResolvedValue(),
         stop: jest.fn<() => Promise<void>>().mockResolvedValue(),
-        onStreamableHTTPTransport: jest.fn()
+        onStreamableHTTPTransport: vi.fn()
       };
     });
 
@@ -254,13 +255,13 @@ describe('TransportFactory', () => {
   describe('Static methods', () => {
     it('gets transport mode from environment', () => {
       const mockMode = TransportMode.STREAMABLE_HTTP;
-      jest.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(mockMode);
+      vi.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(mockMode);
 
       expect(TransportFactory.getTransportMode()).toBe(mockMode);
     });
 
     it('throws error for unsupported mode in createFromEnvironment', () => {
-      jest.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue('invalid-mode' as TransportMode);
+      vi.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue('invalid-mode' as TransportMode);
 
       expect(() => {
         TransportFactory.createFromEnvironment();

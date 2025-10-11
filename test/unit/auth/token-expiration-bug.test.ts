@@ -12,6 +12,7 @@
  * provider validates against API → returns AuthInfo without expiresAt → 401 error
  */
 
+import { vi } from 'vitest';
 import { GitHubOAuthProvider } from '../../../src/auth/providers/github-provider.js';
 import { GoogleOAuthProvider } from '../../../src/auth/providers/google-provider.js';
 import { MicrosoftOAuthProvider } from '../../../src/auth/providers/microsoft-provider.js';
@@ -20,9 +21,10 @@ import {
   GoogleOAuthConfig,
   MicrosoftOAuthConfig,
 } from '../../../src/auth/providers/types.js';
+import { MemoryPKCEStore } from '../../../src/auth/stores/memory-pkce-store.js';
 
 // Mock fetch globally
-global.fetch = jest.fn();
+global.fetch = vi.fn();
 
 describe('Token Expiration Bug - Provider verifyAccessToken', () => {
   const githubConfig: GitHubOAuthConfig = {
@@ -51,16 +53,15 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GitHub Provider', () => {
     it('should return valid expiresAt when token not in local store', async () => {
-      const { MemoryPKCEStore } = require('../../../src/auth/stores/memory-pkce-store.js');
       const provider = new GitHubOAuthProvider(githubConfig, undefined, undefined, new MemoryPKCEStore());
 
       // Mock GitHub user API response (token not in local store scenario)
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           id: 123456,
@@ -71,7 +72,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       });
 
       // Mock GitHub emails API response
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => [
           {
@@ -103,11 +104,10 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('Microsoft Provider', () => {
     it('should return valid expiresAt when token not in local store', async () => {
-      const { MemoryPKCEStore } = require('../../../src/auth/stores/memory-pkce-store.js');
       const provider = new MicrosoftOAuthProvider(microsoftConfig, undefined, undefined, new MemoryPKCEStore());
 
       // Mock Microsoft Graph API response (token not in local store scenario)
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           id: 'user-id-123',
@@ -138,12 +138,11 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('Google Provider', () => {
     it('should return valid expiresAt when expiry_date unavailable', async () => {
-      const { MemoryPKCEStore } = require('../../../src/auth/stores/memory-pkce-store.js');
       const provider = new GoogleOAuthProvider(googleConfig, undefined, undefined, new MemoryPKCEStore());
 
       // Mock Google userinfo endpoint (fallback when tokeninfo fails)
       // This scenario returns no expiry_date
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           id: 'user-id-123',
@@ -172,7 +171,6 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
     });
 
     it('should use provider expiry_date when available', async () => {
-      const { MemoryPKCEStore } = require('../../../src/auth/stores/memory-pkce-store.js');
       const provider = new GoogleOAuthProvider(googleConfig, undefined, undefined, new MemoryPKCEStore());
 
       // Mock expiry_date 30 minutes from now (in milliseconds)
@@ -182,8 +180,8 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       // We need to mock the oauth2Client.getTokenInfo method
       // This requires accessing the private oauth2Client property
       const oauth2Client = (provider as any).oauth2Client;
-      oauth2Client.setCredentials = jest.fn();
-      oauth2Client.getTokenInfo = jest.fn().mockResolvedValue({
+      oauth2Client.setCredentials = vi.fn();
+      oauth2Client.getTokenInfo = vi.fn().mockResolvedValue({
         sub: 'user-id-123',
         email: 'test@example.com',
         scopes: ['openid', 'email', 'profile'],
@@ -200,11 +198,10 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('MCP SDK Compatibility', () => {
     it('should pass MCP SDK bearerAuth middleware validation check', async () => {
-      const { MemoryPKCEStore } = require('../../../src/auth/stores/memory-pkce-store.js');
       const provider = new GitHubOAuthProvider(githubConfig, undefined, undefined, new MemoryPKCEStore());
 
       // Mock GitHub API responses
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => ({
           id: 123456,
@@ -212,7 +209,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
           name: 'Test User',
         }),
       });
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
+      vi.mocked(global.fetch).mockResolvedValueOnce({
         ok: true,
         json: async () => [{
           email: 'test@example.com',

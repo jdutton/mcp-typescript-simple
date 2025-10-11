@@ -2,38 +2,43 @@
  * Tests for observability initialization
  */
 
+import { vi } from 'vitest';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockGetObservabilityConfig: vi.fn(),
+  mockDetectRuntime: vi.fn(),
+  mockInitializeInstrumentation: vi.fn(),
+  mockInitializeEdgeInstrumentation: vi.fn(),
+  mockShutdownInstrumentation: vi.fn(),
+  mockInitializeMetrics: vi.fn(),
+  mockGetLogger: vi.fn()
+}));
+
 // Mock config module
-const mockGetObservabilityConfig = jest.fn();
-const mockDetectRuntime = jest.fn();
-jest.mock('../../../src/observability/config.js', () => ({
-  getObservabilityConfig: mockGetObservabilityConfig,
-  detectRuntime: mockDetectRuntime
+vi.mock('../../../src/observability/config.js', () => ({
+  getObservabilityConfig: mocks.mockGetObservabilityConfig,
+  detectRuntime: mocks.mockDetectRuntime
 }));
 
 // Mock instrumentation modules
-const mockInitializeInstrumentation = jest.fn();
-const mockInitializeEdgeInstrumentation = jest.fn();
-const mockShutdownInstrumentation = jest.fn();
-
-jest.mock('../../../src/observability/instrumentation.js', () => ({
-  initializeInstrumentation: mockInitializeInstrumentation,
-  shutdownInstrumentation: mockShutdownInstrumentation
+vi.mock('../../../src/observability/instrumentation.js', () => ({
+  initializeInstrumentation: mocks.mockInitializeInstrumentation,
+  shutdownInstrumentation: mocks.mockShutdownInstrumentation
 }));
 
-jest.mock('../../../src/observability/instrumentation-edge.js', () => ({
-  initializeEdgeInstrumentation: mockInitializeEdgeInstrumentation
+vi.mock('../../../src/observability/instrumentation-edge.js', () => ({
+  initializeEdgeInstrumentation: mocks.mockInitializeEdgeInstrumentation
 }));
 
 // Mock metrics
-const mockInitializeMetrics = jest.fn();
-jest.mock('../../../src/observability/metrics.js', () => ({
-  initializeMetrics: mockInitializeMetrics
+vi.mock('../../../src/observability/metrics.js', () => ({
+  initializeMetrics: mocks.mockInitializeMetrics
 }));
 
 // Mock logger
-const mockGetLogger = jest.fn();
-jest.mock('../../../src/observability/logger.js', () => ({
-  getLogger: mockGetLogger
+vi.mock('../../../src/observability/logger.js', () => ({
+  getLogger: mocks.mockGetLogger
 }));
 
 import { initializeObservability } from '../../../src/observability/index.js';
@@ -68,21 +73,21 @@ describe('Observability Initialization', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(console, 'log').mockImplementation();
-    jest.spyOn(console, 'debug').mockImplementation();
-    jest.spyOn(console, 'warn').mockImplementation();
-    jest.spyOn(console, 'error').mockImplementation();
-    mockDetectRuntime.mockReturnValue('nodejs');
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    mocks.mockDetectRuntime.mockReturnValue('nodejs');
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('Node.js runtime', () => {
     it('should initialize Node.js instrumentation when enabled', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
 
       await initializeObservability();
 
@@ -95,27 +100,27 @@ describe('Observability Initialization', () => {
         service: 'test-service'
       });
 
-      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).toHaveBeenCalled();
       expect(console.debug).toHaveBeenCalledWith('[OTEL] Metrics initialized (tracing should be via register.ts)');
 
       // Should not initialize edge instrumentation
-      expect(mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
+      expect(mocks.mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
     });
 
     it('should skip initialization when disabled', async () => {
       const disabledConfig = { ...mockNodeConfig, enabled: false };
-      mockGetObservabilityConfig.mockReturnValue(disabledConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(disabledConfig);
 
       await initializeObservability();
 
       expect(console.debug).toHaveBeenCalledWith('[OTEL] Observability disabled');
-      expect(mockInitializeMetrics).not.toHaveBeenCalled();
-      expect(mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).not.toHaveBeenCalled();
+      expect(mocks.mockInitializeEdgeInstrumentation).not.toHaveBeenCalled();
     });
 
     it('should handle initialization errors gracefully', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
-      mockInitializeMetrics.mockImplementationOnce(() => {
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
+      mocks.mockInitializeMetrics.mockImplementationOnce(() => {
         throw new Error('Metrics failed');
       });
 
@@ -130,8 +135,8 @@ describe('Observability Initialization', () => {
 
   describe('Edge runtime', () => {
     it('should initialize Edge instrumentation when enabled', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockEdgeConfig);
-      mockDetectRuntime.mockReturnValue('edge');
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockEdgeConfig);
+      mocks.mockDetectRuntime.mockReturnValue('edge');
 
       await initializeObservability();
 
@@ -141,18 +146,18 @@ describe('Observability Initialization', () => {
         service: 'test-service'
       });
 
-      expect(mockInitializeEdgeInstrumentation).toHaveBeenCalled();
+      expect(mocks.mockInitializeEdgeInstrumentation).toHaveBeenCalled();
 
       expect(console.debug).toHaveBeenCalledWith('[OTEL] Edge runtime observability initialized');
 
       // Should not initialize Node.js metrics (Edge uses different approach)
-      expect(mockInitializeMetrics).not.toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).not.toHaveBeenCalled();
     });
 
     it('should handle Edge initialization errors', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockEdgeConfig);
-      mockDetectRuntime.mockReturnValue('edge');
-      mockInitializeEdgeInstrumentation.mockImplementationOnce(() => {
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockEdgeConfig);
+      mocks.mockDetectRuntime.mockReturnValue('edge');
+      mocks.mockInitializeEdgeInstrumentation.mockImplementationOnce(() => {
         throw new Error('Edge init failed');
       });
 
@@ -183,7 +188,7 @@ describe('Observability Initialization', () => {
           metrics: 0.1
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(prodConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(prodConfig);
 
       await initializeObservability();
 
@@ -193,7 +198,7 @@ describe('Observability Initialization', () => {
         service: 'test-service'
       });
 
-      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).toHaveBeenCalled();
 
     });
   });
@@ -205,27 +210,27 @@ describe('Observability Initialization', () => {
         enabled: false,
         environment: 'test'
       };
-      mockGetObservabilityConfig.mockReturnValue(testConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(testConfig);
 
       await initializeObservability();
 
       expect(console.debug).toHaveBeenCalledWith('[OTEL] Observability disabled');
-      expect(mockInitializeMetrics).not.toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).not.toHaveBeenCalled();
     });
   });
 
   describe('Metrics initialization', () => {
     it('should initialize metrics when enabled', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
 
       await initializeObservability();
 
-      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).toHaveBeenCalled();
     });
 
     it('should handle metrics initialization errors', async () => {
-      mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
-      mockInitializeMetrics.mockImplementationOnce(() => {
+      mocks.mockGetObservabilityConfig.mockReturnValue(mockNodeConfig);
+      mocks.mockInitializeMetrics.mockImplementationOnce(() => {
         throw new Error('Metrics init failed');
       });
 
@@ -251,11 +256,11 @@ describe('Observability Initialization', () => {
           }
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(noOtlpConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(noOtlpConfig);
 
       await initializeObservability();
 
-      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).toHaveBeenCalled();
     });
 
     it('should handle console-only configuration', async () => {
@@ -270,11 +275,11 @@ describe('Observability Initialization', () => {
           }
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(consoleOnlyConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(consoleOnlyConfig);
 
       await initializeObservability();
 
-      expect(mockInitializeMetrics).toHaveBeenCalled();
+      expect(mocks.mockInitializeMetrics).toHaveBeenCalled();
       expect(console.debug).toHaveBeenCalledWith('[OTEL] Metrics initialized (tracing should be via register.ts)');
     });
   });

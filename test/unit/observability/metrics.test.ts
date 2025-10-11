@@ -2,33 +2,43 @@
  * Tests for MCP-specific metrics collection
  */
 
-// Mock OpenTelemetry metrics API
-const mockCounter = {
-  add: jest.fn()
-};
-const mockHistogram = {
-  record: jest.fn()
-};
-const mockUpDownCounter = {
-  add: jest.fn()
-};
+import { vi } from 'vitest';
 
-const mockMeter = {
-  createCounter: jest.fn(() => mockCounter),
-  createHistogram: jest.fn(() => mockHistogram),
-  createUpDownCounter: jest.fn(() => mockUpDownCounter)
-};
-const mockGetMeter = jest.fn(() => mockMeter);
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockCounter: {
+    add: vi.fn()
+  },
+  mockHistogram: {
+    record: vi.fn()
+  },
+  mockUpDownCounter: {
+    add: vi.fn()
+  },
+  mockMeter: {
+    createCounter: vi.fn(),
+    createHistogram: vi.fn(),
+    createUpDownCounter: vi.fn()
+  },
+  mockGetMeter: vi.fn(),
+  getObservabilityConfig: vi.fn()
+}));
 
-jest.mock('@opentelemetry/api', () => ({
+// Setup mockMeter to return mock instruments
+mocks.mockMeter.createCounter.mockReturnValue(mocks.mockCounter);
+mocks.mockMeter.createHistogram.mockReturnValue(mocks.mockHistogram);
+mocks.mockMeter.createUpDownCounter.mockReturnValue(mocks.mockUpDownCounter);
+mocks.mockGetMeter.mockReturnValue(mocks.mockMeter);
+
+vi.mock('@opentelemetry/api', () => ({
   metrics: {
-    getMeter: mockGetMeter
+    getMeter: mocks.mockGetMeter
   }
 }));
 
 // Mock config module
-jest.mock('../../../src/observability/config.js', () => ({
-  getObservabilityConfig: jest.fn()
+vi.mock('../../../src/observability/config.js', () => ({
+  getObservabilityConfig: mocks.getObservabilityConfig
 }));
 
 import {
@@ -66,8 +76,8 @@ describe('MCP Metrics', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (getObservabilityConfig as jest.Mock).mockReturnValue(mockConfig);
+    vi.clearAllMocks();
+    mocks.getObservabilityConfig.mockReturnValue(mockConfig);
 
     // Reset initialization state
   });
@@ -75,11 +85,11 @@ describe('MCP Metrics', () => {
   describe('initializeMetrics', () => {
     it('should not initialize when disabled', () => {
       const disabledConfig = { ...mockConfig, enabled: false };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(disabledConfig);
+      mocks.getObservabilityConfig.mockReturnValue(disabledConfig);
 
       initializeMetrics();
 
-      expect(mockGetMeter).not.toHaveBeenCalled();
+      expect(mocks.mockGetMeter).not.toHaveBeenCalled();
     });
 
     it('should not initialize when metrics sampling is disabled', () => {
@@ -87,47 +97,47 @@ describe('MCP Metrics', () => {
         ...mockConfig,
         sampling: { traces: 1.0, metrics: 0 }
       };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(noMetricsConfig);
+      mocks.getObservabilityConfig.mockReturnValue(noMetricsConfig);
 
       initializeMetrics();
 
-      expect(mockGetMeter).not.toHaveBeenCalled();
+      expect(mocks.mockGetMeter).not.toHaveBeenCalled();
     });
 
     it('should initialize all metric instruments', () => {
       initializeMetrics();
 
-      expect(mockGetMeter).toHaveBeenCalledWith('mcp-server', '1.0.0');
+      expect(mocks.mockGetMeter).toHaveBeenCalledWith('mcp-server', '1.0.0');
 
       // MCP Protocol Metrics
-      expect(mockMeter.createCounter).toHaveBeenCalledWith('mcp_messages_total', {
+      expect(mocks.mockMeter.createCounter).toHaveBeenCalledWith('mcp_messages_total', {
         description: 'Total number of MCP messages processed'
       });
-      expect(mockMeter.createHistogram).toHaveBeenCalledWith('mcp_message_duration_ms', {
+      expect(mocks.mockMeter.createHistogram).toHaveBeenCalledWith('mcp_message_duration_ms', {
         description: 'Duration of MCP message processing in milliseconds'
       });
 
       // Tool Performance Metrics
-      expect(mockMeter.createCounter).toHaveBeenCalledWith('mcp_tool_invocations_total', {
+      expect(mocks.mockMeter.createCounter).toHaveBeenCalledWith('mcp_tool_invocations_total', {
         description: 'Total number of tool invocations'
       });
-      expect(mockMeter.createHistogram).toHaveBeenCalledWith('mcp_tool_duration_ms', {
+      expect(mocks.mockMeter.createHistogram).toHaveBeenCalledWith('mcp_tool_duration_ms', {
         description: 'Duration of tool execution in milliseconds'
       });
 
       // Session Metrics
-      expect(mockMeter.createUpDownCounter).toHaveBeenCalledWith('mcp_active_sessions', {
+      expect(mocks.mockMeter.createUpDownCounter).toHaveBeenCalledWith('mcp_active_sessions', {
         description: 'Number of active MCP sessions'
       });
-      expect(mockMeter.createHistogram).toHaveBeenCalledWith('mcp_session_duration_ms', {
+      expect(mocks.mockMeter.createHistogram).toHaveBeenCalledWith('mcp_session_duration_ms', {
         description: 'Duration of MCP sessions in milliseconds'
       });
 
       // LLM Provider Metrics
-      expect(mockMeter.createCounter).toHaveBeenCalledWith('mcp_llm_requests_total', {
+      expect(mocks.mockMeter.createCounter).toHaveBeenCalledWith('mcp_llm_requests_total', {
         description: 'Total number of LLM provider requests'
       });
-      expect(mockMeter.createHistogram).toHaveBeenCalledWith('mcp_llm_latency_ms', {
+      expect(mocks.mockMeter.createHistogram).toHaveBeenCalledWith('mcp_llm_latency_ms', {
         description: 'Latency of LLM provider requests in milliseconds'
       });
     });
@@ -136,17 +146,17 @@ describe('MCP Metrics', () => {
   describe('recordMCPMessage', () => {
     it('should record successful message metrics', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordMCPMessage('request', 'initialize', 150, true);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         message_type: 'request',
         method: 'initialize',
         success: 'true'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(150, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(150, {
         message_type: 'request',
         method: 'initialize'
       });
@@ -154,17 +164,17 @@ describe('MCP Metrics', () => {
 
     it('should record failed message metrics', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordMCPMessage('response', 'tools/invoke', 500, false);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         message_type: 'response',
         method: 'tools/invoke',
         success: 'false'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(500, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(500, {
         message_type: 'response',
         method: 'tools/invoke'
       });
@@ -172,11 +182,11 @@ describe('MCP Metrics', () => {
 
     it('should handle notification messages', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordMCPMessage('notification', 'progress', 50, true);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         message_type: 'notification',
         method: 'progress',
         success: 'true'
@@ -187,17 +197,17 @@ describe('MCP Metrics', () => {
   describe('recordToolInvocation', () => {
     it('should record successful tool invocation', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordToolInvocation('chat', 1500, true);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         tool_name: 'chat',
         success: 'true',
         error_type: 'none'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(1500, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(1500, {
         tool_name: 'chat',
         success: 'true'
       });
@@ -205,17 +215,17 @@ describe('MCP Metrics', () => {
 
     it('should record failed tool invocation with error type', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordToolInvocation('analyze', 3000, false, 'timeout');
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         tool_name: 'analyze',
         success: 'false',
         error_type: 'timeout'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(3000, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(3000, {
         tool_name: 'analyze',
         success: 'false'
       });
@@ -225,59 +235,59 @@ describe('MCP Metrics', () => {
   describe('recordSessionEvent', () => {
     it('should increment counter on session creation', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordSessionEvent('created');
 
-      expect(mockUpDownCounter.add).toHaveBeenCalledWith(1);
-      expect(mockHistogram.record).not.toHaveBeenCalled();
+      expect(mocks.mockUpDownCounter.add).toHaveBeenCalledWith(1);
+      expect(mocks.mockHistogram.record).not.toHaveBeenCalled();
     });
 
     it('should decrement counter and record duration on session close', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordSessionEvent('closed', 60000);
 
-      expect(mockUpDownCounter.add).toHaveBeenCalledWith(-1);
-      expect(mockHistogram.record).toHaveBeenCalledWith(60000);
+      expect(mocks.mockUpDownCounter.add).toHaveBeenCalledWith(-1);
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(60000);
     });
 
     it('should handle authenticated event without counter change', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordSessionEvent('authenticated');
 
-      expect(mockUpDownCounter.add).not.toHaveBeenCalled();
-      expect(mockHistogram.record).not.toHaveBeenCalled();
+      expect(mocks.mockUpDownCounter.add).not.toHaveBeenCalled();
+      expect(mocks.mockHistogram.record).not.toHaveBeenCalled();
     });
 
     it('should handle close without duration', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordSessionEvent('closed');
 
-      expect(mockUpDownCounter.add).toHaveBeenCalledWith(-1);
-      expect(mockHistogram.record).not.toHaveBeenCalled();
+      expect(mocks.mockUpDownCounter.add).toHaveBeenCalledWith(-1);
+      expect(mocks.mockHistogram.record).not.toHaveBeenCalled();
     });
   });
 
   describe('recordLLMRequest', () => {
     it('should record successful LLM request', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordLLMRequest('openai', 'gpt-4', 3500, true);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'openai',
         model: 'gpt-4',
         success: 'true'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(3500, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(3500, {
         provider: 'openai',
         model: 'gpt-4'
       });
@@ -285,17 +295,17 @@ describe('MCP Metrics', () => {
 
     it('should record failed LLM request', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordLLMRequest('gemini', 'gemini-2.5-flash-lite', 5000, false);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'gemini',
         model: 'gemini-2.5-flash-lite',
         success: 'false'
       });
 
-      expect(mockHistogram.record).toHaveBeenCalledWith(5000, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(5000, {
         provider: 'gemini',
         model: 'gemini-2.5-flash-lite'
       });
@@ -303,16 +313,16 @@ describe('MCP Metrics', () => {
 
     it('should record token usage when provided', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       recordLLMRequest('claude', 'claude-3-sonnet', 2500, true, 1500);
 
       // Verify token counter creation and usage
-      expect(mockGetMeter).toHaveBeenCalledWith('mcp-llm-tokens');
-      expect(mockMeter.createCounter).toHaveBeenCalledWith('mcp_llm_tokens_total', {
+      expect(mocks.mockGetMeter).toHaveBeenCalledWith('mcp-llm-tokens');
+      expect(mocks.mockMeter.createCounter).toHaveBeenCalledWith('mcp_llm_tokens_total', {
         description: 'Total number of LLM tokens consumed'
       });
-      expect(mockCounter.add).toHaveBeenCalledWith(1500, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1500, {
         provider: 'claude',
         model: 'claude-3-sonnet'
       });
@@ -323,11 +333,11 @@ describe('MCP Metrics', () => {
     it('should record OAuth started event', () => {
       recordOAuthEvent('google', 'started');
 
-      expect(mockGetMeter).toHaveBeenCalledWith('mcp-oauth');
-      expect(mockMeter.createCounter).toHaveBeenCalledWith('mcp_oauth_events_total', {
+      expect(mocks.mockGetMeter).toHaveBeenCalledWith('mcp-oauth');
+      expect(mocks.mockMeter.createCounter).toHaveBeenCalledWith('mcp_oauth_events_total', {
         description: 'Total number of OAuth events'
       });
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'google',
         event: 'started'
       });
@@ -336,14 +346,14 @@ describe('MCP Metrics', () => {
     it('should record OAuth completed event with duration', () => {
       recordOAuthEvent('github', 'completed', 4500);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'github',
         event: 'completed'
       });
-      expect(mockMeter.createHistogram).toHaveBeenCalledWith('mcp_oauth_duration_ms', {
+      expect(mocks.mockMeter.createHistogram).toHaveBeenCalledWith('mcp_oauth_duration_ms', {
         description: 'Duration of OAuth flows in milliseconds'
       });
-      expect(mockHistogram.record).toHaveBeenCalledWith(4500, {
+      expect(mocks.mockHistogram.record).toHaveBeenCalledWith(4500, {
         provider: 'github'
       });
     });
@@ -351,28 +361,28 @@ describe('MCP Metrics', () => {
     it('should record OAuth failed event without duration', () => {
       recordOAuthEvent('microsoft', 'failed');
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'microsoft',
         event: 'failed'
       });
-      expect(mockMeter.createHistogram).not.toHaveBeenCalledWith('mcp_oauth_duration_ms', expect.any(Object));
+      expect(mocks.mockMeter.createHistogram).not.toHaveBeenCalledWith('mcp_oauth_duration_ms', expect.any(Object));
     });
 
     it('should only record duration for completed events', () => {
       // Failed with duration should not record duration
       recordOAuthEvent('generic', 'failed', 1000);
 
-      expect(mockCounter.add).toHaveBeenCalledWith(1, {
+      expect(mocks.mockCounter.add).toHaveBeenCalledWith(1, {
         provider: 'generic',
         event: 'failed'
       });
-      expect(mockMeter.createHistogram).not.toHaveBeenCalledWith('mcp_oauth_duration_ms', expect.any(Object));
+      expect(mocks.mockMeter.createHistogram).not.toHaveBeenCalledWith('mcp_oauth_duration_ms', expect.any(Object));
     });
   });
 
   describe('Error Handling and Resilience', () => {
     it('should handle metrics API failures gracefully', () => {
-      mockCounter.add.mockImplementationOnce(() => {
+      mocks.mockCounter.add.mockImplementationOnce(() => {
         throw new Error('Metrics API error');
       });
 
@@ -383,7 +393,7 @@ describe('MCP Metrics', () => {
     });
 
     it('should handle histogram recording failures', () => {
-      mockHistogram.record.mockImplementationOnce(() => {
+      mocks.mockHistogram.record.mockImplementationOnce(() => {
         throw new Error('Histogram error');
       });
 
@@ -394,7 +404,7 @@ describe('MCP Metrics', () => {
 
     it('should validate metric parameters before recording', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Test with invalid duration (negative)
       recordMCPMessage('request', 'test', -100, true);
@@ -402,13 +412,13 @@ describe('MCP Metrics', () => {
       recordLLMRequest('claude', 'claude-3-haiku', -200, true);
 
       // Should still call metrics but with potentially sanitized values
-      expect(mockCounter.add).toHaveBeenCalled();
-      expect(mockHistogram.record).toHaveBeenCalled();
+      expect(mocks.mockCounter.add).toHaveBeenCalled();
+      expect(mocks.mockHistogram.record).toHaveBeenCalled();
     });
 
     it('should handle extremely large metric values', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       const hugeValue = Number.MAX_SAFE_INTEGER;
 
@@ -421,14 +431,14 @@ describe('MCP Metrics', () => {
 
     it('should handle invalid session event types', () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Should not throw with invalid event type
       expect(() => recordSessionEvent('invalid_event' as any)).not.toThrow();
     });
 
     it('should handle meter creation failures during initialization', () => {
-      mockGetMeter.mockImplementationOnce(() => {
+      mocks.mockGetMeter.mockImplementationOnce(() => {
         throw new Error('Meter creation failed');
       });
 
@@ -458,12 +468,12 @@ describe('MCP Metrics', () => {
       }
 
       // Should not accumulate internal state
-      expect(mockCounter.add).toHaveBeenCalledTimes(2000);
+      expect(mocks.mockCounter.add).toHaveBeenCalledTimes(2000);
     });
 
     it('should handle concurrent metric recording safely', async () => {
       initializeMetrics();
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Simulate concurrent metric recording
       const promises = Array.from({ length: 100 }, (_, i) =>
@@ -471,7 +481,7 @@ describe('MCP Metrics', () => {
       );
 
       await Promise.all(promises);
-      expect(mockCounter.add).toHaveBeenCalledTimes(100);
+      expect(mocks.mockCounter.add).toHaveBeenCalledTimes(100);
     });
   });
 
@@ -483,7 +493,7 @@ describe('MCP Metrics', () => {
         // Missing other required fields
       } as any;
 
-      (getObservabilityConfig as jest.Mock).mockReturnValue(partialConfig);
+      mocks.getObservabilityConfig.mockReturnValue(partialConfig);
 
       expect(() => initializeMetrics()).not.toThrow();
     });
@@ -494,10 +504,10 @@ describe('MCP Metrics', () => {
         sampling: { traces: 1.0, metrics: 0 }
       };
 
-      (getObservabilityConfig as jest.Mock).mockReturnValue(zeroSamplingConfig);
+      mocks.getObservabilityConfig.mockReturnValue(zeroSamplingConfig);
 
       initializeMetrics();
-      expect(mockGetMeter).not.toHaveBeenCalled();
+      expect(mocks.mockGetMeter).not.toHaveBeenCalled();
     });
 
     it('should handle fractional sampling rates', () => {
@@ -506,10 +516,10 @@ describe('MCP Metrics', () => {
         sampling: { traces: 1.0, metrics: 0.5 }
       };
 
-      (getObservabilityConfig as jest.Mock).mockReturnValue(fractionalConfig);
+      mocks.getObservabilityConfig.mockReturnValue(fractionalConfig);
 
       initializeMetrics();
-      expect(mockGetMeter).toHaveBeenCalled();
+      expect(mocks.mockGetMeter).toHaveBeenCalled();
     });
 
     it('should handle invalid service version', () => {
@@ -518,7 +528,7 @@ describe('MCP Metrics', () => {
         service: { ...mockConfig.service, version: null }
       };
 
-      (getObservabilityConfig as jest.Mock).mockReturnValue(invalidVersionConfig);
+      mocks.getObservabilityConfig.mockReturnValue(invalidVersionConfig);
 
       expect(() => initializeMetrics()).not.toThrow();
     });

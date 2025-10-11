@@ -9,15 +9,19 @@
  * - Connection error handling
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { vi } from 'vitest';
 import { RedisPKCEStore } from '../../../../src/auth/stores/redis-pkce-store.js';
 import { PKCEData } from '../../../../src/auth/stores/pkce-store-interface.js';
 
-// Mock Redis for testing
-jest.mock('ioredis', () => require('ioredis-mock'));
+// Hoist Redis mock to avoid initialization issues
+const RedisMock = vi.hoisted(() => require('ioredis-mock'));
+
+// Mock Redis for testing - Vitest requires default export
+vi.mock('ioredis', () => ({
+  default: RedisMock
+}));
 
 // Create a shared Redis instance for cleanup
-const RedisMock = require('ioredis-mock');
 let sharedRedis: any = null;
 
 describe('RedisPKCEStore', () => {
@@ -25,7 +29,7 @@ describe('RedisPKCEStore', () => {
 
   beforeEach(async () => {
     if (!sharedRedis) {
-      sharedRedis = new RedisMock();
+      sharedRedis = new (RedisMock as any)();
     }
     // Flush all data between tests
     await sharedRedis.flushall();

@@ -28,20 +28,24 @@ npm run dev:http         # Streamable HTTP mode (no auth)
 npm run dev:oauth        # Streamable HTTP mode (with OAuth)
 npm run dev:vercel       # Vercel local development server
 
-# Testing
-npm test                 # Jest unit tests (test/unit/)
-npm run test:unit        # Jest unit tests with coverage
+# Testing (Vitest-powered - fast, native TypeScript support)
+npm test                 # Vitest unit tests (test/unit/)
+npm run test:unit        # Vitest unit tests with coverage
 npm run test:integration # Integration tests (test/integration/)
 npm run test:ci          # Comprehensive CI/CD test suite
 npm run test:mcp         # MCP protocol testing (tools/manual/)
 npm run test:interactive # Interactive MCP client (tools/)
 npm run test:dual-mode   # Dual-mode functionality test
+vitest                   # Watch mode (instant feedback on file changes)
 
 # System Testing (test/system/)
 npm run test:system:stdio    # STDIO transport mode system tests
 npm run test:system:express  # Express HTTP server system tests
 npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
 npm run test:models          # Validate ALL LLM models with real API calls (requires API keys)
+
+# Note: Vitest migration in progress (181/294 tests passing)
+# See docs/vitest-migration.md for status and remaining work
 
 npm run validate         # Complete validation (unit → integration → build)
                          # Skips validation if already passed for current worktree
@@ -670,6 +674,9 @@ gh pr create --title "Brief description" --body "Detailed description"
 - Ensure code examples work and dependencies are accurate
 - Keep tool descriptions matching actual implementation
 
+#### Work-in-Progress Tracking
+**Use TODO.md for local PR/task tracking - to track progress, blockers and next steps ** - it's git-ignored and won't be committed, it's just for locally persisted TODO state
+
 ### Examples of Required Tests
 
 #### Adding a New MCP Tool
@@ -747,6 +754,7 @@ gh pr create --title "Brief description" --body "Detailed description"
 - `express` - HTTP server for Streamable HTTP transport
 - `@vercel/node` - Vercel serverless function support
 - `typescript` - TypeScript compiler with strict configuration
+- `vitest` - Fast test runner with native TypeScript/ESM support (migrating from Jest)
 - Always run CI tests locally before pushing to PR to ensure PR tests will pass
 - DO NOT ask to commit any code unless you have first run 'npm run validate' on the changes successfully
 
@@ -810,7 +818,7 @@ Runs complete validation pipeline with git tree hash state caching.
 **Validation steps:**
 1. TypeScript type checking
 2. ESLint code checking
-3. Unit tests (Jest)
+3. Unit tests (Vitest)
 4. Build
 5. OpenAPI validation
 6. Integration tests
@@ -884,6 +892,7 @@ npm run pre-commit
 
 ### References
 
+- **Vitest Migration**: `docs/vitest-migration.md`
 - **Extraction Strategy**: `docs/agentic-workflow-extraction.md`
 - **Pre-commit Hook**: `docs/pre-commit-hook.md`
 - **Architecture Research**: Issue #68 (chief-arch agent output)

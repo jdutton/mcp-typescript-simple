@@ -5,7 +5,6 @@
  * token revocation mechanism that works with all configured OAuth providers.
  */
 
-import { jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 import { OAuthProvider, OAuthProviderType, StoredTokenInfo } from '../../../src/auth/providers/types.js';
 

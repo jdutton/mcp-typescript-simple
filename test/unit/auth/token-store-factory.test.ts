@@ -5,8 +5,6 @@
 import { TokenStoreFactory, createTokenStore } from '../../../src/auth/token-store-factory.js';
 import { InMemoryTokenStore } from '../../../src/auth/stores/memory-token-store.js';
 import { FileTokenStore } from '../../../src/auth/stores/file-token-store.js';
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-
 describe('TokenStoreFactory', () => {
   const originalEnv = process.env;
 

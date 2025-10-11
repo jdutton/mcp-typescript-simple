@@ -8,8 +8,6 @@
  * - Error handling for various scenarios
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
-
 interface MCPResponse<T = any> {
   jsonrpc: '2.0';
   id?: number | string | null;

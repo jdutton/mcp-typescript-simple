@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { MemoryEventStore, EventStoreFactory } from '../../../src/session/event-store.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
@@ -32,7 +34,7 @@ describe('MemoryEventStore', () => {
     expect(internal.events.size).toBe(3);
     expect(internal.streamEvents.get('stream-1')).toEqual([firstId, secondId, thirdId]);
 
-    const send = jest.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue(undefined);
     const streamId = await store.replayEventsAfter(firstId, { send });
 
     expect(streamId).toBe('stream-1');
@@ -44,7 +46,7 @@ describe('MemoryEventStore', () => {
 
   it('throws when replaying from unknown event', async () => {
     const store = new MemoryEventStore();
-    await expect(store.replayEventsAfter('missing', { send: jest.fn() })).rejects.toThrow('Event not found: missing');
+    await expect(store.replayEventsAfter('missing', { send: vi.fn() })).rejects.toThrow('Event not found: missing');
     store.destroy();
   });
 

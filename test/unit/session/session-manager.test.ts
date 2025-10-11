@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { SessionManager } from '../../../src/session/session-manager.js';
 import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 

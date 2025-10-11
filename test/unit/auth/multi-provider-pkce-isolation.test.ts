@@ -11,7 +11,6 @@
  * invalid_grant errors during token exchange.
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
 import { GoogleOAuthProvider } from '../../../src/auth/providers/google-provider.js';
 import { GitHubOAuthProvider } from '../../../src/auth/providers/github-provider.js';
 import { MicrosoftOAuthProvider } from '../../../src/auth/providers/microsoft-provider.js';

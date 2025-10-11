@@ -2,7 +2,6 @@
  * Unit tests for OAuth Token Store Factory
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { OAuthTokenStoreFactory, createOAuthTokenStore } from '../../../src/auth/oauth-token-store-factory.js';
 
 describe('OAuthTokenStoreFactory', () => {

@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 import type {
   GenericOAuthConfig,
@@ -6,9 +7,10 @@ import type {
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
+import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 let originalFetch: typeof globalThis.fetch;
-const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
+const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
 
 const baseConfig: GenericOAuthConfig = {
   type: 'generic',
@@ -99,11 +101,10 @@ describe('GenericOAuthProvider', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const createProvider = () => {
-    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
     return new GenericOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
   };
 
@@ -112,8 +113,8 @@ describe('GenericOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -143,7 +144,7 @@ describe('GenericOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -241,7 +242,7 @@ describe('GenericOAuthProvider', () => {
         }
       } as unknown as Request;
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback(req, res);
 
@@ -415,7 +416,7 @@ describe('GenericOAuthProvider', () => {
       // Mock failed userinfo response
       fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await expect(provider.verifyAccessToken(invalidToken)).rejects.toThrow();
 

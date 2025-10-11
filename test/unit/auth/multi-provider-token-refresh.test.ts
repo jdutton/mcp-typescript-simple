@@ -2,7 +2,6 @@
  * Unit tests for multi-provider token refresh logic
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 import type { StoredTokenInfo } from '../../../src/auth/providers/types.js';
 
@@ -18,14 +17,14 @@ describe('Multi-Provider Token Refresh', () => {
     };
 
     mockRes = {
-      status: jest.fn().mockReturnThis() as any,
-      json: jest.fn().mockReturnThis() as any,
-      setHeader: jest.fn().mockReturnThis() as any,
+      status: vi.fn().mockReturnThis() as any,
+      json: vi.fn().mockReturnThis() as any,
+      setHeader: vi.fn().mockReturnThis() as any,
       headersSent: false,
     };
 
     mockTokenStore = {
-      findByRefreshToken: jest.fn(),
+      findByRefreshToken: vi.fn(),
     };
 
     mockProviders = new Map();

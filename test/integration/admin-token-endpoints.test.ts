@@ -2,32 +2,39 @@
  * Integration tests for Admin Token Management Endpoints
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { vi } from 'vitest';
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { OAuthProviderFactory } from '../../src/auth/factory.js';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockProvider: {
+    getProviderType: () => 'google' as const,
+    getEndpoints: () => ({
+      authEndpoint: '/auth/google',
+      callbackEndpoint: '/auth/google/callback',
+      refreshEndpoint: '/auth/google/refresh',
+      logoutEndpoint: '/auth/google/logout',
+    }),
+    handleAuthorizationRequest: vi.fn(),
+    handleAuthorizationCallback: vi.fn(),
+    handleTokenRefresh: vi.fn(),
+    handleLogout: vi.fn(),
+    verifyAccessToken: vi.fn(),
+    dispose: vi.fn(),
+  },
+  createFromEnvironment: vi.fn(),
+  createAllFromEnvironment: vi.fn(),
+}));
 
 // Mock the OAuth provider factory to return a test provider
-jest.mock('../../src/auth/factory.js');
-
-const mockOAuthProviderFactory = OAuthProviderFactory as jest.Mocked<typeof OAuthProviderFactory>;
-
-const mockProvider = {
-  getProviderType: () => 'google' as const,
-  getEndpoints: () => ({
-    authEndpoint: '/auth/google',
-    callbackEndpoint: '/auth/google/callback',
-    refreshEndpoint: '/auth/google/refresh',
-    logoutEndpoint: '/auth/google/logout',
-  }),
-  handleAuthorizationRequest: jest.fn(),
-  handleAuthorizationCallback: jest.fn(),
-  handleTokenRefresh: jest.fn(),
-  handleLogout: jest.fn(),
-  verifyAccessToken: jest.fn(),
-  dispose: jest.fn(),
-};
+vi.mock('../../src/auth/factory.js', () => ({
+  OAuthProviderFactory: {
+    createFromEnvironment: mocks.createFromEnvironment,
+    createAllFromEnvironment: mocks.createAllFromEnvironment,
+  },
+}));
 
 describe('Admin Token Management Endpoints Integration', () => {
   let server: MCPStreamableHttpServer;
@@ -38,7 +45,12 @@ describe('Admin Token Management Endpoints Integration', () => {
     process.env.MCP_DEV_SKIP_AUTH = 'true';
 
     // Mock successful OAuth provider creation
-    mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(mockProvider as any);
+    mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
+
+    // Mock multi-provider creation (returns a Map with the google provider)
+    const providersMap = new Map();
+    providersMap.set('google', mocks.mockProvider);
+    mocks.createAllFromEnvironment.mockResolvedValue(providersMap as any);
 
     // Create server instance
     server = new MCPStreamableHttpServer({
@@ -59,7 +71,7 @@ describe('Admin Token Management Endpoints Integration', () => {
   afterEach(async () => {
     delete process.env.MCP_DEV_SKIP_AUTH;
     await server.stop();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('POST /admin/tokens', () => {

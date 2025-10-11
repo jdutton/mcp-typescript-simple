@@ -2,42 +2,58 @@
  * Tests for Node.js OpenTelemetry instrumentation
  */
 
+import { vi } from 'vitest';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockGetObservabilityConfig: vi.fn(),
+  mockDetectRuntime: vi.fn(),
+  mockNodeSDK: vi.fn().mockImplementation(() => ({
+    start: vi.fn(),
+    shutdown: vi.fn().mockResolvedValue(undefined)
+  })),
+  mockGetNodeAutoInstrumentations: vi.fn(() => []),
+  mockOTLPTraceExporter: vi.fn(),
+  mockOTLPLogExporter: vi.fn(),
+  mockBatchSpanProcessor: vi.fn(),
+  mockBatchLogRecordProcessor: vi.fn(),
+  mockResourceFromAttributes: vi.fn(() => ({})),
+  mockDefaultResource: vi.fn(() => ({
+    merge: vi.fn(() => ({}))
+  }))
+}));
+
 // Mock all OpenTelemetry modules to avoid complex import issues
-jest.mock('@opentelemetry/sdk-node', () => ({
-  NodeSDK: jest.fn().mockImplementation(() => ({
-    start: jest.fn(),
-    shutdown: jest.fn().mockResolvedValue(undefined)
-  }))
+vi.mock('@opentelemetry/sdk-node', () => ({
+  NodeSDK: mocks.mockNodeSDK
 }));
 
-jest.mock('@opentelemetry/auto-instrumentations-node', () => ({
-  getNodeAutoInstrumentations: jest.fn(() => [])
+vi.mock('@opentelemetry/auto-instrumentations-node', () => ({
+  getNodeAutoInstrumentations: mocks.mockGetNodeAutoInstrumentations
 }));
 
-jest.mock('@opentelemetry/exporter-trace-otlp-http', () => ({
-  OTLPTraceExporter: jest.fn()
+vi.mock('@opentelemetry/exporter-trace-otlp-http', () => ({
+  OTLPTraceExporter: mocks.mockOTLPTraceExporter
 }));
 
-jest.mock('@opentelemetry/exporter-logs-otlp-http', () => ({
-  OTLPLogExporter: jest.fn()
+vi.mock('@opentelemetry/exporter-logs-otlp-http', () => ({
+  OTLPLogExporter: mocks.mockOTLPLogExporter
 }));
 
-jest.mock('@opentelemetry/sdk-trace-node', () => ({
-  BatchSpanProcessor: jest.fn()
+vi.mock('@opentelemetry/sdk-trace-node', () => ({
+  BatchSpanProcessor: mocks.mockBatchSpanProcessor
 }));
 
-jest.mock('@opentelemetry/sdk-logs', () => ({
-  BatchLogRecordProcessor: jest.fn()
+vi.mock('@opentelemetry/sdk-logs', () => ({
+  BatchLogRecordProcessor: mocks.mockBatchLogRecordProcessor
 }));
 
-jest.mock('@opentelemetry/resources', () => ({
-  resourceFromAttributes: jest.fn(() => ({})),
-  defaultResource: jest.fn(() => ({
-    merge: jest.fn(() => ({}))
-  }))
+vi.mock('@opentelemetry/resources', () => ({
+  resourceFromAttributes: mocks.mockResourceFromAttributes,
+  defaultResource: mocks.mockDefaultResource
 }));
 
-jest.mock('@opentelemetry/semantic-conventions', () => ({
+vi.mock('@opentelemetry/semantic-conventions', () => ({
   ATTR_SERVICE_NAME: 'service.name',
   ATTR_SERVICE_VERSION: 'service.version',
   SEMRESATTRS_SERVICE_NAMESPACE: 'service.namespace',
@@ -45,12 +61,9 @@ jest.mock('@opentelemetry/semantic-conventions', () => ({
 }));
 
 // Mock the config module
-const mockGetObservabilityConfig = jest.fn();
-const mockDetectRuntime = jest.fn();
-
-jest.mock('../../../src/observability/config.js', () => ({
-  getObservabilityConfig: mockGetObservabilityConfig,
-  detectRuntime: mockDetectRuntime
+vi.mock('../../../src/observability/config.js', () => ({
+  getObservabilityConfig: mocks.mockGetObservabilityConfig,
+  detectRuntime: mocks.mockDetectRuntime
 }));
 
 import { initializeInstrumentation, shutdownInstrumentation } from '../../../src/observability/instrumentation.js';
@@ -81,20 +94,20 @@ describe('Node.js Instrumentation', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetObservabilityConfig.mockReturnValue(mockConfig);
-    mockDetectRuntime.mockReturnValue('nodejs');
-    jest.spyOn(console, 'debug').mockImplementation();
-    jest.spyOn(console, 'error').mockImplementation();
+    vi.clearAllMocks();
+    mocks.mockGetObservabilityConfig.mockReturnValue(mockConfig);
+    mocks.mockDetectRuntime.mockReturnValue('nodejs');
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('initializeInstrumentation', () => {
     it('should skip initialization for non-nodejs runtime', () => {
-      mockDetectRuntime.mockReturnValue('edge');
+      mocks.mockDetectRuntime.mockReturnValue('edge');
 
       initializeInstrumentation();
 
@@ -104,7 +117,7 @@ describe('Node.js Instrumentation', () => {
 
     it('should not initialize when observability is disabled', () => {
       const disabledConfig = { ...mockConfig, enabled: false };
-      mockGetObservabilityConfig.mockReturnValue(disabledConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(disabledConfig);
 
       initializeInstrumentation();
 
@@ -144,7 +157,7 @@ describe('Node.js Instrumentation', () => {
           }
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(otlpConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(otlpConfig);
 
       expect(() => initializeInstrumentation()).not.toThrow();
     });
@@ -161,7 +174,7 @@ describe('Node.js Instrumentation', () => {
           }
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(consoleConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(consoleConfig);
 
       expect(() => initializeInstrumentation()).not.toThrow();
     });
@@ -207,7 +220,7 @@ describe('Node.js Instrumentation', () => {
           }
         }
       };
-      mockGetObservabilityConfig.mockReturnValue(prodConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(prodConfig);
 
       expect(() => initializeInstrumentation()).not.toThrow();
     });
@@ -218,7 +231,7 @@ describe('Node.js Instrumentation', () => {
         enabled: false,
         environment: 'test'
       };
-      mockGetObservabilityConfig.mockReturnValue(testConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(testConfig);
 
       initializeInstrumentation();
 
@@ -228,7 +241,7 @@ describe('Node.js Instrumentation', () => {
 
   describe('Error Scenarios and Edge Cases', () => {
     it('should handle invalid configuration gracefully', () => {
-      mockGetObservabilityConfig.mockReturnValue(null);
+      mocks.mockGetObservabilityConfig.mockReturnValue(null);
 
       expect(() => initializeInstrumentation()).not.toThrow();
     });
@@ -238,7 +251,7 @@ describe('Node.js Instrumentation', () => {
         ...mockConfig,
         service: undefined
       };
-      mockGetObservabilityConfig.mockReturnValue(invalidConfig);
+      mocks.mockGetObservabilityConfig.mockReturnValue(invalidConfig);
 
       expect(() => initializeInstrumentation()).not.toThrow();
     });

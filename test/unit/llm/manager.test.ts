@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import { LLMManager } from '../../../src/llm/manager.js';
 import { LLMConfigManager } from '../../../src/llm/config.js';
 import type { LLMConfig, LLMProvider } from '../../../src/llm/types.js';
@@ -46,7 +47,7 @@ const baseConfig: LLMConfig = {
 
 
 const setupConfigSpies = (config: LLMConfig = baseConfig) => {
-  jest.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
+  vi.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
   jest
     .spyOn(LLMConfigManager.prototype, 'getModelConfig')
     .mockImplementation(async (provider: LLMProvider, model?: string) => {
@@ -62,7 +63,7 @@ const setupConfigSpies = (config: LLMConfig = baseConfig) => {
 };
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe('LLMManager', () => {
@@ -99,8 +100,8 @@ describe('LLMManager', () => {
 
   it('falls back to Claude when default provider fails (no explicit provider requested)', async () => {
     const manager = createManager();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const anthropicResponse = {
       content: [{ type: 'text', text: 'fallback' }],
@@ -116,7 +117,7 @@ describe('LLMManager', () => {
     };
 
     // Configure default provider to be OpenAI (via mocking)
-    jest.spyOn(manager as any, 'getDefaultProvider').mockResolvedValue('openai');
+    vi.spyOn(manager as any, 'getDefaultProvider').mockResolvedValue('openai');
 
     const openaiCreate = jest.fn(async () => {
       throw new Error('openai failure');
@@ -188,7 +189,7 @@ describe('LLMManager getProviderForTool', () => {
     const openaiClient = {
       chat: {
         completions: {
-          create: jest.fn()
+          create: vi.fn()
         }
       }
     };
@@ -207,7 +208,7 @@ describe('LLMManager getProviderForTool', () => {
     const manager = new LLMManager();
 
     const claudeClient = {
-      messages: { create: jest.fn() }
+      messages: { create: vi.fn() }
     };
 
     (manager as unknown as { clients: Record<string, unknown> }).clients = {
@@ -234,8 +235,8 @@ describe('LLMManager error handling', () => {
 
   it('fails loudly when explicitly requested provider fails (no fallback)', async () => {
     const manager = new LLMManager();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const openAiError = new Error('OpenAI down');
     const openAiClient = {
@@ -271,8 +272,8 @@ describe('LLMManager error handling', () => {
 
   it('throws a descriptive error when fallback provider is unavailable', async () => {
     const manager = new LLMManager();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const openAiClient = {
       chat: {
@@ -295,8 +296,8 @@ describe('LLMManager error handling', () => {
 
   it('surfaces errors from Claude when no fallback is available', async () => {
     const manager = new LLMManager();
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    jest.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const claudeClient = {
       messages: {

@@ -3,32 +3,38 @@
  * Tests RFC 7591 and RFC 7592 compliance
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { OAuthProviderFactory } from '../../src/auth/factory.js';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockProvider: {
+    getProviderType: () => 'google' as const,
+    getEndpoints: () => ({
+      authEndpoint: '/auth/google',
+      callbackEndpoint: '/auth/google/callback',
+      refreshEndpoint: '/auth/google/refresh',
+      logoutEndpoint: '/auth/google/logout',
+    }),
+    handleAuthorizationRequest: vi.fn(),
+    handleAuthorizationCallback: vi.fn(),
+    handleTokenRefresh: vi.fn(),
+    handleLogout: vi.fn(),
+    verifyAccessToken: vi.fn(),
+    dispose: vi.fn(),
+  },
+  createFromEnvironment: vi.fn(),
+  createAllFromEnvironment: vi.fn(),
+}));
 
 // Mock the OAuth provider factory to return a test provider
-jest.mock('../../src/auth/factory.js');
-
-const mockOAuthProviderFactory = OAuthProviderFactory as jest.Mocked<typeof OAuthProviderFactory>;
-
-const mockProvider = {
-  getProviderType: () => 'google' as const,
-  getEndpoints: () => ({
-    authEndpoint: '/auth/google',
-    callbackEndpoint: '/auth/google/callback',
-    refreshEndpoint: '/auth/google/refresh',
-    logoutEndpoint: '/auth/google/logout',
-  }),
-  handleAuthorizationRequest: jest.fn(),
-  handleAuthorizationCallback: jest.fn(),
-  handleTokenRefresh: jest.fn(),
-  handleLogout: jest.fn(),
-  verifyAccessToken: jest.fn(),
-  dispose: jest.fn(),
-};
+vi.mock('../../src/auth/factory.js', () => ({
+  OAuthProviderFactory: {
+    createFromEnvironment: mocks.createFromEnvironment,
+    createAllFromEnvironment: mocks.createAllFromEnvironment,
+  },
+}));
 
 describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
   let server: MCPStreamableHttpServer;
@@ -36,7 +42,12 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
 
   beforeEach(async () => {
     // Mock successful OAuth provider creation
-    mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(mockProvider as any);
+    mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
+
+    // Mock multi-provider creation (returns a Map with the google provider)
+    const providersMap = new Map();
+    providersMap.set('google', mocks.mockProvider);
+    mocks.createAllFromEnvironment.mockResolvedValue(providersMap as any);
 
     // Create server instance with OAuth enabled
     server = new MCPStreamableHttpServer({
@@ -56,7 +67,7 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
 
   afterEach(async () => {
     await server.stop();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('POST /register - Client Registration (RFC 7591)', () => {
@@ -276,10 +287,13 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
 
       expect(response.body).toMatchObject({
         client_id: registeredClientId,
-        client_secret: expect.any(String),
+        // Note: client_secret is omitted from GET response for security (RFC 7592)
         redirect_uris: ['http://localhost:3000/callback'],
         client_name: 'Test Retrieval Client',
       });
+
+      // Verify client_secret is NOT included in the response
+      expect(response.body.client_secret).toBeUndefined();
     });
 
     it('should return 404 for non-existent client', async () => {
@@ -290,7 +304,7 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
         .expect('Content-Type', /application\/json/);
 
       expect(response.body).toMatchObject({
-        error: 'not_found',
+        error: 'invalid_client',
         error_description: expect.stringContaining('not found'),
       });
     });
@@ -355,7 +369,7 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
         .expect('Content-Type', /application\/json/);
 
       expect(response.body).toMatchObject({
-        error: 'not_found',
+        error: 'invalid_client',
         error_description: expect.stringContaining('not found'),
       });
     });
@@ -422,7 +436,8 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
         .expect(200);
 
       expect(getResponse.body.client_id).toBe(clientId);
-      expect(getResponse.body.client_secret).toBe(clientSecret);
+      // Note: client_secret is omitted from GET response for security (RFC 7592)
+      expect(getResponse.body.client_secret).toBeUndefined();
 
       // 3. Delete
       await request(app)

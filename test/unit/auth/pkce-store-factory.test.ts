@@ -2,7 +2,6 @@
  * Unit tests for PKCE Store Factory
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { PKCEStoreFactory, createPKCEStore } from '../../../src/auth/pkce-store-factory.js';
 
 describe('PKCEStoreFactory', () => {

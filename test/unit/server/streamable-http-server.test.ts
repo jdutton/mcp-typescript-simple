@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 import { MCPStreamableHttpServer } from '../../../src/server/streamable-http-server.js';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
@@ -14,12 +16,12 @@ describe('MCPStreamableHttpServer', () => {
     // Clear EnvironmentConfig singleton cache to ensure clean test environment
     EnvironmentConfig.reset();
 
-    jest.spyOn(logger, 'error').mockImplementation(() => {});
-    jest.spyOn(logger, 'warn').mockImplementation(() => {});
-    jest.spyOn(logger, 'debug').mockImplementation(() => {});
-    jest.spyOn(logger, 'info').mockImplementation(() => {});
-    (EnvironmentConfig as any).getSecurityConfig = jest.fn().mockReturnValue({ requireHttps: false });
-    (EnvironmentConfig as any).isDevelopment = jest.fn().mockReturnValue(true);
+    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    vi.spyOn(logger, 'debug').mockImplementation(() => {});
+    vi.spyOn(logger, 'info').mockImplementation(() => {});
+    (EnvironmentConfig as any).getSecurityConfig = vi.fn().mockReturnValue({ requireHttps: false });
+    (EnvironmentConfig as any).isDevelopment = vi.fn().mockReturnValue(true);
     const mockProvider = {
       getEndpoints: () => ({
         authEndpoint: '/auth',
@@ -29,17 +31,17 @@ describe('MCPStreamableHttpServer', () => {
         tokenExchangeEndpoint: '/token'
       }),
       getProviderType: () => 'google',
-      handleAuthorizationRequest: jest.fn(),
-      handleAuthorizationCallback: jest.fn(),
-      handleTokenExchange: jest.fn(),
-      handleTokenRefresh: jest.fn(),
-      handleLogout: jest.fn(),
-      verifyAccessToken: jest.fn().mockRejectedValue(new Error('Invalid or missing token')),
-      getToken: jest.fn().mockResolvedValue(null) // No token found (simulates missing/invalid token)
+      handleAuthorizationRequest: vi.fn(),
+      handleAuthorizationCallback: vi.fn(),
+      handleTokenExchange: vi.fn(),
+      handleTokenRefresh: vi.fn(),
+      handleLogout: vi.fn(),
+      verifyAccessToken: vi.fn().mockRejectedValue(new Error('Invalid or missing token')),
+      getToken: vi.fn().mockResolvedValue(null) // No token found (simulates missing/invalid token)
     };
 
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(
+      createAllFromEnvironment: vi.fn().mockResolvedValue(
         new Map([['google', mockProvider]])
       )
     });
@@ -61,7 +63,7 @@ describe('MCPStreamableHttpServer', () => {
     }
     servers.length = 0;
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     EnvironmentConfig.getSecurityConfig = originalSecurityConfig;
     EnvironmentConfig.isDevelopment = originalIsDevelopment;
   });
@@ -86,7 +88,7 @@ describe('MCPStreamableHttpServer', () => {
     const close = jest.fn((cb) => { cb?.(); return undefined; });
     (server as any).server = {
       close,
-      on: jest.fn()
+      on: vi.fn()
     };
 
     await expect(server.stop()).resolves.toBeUndefined();
@@ -95,7 +97,7 @@ describe('MCPStreamableHttpServer', () => {
 
   it('registers streamable transport handler', async () => {
     const server = makeServer();
-    const handler = jest.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockResolvedValue(undefined);
     server.onStreamableHTTPTransport(handler);
 
     const transport = {} as unknown as StreamableHTTPServerTransport;
@@ -115,7 +117,7 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const loggerSpy = jest.spyOn(logger, 'debug');
+    const loggerSpy = vi.spyOn(logger, 'debug');
 
     await request(app)
       .get('/health')
@@ -132,7 +134,7 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const loggerSpy = jest.spyOn(logger, 'debug');
+    const loggerSpy = vi.spyOn(logger, 'debug');
     const largeBody = { data: 'x'.repeat(2000) }; // Large body over 1000 chars
 
     await request(app)
@@ -149,7 +151,7 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const loggerSpy = jest.spyOn(logger, 'debug');
+    const loggerSpy = vi.spyOn(logger, 'debug');
     const smallBody = { data: 'small' };
 
     await request(app)
@@ -172,7 +174,7 @@ describe('MCPStreamableHttpServer', () => {
     await server.initialize();
     const app = server.getApp();
 
-    const loggerSpy = jest.spyOn(logger, 'debug');
+    const loggerSpy = vi.spyOn(logger, 'debug');
 
     // Test a request that will go through different code paths
     await request(app)
@@ -229,7 +231,7 @@ describe('MCPStreamableHttpServer', () => {
   it('returns OAuth not configured for authorization server metadata', async () => {
     // Mock no OAuth providers for this test
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+      createAllFromEnvironment: vi.fn().mockResolvedValue(new Map())
     });
 
     const server = makeServer();
@@ -250,7 +252,7 @@ describe('MCPStreamableHttpServer', () => {
   it('returns OAuth not configured for protected resource metadata', async () => {
     // Mock no OAuth providers for this test
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+      createAllFromEnvironment: vi.fn().mockResolvedValue(new Map())
     });
 
     const server = makeServer();
@@ -363,7 +365,7 @@ describe('MCPStreamableHttpServer', () => {
   it('returns MCP metadata without OAuth configured', async () => {
     // Mock no OAuth providers for this test
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+      createAllFromEnvironment: vi.fn().mockResolvedValue(new Map())
     });
 
     const server = makeServer({
@@ -407,7 +409,7 @@ describe('MCPStreamableHttpServer', () => {
   it('returns OpenID Connect configuration without OAuth', async () => {
     // Mock no OAuth providers for this test
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(new Map())
+      createAllFromEnvironment: vi.fn().mockResolvedValue(new Map())
     });
 
     const server = makeServer();
@@ -442,7 +444,7 @@ describe('MCPStreamableHttpServer', () => {
       getProviderName: () => 'Google'
     };
     Object.assign(OAuthProviderFactory, {
-      createAllFromEnvironment: jest.fn().mockResolvedValue(
+      createAllFromEnvironment: vi.fn().mockResolvedValue(
         new Map([['google', mockProvider]])
       )
     });
@@ -494,7 +496,7 @@ describe('MCPStreamableHttpServer', () => {
   });
 
   it('starts and stops server properly', async () => {
-    const loggerInfoSpy = jest.spyOn(logger, 'info').mockImplementation(() => {});
+    const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
 
     const server = makeServer({ port: 8082, host: '127.0.0.1' });
 
@@ -521,7 +523,7 @@ describe('MCPStreamableHttpServer', () => {
 
   it('allows handler registration before initialization', () => {
     const server = makeServer();
-    const handler = jest.fn();
+    const handler = vi.fn();
 
     // Should not throw error when registering handler before initialization
     expect(() => {

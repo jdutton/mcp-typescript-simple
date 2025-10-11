@@ -2,7 +2,6 @@
  * Tests for user allowlist functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   loadAllowlistConfig,
   isUserAllowed,

@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import { handleChatTool } from '../../../../src/tools/llm/chat.js';
 import { handleAnalyzeTool } from '../../../../src/tools/llm/analyze.js';
 import { handleSummarizeTool } from '../../../../src/tools/llm/summarize.js';
@@ -18,16 +19,16 @@ type ToolScenario = {
 
 describe('LLM tool error handling', () => {
   const createManager = (defaults: { provider: string; model: string }) => {
-    const completeMock = jest.fn();
+    const completeMock = vi.fn();
 
     const manager = {
-      getProviderForTool: jest.fn().mockReturnValue(defaults),
-      getAvailableProviders: jest.fn().mockReturnValue([defaults.provider]),
+      getProviderForTool: vi.fn().mockReturnValue(defaults),
+      getAvailableProviders: vi.fn().mockReturnValue([defaults.provider]),
       complete: completeMock,
-      clearCache: jest.fn(),
-      getCacheStats: jest.fn(),
-      initialize: jest.fn(),
-      isProviderAvailable: jest.fn().mockReturnValue(true)
+      clearCache: vi.fn(),
+      getCacheStats: vi.fn(),
+      initialize: vi.fn(),
+      isProviderAvailable: vi.fn().mockReturnValue(true)
     } as unknown as LLMManager;
 
     return { manager, completeMock };
@@ -77,17 +78,17 @@ describe('LLM tool error handling', () => {
 
   describe('Provider unavailable error handling (bug fix regression test)', () => {
     it('returns MCP-compliant text error when summarize tool provider fails', async () => {
-      const completeMock = jest.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error("LLM provider 'gemini' not available"));
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({ provider: 'gemini', model: 'gemini-2.5-flash' }),
-        getAvailableProviders: jest.fn().mockReturnValue([]),
+        getProviderForTool: vi.fn().mockReturnValue({ provider: 'gemini', model: 'gemini-2.5-flash' }),
+        getAvailableProviders: vi.fn().mockReturnValue([]),
         complete: completeMock,
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(false)
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(false)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(
@@ -105,17 +106,17 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when chat tool provider fails', async () => {
-      const completeMock = jest.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' }),
-        getAvailableProviders: jest.fn().mockReturnValue(['claude']),
+        getProviderForTool: vi.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' }),
+        getAvailableProviders: vi.fn().mockReturnValue(['claude']),
         complete: completeMock,
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleChatTool({ message: 'test' }, manager);
@@ -128,17 +129,17 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when analyze tool provider fails', async () => {
-      const completeMock = jest.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4' }),
-        getAvailableProviders: jest.fn().mockReturnValue(['openai']),
+        getProviderForTool: vi.fn().mockReturnValue({ provider: 'openai', model: 'gpt-4' }),
+        getAvailableProviders: vi.fn().mockReturnValue(['openai']),
         complete: completeMock,
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleAnalyzeTool({ text: 'test' }, manager);
@@ -151,17 +152,17 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when explain tool provider fails', async () => {
-      const completeMock = jest.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' }),
-        getAvailableProviders: jest.fn().mockReturnValue(['claude']),
+        getProviderForTool: vi.fn().mockReturnValue({ provider: 'claude', model: 'claude-3-haiku-20240307' }),
+        getAvailableProviders: vi.fn().mockReturnValue(['claude']),
         complete: completeMock,
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleExplainTool({ topic: 'test' }, manager);

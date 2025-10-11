@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 import type {
   GitHubOAuthConfig,
@@ -7,9 +8,10 @@ import type {
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
+import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 let originalFetch: typeof globalThis.fetch;
-const fetchMock = jest.fn() as jest.MockedFunction<typeof fetch>;
+const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
 
 const baseConfig: GitHubOAuthConfig = {
   type: 'github',
@@ -96,11 +98,10 @@ describe('GitHubOAuthProvider', () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   const createProvider = () => {
-    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
     return new GitHubOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
   };
 
@@ -109,7 +110,7 @@ describe('GitHubOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -133,7 +134,7 @@ describe('GitHubOAuthProvider', () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      const loggerInfoSpy = jest.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
 
       await provider.handleAuthorizationRequest({} as Request, res);
 
@@ -238,7 +239,7 @@ describe('GitHubOAuthProvider', () => {
         }
       } as unknown as Request;
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback(req, res);
 
@@ -256,7 +257,7 @@ describe('GitHubOAuthProvider', () => {
       const provider = createProvider();
       const now = Date.now();
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
@@ -537,7 +538,7 @@ describe('GitHubOAuthProvider', () => {
       // Mock failed GitHub response
       fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
 
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await expect(provider.verifyAccessToken(invalidToken)).rejects.toThrow();
 
@@ -602,8 +603,8 @@ describe('GitHubOAuthProvider', () => {
     it('throws when GitHub user info cannot be retrieved', async () => {
       const provider = createProvider();
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-      const loggerErrorSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       fetchMock.mockResolvedValueOnce(new Response('error', {
         status: 500,
