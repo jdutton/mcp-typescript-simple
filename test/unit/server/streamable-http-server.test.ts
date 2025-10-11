@@ -49,7 +49,7 @@ describe('MCPStreamableHttpServer', () => {
 
   afterEach(async () => {
     // Clean up all servers to prevent hanging timers
-    for (const server of servers) {
+    await Promise.all(servers.map(async (server) => {
       try {
         // Directly call session manager destroy to clean up timers
         const sessionManager = server.getSessionManager();
@@ -60,7 +60,7 @@ describe('MCPStreamableHttpServer', () => {
       } catch {
         // Ignore errors during cleanup
       }
-    }
+    }));
     servers.length = 0;
 
     vi.restoreAllMocks();

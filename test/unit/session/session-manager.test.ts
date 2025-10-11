@@ -11,17 +11,24 @@ const createAuthInfo = (token: string): AuthInfo => ({
 });
 
 describe('SessionManager', () => {
+  const managers: SessionManager[] = [];
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
   });
 
   afterEach(() => {
+    // Clean up all session managers to prevent timer leaks
+    managers.forEach(manager => manager.destroy());
+    managers.length = 0;
+
     jest.useRealTimers();
   });
 
   it('creates, retrieves, updates, and closes sessions', () => {
     const manager = new SessionManager();
+    managers.push(manager); // Track for cleanup
 
     const session = manager.createSession(createAuthInfo('token-1'), { foo: 'bar' });
     expect(session.sessionId).toBeDefined();
@@ -47,6 +54,7 @@ describe('SessionManager', () => {
 
   it('validates session expiration', () => {
     const manager = new SessionManager();
+    managers.push(manager); // Track for cleanup
     const session = manager.createSession();
 
     expect(manager.isSessionValid(session.sessionId)).toBe(true);
@@ -60,6 +68,7 @@ describe('SessionManager', () => {
 
   it('reports session statistics and cleanup removes stale sessions', () => {
     const manager = new SessionManager();
+    managers.push(manager); // Track for cleanup
 
     // Create first session at T0
     jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
@@ -86,6 +95,7 @@ describe('SessionManager', () => {
 
   it('destroys session manager and clears timers', () => {
     const manager = new SessionManager();
+    managers.push(manager); // Track for cleanup
     const internal = manager as unknown as { cleanupInterval?: NodeJS.Timeout; sessions: Map<string, unknown> };
     manager.createSession();
 

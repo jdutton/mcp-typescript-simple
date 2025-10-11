@@ -6,6 +6,38 @@
  * This replaces the postvalidate hook approach since we need to capture output.
  *
  * Usage: npm run validate (calls this script)
+ *
+ * @extraction-target @agentic-workflow
+ *
+ * This file is part of the validation system designed for extraction to the
+ * @agentic-workflow npm package. Key features for extraction:
+ *
+ * 1. **Git Tree Hash Caching**: Deterministic content-based hashing
+ *    - Skip validation if code unchanged (massive time savings)
+ *    - Detect reverts to previously-validated states
+ *    - See: getWorkingTreeHash() and docs/architecture/validation-concurrency.md
+ *
+ * 2. **Concurrent Validation Detection**: Simple detection with user choice
+ *    - Warn users of simultaneous runs (avoid duplicate work)
+ *    - Best-effort locking (fails safe, no blocking)
+ *    - Auto-cleanup stale locks (PID validation)
+ *    - See: TODO in PR #2.5 and validation-concurrency.md
+ *
+ * 3. **Agent-Friendly Design**: Context-aware behavior
+ *    - Human context: Interactive prompts
+ *    - Agent context: Auto-proceed after delay
+ *    - CI context: Skip unnecessary checks
+ *    - Structured output (YAML) for agent consumption
+ *
+ * 4. **Fail-Safe Philosophy**: Validation always proceeds
+ *    - Lock creation failure → proceed without lock
+ *    - Corrupted state file → proceed with validation
+ *    - Git command failure → use timestamp fallback
+ *    - Never block the user
+ *
+ * Architecture documentation: docs/architecture/validation-concurrency.md
+ * Extraction plan: docs/agentic-workflow-extraction.md
+ * Implementation tracking: TODO.md (PR #2.5)
  */
 
 import { execSync } from 'child_process';
@@ -28,10 +60,30 @@ const VALIDATION_STEPS = [
 
 /**
  * Get working tree hash (includes all changes - staged, unstaged, untracked)
+ *
+ * IMPORTANT: This implementation uses `git stash create` which includes timestamps
+ * in the commit object. This means identical code produces DIFFERENT hashes on
+ * different runs, breaking revert-to-previous-state detection.
+ *
+ * TODO (PR #2.5): Replace with deterministic git write-tree approach:
+ *   git add --intent-to-add .  # Mark untracked files (no staging)
+ *   git write-tree              # Get content-based hash (no timestamps)
+ *   git reset                   # Restore original index state
+ *
+ * See docs/architecture/validation-concurrency.md for full explanation.
+ *
+ * @returns SHA-1 hash representing working tree state (currently non-deterministic)
+ *
+ * @extraction-note For @agentic-workflow package:
+ *   - Make this deterministic (use git write-tree)
+ *   - Add unit tests for hash determinism
+ *   - Document cross-platform compatibility
+ *   - Add fallback for non-git repos
  */
 function getWorkingTreeHash(): string {
   try {
     // Use git stash create to include ALL working tree changes
+    // WARNING: This creates commit objects with timestamps (non-deterministic)
     const stashHash = execSync('git stash create', {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore']
@@ -51,6 +103,7 @@ function getWorkingTreeHash(): string {
       stdio: ['pipe', 'pipe', 'ignore']
     }).trim();
   } catch (error) {
+    // Fallback for non-git repos or git command failures
     return `nogit-${Date.now()}`;
   }
 }

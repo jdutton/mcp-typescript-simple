@@ -5,13 +5,19 @@
 import { InMemoryTokenStore } from '../../../src/auth/stores/memory-token-store.js';
 describe('InMemoryTokenStore', () => {
   let store: InMemoryTokenStore;
+  const additionalStores: InMemoryTokenStore[] = [];
 
   beforeEach(() => {
     store = new InMemoryTokenStore();
   });
 
   afterEach(async () => {
+    // Clean up main store
     await store.dispose();
+
+    // Clean up any additional stores created during tests
+    await Promise.all(additionalStores.map(s => s.dispose()));
+    additionalStores.length = 0;
   });
 
   describe('createToken', () => {
@@ -290,6 +296,7 @@ describe('InMemoryTokenStore', () => {
         autoCleanup: true,
         cleanupIntervalMs: 100, // Use short interval for testing
       });
+      additionalStores.push(autoStore); // Track for cleanup
 
       await autoStore.createToken({ description: 'Expired', expires_in: -1 });
       await autoStore.createToken({ description: 'Active' });
@@ -305,8 +312,6 @@ describe('InMemoryTokenStore', () => {
       tokens = await autoStore.listTokens({ includeExpired: true });
       expect(tokens).toHaveLength(1);
       expect(tokens[0]?.description).toBe('Active');
-
-      await autoStore.dispose();
     });
   });
 
@@ -316,6 +321,7 @@ describe('InMemoryTokenStore', () => {
         autoCleanup: true,
         cleanupIntervalMs: 1000,
       });
+      additionalStores.push(autoStore); // Track for cleanup
 
       await autoStore.dispose();
 
