@@ -39,8 +39,14 @@ vi.mock('../../src/auth/factory.js', () => ({
 describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
   let server: MCPStreamableHttpServer;
   let app: Express;
+  let testFilePath: string;
 
   beforeEach(async () => {
+    // Use unique file path for each test to prevent state pollution
+    testFilePath = `./data/test-oauth-clients-${Date.now()}-${Math.random().toString(36).substring(7)}.json`;
+    process.env.DCR_FILE_PATH = testFilePath;
+    process.env.DCR_STORE_TYPE = 'file';
+
     // Mock successful OAuth provider creation
     mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
 
@@ -68,6 +74,20 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
   afterEach(async () => {
     await server.stop();
     vi.clearAllMocks();
+
+    // Clean up test file to prevent state pollution
+    try {
+      const fs = await import('fs/promises');
+      await fs.unlink(testFilePath);
+      await fs.unlink(`${testFilePath}.backup`).catch(() => {}); // Ignore if backup doesn't exist
+      await fs.unlink(`${testFilePath}.tmp`).catch(() => {}); // Ignore if temp doesn't exist
+    } catch {
+      // Ignore cleanup errors (file might not exist)
+    }
+
+    // Clean up environment variables
+    delete process.env.DCR_FILE_PATH;
+    delete process.env.DCR_STORE_TYPE;
   });
 
   describe('POST /register - Client Registration (RFC 7591)', () => {

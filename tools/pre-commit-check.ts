@@ -49,6 +49,20 @@ class PreCommitChecker {
     console.log('🚀 Pre-Commit Check Tool');
     console.log('Ensuring branch sync and code quality before commit\n');
 
+    // Step 0: Check for unstaged changes
+    console.log('📍 Step 0: Checking for unstaged changes...');
+    const hasUnstagedChanges = this.checkUnstagedChanges();
+    if (hasUnstagedChanges) {
+      console.log('❌ STOPPED: Unstaged changes detected');
+      console.log('   You have modified files that are not staged for commit\n');
+      console.log('📋 Required actions:');
+      console.log('1. Review changes: git status');
+      console.log('2. Stage changes: git add <files>');
+      console.log('3. Or discard changes: git restore <files>\n');
+      process.exit(1);
+    }
+    console.log('✅ No unstaged changes');
+
     // Step 1: Check branch sync (unless skipped)
     if (!this.skipSync) {
       console.log('📍 Step 1: Checking branch sync status...');
@@ -129,6 +143,28 @@ class PreCommitChecker {
     console.log('\n🎉 Pre-commit check completed successfully!');
     console.log('✅ Branch is synced and code quality validated');
     console.log('🚀 Ready to commit and push changes');
+  }
+
+  /**
+   * Check for unstaged changes in working directory
+   */
+  private checkUnstagedChanges(): boolean {
+    try {
+      const result = execSync('git diff --name-only', {
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore']
+      }).trim();
+
+      if (result) {
+        console.log('   Unstaged files:');
+        result.split('\n').forEach(file => console.log(`   - ${file}`));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      // If git diff fails, assume no unstaged changes
+      return false;
+    }
   }
 
   /**
