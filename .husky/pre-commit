@@ -1,0 +1,11 @@
+# Pre-Commit Validation State Check
+# Ensures validation has passed before allowing commits
+# This prevents Claude Code (and humans) from committing invalid code
+
+echo "🔍 Checking validation state..."
+
+# Run pre-commit check (includes validation state verification)
+npm run pre-commit
+
+# Exit code from pre-commit determines if commit proceeds
+exit $?

@@ -67,7 +67,8 @@
     "docs:validate": "redocly lint openapi.yaml",
     "docs:preview": "redocly preview-docs openapi.yaml",
     "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",
-    "validate": "npx tsx tools/run-validation-with-state.ts"
+    "validate": "npx tsx tools/run-validation-with-state.ts",
+    "prepare": "husky || true"
   },
   "keywords": [
     "mcp",
@@ -124,6 +125,7 @@
     "@typescript-eslint/parser": "^8.44.0",
     "@vercel/node": "^5.3.23",
     "eslint": "^9.35.0",
+    "husky": "^9.1.7",
     "ioredis-mock": "^8.13.0",
     "jest": "^30.1.3",
     "nock": "^14.0.10",

@@ -749,3 +749,142 @@ gh pr create --title "Brief description" --body "Detailed description"
 - `typescript` - TypeScript compiler with strict configuration
 - Always run CI tests locally before pushing to PR to ensure PR tests will pass
 - DO NOT ask to commit any code unless you have first run 'npm run validate' on the changes successfully
+
+## SDLC Automation Tooling
+
+This project includes custom-built, **agent-friendly SDLC automation tools** designed to reduce probabilistic decision-making for AI assistants and speed up development workflows.
+
+### Tools Overview
+
+#### `npm run sync-check` - Smart Branch Sync Checker
+Safely checks if branch is behind origin/main without auto-merging.
+
+**When to use:**
+- Before starting new work
+- Before creating commits
+- To verify branch is up to date
+
+**Exit codes:**
+- `0`: Up to date or no remote
+- `1`: Needs merge (stop and merge manually)
+- `2`: Error condition
+
+#### `npm run pre-commit` - Pre-Commit Workflow
+Combined branch sync + validation with smart state caching.
+
+**What it does:**
+1. Checks branch sync → Stops if behind origin/main
+2. Checks validation state → Skips if code unchanged
+3. Runs fast checks (typecheck + lint) if state valid
+4. Runs full validation if state invalid or missing
+
+**When to use:**
+- **MANDATORY before every commit**
+- Before pushing to GitHub
+- To verify code quality
+
+#### `npm run post-pr-merge-cleanup` - Post-PR Cleanup
+Cleans workspace after PR merge.
+
+**What it does:**
+1. Switches to main branch
+2. Syncs main with GitHub origin
+3. Deletes only confirmed-merged branches
+4. Provides cleanup summary
+
+**When to use:**
+- After PR is merged and closed
+- To clean up local workspace
+- To prepare for next PR
+
+#### `npm run validate` - Full Validation with State Caching
+Runs complete validation pipeline with git tree hash state caching.
+
+**Features:**
+- Caches results based on git tree hash (includes all changes)
+- Skips validation if code unchanged (massive time savings)
+- Embeds error output in `.validation-state.yaml`
+- Provides agent-friendly prompts for fixing errors
+- Use `--force` flag to bypass cache
+
+**Validation steps:**
+1. TypeScript type checking
+2. ESLint code checking
+3. Unit tests (Jest)
+4. Build
+5. OpenAPI validation
+6. Integration tests
+7. STDIO system tests
+8. HTTP system tests
+9. Headless browser tests
+
+### Validation State File
+
+`.validation-state.yaml` - Git-ignored state file tracking validation results:
+- `passed`: Boolean validation result
+- `timestamp`: ISO 8601 timestamp
+- `treeHash`: Git tree hash (deterministic code state)
+- `failedStep`: Name of failed step (if any)
+- `failedStepOutput`: Complete error output (embedded)
+- `agentPrompt`: Ready-to-use prompt for fixing errors
+
+### Why These Tools Exist
+
+**Problem**: AI agents need deterministic, cacheable workflows that don't require probabilistic "should I run this?" decisions.
+
+**Solution**: Custom tooling that:
+1. **Uses git tree hashing** for validation state caching
+2. **Never auto-merges** - always requires explicit manual action
+3. **Provides clear exit codes** for agent decision-making
+4. **Embeds error output** in YAML for easy agent consumption
+5. **Detects agent context** (Claude Code vs manual) and adapts output
+
+### Agent Context Detection
+
+Tools automatically detect when running in Claude Code or other agents and adapt output:
+- **Human mode**: Colorful, verbose output with examples
+- **Agent mode**: Structured YAML/JSON output with embedded errors
+
+### Extraction Strategy
+
+Based on architecture research (issue #68), this tooling is **novel and valuable** enough to warrant extraction as an open-source tool: **`@agentic-workflow`**
+
+**See full extraction plan:** `docs/agentic-workflow-extraction.md`
+
+**Competitive advantages:**
+- Only tool using git tree hash for validation state caching
+- Only tool designed agent-first (not human-first)
+- Only tool with safety-first branch management
+- Only tool with integrated pre-commit workflow
+
+**Target users:**
+- AI agent platforms (Claude Code, Cursor, Aider, Continue)
+- Development teams adopting AI pair programming
+- Individual developers using AI assistants
+
+### Integration Examples
+
+**Claude Code** (you're using this now!):
+```bash
+npm run pre-commit   # Claude Code detects context, uses agent-friendly output
+```
+
+**CI/CD**:
+```yaml
+# .github/workflows/ci.yml
+- name: Validation with Caching
+  run: npm run validate
+```
+
+**Pre-commit Hook**:
+```bash
+# .husky/pre-commit
+npm run pre-commit
+```
+
+### References
+
+- **Extraction Strategy**: `docs/agentic-workflow-extraction.md`
+- **Pre-commit Hook**: `docs/pre-commit-hook.md`
+- **Architecture Research**: Issue #68 (chief-arch agent output)
+- **Source Code**: `tools/` directory
