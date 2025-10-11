@@ -2,21 +2,25 @@
  * Unit tests for Redis Client Store and OAuth Token Store using ioredis-mock
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { vi } from 'vitest';
 import { RedisClientStore } from '../../../../src/auth/stores/redis-client-store.js';
 import { RedisOAuthTokenStore } from '../../../../src/auth/stores/redis-oauth-token-store.js';
 
-// Mock Redis for testing
-jest.mock('ioredis', () => require('ioredis-mock'));
+// Hoist Redis mock to avoid initialization issues
+const RedisMock = vi.hoisted(() => require('ioredis-mock'));
+
+// Mock Redis for testing - Vitest requires default export
+vi.mock('ioredis', () => ({
+  default: RedisMock
+}));
 
 // Create a shared Redis instance for cleanup
-const RedisMock = require('ioredis-mock');
 let sharedRedis: any = null;
 
 describe('Redis Client and OAuth Token Stores', () => {
   beforeEach(async () => {
     if (!sharedRedis) {
-      sharedRedis = new RedisMock();
+      sharedRedis = new (RedisMock as any)();
     }
     // Flush all data between tests
     await sharedRedis.flushall();

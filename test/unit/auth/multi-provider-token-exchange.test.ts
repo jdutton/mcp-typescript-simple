@@ -2,7 +2,6 @@
  * Unit tests for multi-provider token exchange logic
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 
 describe('Multi-Provider Token Exchange', () => {
@@ -16,9 +15,9 @@ describe('Multi-Provider Token Exchange', () => {
     };
 
     mockRes = {
-      status: jest.fn().mockReturnThis() as any,
-      json: jest.fn().mockReturnThis() as any,
-      setHeader: jest.fn().mockReturnThis() as any,
+      status: vi.fn().mockReturnThis() as any,
+      json: vi.fn().mockReturnThis() as any,
+      setHeader: vi.fn().mockReturnThis() as any,
       headersSent: false,
     };
 

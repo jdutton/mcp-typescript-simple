@@ -2,24 +2,30 @@
  * Tests for Edge runtime instrumentation
  */
 
-// Mock OpenTelemetry API
-const mockGetTracer = jest.fn();
-const mockStartActiveSpan = jest.fn();
-const mockSpan = {
-  setStatus: jest.fn(),
-  recordException: jest.fn(),
-  end: jest.fn()
-};
+import { vi } from 'vitest';
 
-jest.mock('@opentelemetry/api', () => ({
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockGetTracer: vi.fn(),
+  mockStartActiveSpan: vi.fn(),
+  mockSpan: {
+    setStatus: vi.fn(),
+    recordException: vi.fn(),
+    end: vi.fn()
+  },
+  getObservabilityConfig: vi.fn()
+}));
+
+// Mock OpenTelemetry API
+vi.mock('@opentelemetry/api', () => ({
   trace: {
-    getTracer: mockGetTracer
+    getTracer: mocks.mockGetTracer
   }
 }));
 
 // Mock config module
-jest.mock('../../../src/observability/config.js', () => ({
-  getObservabilityConfig: jest.fn()
+vi.mock('../../../src/observability/config.js', () => ({
+  getObservabilityConfig: mocks.getObservabilityConfig
 }));
 
 import {
@@ -53,43 +59,43 @@ describe('Edge Runtime Instrumentation', () => {
   };
 
   const mockTracer = {
-    startActiveSpan: mockStartActiveSpan
+    startActiveSpan: mocks.mockStartActiveSpan
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    (getObservabilityConfig as jest.Mock).mockReturnValue(mockConfig);
-    mockGetTracer.mockReturnValue(mockTracer);
-    mockStartActiveSpan.mockImplementation((name, callback) => {
-      return callback(mockSpan);
+    vi.clearAllMocks();
+    mocks.getObservabilityConfig.mockReturnValue(mockConfig);
+    mocks.mockGetTracer.mockReturnValue(mockTracer);
+    mocks.mockStartActiveSpan.mockImplementation((name, callback) => {
+      return callback(mocks.mockSpan);
     });
   });
 
   describe('initializeEdgeInstrumentation', () => {
     it('should not initialize when disabled', () => {
       const disabledConfig = { ...mockConfig, enabled: false };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(disabledConfig);
+      mocks.getObservabilityConfig.mockReturnValue(disabledConfig);
 
       initializeEdgeInstrumentation();
 
-      expect(mockGetTracer).not.toHaveBeenCalled();
+      expect(mocks.mockGetTracer).not.toHaveBeenCalled();
     });
 
     it('should not initialize for non-edge runtime', () => {
       const nodeConfig = { ...mockConfig, runtime: 'nodejs' as const };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(nodeConfig);
+      mocks.getObservabilityConfig.mockReturnValue(nodeConfig);
 
       initializeEdgeInstrumentation();
 
-      expect(mockGetTracer).not.toHaveBeenCalled();
+      expect(mocks.mockGetTracer).not.toHaveBeenCalled();
     });
 
     it('should initialize for edge runtime', () => {
-      const consoleSpy = jest.spyOn(console, 'debug').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
       initializeEdgeInstrumentation();
 
-      expect(mockGetTracer).toHaveBeenCalledWith('edge-service', '1.0.0');
+      expect(mocks.mockGetTracer).toHaveBeenCalledWith('edge-service', '1.0.0');
       expect(consoleSpy).toHaveBeenCalledWith(
         'Edge runtime detected - using minimal observability'
       );
@@ -105,11 +111,11 @@ describe('Edge Runtime Instrumentation', () => {
     });
 
     it('should handle initialization errors', () => {
-      mockGetTracer.mockImplementationOnce(() => {
+      mocks.mockGetTracer.mockImplementationOnce(() => {
         throw new Error('Failed to get tracer');
       });
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       expect(() => initializeEdgeInstrumentation()).not.toThrow();
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -124,88 +130,88 @@ describe('Edge Runtime Instrumentation', () => {
   describe('createEdgeSpan', () => {
     it('should bypass span creation when disabled', async () => {
       const disabledConfig = { ...mockConfig, enabled: false };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(disabledConfig);
+      mocks.getObservabilityConfig.mockReturnValue(disabledConfig);
 
-      const fn = jest.fn().mockResolvedValue('result');
+      const fn = vi.fn().mockResolvedValue('result');
       const result = await createEdgeSpan('test-span', fn);
 
       expect(result).toBe('result');
       expect(fn).toHaveBeenCalled();
-      expect(mockGetTracer).not.toHaveBeenCalled();
+      expect(mocks.mockGetTracer).not.toHaveBeenCalled();
     });
 
     it('should bypass span creation for non-edge runtime', async () => {
       const nodeConfig = { ...mockConfig, runtime: 'nodejs' as const };
-      (getObservabilityConfig as jest.Mock).mockReturnValue(nodeConfig);
+      mocks.getObservabilityConfig.mockReturnValue(nodeConfig);
 
-      const fn = jest.fn().mockResolvedValue('result');
+      const fn = vi.fn().mockResolvedValue('result');
       const result = await createEdgeSpan('test-span', fn);
 
       expect(result).toBe('result');
       expect(fn).toHaveBeenCalled();
-      expect(mockGetTracer).not.toHaveBeenCalled();
+      expect(mocks.mockGetTracer).not.toHaveBeenCalled();
     });
 
     it('should create span for successful operation', async () => {
-      const fn = jest.fn().mockResolvedValue('success');
+      const fn = vi.fn().mockResolvedValue('success');
       const result = await createEdgeSpan('test-operation', fn);
 
       expect(result).toBe('success');
-      expect(mockGetTracer).toHaveBeenCalledWith('edge-service');
-      expect(mockStartActiveSpan).toHaveBeenCalledWith('test-operation', expect.any(Function));
-      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: 1 }); // OK
-      expect(mockSpan.end).toHaveBeenCalled();
+      expect(mocks.mockGetTracer).toHaveBeenCalledWith('edge-service');
+      expect(mocks.mockStartActiveSpan).toHaveBeenCalledWith('test-operation', expect.any(Function));
+      expect(mocks.mockSpan.setStatus).toHaveBeenCalledWith({ code: 1 }); // OK
+      expect(mocks.mockSpan.end).toHaveBeenCalled();
     });
 
     it('should handle synchronous functions', async () => {
-      const fn = jest.fn().mockReturnValue('sync-result');
+      const fn = vi.fn().mockReturnValue('sync-result');
       const result = await createEdgeSpan('sync-operation', fn);
 
       expect(result).toBe('sync-result');
-      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: 1 }); // OK
-      expect(mockSpan.end).toHaveBeenCalled();
+      expect(mocks.mockSpan.setStatus).toHaveBeenCalledWith({ code: 1 }); // OK
+      expect(mocks.mockSpan.end).toHaveBeenCalled();
     });
 
     it('should record exceptions on failure', async () => {
       const error = new Error('Test error');
-      const fn = jest.fn().mockRejectedValue(error);
+      const fn = vi.fn().mockRejectedValue(error);
 
       await expect(createEdgeSpan('failing-operation', fn)).rejects.toThrow('Test error');
 
-      expect(mockSpan.recordException).toHaveBeenCalledWith(error);
-      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: 2 }); // ERROR
-      expect(mockSpan.end).toHaveBeenCalled();
+      expect(mocks.mockSpan.recordException).toHaveBeenCalledWith(error);
+      expect(mocks.mockSpan.setStatus).toHaveBeenCalledWith({ code: 2 }); // ERROR
+      expect(mocks.mockSpan.end).toHaveBeenCalled();
     });
 
     it('should handle synchronous exceptions', async () => {
       const error = new Error('Sync error');
-      const fn = jest.fn().mockImplementation(() => {
+      const fn = vi.fn().mockImplementation(() => {
         throw error;
       });
 
       await expect(createEdgeSpan('sync-failing', fn)).rejects.toThrow('Sync error');
 
-      expect(mockSpan.recordException).toHaveBeenCalledWith(error);
-      expect(mockSpan.setStatus).toHaveBeenCalledWith({ code: 2 }); // ERROR
-      expect(mockSpan.end).toHaveBeenCalled();
+      expect(mocks.mockSpan.recordException).toHaveBeenCalledWith(error);
+      expect(mocks.mockSpan.setStatus).toHaveBeenCalledWith({ code: 2 }); // ERROR
+      expect(mocks.mockSpan.end).toHaveBeenCalled();
     });
 
     it('should always call span.end in finally block', async () => {
       // Test with success
-      const successFn = jest.fn().mockResolvedValue('ok');
+      const successFn = vi.fn().mockResolvedValue('ok');
       await createEdgeSpan('test', successFn);
-      expect(mockSpan.end).toHaveBeenCalledTimes(1);
+      expect(mocks.mockSpan.end).toHaveBeenCalledTimes(1);
 
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Test with failure
-      const failFn = jest.fn().mockRejectedValue(new Error('fail'));
+      const failFn = vi.fn().mockRejectedValue(new Error('fail'));
       try {
         await createEdgeSpan('test', failFn);
       } catch {
         // Expected to throw
       }
-      expect(mockSpan.end).toHaveBeenCalledTimes(1);
+      expect(mocks.mockSpan.end).toHaveBeenCalledTimes(1);
     });
   });
 });

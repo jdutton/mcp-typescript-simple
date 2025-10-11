@@ -1,20 +1,21 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 import { logger } from '../../../src/utils/logger.js';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
 
 const originalEnv = process.env;
 
-jest.mock('../../../src/auth/providers/google-provider.js', () => ({
-  GoogleOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'google', config, dispose: jest.fn() }))
+vi.mock('../../../src/auth/providers/google-provider.js', () => ({
+  GoogleOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'google', config, dispose: vi.fn() }))
 }));
 
-jest.mock('../../../src/auth/providers/github-provider.js', () => ({
-  GitHubOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'github', config, dispose: jest.fn() }))
+vi.mock('../../../src/auth/providers/github-provider.js', () => ({
+  GitHubOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'github', config, dispose: vi.fn() }))
 }));
 
-jest.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
-  MicrosoftOAuthProvider: jest.fn().mockImplementation((config) => ({ type: 'microsoft', config, dispose: jest.fn() }))
+vi.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
+  MicrosoftOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'microsoft', config, dispose: vi.fn() }))
 }));
 
 describe('OAuthProviderFactory', () => {
@@ -40,7 +41,7 @@ describe('OAuthProviderFactory', () => {
 
   afterEach(() => {
     process.env = originalEnv;
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     try {
       OAuthProviderFactory.disposeAll();
     } catch {
@@ -61,7 +62,7 @@ describe('OAuthProviderFactory', () => {
   });
 
   it('returns null when no OAuth providers are configured', async () => {
-    const warnSpy = jest.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
     // No OAuth credentials set - beforeEach already cleared environment
 
     const providers = await OAuthProviderFactory.createAllFromEnvironment();
@@ -95,7 +96,7 @@ describe('OAuthProviderFactory', () => {
     expect(providers).toBeTruthy();
 
     const provider = providers?.get('google');
-    const typedProvider = provider as unknown as { dispose: jest.Mock };
+    const typedProvider = provider as unknown as { dispose: Mock };
     expect(typedProvider.dispose).not.toHaveBeenCalled();
 
     OAuthProviderFactory.disposeAll();

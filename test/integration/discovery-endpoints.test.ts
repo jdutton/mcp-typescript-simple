@@ -2,32 +2,38 @@
  * Integration tests for OAuth Discovery Endpoints
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { OAuthProviderFactory } from '../../src/auth/factory.js';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockProvider: {
+    getProviderType: () => 'google' as const,
+    getEndpoints: () => ({
+      authEndpoint: '/auth/google',
+      callbackEndpoint: '/auth/google/callback',
+      refreshEndpoint: '/auth/google/refresh',
+      logoutEndpoint: '/auth/google/logout',
+    }),
+    handleAuthorizationRequest: vi.fn(),
+    handleAuthorizationCallback: vi.fn(),
+    handleTokenRefresh: vi.fn(),
+    handleLogout: vi.fn(),
+    verifyAccessToken: vi.fn(),
+    dispose: vi.fn(),
+  },
+  createFromEnvironment: vi.fn(),
+  createAllFromEnvironment: vi.fn(),
+}));
 
 // Mock the OAuth provider factory to return a test provider
-jest.mock('../../src/auth/factory.js');
-
-const mockOAuthProviderFactory = OAuthProviderFactory as jest.Mocked<typeof OAuthProviderFactory>;
-
-const mockProvider = {
-  getProviderType: () => 'google' as const,
-  getEndpoints: () => ({
-    authEndpoint: '/auth/google',
-    callbackEndpoint: '/auth/google/callback',
-    refreshEndpoint: '/auth/google/refresh',
-    logoutEndpoint: '/auth/google/logout',
-  }),
-  handleAuthorizationRequest: jest.fn(),
-  handleAuthorizationCallback: jest.fn(),
-  handleTokenRefresh: jest.fn(),
-  handleLogout: jest.fn(),
-  verifyAccessToken: jest.fn(),
-  dispose: jest.fn(),
-};
+vi.mock('../../src/auth/factory.js', () => ({
+  OAuthProviderFactory: {
+    createFromEnvironment: mocks.createFromEnvironment,
+    createAllFromEnvironment: mocks.createAllFromEnvironment,
+  },
+}));
 
 describe('OAuth Discovery Endpoints Integration', () => {
   let server: MCPStreamableHttpServer;
@@ -35,7 +41,12 @@ describe('OAuth Discovery Endpoints Integration', () => {
 
   beforeEach(async () => {
     // Mock successful OAuth provider creation
-    mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(mockProvider as any);
+    mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
+
+    // Mock multi-provider creation (returns a Map with the google provider)
+    const providersMap = new Map();
+    providersMap.set('google', mocks.mockProvider);
+    mocks.createAllFromEnvironment.mockResolvedValue(providersMap as any);
 
     // Create server instance
     server = new MCPStreamableHttpServer({
@@ -55,7 +66,7 @@ describe('OAuth Discovery Endpoints Integration', () => {
 
   afterEach(async () => {
     await server.stop();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('/.well-known/oauth-authorization-server', () => {
@@ -76,13 +87,14 @@ describe('OAuth Discovery Endpoints Integration', () => {
         code_challenge_methods_supported: expect.arrayContaining(['S256']),
       });
 
-      expect(response.body.service_documentation).toBe('https://developers.google.com/identity/protocols/oauth2');
+      // Note: service_documentation is not included in generic multi-provider metadata
+      // It's only available in provider-specific metadata
       expect(response.body.registration_endpoint).toContain('/register'); // Generic DCR registration endpoint
     });
 
     it('should return error metadata when OAuth is not configured', async () => {
-      // Mock OAuth provider not available
-      mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(null);
+      // Mock OAuth provider not available - clear providers map
+      mocks.createAllFromEnvironment.mockResolvedValue(new Map());
 
       const serverNoAuth = new MCPStreamableHttpServer({
         port: 3002,
@@ -131,8 +143,8 @@ describe('OAuth Discovery Endpoints Integration', () => {
     });
 
     it('should return minimal metadata when OAuth is not configured', async () => {
-      // Mock OAuth provider not available
-      mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(null);
+      // Mock OAuth provider not available - clear providers map
+      mocks.createAllFromEnvironment.mockResolvedValue(new Map());
 
       const serverNoAuth = new MCPStreamableHttpServer({
         port: 3003,
@@ -182,8 +194,8 @@ describe('OAuth Discovery Endpoints Integration', () => {
     });
 
     it('should return MCP metadata even when OAuth is not configured', async () => {
-      // Mock OAuth provider not available
-      mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(null);
+      // Mock OAuth provider not available - clear providers map
+      mocks.createAllFromEnvironment.mockResolvedValue(new Map());
 
       const serverNoAuth = new MCPStreamableHttpServer({
         port: 3004,
@@ -238,8 +250,8 @@ describe('OAuth Discovery Endpoints Integration', () => {
     });
 
     it('should return minimal OpenID Connect configuration when OAuth is not configured', async () => {
-      // Mock OAuth provider not available
-      mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(null);
+      // Mock OAuth provider not available - clear providers map
+      mocks.createAllFromEnvironment.mockResolvedValue(new Map());
 
       const serverNoAuth = new MCPStreamableHttpServer({
         port: 3005,

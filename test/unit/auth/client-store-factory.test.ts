@@ -2,7 +2,6 @@
  * Unit tests for ClientStoreFactory
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { ClientStoreFactory } from '../../../src/auth/client-store-factory.js';
 import { InMemoryClientStore } from '../../../src/auth/stores/memory-client-store.js';
 import { FileClientStore } from '../../../src/auth/stores/file-client-store.js';

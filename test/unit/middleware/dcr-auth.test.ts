@@ -7,16 +7,16 @@ import { requireInitialAccessToken, requireAdminToken } from '../../../src/middl
 import { InitialAccessTokenStore, InitialAccessToken, TokenValidationResult } from '../../../src/auth/stores/token-store-interface.js';
 
 // Mock logger
-jest.mock('../../../src/utils/logger.js', () => ({
+vi.mock('../../../src/utils/logger.js', () => ({
   logger: {
-    warn: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    error: vi.fn(),
   },
 }));
 
 describe('DCR Authentication Middleware', () => {
-  let mockTokenStore: jest.Mocked<InitialAccessTokenStore>;
+  let mockTokenStore: Mocked<InitialAccessTokenStore>;
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
   let nextFunction: NextFunction;
@@ -24,15 +24,15 @@ describe('DCR Authentication Middleware', () => {
   beforeEach(() => {
     // Create mock token store
     mockTokenStore = {
-      validateAndUseToken: jest.fn(),
-      createToken: jest.fn(),
-      revokeToken: jest.fn(),
-      getToken: jest.fn(),
-      getTokenByValue: jest.fn(),
-      deleteToken: jest.fn(),
-      listTokens: jest.fn(),
-      cleanup: jest.fn(),
-      dispose: jest.fn(),
+      validateAndUseToken: vi.fn(),
+      createToken: vi.fn(),
+      revokeToken: vi.fn(),
+      getToken: vi.fn(),
+      getTokenByValue: vi.fn(),
+      deleteToken: vi.fn(),
+      listTokens: vi.fn(),
+      cleanup: vi.fn(),
+      dispose: vi.fn(),
     } as jest.Mocked<InitialAccessTokenStore>;
 
     // Create mock request
@@ -44,12 +44,12 @@ describe('DCR Authentication Middleware', () => {
 
     // Create mock response
     mockResponse = {
-      status: jest.fn().mockReturnThis(),
-      json: jest.fn().mockReturnThis(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
     };
 
     // Create mock next function
-    nextFunction = jest.fn();
+    nextFunction = vi.fn();
   });
 
   describe('requireInitialAccessToken', () => {

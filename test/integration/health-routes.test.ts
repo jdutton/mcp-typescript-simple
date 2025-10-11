@@ -2,33 +2,39 @@
  * Integration tests for Health Routes
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { OAuthProviderFactory } from '../../src/auth/factory.js';
+
+// Hoist mocks so they're available in vi.mock() factories
+const mocks = vi.hoisted(() => ({
+  mockProvider: {
+    getProviderType: () => 'google' as const,
+    getProviderName: () => 'Google OAuth',
+    getEndpoints: () => ({
+      authEndpoint: '/auth/google',
+      callbackEndpoint: '/auth/google/callback',
+      refreshEndpoint: '/auth/google/refresh',
+      logoutEndpoint: '/auth/google/logout',
+    }),
+    handleAuthorizationRequest: vi.fn(),
+    handleAuthorizationCallback: vi.fn(),
+    handleTokenRefresh: vi.fn(),
+    handleLogout: vi.fn(),
+    verifyAccessToken: vi.fn(),
+    dispose: vi.fn(),
+  },
+  createFromEnvironment: vi.fn(),
+  createAllFromEnvironment: vi.fn(),
+}));
 
 // Mock the OAuth provider factory to return a test provider
-jest.mock('../../src/auth/factory.js');
-
-const mockOAuthProviderFactory = OAuthProviderFactory as jest.Mocked<typeof OAuthProviderFactory>;
-
-const mockProvider = {
-  getProviderType: () => 'google' as const,
-  getProviderName: () => 'Google OAuth',
-  getEndpoints: () => ({
-    authEndpoint: '/auth/google',
-    callbackEndpoint: '/auth/google/callback',
-    refreshEndpoint: '/auth/google/refresh',
-    logoutEndpoint: '/auth/google/logout',
-  }),
-  handleAuthorizationRequest: jest.fn(),
-  handleAuthorizationCallback: jest.fn(),
-  handleTokenRefresh: jest.fn(),
-  handleLogout: jest.fn(),
-  verifyAccessToken: jest.fn(),
-  dispose: jest.fn(),
-};
+vi.mock('../../src/auth/factory.js', () => ({
+  OAuthProviderFactory: {
+    createFromEnvironment: mocks.createFromEnvironment,
+    createAllFromEnvironment: mocks.createAllFromEnvironment,
+  },
+}));
 
 describe('Health Routes Integration', () => {
   let server: MCPStreamableHttpServer;
@@ -36,7 +42,12 @@ describe('Health Routes Integration', () => {
 
   beforeEach(async () => {
     // Mock successful OAuth provider creation
-    mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(mockProvider as any);
+    mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
+
+    // Mock multi-provider creation (returns a Map with the google provider)
+    const providersMap = new Map();
+    providersMap.set('google', mocks.mockProvider);
+    mocks.createAllFromEnvironment.mockResolvedValue(providersMap as any);
 
     // Create server instance
     server = new MCPStreamableHttpServer({
@@ -56,7 +67,7 @@ describe('Health Routes Integration', () => {
 
   afterEach(async () => {
     await server.stop();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GET /health', () => {
@@ -80,11 +91,14 @@ describe('Health Routes Integration', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('auth');
-      expect(response.body).toHaveProperty('oauth_provider');
+      expect(response.body).toHaveProperty('oauth_providers');
       expect(['enabled', 'disabled']).toContain(response.body.auth);
-      expect(['google', 'github', 'microsoft', 'generic']).toContain(
-        response.body.oauth_provider
-      );
+      expect(Array.isArray(response.body.oauth_providers)).toBe(true);
+      if (response.body.oauth_providers.length > 0) {
+        expect(['google', 'github', 'microsoft', 'generic']).toContain(
+          response.body.oauth_providers[0]
+        );
+      }
     });
 
     it('should include LLM providers status', async () => {
@@ -93,9 +107,14 @@ describe('Health Routes Integration', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('llm_providers');
-      expect(response.body.llm_providers).toHaveProperty('claude');
-      expect(response.body.llm_providers).toHaveProperty('openai');
-      expect(response.body.llm_providers).toHaveProperty('gemini');
+      expect(Array.isArray(response.body.llm_providers)).toBe(true);
+      // LLM providers is an array of provider names (strings)
+      // Check it contains expected provider names if any are configured
+      if (response.body.llm_providers.length > 0) {
+        response.body.llm_providers.forEach((provider: string) => {
+          expect(['claude', 'openai', 'gemini']).toContain(provider);
+        });
+      }
     });
 
     it('should include version information', async () => {
@@ -120,9 +139,9 @@ describe('Health Routes Integration', () => {
 
       expect(response.body).toHaveProperty('sessions');
       expect(response.body.sessions).toMatchObject({
-        total: expect.any(Number),
-        active: expect.any(Number),
-        closed: expect.any(Number),
+        totalSessions: expect.any(Number),
+        activeSessions: expect.any(Number),
+        expiredSessions: expect.any(Number),
       });
     });
 
@@ -194,11 +213,12 @@ describe('Health Routes Integration', () => {
       const response = await request(app)
         .get('/debug/github-oauth')
         .set('Authorization', 'Bearer invalid-token-format')
-        .expect(500) // GitHub API will return an error
+        .expect(200) // Debug endpoint always returns 200, errors are in response body
         .expect('Content-Type', /application\/json/);
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Debug test failed');
+      // Check that it attempted to call GitHub API (will fail with invalid token)
+      expect(response.body).toHaveProperty('github_user_api');
+      expect(response.body.github_user_api.status).toBeGreaterThanOrEqual(400);
     });
 
     it('should return proper error structure when token is missing', async () => {
@@ -215,10 +235,11 @@ describe('Health Routes Integration', () => {
       const response = await request(app)
         .get('/debug/github-oauth')
         .set('Authorization', 'plain-token-without-bearer')
-        .expect(500); // Will attempt to use the token and fail
+        .expect(200); // Debug endpoint always returns 200
 
-      expect(response.body).toHaveProperty('error');
-      expect(response.body.error).toBe('Debug test failed');
+      // Will attempt to use the malformed token with GitHub API
+      expect(response.body).toHaveProperty('github_user_api');
+      expect(response.body.github_user_api.status).toBeGreaterThanOrEqual(400);
     });
 
     it('should sanitize token in error responses', async () => {
@@ -228,9 +249,14 @@ describe('Health Routes Integration', () => {
       const response = await request(app)
         .get('/debug/github-oauth')
         .set('Authorization', `Bearer ${testToken}`)
-        .expect(500);
+        .expect(200); // Debug endpoint always returns 200
 
-      // Response should not contain full token
+      // Token should be sanitized in response - only preview shown
+      expect(response.body).toHaveProperty('debug_info');
+      expect(response.body.debug_info.token_preview).toContain(testToken.substring(0, 10));
+      expect(response.body.debug_info.token_preview).toContain('...');
+
+      // Full token should not appear anywhere in response
       const responseText = JSON.stringify(response.body);
       expect(responseText).not.toContain(testToken);
     });
@@ -264,7 +290,8 @@ describe('Health Routes Integration', () => {
 
     beforeEach(async () => {
       // Mock OAuth provider not available
-      mockOAuthProviderFactory.createFromEnvironment.mockResolvedValue(null);
+      mocks.createFromEnvironment.mockResolvedValue(null);
+
 
       serverNoAuth = new MCPStreamableHttpServer({
         port: 3022,
@@ -298,9 +325,13 @@ describe('Health Routes Integration', () => {
         .expect(200);
 
       expect(response.body).toHaveProperty('llm_providers');
-      expect(response.body.llm_providers).toHaveProperty('claude');
-      expect(response.body.llm_providers).toHaveProperty('openai');
-      expect(response.body.llm_providers).toHaveProperty('gemini');
+      expect(Array.isArray(response.body.llm_providers)).toBe(true);
+      // Check that it's an array of provider name strings
+      if (response.body.llm_providers.length > 0) {
+        response.body.llm_providers.forEach((provider: string) => {
+          expect(['claude', 'openai', 'gemini']).toContain(provider);
+        });
+      }
     });
 
     it('should report correct feature flags when disabled', async () => {

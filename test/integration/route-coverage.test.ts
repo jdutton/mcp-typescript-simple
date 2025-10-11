@@ -5,7 +5,6 @@
  * Detects drift when routes are added to code but not documented.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'yaml';

@@ -2,7 +2,6 @@
  * Unit tests for optimized token refresh routing
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import type { Request, Response } from 'express';
 import type { StoredTokenInfo } from '../../../src/auth/providers/types.js';
 
@@ -18,14 +17,14 @@ describe('Token Refresh Optimization', () => {
     };
 
     mockRes = {
-      status: jest.fn().mockReturnThis() as any,
-      json: jest.fn().mockReturnThis() as any,
-      setHeader: jest.fn().mockReturnThis() as any,
+      status: vi.fn().mockReturnThis() as any,
+      json: vi.fn().mockReturnThis() as any,
+      setHeader: vi.fn().mockReturnThis() as any,
       headersSent: false,
     };
 
     mockTokenStore = {
-      findByRefreshToken: jest.fn(),
+      findByRefreshToken: vi.fn(),
     };
 
     mockProviders = new Map();
@@ -418,7 +417,7 @@ describe('Token Refresh Optimization', () => {
 
       // Count how many providers were called
       const callCounts = providers.map(p => {
-        return (p.provider.handleTokenRefresh as jest.Mock).mock.calls.length;
+        return (p.provider.handleTokenRefresh).mock.calls.length;
       });
 
       const totalCalls = callCounts.reduce((sum, count) => sum + count, 0);

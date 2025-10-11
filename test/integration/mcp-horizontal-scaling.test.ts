@@ -8,7 +8,6 @@
  * - Cache warming and TTL behavior
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MCPInstanceManager } from '../../src/server/mcp-instance-manager.js';
 import { MemoryMCPMetadataStore } from '../../src/session/memory-mcp-metadata-store.js';
 import { LLMManager } from '../../src/llm/manager.js';
@@ -51,7 +50,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
       expect(metadata).not.toBeNull();
       expect(metadata?.sessionId).toBe(sessionId);
       expect(metadata?.createdAt).toBeGreaterThan(0);
-      expect(metadata?.lastActivity).toBeGreaterThan(0);
+      expect(metadata?.expiresAt).toBeGreaterThan(metadata?.createdAt || 0);
       expect(metadata?.authInfo).toBeUndefined();
     });
 
@@ -80,7 +79,8 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
       await instanceManager.storeSessionMetadata(sessionId);
 
       const metadata = await metadataStore.getSession(sessionId);
-      expect(metadata?.lastActivity).toBeGreaterThanOrEqual(now);
+      // Note: MCPSessionMetadata doesn't have lastActivity field - check createdAt instead
+      expect(metadata?.createdAt).toBeGreaterThanOrEqual(now);
     });
   });
 

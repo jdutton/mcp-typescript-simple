@@ -2,7 +2,6 @@
  * Unit tests for InMemoryClientStore
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { InMemoryClientStore } from '../../../../src/auth/stores/memory-client-store.js';
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 

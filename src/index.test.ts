@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 
 const baseSigintListeners = [...process.listeners('SIGINT')];
 const baseSigtermListeners = [...process.listeners('SIGTERM')];
@@ -9,7 +9,7 @@ describe('MCP server bootstrap', () => {
     delete process.env.NODE_ENV;
 
     jest.resetModules();
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
 
     process.removeAllListeners('SIGINT');
     for (const listener of baseSigintListeners) {
@@ -29,14 +29,14 @@ describe('MCP server bootstrap', () => {
     process.env.NODE_ENV = 'test';
 
     const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
-    const serverSetRequestHandlerSpy = jest.spyOn(Server.prototype, 'setRequestHandler');
+    const serverSetRequestHandlerSpy = vi.spyOn(Server.prototype, 'setRequestHandler');
 
     const typesModule = await import('@modelcontextprotocol/sdk/types.js');
 
     const envModule = await import('./config/environment');
     const transportMode = envModule.TransportMode.STDIO;
-    const getSpy = jest.spyOn(envModule.EnvironmentConfig, 'get').mockReturnValue({ NODE_ENV: 'test' } as any);
-    const getTransportModeSpy = jest.spyOn(envModule.EnvironmentConfig, 'getTransportMode').mockReturnValue(transportMode);
+    const getSpy = vi.spyOn(envModule.EnvironmentConfig, 'get').mockReturnValue({ NODE_ENV: 'test' } as any);
+    const getTransportModeSpy = vi.spyOn(envModule.EnvironmentConfig, 'getTransportMode').mockReturnValue(transportMode);
 
     let startResolve!: () => void;
     const startCalled = new Promise<void>((resolve) => {
@@ -61,20 +61,20 @@ describe('MCP server bootstrap', () => {
     };
 
     const transportModule = await import('./transport/factory');
-    const createTransportSpy = jest.spyOn(transportModule.TransportFactory, 'createFromEnvironment').mockReturnValue(transportManager as any);
+    const createTransportSpy = vi.spyOn(transportModule.TransportFactory, 'createFromEnvironment').mockReturnValue(transportManager as any);
 
     const llmModule = await import('./llm/manager');
-    const initializeSpy = jest.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue(undefined);
-    const getAvailableProvidersSpy = jest.spyOn(llmModule.LLMManager.prototype, 'getAvailableProviders').mockReturnValue(['claude']);
+    const initializeSpy = vi.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue(undefined);
+    const getAvailableProvidersSpy = vi.spyOn(llmModule.LLMManager.prototype, 'getAvailableProviders').mockReturnValue(['claude']);
 
     const setupModule = await import('./server/mcp-setup');
-    const setupMCPServerSpy = jest.spyOn(setupModule, 'setupMCPServer').mockResolvedValue(undefined);
+    const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServer').mockResolvedValue(undefined);
 
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
       throw new Error(`process.exit called with ${code}`);
     }) as typeof process.exit);
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await import('./index.js');
     await startCalled;

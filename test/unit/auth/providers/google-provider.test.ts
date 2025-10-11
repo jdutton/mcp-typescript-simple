@@ -1,7 +1,9 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import type { Request, Response } from 'express';
 import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
+import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 const mockGenerateAuthUrl = jest.fn<(options: Record<string, unknown>) => string>();
 const mockGetToken = jest.fn<(options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
@@ -11,10 +13,10 @@ const mockSetCredentials = jest.fn<(options: Record<string, unknown>) => void>()
 const mockGetTokenInfo = jest.fn<(token: string) => Promise<Record<string, unknown>>>();
 
 // Mock global fetch for Google API calls
-const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
+const mockFetch = vi.fn() as jest.MockedFunction<typeof fetch>;
 (global as any).fetch = mockFetch;
 
-jest.mock('google-auth-library', () => ({
+vi.mock('google-auth-library', () => ({
   OAuth2Client: jest.fn(() => ({
     generateAuthUrl: mockGenerateAuthUrl,
     getToken: mockGetToken,
@@ -91,12 +93,11 @@ const createMockResponse = (): MockResponse => {
 
 describe('GoogleOAuthProvider', () => {
   const createProvider = () => {
-    const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
     return new GoogleOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGenerateAuthUrl.mockReturnValue('https://accounts.google.com/o/oauth2/auth?state=state123');
     mockFetch.mockClear();
   });
@@ -104,9 +105,9 @@ describe('GoogleOAuthProvider', () => {
   it('redirects to Google authorization URL and stores session data', async () => {
     const provider = createProvider();
 
-    const pkceSpy = jest.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
+    const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
       .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-    const stateSpy = jest.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
+    const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
       .mockReturnValue('state123');
 
     const res = createMockResponse();
@@ -139,7 +140,7 @@ describe('GoogleOAuthProvider', () => {
   it('exchanges code for tokens and returns user info during callback', async () => {
     const provider = createProvider();
     const now = 1_000_000;
-    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
     (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
@@ -204,7 +205,7 @@ describe('GoogleOAuthProvider', () => {
   it('returns 500 when Google does not supply an access token', async () => {
     const provider = createProvider();
     const now = 2_000_000;
-    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
     (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
       codeVerifier: 'verifier',
@@ -218,7 +219,7 @@ describe('GoogleOAuthProvider', () => {
     mockGetToken.mockResolvedValueOnce({ tokens: {} });
 
     const res = createMockResponse();
-    const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
     await provider.handleAuthorizationCallback({
       query: { code: 'code123', state: 'state123' }
@@ -236,7 +237,7 @@ describe('GoogleOAuthProvider', () => {
   it('refreshes tokens when provided a valid refresh token', async () => {
     const provider = createProvider();
     const now = 3_000_000;
-    const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
     const existingToken: StoredTokenInfo = {
       accessToken: 'access-token',
@@ -306,7 +307,7 @@ describe('GoogleOAuthProvider', () => {
       const provider = createProvider();
 
       // Mock the setupPKCE method to use client challenge and return a server state
-      const setupPKCESpy = jest.spyOn(provider as unknown as { setupPKCE: (clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } }, 'setupPKCE')
+      const setupPKCESpy = vi.spyOn(provider as unknown as { setupPKCE: (clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } }, 'setupPKCE')
         .mockReturnValue({ state: 'generated_state', codeVerifier: '', codeChallenge: 'client_challenge' });
 
       const res = createMockResponse();
@@ -344,9 +345,9 @@ describe('GoogleOAuthProvider', () => {
     it('generates PKCE when client parameters are missing', async () => {
       const provider = createProvider();
 
-      const pkceSpy = jest.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
+      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
         .mockReturnValue({ codeVerifier: 'generated_verifier', codeChallenge: 'generated_challenge' });
-      const stateSpy = jest.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
+      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
         .mockReturnValue('generated_state');
 
       const res = createMockResponse();
@@ -377,12 +378,11 @@ describe('GoogleOAuthProvider', () => {
         ...baseConfig,
         scopes: []
       };
-      const { MemoryPKCEStore } = require('../../../../src/auth/stores/memory-pkce-store.js');
       const provider = new GoogleOAuthProvider(configWithEmptyScopes, undefined, undefined, new MemoryPKCEStore());
 
-      const pkceSpy = jest.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
+      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
         .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-      const stateSpy = jest.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
+      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
         .mockReturnValue('state123');
 
       const res = createMockResponse();
@@ -405,11 +405,11 @@ describe('GoogleOAuthProvider', () => {
     it('stores session with correct expiration timeout', async () => {
       const provider = createProvider();
       const now = 5_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      const pkceSpy = jest.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
+      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
         .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-      const stateSpy = jest.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
+      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
         .mockReturnValue('state123');
 
       const res = createMockResponse();
@@ -428,7 +428,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles error during authorization URL generation', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Make generateAuthUrl throw an error
       mockGenerateAuthUrl.mockImplementation(() => {
@@ -454,7 +454,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles OAuth error parameter from Google', async () => {
       const provider = createProvider();
       const res = createMockResponse();
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback({
         query: { error: 'access_denied', error_description: 'User denied access' }
@@ -520,7 +520,7 @@ describe('GoogleOAuthProvider', () => {
     it('redirects to client when clientRedirectUri is provided', async () => {
       const provider = createProvider();
       const now = 6_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       // Store session with client redirect URI
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
@@ -555,7 +555,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles ID token verification failure', async () => {
       const provider = createProvider();
       const now = 7_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
@@ -597,7 +597,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles missing expiry_date in tokens', async () => {
       const provider = createProvider();
       const now = 8_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
@@ -647,7 +647,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles user info with fallback name from email', async () => {
       const provider = createProvider();
       const now = 9_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
@@ -732,7 +732,7 @@ describe('GoogleOAuthProvider', () => {
     it('handles Google API failure during token exchange', async () => {
       const provider = createProvider();
       const res = createMockResponse();
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Mock getToken to throw error
       mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
@@ -759,7 +759,7 @@ describe('GoogleOAuthProvider', () => {
     it('removes undefined fields from token response', async () => {
       const provider = createProvider();
       const now = 10_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       mockGetToken.mockResolvedValueOnce({
         tokens: {
@@ -792,7 +792,7 @@ describe('GoogleOAuthProvider', () => {
       }));
 
       // Verify response structure
-      const responseCall = (res.json as jest.Mock).mock.calls[0]?.[0] as any;
+      const responseCall = vi.mocked(res.json).mock.calls[0]?.[0] as any;
       expect('refresh_token' in responseCall).toBe(false);
       expect(responseCall).toMatchObject({
         access_token: 'access-token',
@@ -811,7 +811,7 @@ describe('GoogleOAuthProvider', () => {
     it('returns cached token info when found in local store', async () => {
       const provider = createProvider();
       const now = 11_000_000;
-      const dateSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       const tokenInfo: StoredTokenInfo = {
         accessToken: 'cached-token',
@@ -852,7 +852,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('verifies token with Google TokenInfo API when not in cache', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
       mockGetTokenInfo.mockResolvedValueOnce({
         sub: '456',
@@ -884,7 +884,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('falls back to UserInfo API when TokenInfo fails', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -924,7 +924,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('throws error when both TokenInfo and UserInfo APIs fail', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -1007,7 +1007,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles getUserInfo API failure', async () => {
       const provider = createProvider();
-      const consoleSpy = jest.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       mockFetch.mockResolvedValueOnce({
         ok: false,

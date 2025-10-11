@@ -1,4 +1,5 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+
 import {
   OAuthDiscoveryMetadata,
   createOAuthDiscoveryMetadata,
@@ -10,27 +11,27 @@ import {
 import type { OAuthProvider, OAuthEndpoints, OAuthProviderType } from '../../../src/auth/providers/types.js';
 
 describe('OAuthDiscoveryMetadata', () => {
-  let mockProvider: jest.Mocked<OAuthProvider>;
+  let mockProvider: Mocked<OAuthProvider>;
   const baseUrl = 'https://example.com';
 
   beforeEach(() => {
     mockProvider = {
-      getProviderType: jest.fn(),
-      getProviderName: jest.fn(),
-      getEndpoints: jest.fn(),
-      getDefaultScopes: jest.fn(),
-      handleAuthorizationRequest: jest.fn(),
-      handleAuthorizationCallback: jest.fn(),
-      handleTokenRefresh: jest.fn(),
-      handleLogout: jest.fn(),
-      verifyAccessToken: jest.fn(),
-      getUserInfo: jest.fn(),
-      isTokenValid: jest.fn(),
-      getSessionCount: jest.fn(),
-      getTokenCount: jest.fn(),
-      removeToken: jest.fn(),
-      cleanup: jest.fn(),
-      dispose: jest.fn()
+      getProviderType: vi.fn(),
+      getProviderName: vi.fn(),
+      getEndpoints: vi.fn(),
+      getDefaultScopes: vi.fn(),
+      handleAuthorizationRequest: vi.fn(),
+      handleAuthorizationCallback: vi.fn(),
+      handleTokenRefresh: vi.fn(),
+      handleLogout: vi.fn(),
+      verifyAccessToken: vi.fn(),
+      getUserInfo: vi.fn(),
+      isTokenValid: vi.fn(),
+      getSessionCount: vi.fn(),
+      getTokenCount: vi.fn(),
+      removeToken: vi.fn(),
+      cleanup: vi.fn(),
+      dispose: vi.fn()
     } as jest.Mocked<OAuthProvider>;
 
     // Default mock implementations

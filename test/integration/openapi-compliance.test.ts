@@ -5,7 +5,6 @@
  * that match the OpenAPI specification schemas.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
 import { readFileSync } from 'fs';
 import { join } from 'path';

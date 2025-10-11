@@ -8,7 +8,6 @@
  * 4. Provider/model validation
  * 5. Optional parameters (length, format, focus)
  */
-import { jest } from '@jest/globals';
 import { handleSummarizeTool, type SummarizeToolInput } from '../../../../src/tools/llm/summarize.js';
 import { LLMManager } from '../../../../src/llm/manager.js';
 import { LLMConfigManager } from '../../../../src/llm/config.js';
@@ -61,7 +60,7 @@ const baseConfig: LLMConfig = {
 };
 
 const setupConfigSpies = (config: LLMConfig = baseConfig) => {
-  jest.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
+  vi.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
   jest
     .spyOn(LLMConfigManager.prototype, 'getModelConfig')
     .mockImplementation(async (provider: LLMProvider, model?: string) => {
@@ -77,7 +76,7 @@ const setupConfigSpies = (config: LLMConfig = baseConfig) => {
 };
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe('Summarize Tool', () => {
@@ -134,8 +133,8 @@ describe('Summarize Tool', () => {
       }));
 
       (manager as any).clients = {
-        claude: { messages: { create: jest.fn() } },
-        openai: { chat: { completions: { create: jest.fn() } } },
+        claude: { messages: { create: vi.fn() } },
+        openai: { chat: { completions: { create: vi.fn() } } },
         gemini: { getGenerativeModel: () => ({ generateContent: geminiGenerate }) }
       };
 
@@ -158,16 +157,16 @@ describe('Summarize Tool', () => {
       });
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({
+        getProviderForTool: vi.fn().mockReturnValue({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
         }),
         complete: completeMock,
-        getAvailableProviders: jest.fn().mockReturnValue(['gemini']),
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        getAvailableProviders: vi.fn().mockReturnValue(['gemini']),
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(
@@ -390,16 +389,16 @@ describe('Summarize Tool', () => {
       });
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({
+        getProviderForTool: vi.fn().mockReturnValue({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
         }),
         complete: completeMock,
-        getAvailableProviders: jest.fn().mockReturnValue(['claude', 'gemini']),
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        getAvailableProviders: vi.fn().mockReturnValue(['claude', 'gemini']),
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(
@@ -498,16 +497,16 @@ describe('Summarize Tool', () => {
         });
 
         const manager = {
-          getProviderForTool: jest.fn().mockReturnValue({
+          getProviderForTool: vi.fn().mockReturnValue({
             provider: 'gemini',
             model: 'gemini-2.5-flash'
           }),
           complete: completeMock,
-          getAvailableProviders: jest.fn().mockReturnValue(['openai']),
-          clearCache: jest.fn(),
-          getCacheStats: jest.fn(),
-          initialize: jest.fn(),
-          isProviderAvailable: jest.fn().mockReturnValue(true)
+          getAvailableProviders: vi.fn().mockReturnValue(['openai']),
+          clearCache: vi.fn(),
+          getCacheStats: vi.fn(),
+          initialize: vi.fn(),
+          isProviderAvailable: vi.fn().mockReturnValue(true)
         } as unknown as LLMManager;
 
         const result = await handleSummarizeTool(
@@ -534,7 +533,7 @@ describe('Summarize Tool', () => {
       it('should reject claude + gpt-4o', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        (manager as any).clients = { claude: { messages: { create: jest.fn() } } };
+        (manager as any).clients = { claude: { messages: { create: vi.fn() } } };
 
         const input: SummarizeToolInput = {
           text: 'Test',
@@ -551,7 +550,7 @@ describe('Summarize Tool', () => {
       it('should reject claude + gemini-2.5-flash', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        (manager as any).clients = { claude: { messages: { create: jest.fn() } } };
+        (manager as any).clients = { claude: { messages: { create: vi.fn() } } };
 
         const input: SummarizeToolInput = {
           text: 'Test',
@@ -566,19 +565,19 @@ describe('Summarize Tool', () => {
       });
 
       it('should reject Gemini model with Claude provider', async () => {
-        const completeMock = jest.fn();
+        const completeMock = vi.fn();
 
         const manager = {
-          getProviderForTool: jest.fn().mockReturnValue({
+          getProviderForTool: vi.fn().mockReturnValue({
             provider: 'claude',
             model: 'claude-3-5-haiku-20241022'
           }),
           complete: completeMock,
-          getAvailableProviders: jest.fn().mockReturnValue(['claude']),
-          clearCache: jest.fn(),
-          getCacheStats: jest.fn(),
-          initialize: jest.fn(),
-          isProviderAvailable: jest.fn().mockReturnValue(true)
+          getAvailableProviders: vi.fn().mockReturnValue(['claude']),
+          clearCache: vi.fn(),
+          getCacheStats: vi.fn(),
+          initialize: vi.fn(),
+          isProviderAvailable: vi.fn().mockReturnValue(true)
         } as unknown as LLMManager;
 
         const result = await handleSummarizeTool(
@@ -598,19 +597,19 @@ describe('Summarize Tool', () => {
       });
 
       it('should reject Claude model with Gemini provider', async () => {
-        const completeMock = jest.fn();
+        const completeMock = vi.fn();
 
         const manager = {
-          getProviderForTool: jest.fn().mockReturnValue({
+          getProviderForTool: vi.fn().mockReturnValue({
             provider: 'gemini',
             model: 'gemini-2.5-flash'
           }),
           complete: completeMock,
-          getAvailableProviders: jest.fn().mockReturnValue(['gemini']),
-          clearCache: jest.fn(),
-          getCacheStats: jest.fn(),
-          initialize: jest.fn(),
-          isProviderAvailable: jest.fn().mockReturnValue(true)
+          getAvailableProviders: vi.fn().mockReturnValue(['gemini']),
+          clearCache: vi.fn(),
+          getCacheStats: vi.fn(),
+          initialize: vi.fn(),
+          isProviderAvailable: vi.fn().mockReturnValue(true)
         } as unknown as LLMManager;
 
         const result = await handleSummarizeTool(
@@ -632,7 +631,7 @@ describe('Summarize Tool', () => {
       it('should reject openai + claude-3-5-haiku-20241022', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        (manager as any).clients = { openai: { chat: { completions: { create: jest.fn() } } } };
+        (manager as any).clients = { openai: { chat: { completions: { create: vi.fn() } } } };
 
         const input: SummarizeToolInput = {
           text: 'Test',
@@ -647,7 +646,7 @@ describe('Summarize Tool', () => {
       it('should reject gemini + gpt-4o', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        (manager as any).clients = { gemini: { getGenerativeModel: jest.fn() } };
+        (manager as any).clients = { gemini: { getGenerativeModel: vi.fn() } };
 
         const input: SummarizeToolInput = {
           text: 'Test',
@@ -675,16 +674,16 @@ describe('Summarize Tool', () => {
       });
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({
+        getProviderForTool: vi.fn().mockReturnValue({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
         }),
         complete: completeMock,
-        getAvailableProviders: jest.fn().mockReturnValue(['gemini']),
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        getAvailableProviders: vi.fn().mockReturnValue(['gemini']),
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(
@@ -721,16 +720,16 @@ describe('Summarize Tool', () => {
       });
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({
+        getProviderForTool: vi.fn().mockReturnValue({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
         }),
         complete: completeMock,
-        getAvailableProviders: jest.fn().mockReturnValue(['gemini']),
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        getAvailableProviders: vi.fn().mockReturnValue(['gemini']),
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(
@@ -760,16 +759,16 @@ describe('Summarize Tool', () => {
       });
 
       const manager = {
-        getProviderForTool: jest.fn().mockReturnValue({
+        getProviderForTool: vi.fn().mockReturnValue({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
         }),
         complete: completeMock,
-        getAvailableProviders: jest.fn().mockReturnValue(['gemini']),
-        clearCache: jest.fn(),
-        getCacheStats: jest.fn(),
-        initialize: jest.fn(),
-        isProviderAvailable: jest.fn().mockReturnValue(true)
+        getAvailableProviders: vi.fn().mockReturnValue(['gemini']),
+        clearCache: vi.fn(),
+        getCacheStats: vi.fn(),
+        initialize: vi.fn(),
+        isProviderAvailable: vi.fn().mockReturnValue(true)
       } as unknown as LLMManager;
 
       const result = await handleSummarizeTool(

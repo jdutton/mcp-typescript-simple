@@ -1,13 +1,11 @@
 /**
  * Test utilities setup for system tests
- * Server management is now handled by Jest global setup/teardown
+ * Server management is now handled by Vitest global setup/teardown
  */
 
-import { jest } from '@jest/globals';
 import { getCurrentEnvironment, isSTDIOEnvironment, waitForServer, createHttpClient } from './utils.js';
 
-// Increase timeout for system tests
-jest.setTimeout(30000);
+// Note: Timeout is configured in vitest.system.config.ts (testTimeout: 30000)
 
 const environment = getCurrentEnvironment();
 
