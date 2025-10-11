@@ -6,8 +6,17 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { OAuthProviderFactory } from '../build/auth/factory.js';
 import { OAuthProvider, OAuthProviderType } from '../build/auth/providers/types.js';
 import { logger } from '../build/utils/logger.js';
-import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
+import { setOAuthAntiCachingHeaders } from '../build/auth/shared/oauth-helpers.js';
 import { generateLoginPageHTML } from '../build/auth/login-page.js';
+import { handleUniversalTokenRequest } from '../build/auth/shared/universal-token-handler.js';
+import { handleUniversalRevokeRequest } from '../build/auth/shared/universal-revoke-handler.js';
+import {
+  handleProviderAuthorizationRequest,
+  handleProviderAuthorizationCallback,
+  handleProviderLogout,
+  handleOAuthDiscovery,
+  handleGenericAuthorize
+} from '../build/auth/shared/provider-router.js';
 
 // Global OAuth providers map for multi-provider support
 let oauthProvidersInstance: Map<OAuthProviderType, OAuthProvider> | null = null;
@@ -127,16 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath === '/') {
       if (req.method === 'GET') {
         logger.debug("Returning OAuth discovery information", { path: oauthPath });
-        res.json({
-          message: 'OAuth authentication endpoint',
-          providers: Array.from(providers.keys()),
-          endpoints: {
-            login: '/auth/login',
-            authorize: '/auth/authorize',
-            token: '/auth/token',
-            revoke: '/auth/revoke'
-          }
-        });
+        handleOAuthDiscovery(providers, res);
         return;
       }
     }
@@ -145,19 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath === '/authorize') {
       if (req.method === 'GET') {
         logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
-
-        // If only one provider, redirect directly
-        // Note: Use /auth/* paths (not /api/auth/*) to match Express behavior
-        if (providers.size === 1) {
-          const [singleProviderType] = providers.keys();
-          const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-          res.redirect(302, `/auth/${singleProviderType}${queryString ? `?${queryString}` : ''}`);
-          return;
-        }
-
-        // Multiple providers - redirect to login page
-        const queryString = new URLSearchParams(req.query as Record<string, string>).toString();
-        res.redirect(302, `/auth/login${queryString ? `?${queryString}` : ''}`);
+        handleGenericAuthorize(providers, req.query as Record<string, any>, res);
         return;
       }
     }
@@ -193,170 +181,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           contentType: req.headers['content-type'],
           grantType: req.body?.grant_type
         });
-
-        try {
-          const { grant_type, refresh_token, code } = req.body || {};
-
-          // Authorization Code Grant - find correct provider (two-phase approach)
-          if (grant_type === 'authorization_code') {
-            logger.info("Searching for provider with stored authorization code", {
-              codePrefix: code?.substring(0, 10),
-              availableProviders: Array.from(providers.keys())
-            });
-
-            // Phase 1: Find which provider has the authorization code
-            let correctProvider: OAuthProvider | null = null;
-            let correctProviderType: OAuthProviderType | null = null;
-
-            for (const [providerType, provider] of providers.entries()) {
-              if ('hasStoredCodeForProvider' in provider) {
-                const hasCode = await (provider as any).hasStoredCodeForProvider(code);
-                logger.info("Provider code check result", {
-                  provider: providerType,
-                  hasCode,
-                  codePrefix: code?.substring(0, 10)
-                });
-                if (hasCode) {
-                  correctProvider = provider;
-                  correctProviderType = providerType;
-                  logger.info("Found provider for authorization code", { provider: providerType });
-                  break;
-                }
-              }
-            }
-
-            // No provider has this code
-            if (!correctProvider) {
-              logger.error("No provider found for authorization code", {
-                codePrefix: code?.substring(0, 10),
-                availableProviders: Array.from(providers.keys()),
-                hasCodeVerifier: !!req.body.code_verifier,
-                message: 'Authorization code not found in any provider PKCE store'
-              });
-
-              res.status(400).json({
-                error: 'invalid_grant',
-                error_description: 'The provided authorization grant is invalid, expired, or was issued by a different provider',
-                timestamp: new Date().toISOString()
-              });
-              return;
-            }
-
-            // Phase 2: Use the correct provider for token exchange
-            if (correctProvider && 'handleTokenExchange' in correctProvider) {
-              try {
-                logger.info("Using correct provider for token exchange", { provider: correctProviderType });
-                await (correctProvider as any).handleTokenExchange(req as any, res as any);
-                logger.info("Token exchange succeeded", { provider: correctProviderType });
-                return;
-              } catch (error) {
-                const errorMsg = error instanceof Error ? error.message : String(error);
-                logger.error("Token exchange failed with correct provider", { provider: correctProviderType, error: errorMsg });
-                res.status(400).json({
-                  error: 'invalid_grant',
-                  error_description: errorMsg,
-                  timestamp: new Date().toISOString()
-                });
-                return;
-              }
-            }
-
-            // Should never reach here
-            logger.warn("No OAuth providers available for token exchange");
-            res.status(400).json({
-              error: 'invalid_grant',
-              error_description: 'No OAuth providers available',
-              timestamp: new Date().toISOString()
-            });
-            return;
-          } else if (grant_type === 'refresh_token' || refresh_token) {
-            // Refresh Token Grant - O(1) lookup using token store
-            logger.debug("Processing refresh_token grant");
-
-            // Phase 1: Find which provider owns this refresh token (O(1) lookup)
-            let correctProvider: OAuthProvider | null = null;
-            let correctProviderType: string | null = null;
-
-            // Get token store from any provider (they all share the same store)
-            const firstProvider = providers.values().next().value;
-            if (firstProvider && 'getTokenStore' in firstProvider) {
-              const tokenStore = (firstProvider as any).getTokenStore();
-
-              try {
-                const tokenData = await tokenStore.findByRefreshToken(refresh_token);
-
-                if (tokenData && tokenData.tokenInfo) {
-                  const providerType = tokenData.tokenInfo.provider;
-                  correctProvider = providers.get(providerType) || null;
-                  correctProviderType = providerType;
-
-                  if (correctProvider) {
-                    logger.info('Routing refresh token to correct provider', { provider: correctProviderType });
-                  }
-                }
-              } catch (error) {
-                // Token store lookup failed, fallback to sequential approach
-                logger.debug('Token store lookup failed, falling back to sequential provider trial', { error });
-              }
-            }
-
-            // Phase 2: Use the correct provider directly (O(1) execution)
-            if (correctProvider) {
-              try {
-                // Type cast required: Vercel types are not fully compatible with Express types
-                await correctProvider.handleTokenRefresh(req as any, res as any);
-                return; // Success
-              } catch (error) {
-                // Correct provider failed, don't try others
-                logger.error('Token refresh failed with correct provider', { provider: correctProviderType, error });
-                res.status(400).json({
-                  error: 'invalid_grant',
-                  error_description: error instanceof Error ? error.message : 'The provided refresh token is invalid or expired',
-                  timestamp: new Date().toISOString()
-                });
-                return;
-              }
-            }
-
-            // Fallback: Try each provider (for direct OAuth flows or if lookup failed)
-            logger.debug('Trying each provider for refresh token');
-            for (const provider of providers.values()) {
-              try {
-                // Type cast required: Vercel types are not fully compatible with Express types
-                await provider.handleTokenRefresh(req as any, res as any);
-                return; // Success
-              } catch (error) {
-                // Try next provider
-                continue;
-              }
-            }
-
-            // No provider succeeded
-            res.status(400).json({
-              error: 'invalid_grant',
-              error_description: 'The provided refresh token is invalid or expired',
-              timestamp: new Date().toISOString()
-            });
-            return;
-          } else {
-            // Invalid grant type
-            res.status(400).json({
-              error: 'unsupported_grant_type',
-              error_description: 'Supported grant types: authorization_code, refresh_token',
-              timestamp: new Date().toISOString()
-            });
-            return;
-          }
-        } catch (error) {
-          logger.error("Token endpoint error", error);
-          if (!res.headersSent) {
-            res.status(500).json({
-              error: 'server_error',
-              error_description: error instanceof Error ? error.message : 'Unknown error',
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
+        await handleUniversalTokenRequest(req, res, providers);
         return;
       }
     }
@@ -365,62 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath === '/revoke') {
       if (req.method === 'POST') {
         logger.debug("Handling universal token revocation", { path: oauthPath });
-
-        try {
-          // Extract token parameter (RFC 7009 Section 2.1)
-          const { token, token_type_hint } = req.body || {};
-
-          // Validate required token parameter
-          if (!token || typeof token !== 'string' || token.trim() === '') {
-            res.status(400).json({
-              error: 'invalid_request',
-              error_description: 'Missing or invalid token parameter',
-              timestamp: new Date().toISOString()
-            });
-            return;
-          }
-
-          // Try to revoke token from each provider
-          // RFC 7009 Section 2.2: "The authorization server responds with HTTP status code 200
-          // if the token has been revoked successfully or if the client submitted an invalid token"
-          for (const [providerType, provider] of providers.entries()) {
-            try {
-              // Check if provider has this token
-              if ('getToken' in provider) {
-                const storedToken = await (provider as any).getToken(token);
-                if (storedToken) {
-                  // Remove token from provider's store
-                  await provider.removeToken(token);
-                  logger.debug('Token revoked successfully', { provider: providerType });
-                  break; // Token found and removed, stop searching
-                }
-              } else {
-                // If provider doesn't support getToken, try removing anyway
-                await provider.removeToken(token);
-                logger.debug('Token removal attempted', { provider: providerType });
-                break;
-              }
-            } catch (error) {
-              // Per RFC 7009 Section 2.2: "invalid tokens do not cause an error"
-              // Continue trying other providers
-              logger.debug('Token removal failed, trying next provider', { provider: providerType, error });
-              continue;
-            }
-          }
-
-          // Always return 200 OK per RFC 7009 (even if token not found)
-          res.status(200).json({ success: true });
-          return;
-        } catch (error) {
-          logger.error("Token revocation error", error);
-          if (!res.headersSent) {
-            res.status(500).json({
-              error: 'server_error',
-              error_description: error instanceof Error ? error.message : 'Unknown error',
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
+        await handleUniversalRevokeRequest(req, res, providers);
         return;
       }
     }
@@ -433,8 +203,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (oauthPath === `/${providerType}`) {
         if (req.method === 'GET') {
           logger.debug("Handling OAuth authorization request", { provider: providerType });
-          // Type cast required: Vercel types are not fully compatible with Express types
-          await provider.handleAuthorizationRequest(req as any, res as any);
+          await handleProviderAuthorizationRequest(provider, providerType, req, res);
           return;
         }
       }
@@ -443,8 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (oauthPath === `/${providerType}/callback`) {
         if (req.method === 'GET') {
           logger.debug("Handling OAuth callback", { provider: providerType });
-          // Type cast required: Vercel types are not fully compatible with Express types
-          await provider.handleAuthorizationCallback(req as any, res as any);
+          await handleProviderAuthorizationCallback(provider, providerType, req, res);
           return;
         }
       }
@@ -453,8 +221,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (oauthPath === `/${providerType}/logout`) {
         if (req.method === 'POST') {
           logger.debug("Handling logout", { provider: providerType });
-          // Type cast required: Vercel types are not fully compatible with Express types
-          await provider.handleLogout(req as any, res as any);
+          await handleProviderLogout(provider, providerType, req, res);
           return;
         }
       }
