@@ -1113,13 +1113,20 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       // Validate code_verifier is available
       if (!codeVerifierToUse) {
-        this.setAntiCachingHeaders(res);
-        res.status(400).json({
-          error: 'invalid_grant',
-          error_description: 'Authorization code is invalid, expired, or already used'
+        logger.oauthInfo('Token exchange: No code_verifier found - not my code, skipping to next provider', {
+          provider: this.getProviderType(),
+          codePrefix: code!.substring(0, 10),
+          hasClientCodeVerifier: !!code_verifier
         });
+        // Return silently without sending response - let loop try next provider
+        // If no provider responds, api/auth.ts will send generic error
         return;
       }
+
+      logger.oauthInfo('Token exchange: Code verifier resolved - this is my code', {
+        provider: this.getProviderType(),
+        codePrefix: code!.substring(0, 10)
+      });
 
       // Log request
       await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);

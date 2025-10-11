@@ -207,12 +207,13 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     const providers = new Map<OAuthProviderType, OAuthProvider>();
 
     // Try to create each provider if credentials are present
+    // Order matters for /auth/token iteration (tries providers in this order)
     const providerAttempts: Array<{
       type: OAuthProviderType;
       create: () => Promise<OAuthProvider> | OAuthProvider;
     }> = [
-      { type: 'google', create: () => factory.createGoogleProvider() },
       { type: 'github', create: () => factory.createGitHubProvider() },
+      { type: 'google', create: () => factory.createGoogleProvider() },
       { type: 'microsoft', create: () => factory.createMicrosoftProvider() },
       { type: 'generic', create: () => factory.createGenericProvider() },
     ];
