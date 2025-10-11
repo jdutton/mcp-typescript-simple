@@ -26,6 +26,14 @@ describe('Redis OAuth Stores', () => {
     await sharedRedis.flushall();
   });
 
+  afterAll(async () => {
+    // Clean up shared Redis instance
+    if (sharedRedis) {
+      await sharedRedis.quit();
+      sharedRedis = null;
+    }
+  });
+
   describe('RedisSessionStore', () => {
     let store: RedisSessionStore;
 

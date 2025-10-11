@@ -96,19 +96,21 @@ async function startTestServer(): Promise<ChildProcess> {
 async function stopTestServer(server: ChildProcess): Promise<void> {
   return new Promise((resolve) => {
     if (!server.killed) {
-      server.on('exit', () => {
-        console.log('🛑 Test server stopped');
-        resolve();
-      });
-      server.kill('SIGTERM');
-
       // Force kill after 5 seconds if not stopped
-      global.setTimeout(() => {
+      const forceKillTimer = global.setTimeout(() => {
         if (!server.killed) {
           console.log('⚠️  Force killing test server');
           server.kill('SIGKILL');
         }
       }, 5000);
+
+      server.on('exit', () => {
+        clearTimeout(forceKillTimer); // Clear the force kill timer
+        console.log('🛑 Test server stopped');
+        resolve();
+      });
+
+      server.kill('SIGTERM');
     } else {
       resolve();
     }
