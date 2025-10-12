@@ -13,6 +13,8 @@ import {
   MOCK_OAUTH_PORT
 } from './helpers/mock-oauth-server.js';
 import { checkPortsAvailable } from '../helpers/port-utils';
+import { promises as fs } from 'fs';
+import { existsSync } from 'fs';
 
 let mockOAuthServer: OAuth2Server | null = null;
 
@@ -21,6 +23,22 @@ let mockOAuthServer: OAuth2Server | null = null;
  */
 export default async function globalSetup(_config: FullConfig) {
   console.log('\n🔧 Running Playwright global setup...\n');
+
+  // Clean up test data directory before tests (ensures test isolation)
+  // Tests use NODE_ENV=test, which writes to ./data/test/ instead of ./data/
+  // This prevents "Session not found" errors from persisted session data
+  console.log('🧹 Cleaning up test data directory...');
+  try {
+    const testDataDir = './data/test';
+    if (existsSync(testDataDir)) {
+      await fs.rm(testDataDir, { recursive: true, force: true });
+      console.log(`   Removed ${testDataDir}`);
+    }
+    console.log('✅ Test data cleanup complete\n');
+  } catch (error) {
+    console.warn('⚠️  Test data cleanup failed (continuing anyway):', error);
+    // Don't fail tests if cleanup fails - this is best-effort
+  }
 
   // Check if mock OAuth port is available (fail fast with helpful error)
   try {

@@ -17,6 +17,7 @@ import { InMemoryClientStore } from './stores/memory-client-store.js';
 import { FileClientStore } from './stores/file-client-store.js';
 import { RedisClientStore } from './stores/redis-client-store.js';
 import { logger } from '../utils/logger.js';
+import { getDataPath } from '../utils/data-paths.js';
 
 export interface ClientStoreFactoryOptions {
   /** Explicit store type (overrides auto-detection) */
@@ -113,7 +114,7 @@ export class ClientStoreFactory {
    * Create a file-based client store
    */
   private static createFileStore(options: ClientStoreFactoryOptions): FileClientStore {
-    const filePath = options.filePath ?? process.env.DCR_FILE_PATH ?? './data/oauth-clients.json';
+    const filePath = options.filePath ?? process.env.DCR_FILE_PATH ?? getDataPath('oauth-clients.json');
 
     return new FileClientStore(filePath, {
       defaultSecretExpirySeconds: options.defaultSecretExpirySeconds,
