@@ -481,6 +481,8 @@ npm run dev:clean
 
 This project requires **comprehensive test coverage** for all features and bug fixes. When developing new features or fixing bugs, you MUST add corresponding tests.
 
+**📚 For comprehensive testing guidance, see [docs/testing-guidelines.md](docs/testing-guidelines.md)**
+
 ### Test Coverage Requirements
 - **New Features**: MUST include unit tests validating the feature works correctly
 - **Bug Fixes**: MUST include regression tests that would have caught the bug

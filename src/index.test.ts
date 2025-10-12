@@ -8,7 +8,6 @@ describe('MCP server bootstrap', () => {
     delete process.env.MCP_MODE;
     delete process.env.NODE_ENV;
 
-    jest.resetModules();
     vi.restoreAllMocks();
 
     process.removeAllListeners('SIGINT');
@@ -23,8 +22,6 @@ describe('MCP server bootstrap', () => {
   });
 
   test('initializes server and transport stack during bootstrap', async () => {
-    jest.resetModules();
-
     process.env.MCP_MODE = 'stdio';
     process.env.NODE_ENV = 'test';
 
@@ -44,14 +41,14 @@ describe('MCP server bootstrap', () => {
     });
 
     let capturedServer: unknown;
-    const transportInitialize = jest.fn(async (server: unknown) => {
+    const transportInitialize = vi.fn(async (server: unknown) => {
       capturedServer = server;
     });
-    const transportStart = jest.fn(async () => {
+    const transportStart = vi.fn(async () => {
       startResolve();
     });
-    const transportStop = jest.fn(async () => undefined);
-    const transportGetInfo = jest.fn(() => 'stdio');
+    const transportStop = vi.fn(async () => undefined);
+    const transportGetInfo = vi.fn(() => 'stdio');
 
     const transportManager = {
       initialize: transportInitialize,

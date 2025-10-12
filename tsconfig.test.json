@@ -6,7 +6,7 @@
     "sourceMap": false,
     "outDir": "./build/test",
     "rootDir": "./",
-    "types": ["jest", "node"]
+    "types": ["node"]
   },
   "include": [
     "src/**/*",

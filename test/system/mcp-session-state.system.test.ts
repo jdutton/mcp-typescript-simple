@@ -108,11 +108,11 @@ describeOrSkip('MCP Session State Management System Tests', () => {
 
   beforeAll(async () => {
     client = new MCPTestClient();
-    console.log('🔍 Using global HTTP server on port 3001 (managed by Jest global setup)');
+    console.log('🔍 Using global HTTP server on port 3001 (managed by Vitest global setup)');
   });
 
   afterAll(async () => {
-    console.log('✅ Test cleanup complete (server managed by Jest global teardown)');
+    console.log('✅ Test cleanup complete (server managed by Vitest global teardown)');
   });
 
   describe('Session Initialization', () => {
