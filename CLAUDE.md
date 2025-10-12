@@ -83,37 +83,9 @@ npm run otel:validate           # Validate OTEL setup and connectivity
 # Production Deployment Testing
 npm run build                    # Build for deployment
 
-# Docker deployment (standalone containers)
-npm run run:docker:build                # Build Docker image
-npm run run:docker                      # Run Docker with multi-provider OAuth (.env.oauth)
-
-# Docker deployment (with local Redis - self-contained testing)
-npm run run:docker:redis:start          # Start Redis container
-npm run run:docker:with-redis           # Run with Redis + multi-provider OAuth (.env.oauth)
-npm run run:docker:redis:stop           # Stop and remove Redis container
-
-# Docker Compose (EXCLUSIVELY for multi-node load-balanced testing)
-# - Nginx load balancer on port 8080 with 3 backend MCP server instances
-# - Redis for shared session persistence across instances
-# - Grafana OTEL LGTM stack for observability (logs, traces, metrics)
-# - Runs without OAuth by default (MCP_DEV_SKIP_AUTH=true)
-# - Optional .env.oauth.docker to enable OAuth testing (set MCP_DEV_SKIP_AUTH=false)
-
-docker compose up          # Start load-balanced setup with full observability
-docker compose down        # Stop all containers
-docker compose down -v     # Stop and clean up volumes
-
-# Test the load-balanced setup:
-curl http://localhost:8080/health       # MCP server health (via nginx)
-open http://localhost:3200              # Grafana dashboard (user: admin, pass: admin)
-
-# Services running:
-# - nginx:         localhost:8080 (load balancer)
-# - mcp-server-1:  Internal (backend instance 1)
-# - mcp-server-2:  Internal (backend instance 2)
-# - mcp-server-3:  Internal (backend instance 3)
-# - redis:         localhost:6380 (session storage)
-# - grafana-otel:  localhost:3200 (observability UI)
+# Docker (CI-only validation)
+# Local: docker run --rm -it mcp-typescript-simple (auto-rebuilds) or npm run docker:dev (always builds fresh)
+# CI: .github/workflows/docker.yml validates Docker builds on PRs (separate from npm run validate)
 
 # Vercel deployment (Preview Only)
 npm run dev:vercel               # Local Vercel development server
@@ -123,9 +95,9 @@ npm run dev:vercel               # Local Vercel development server
 
 Test with increasing production-like fidelity:
 
-1. **Development (TypeScript)**: `npm run dev:oauth` - Fast iteration with tsx (uses `.env.oauth`)
-2. **Docker Container**: `npm run run:docker` - Containerized deployment (uses `.env.oauth`)
-3. **Vercel Serverless**: Production serverless (GitHub Actions only - automatic on PR merge to main)
+1. **Development (TypeScript)**: `npm run dev:oauth` - Fast iteration with tsx
+2. **Docker Container**: `npm run docker:dev` - Containerized deployment
+3. **Vercel Serverless**: Production serverless (GitHub Actions only)
 
 ```
 
@@ -811,7 +783,7 @@ Runs complete validation pipeline with git tree hash state caching.
 **Features:**
 - Caches results based on git tree hash (includes all changes)
 - Skips validation if code unchanged (massive time savings)
-- Embeds error output in `.validation-state.yaml`
+- Embeds error output in `.validate-state.yaml`
 - Provides agent-friendly prompts for fixing errors
 - Use `--force` flag to bypass cache
 
@@ -828,7 +800,7 @@ Runs complete validation pipeline with git tree hash state caching.
 
 ### Validation State File
 
-`.validation-state.yaml` - Git-ignored state file tracking validation results:
+`.validate-state.yaml` - Git-ignored state file tracking validation results:
 - `passed`: Boolean validation result
 - `timestamp`: ISO 8601 timestamp
 - `treeHash`: Git tree hash (deterministic code state)

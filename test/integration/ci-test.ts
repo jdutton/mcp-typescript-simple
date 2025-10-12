@@ -33,8 +33,8 @@ class CITestRunner {
       { name: 'MCP Server Startup', fn: () => this.testServerStartup() },
       { name: 'MCP Protocol Compliance', fn: () => this.testMCPProtocol() },
       { name: 'Tool Functionality', fn: () => this.testToolFunctionality() },
-      { name: 'Error Handling', fn: () => this.testErrorHandling() },
-      { name: 'Docker Build', fn: () => this.testDockerBuild() }
+      { name: 'Error Handling', fn: () => this.testErrorHandling() }
+      // NOTE: Docker Build removed - now validated separately in .github/workflows/docker.yml
     ];
 
     for (const test of tests) {

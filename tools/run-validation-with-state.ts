@@ -40,23 +40,27 @@
  * Implementation tracking: TODO.md (PR #2.5)
  */
 
-import { execSync } from 'child_process';
+import { execSync, spawn } from 'child_process';
 import { writeFileSync, appendFileSync, existsSync, readFileSync } from 'fs';
 import yaml from 'js-yaml';
-import { ValidationStateWriter, ValidationState } from './write-validation-state.js';
+import { ValidationStateWriter, ValidationState, PhaseResult } from './write-validation-state.js';
+import { VALIDATION_PHASES, ValidationPhase, ValidationStep } from './validation-config.js';
 
-// Validation steps to run in sequence
-const VALIDATION_STEPS = [
-  { name: 'TypeScript type checking', command: 'npm run typecheck' },
-  { name: 'ESLint code checking', command: 'npm run lint' },
-  { name: 'Unit tests', command: 'npm run test:unit' },
-  { name: 'Build', command: 'npm run build' },
-  { name: 'OpenAPI validation', command: 'npm run test:openapi' },
-  { name: 'Integration tests', command: 'npm run test:integration' },
-  { name: 'STDIO system tests', command: 'npm run test:system:stdio' },
-  { name: 'HTTP system tests', command: 'npm run test:system:ci' },
-  { name: 'Headless browser tests', command: 'npm run test:system:headless' }
-];
+// Check if GitHub workflow is in sync
+async function checkWorkflowSync(): Promise<{ inSync: boolean; error?: string }> {
+  try {
+    const result = execSync('npm run validate:check-workflow-sync', {
+      encoding: 'utf8',
+      stdio: 'pipe'
+    });
+    return { inSync: true };
+  } catch (error: any) {
+    return {
+      inSync: false,
+      error: error.stdout || error.message
+    };
+  }
+}
 
 /**
  * Get working tree hash (includes all changes - staged, unstaged, untracked)
@@ -112,7 +116,7 @@ function getWorkingTreeHash(): string {
  * Check if validation has already passed for current working tree state
  */
 function checkExistingValidation(currentTreeHash: string): { alreadyPassed: boolean; state?: ValidationState } {
-  const stateFile = '.validation-state.yaml';
+  const stateFile = '.validate-state.yaml';
 
   if (!existsSync(stateFile)) {
     return { alreadyPassed: false };
@@ -160,10 +164,95 @@ function parseFailures(output: string, stepName: string): string[] {
   return failures;
 }
 
+/**
+ * Run validation steps in parallel
+ */
+async function runStepsInParallel(
+  steps: ValidationStep[],
+  phaseName: string,
+  logPath: string
+): Promise<{
+  success: boolean;
+  failedStep?: ValidationStep;
+  outputs: Map<string, string>;
+  stepResults: { name: string; passed: boolean; duration: number }[];
+}> {
+  console.log(`\n🔍 Running ${phaseName} (${steps.length} steps in parallel)...`);
+
+  // Find longest step name for alignment
+  const maxNameLength = Math.max(...steps.map(s => s.name.length));
+
+  const outputs = new Map<string, string>();
+  const stepResults: { name: string; passed: boolean; duration: number }[] = [];
+
+  const results = await Promise.allSettled(
+    steps.map(step =>
+      new Promise<{ step: ValidationStep; output: string; duration: number }>((resolve, reject) => {
+        const paddedName = step.name.padEnd(maxNameLength);
+        console.log(`   ⏳ ${paddedName}  →  ${step.command}`);
+
+        const startTime = Date.now();
+        const proc = spawn('sh', ['-c', step.command], {
+          stdio: 'pipe',
+          env: { ...process.env, FORCE_COLOR: '0' }
+        });
+
+        let stdout = '';
+        let stderr = '';
+
+        proc.stdout.on('data', data => { stdout += data.toString(); });
+        proc.stderr.on('data', data => { stderr += data.toString(); });
+
+        proc.on('close', code => {
+          const duration = Date.now() - startTime;
+          const output = stdout + stderr;
+          outputs.set(step.name, output);
+
+          const durationSec = (duration / 1000).toFixed(1);
+          const status = code === 0 ? '✅' : '❌';
+          const result = code === 0 ? 'PASSED' : 'FAILED';
+          console.log(`      ${status} ${step.name.padEnd(maxNameLength)} - ${result} (${durationSec}s)`);
+
+          stepResults.push({ name: step.name, passed: code === 0, duration });
+
+          if (code === 0) {
+            resolve({ step, output, duration });
+          } else {
+            reject({ step, output, duration });
+          }
+        });
+      })
+    )
+  );
+
+  // Check for failures
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      const { step, output } = result.reason;
+      return { success: false, failedStep: step, outputs, stepResults };
+    }
+  }
+
+  return { success: true, outputs, stepResults };
+}
+
 async function main(): Promise<void> {
   // Check for --force flag
   const args = process.argv.slice(2);
   const forceValidation = args.includes('--force') || args.includes('-f');
+
+  // Step 0: Check if GitHub workflow is in sync
+  console.log('🔍 Checking GitHub workflow sync...');
+  const syncCheck = await checkWorkflowSync();
+  if (!syncCheck.inSync) {
+    console.log('');
+    console.log('❌ GitHub workflow out of sync with validation config!');
+    console.log('');
+    console.log(syncCheck.error || 'Run: npm run validate:generate-workflow');
+    console.log('');
+    process.exit(1);
+  }
+  console.log('   ✅ GitHub workflow is in sync');
 
   // Get current working tree hash (includes all changes)
   const currentTreeHash = getWorkingTreeHash();
@@ -189,80 +278,74 @@ async function main(): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const logPath = `/tmp/mcp-validation-${timestamp}.log`;
 
-  console.log('🚀 Validation with State Tracking');
+  console.log('🚀 Parallel Validation Pipeline');
   console.log('='.repeat(60));
-  console.log('\nThis will run the following validation steps:');
-  console.log('');
+  console.log('\nValidation Phases:');
 
-  // Find the longest step name for alignment
-  const maxNameLength = Math.max(...VALIDATION_STEPS.map(s => s.name.length));
-
-  // Calculate number width (for "1." "2." etc)
-  const maxNumWidth = VALIDATION_STEPS.length.toString().length + 2; // "8. " = 3 chars
-
-  VALIDATION_STEPS.forEach((step, i) => {
-    const numPrefix = `${i + 1}.`.padEnd(maxNumWidth);
-    const paddedName = step.name.padEnd(maxNameLength);
-    console.log(`  ${numPrefix}${paddedName}  →  ${step.command}`);
+  VALIDATION_PHASES.forEach((phase, i) => {
+    console.log(`\n${phase.name}:`);
+    phase.steps.forEach(step => {
+      console.log(`  • ${step.name}`);
+    });
   });
 
   console.log('');
-  console.log('📝 Writing state to: .validation-state.yaml');
+  console.log('📝 Writing state to: .validate-state.yaml');
   console.log(`📋 Writing output to: ${logPath}`);
   console.log(`💡 Monitor progress: tail -f ${logPath}`);
   console.log('='.repeat(60));
-  console.log('');
 
   // Initialize log file
   writeFileSync(logPath, `Validation started at ${new Date().toISOString()}\n\n`);
 
   let validationPassed = true;
   let fullOutput = '';
-  let failedStep: string | null = null;
+  let failedStep: ValidationStep | null = null;
+  const phaseResults: PhaseResult[] = [];
 
-  // Run each validation step
-  for (const step of VALIDATION_STEPS) {
-    console.log(`🔍 Running: ${step.name}...`);
+  // Run each phase
+  for (const phase of VALIDATION_PHASES) {
+    const phaseStartTime = Date.now();
+    const result = await runStepsInParallel(phase.steps, phase.name, logPath);
+    const phaseDuration = Date.now() - phaseStartTime;
 
-    try {
-      const output = execSync(step.command, {
-        encoding: 'utf8',
-        stdio: 'pipe',
-        env: { ...process.env, FORCE_COLOR: '0' }
-      });
-
-      // Append to log file
+    // Append all outputs to log file
+    for (const [stepName, output] of result.outputs) {
       appendFileSync(logPath, `\n${'='.repeat(60)}\n`);
-      appendFileSync(logPath, `${step.name}\n`);
+      appendFileSync(logPath, `${stepName}${result.failedStep?.name === stepName ? ' - FAILED' : ''}\n`);
       appendFileSync(logPath, `${'='.repeat(60)}\n`);
       appendFileSync(logPath, output);
-
       fullOutput += output;
-      console.log(`   ✅ ${step.name} - PASSED`);
+    }
 
-    } catch (error: any) {
-      // Step failed
-      const failedStepOutput = (error.stdout || '') + (error.stderr || '');
+    // Record phase result
+    const phaseResult: PhaseResult = {
+      name: phase.name,
+      duration: phaseDuration,
+      passed: result.success,
+      steps: result.stepResults
+    };
 
-      // Append to log file
-      appendFileSync(logPath, `\n${'='.repeat(60)}\n`);
-      appendFileSync(logPath, `${step.name} - FAILED\n`);
-      appendFileSync(logPath, `${'='.repeat(60)}\n`);
-      appendFileSync(logPath, failedStepOutput);
+    // If phase failed, include output
+    if (!result.success && result.failedStep) {
+      phaseResult.output = result.outputs.get(result.failedStep.name);
+    }
 
-      fullOutput += failedStepOutput;
+    phaseResults.push(phaseResult);
+
+    // If phase failed, stop here
+    if (!result.success && result.failedStep) {
       validationPassed = false;
-      failedStep = step.name;
+      failedStep = result.failedStep;
 
-      console.log(`   ❌ ${step.name} - FAILED`);
       console.log('');
       console.log('='.repeat(60));
-      console.log(`❌ Validation failed at: ${step.name}`);
+      console.log(`❌ Validation failed at: ${failedStep.name}`);
       console.log('='.repeat(60));
       console.log('');
 
-      // Parse and show specific failures
-      const failures = parseFailures(failedStepOutput, step.name);
+      const failedOutput = result.outputs.get(failedStep.name) || '';
+      const failures = parseFailures(failedOutput, failedStep.name);
       if (failures.length > 0) {
         console.log('Failed tests:');
         failures.forEach(failure => console.log(`   • ${failure}`));
@@ -270,20 +353,20 @@ async function main(): Promise<void> {
       }
 
       console.log(`📋 Full output: cat ${logPath}`);
-      console.log(`🔍 Run just this step: ${step.command}`);
+      console.log(`🔍 Run just this step: ${failedStep.command}`);
       console.log('');
 
-      // Write validation state with failure (quiet mode - no duplicate output)
-      // Pass failed step output directly - no need to read log file!
+      // Write validation state with failure
       const writer = new ValidationStateWriter();
       await writer.writeStateWithResults(
         validationPassed,
         logPath,
         fullOutput,
         true,  // quiet mode
-        step.name,  // failedStep
-        step.command,  // rerunCommand
-        failedStepOutput  // failedStepOutput - embedded in YAML!
+        failedStep.name,
+        failedStep.command,
+        failedOutput,
+        phaseResults
       );
 
       process.exit(1);
@@ -298,7 +381,16 @@ async function main(): Promise<void> {
 
   // Write validation state with success (quiet mode - no extra output)
   const writer = new ValidationStateWriter();
-  await writer.writeStateWithResults(validationPassed, null, fullOutput, true);
+  await writer.writeStateWithResults(
+    validationPassed,
+    logPath,  // Include log file even on success
+    fullOutput,
+    true,  // quiet mode
+    undefined,
+    undefined,
+    undefined,
+    phaseResults  // Include phase timing
+  );
 }
 
 main().catch((error) => {

@@ -97,7 +97,7 @@ Based on comprehensive architecture research (see issue #68), our custom SDLC au
 8. HTTP system tests
 9. Headless browser tests
 
-**State File**: `.validation-state.yaml`
+**State File**: `.validate-state.yaml`
 - `passed`: Boolean validation result
 - `timestamp`: ISO 8601 timestamp
 - `treeHash`: Git tree hash (includes all changes)
@@ -411,7 +411,7 @@ npx @agentic-workflow/cli pre-commit
 - **Architecture Research**: Issue #68 chief-arch agent output
 - **Competitive Analysis**: See "Research Foundation" section above
 - **Current Implementation**: `tools/` directory in this repository
-- **Configuration Examples**: `.validation-state.yaml` in project root
+- **Configuration Examples**: `.validate-state.yaml` in project root
 
 ## Questions & Decisions
 

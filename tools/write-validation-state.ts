@@ -19,11 +19,22 @@ import { writeFileSync, readFileSync, readdirSync, statSync, unlinkSync } from '
 import { join } from 'path';
 import yaml from 'js-yaml';
 
+interface PhaseResult {
+  name: string;
+  duration: number;  // milliseconds
+  passed: boolean;
+  steps: { name: string; passed: boolean; duration: number }[];
+  output?: string;   // Only if phase failed
+}
+
 interface ValidationState {
   // Validation result
   passed: boolean;
   timestamp: string;
   treeHash: string;
+
+  // Phase results (timing and status)
+  phases?: PhaseResult[];
 
   // Failed step details (only if failed)
   failedStep?: string;
@@ -31,7 +42,7 @@ interface ValidationState {
   failedTests?: string[];
   failedStepOutput?: string;
 
-  // Full log file (emergency use only - don't read unless absolutely necessary)
+  // Full log file (always present - includes ALL validation output)
   fullLogFile?: string;
 
   // Quick summary for humans/LLMs
@@ -50,7 +61,7 @@ interface ErrorSummary {
 }
 
 class ValidationStateWriter {
-  private readonly stateFile = '.validation-state.yaml';
+  private readonly stateFile = '.validate-state.yaml';
   private readonly logDir = '/tmp';
   private readonly logPrefix = 'mcp-validation-';
   private readonly maxLogAge = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -65,7 +76,8 @@ class ValidationStateWriter {
     quietMode: boolean = false,
     failedStep?: string,
     rerunCommand?: string,
-    failedStepOutput?: string
+    failedStepOutput?: string,
+    phases?: PhaseResult[]
   ): Promise<void> {
     const startTime = Date.now();
 
@@ -89,6 +101,8 @@ class ValidationStateWriter {
       passed: validationPassed,
       timestamp,
       treeHash,
+      fullLogFile: logFile || undefined,  // ALWAYS include log file path
+      phases,  // Include phase timing information
       summary: this.generateSummary(validationPassed, failedStep, failedTests),
       agentPrompt: validationPassed ? undefined : this.generateAgentPrompt(failedStep, rerunCommand),
     };
@@ -99,7 +113,6 @@ class ValidationStateWriter {
       state.rerunCommand = rerunCommand;
       state.failedTests = failedTests;
       state.failedStepOutput = failedStepOutput;
-      state.fullLogFile = logFile || undefined;
     }
 
     // Write YAML with custom formatting
@@ -239,62 +252,56 @@ class ValidationStateWriter {
       return null; // Validation passed, no fixes needed
     }
 
-    return `Fix failures in "${failedStep}". Read .validation-state.yaml for test failures and output. Fix issues, then run: ${rerunCommand || 'npm run validate'}`;
+    return `Fix failures in "${failedStep}". Read .validate-state.yaml for test failures and output. Fix issues, then run: ${rerunCommand || 'npm run validate'}`;
   }
 
   /**
    * Format ValidationState as YAML with helpful comments
    */
   private formatYAML(state: ValidationState): string {
-    let output = '# MCP Validation State\n';
-    output += '# This file tracks validation results for pre-commit checking\n';
-    output += '#\n';
-    output += '# HOW TO USE THIS FILE:\n';
-    output += '# - Humans/LLMs: Read "summary" and "failedStepOutput" fields\n';
-    output += '# - Emergency only: Check "fullLogFile" (large, avoid if possible)\n';
-    output += '# - Fix issues, then run the "rerunCommand"\n';
+    let output = '# Summary of npm run validate\n';
+
+    if (state.passed) {
+      // Minimal header for passing validation
+      output += '# Read "summary" field for result\n';
+    } else {
+      // More detailed guidance only on failure
+      output += '# On failure: Read "failedStepOutput" for errors, then run "rerunCommand"\n';
+    }
     output += '\n';
 
     // Basic info
-    output += `# Validation Result\n`;
     output += `passed: ${state.passed}\n`;
     output += `timestamp: ${state.timestamp}\n`;
     output += `treeHash: ${state.treeHash}\n`;
-    output += `\n`;
-
-    output += `# Quick Summary\n`;
     output += `summary: ${JSON.stringify(state.summary)}\n`;
-    output += `\n`;
 
+    // Always show log file path (single line, no extra comment)
+    if (state.fullLogFile) {
+      output += `fullLogFile: ${JSON.stringify(state.fullLogFile)}\n`;
+    }
+
+    // Only add failure details if validation failed
     if (!state.passed && state.failedStep) {
-      output += `# Failed Step Details\n`;
+      output += `\n# Failed Step\n`;
       output += `failedStep: ${JSON.stringify(state.failedStep)}\n`;
       output += `rerunCommand: ${JSON.stringify(state.rerunCommand)}\n`;
-      output += `\n`;
 
       if (state.failedTests && state.failedTests.length > 0) {
-        output += `# Failed Tests (first ${state.failedTests.length})\n`;
+        output += `\n# Failed Tests (first ${state.failedTests.length})\n`;
         output += `failedTests:\n`;
         state.failedTests.forEach(test => {
           output += `  - ${JSON.stringify(test)}\n`;
         });
-        output += `\n`;
-      }
-
-      if (state.fullLogFile) {
-        output += `# Full Log File (EMERGENCY USE ONLY - very large, avoid reading)\n`;
-        output += `fullLogFile: ${JSON.stringify(state.fullLogFile)}\n`;
-        output += `\n`;
       }
 
       if (state.agentPrompt) {
-        output += `# Agent Prompt (for validation-fixer sub-agent)\n`;
+        output += `\n# For LLM agents\n`;
         output += `agentPrompt: ${JSON.stringify(state.agentPrompt)}\n`;
-        output += `\n`;
       }
 
       if (state.failedStepOutput) {
-        output += `# Failed Step Output (detailed error output - scroll down for full details)\n`;
+        output += `\n# Error Output\n`;
         output += `failedStepOutput: |\n`;
         // Indent each line with 2 spaces for YAML literal block
         const lines = state.failedStepOutput.split('\n');
@@ -355,7 +362,7 @@ class ValidationStateWriter {
     console.log('❌ VALIDATION FAILED');
     console.log('='.repeat(60));
 
-    console.log(`\n📝 Validation state: .validation-state.yaml`);
+    console.log(`\n📝 Validation state: .validate-state.yaml`);
     console.log('   → Read this file for error details (embedded in YAML)');
 
     if (state.fullLogFile) {
@@ -367,16 +374,16 @@ class ValidationStateWriter {
     const isClaudeCode = this.isClaudeCodeContext();
 
     if (isClaudeCode) {
-      console.log('\n💡 CLAUDE CODE: Read .validation-state.yaml');
+      console.log('\n💡 CLAUDE CODE: Read .validate-state.yaml');
       console.log('   The file contains:');
       console.log('   - Failed step name and rerun command');
       console.log('   - List of failed tests');
       console.log('   - Complete output from failed step');
       console.log('   - Agent prompt for validation-fixer\n');
-      console.log('   Just read .validation-state.yaml - no need to search logs!');
+      console.log('   Just read .validate-state.yaml - no need to search logs!');
     } else {
       console.log('\n💡 MANUAL: Fix errors and re-run validation');
-      console.log('   Read: .validation-state.yaml (contains error details)');
+      console.log('   Read: .validate-state.yaml (contains error details)');
       console.log('   After fixing: npm run validate');
     }
 
@@ -406,4 +413,4 @@ if (import.meta.url === `file://${process.argv[1] as string}`) {
   });
 }
 
-export { ValidationStateWriter, ValidationState, ErrorSummary };
+export { ValidationStateWriter, ValidationState, ErrorSummary, PhaseResult };

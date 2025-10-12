@@ -53,8 +53,7 @@ data/
 .env*.local
 
 # Validation state (never commit - contains git tree hash and validation results)
-.validation-state
-.validation-state.yaml
+.validate-state.yaml
 
 # Work-in-progress tracking (never commit - used for local PR/task tracking only)
 TODO.md

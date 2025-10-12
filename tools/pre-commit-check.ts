@@ -20,7 +20,7 @@ import type { ValidationState } from './write-validation-state.js';
 
 // Configuration for validation operations
 const VALIDATION_TIMEOUT = 30000; // 30 seconds timeout for each validation step
-const VALIDATION_STATE_FILE = '.validation-state.yaml';
+const VALIDATION_STATE_FILE = '.validate-state.yaml';
 const VALIDATION_MAX_AGE = 60 * 60 * 1000; // 1 hour
 
 interface ValidationStateCheck {
@@ -120,7 +120,7 @@ class PreCommitChecker {
       const isClaudeCode = this.isClaudeCodeContext();
       if (isClaudeCode && validationState.agentPrompt) {
         console.log('\n💡 CLAUDE CODE: Launch validation-fixer sub-agent');
-        console.log('   Read .validation-state.yaml for ready-to-use agentPrompt');
+        console.log('   Read .validate-state.yaml for ready-to-use agentPrompt');
       }
 
       console.log('\n❌ STOPPED: Run npm run validate first');

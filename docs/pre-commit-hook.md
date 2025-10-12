@@ -31,7 +31,7 @@ exit $?
 `npm run pre-commit` performs:
 
 1. **Branch Sync Check** → Stops if behind origin/main
-2. **Validation State Check** → Verifies `.validation-state.yaml`
+2. **Validation State Check** → Verifies `.validate-state.yaml`
    - If state valid & code unchanged → Fast checks only (typecheck + lint)
    - If state invalid or missing → Full validation required
 3. **Fast Checks** → TypeScript + ESLint (when state valid)
@@ -176,7 +176,7 @@ chmod +x .husky/pre-commit
 
 ```bash
 # Check validation state
-cat .validation-state.yaml
+cat .validate-state.yaml
 
 # Run validation manually
 npm run validate
