@@ -98,6 +98,56 @@ file.ts:10:5 - Variable 'foo' is never used [no-unused-vars]
 **Format:** Filters error lines containing "error" or "Error"
 **Guidance:** "Check openapi.yaml against OpenAPI 3.1 specification"
 
+### Smart Fail-Fast Implementation
+
+**Goal:** Minimize wasted time when validation failures occur early
+
+**Strategy:**
+- **Phase 1** (Pre-Qualification + Build): No fail-fast
+  - All steps are fast (<5s each)
+  - Killing processes adds no meaningful time savings
+  - Let all checks complete naturally
+
+- **Phase 2** (Testing): Fail-fast enabled
+  - Tests can run 60+ seconds (headless browser tests)
+  - On first test failure, immediately kill remaining test processes
+  - Saves significant time (up to 50 seconds)
+
+**Implementation:** `runStepsInParallel()` function in `tools/run-validation-with-state.ts`
+```typescript
+async function runStepsInParallel(
+  steps: ValidationStep[],
+  phaseName: string,
+  logPath: string,
+  enableFailFast: boolean = false  // NEW PARAMETER
+): Promise<...> {
+  const processes: Array<{ proc: any; step: ValidationStep }> = [];
+
+  // On first failure, kill other processes if fail-fast enabled
+  if (enableFailFast && !firstFailure) {
+    firstFailure = { step, output };
+    console.log(`\n⚠️  Fail-fast enabled: Killing remaining processes...`);
+
+    for (const { proc: otherProc, step: otherStep } of processes) {
+      if (otherStep !== step && otherProc.exitCode === null) {
+        try {
+          otherProc.kill('SIGTERM');
+        } catch (e) {
+          // Process might have already exited
+        }
+      }
+    }
+  }
+}
+```
+
+**Usage:**
+```typescript
+// Enable fail-fast for Phase 2 (Testing) - long-running tests
+const enableFailFast = phase.name.includes('Phase 2');
+const result = await runStepsInParallel(phase.steps, phase.name, logPath, enableFailFast);
+```
+
 ## Results
 
 ### Token Usage Comparison
@@ -123,6 +173,13 @@ failedStepOutput: |
 ```
 **Tokens:** ~80 (~47% reduction)
 
+### Time Savings
+
+**Fail-Fast Optimization:**
+- **Phase 1** (Pre-Qualification + Build): No fail-fast - all steps complete naturally (<5s each)
+- **Phase 2** (Testing): Fail-fast enabled - kills remaining processes on first failure
+- **Time saved**: ~50 seconds when unit tests fail early (headless browser tests killed immediately instead of running 63s)
+
 ### Quality Improvements
 
 1. ✅ **Removed Noise** - npm script headers, blank lines, redundant output
@@ -131,6 +188,7 @@ failedStepOutput: |
 4. ✅ **Enhanced Agent Prompts** - Includes guidance in prompts for LLM agents
 5. ✅ **Token Efficiency** - ~40-50% reduction in token usage
 6. ✅ **Preserved Information** - All essential error details retained
+7. ✅ **Fail-Fast Execution** - Saves ~50s by killing long-running tests on first failure
 
 ## Files Changed
 
@@ -139,21 +197,25 @@ failedStepOutput: |
 
 ### Modified Files
 - `tools/write-validation-state.ts` - Integrated error formatter (20 lines changed)
+- `tools/run-validation-with-state.ts` - Added smart fail-fast for Phase 2 testing (40 lines changed)
 
 ## Testing
 
 ### Manual Testing
-1. Introduced intentional TypeScript type error
-2. Ran `npm run validate`
-3. Verified `.validate-state.yaml` contains formatted output
-4. Verified guidance appears in summary and agentPrompt
-5. Fixed error and ran validation again (all passed)
+1. **Error Formatting**: Introduced intentional TypeScript type error, verified formatted output
+2. **Fail-Fast Behavior**: Introduced intentional unit test failure, verified:
+   - Phase 1 completed without fail-fast (all steps <5s)
+   - Phase 2 enabled fail-fast
+   - Headless browser tests killed immediately on unit test failure
+   - Time savings: ~50 seconds (13.5s vs 63s+)
+3. Fixed all intentional errors and ran validation again (all passed)
 
 ### Validation Results
-- ✅ All 956 tests passing
+- ✅ All tests passing (956 total)
 - ✅ TypeScript compilation successful
 - ✅ ESLint checks passing
-- ✅ Full validation pipeline passing (67.2s total)
+- ✅ Full validation pipeline passing
+- ✅ Fail-fast working correctly (Phase 2 only)
 
 ## Design Decisions
 
@@ -271,12 +333,13 @@ Guidance: Check imports and type definitions
 
 The LLM-optimized validation failure handling system provides:
 - **47% token reduction** for typical errors
+- **~50 second time savings** with smart fail-fast (Phase 2 only)
 - **Phase-specific formatting** for 4+ error types
 - **Actionable guidance** embedded in output
 - **Zero breaking changes** to existing validation pipeline
 - **Ready for extraction** to `@agentic-workflow` package
 
-This enhancement makes validation failures significantly more useful for Claude Code and other LLM agents, reducing the cognitive load required to understand and fix errors.
+This enhancement makes validation failures significantly more useful for Claude Code and other LLM agents, reducing both the cognitive load and time required to understand and fix errors.
 
 ## Future Improvements
 

@@ -164,12 +164,15 @@ function parseFailures(output: string, stepName: string): string[] {
 }
 
 /**
- * Run validation steps in parallel
+ * Run validation steps in parallel with smart fail-fast
+ *
+ * @param enableFailFast - If true, kills remaining processes on first failure (use for long-running test phases)
  */
 async function runStepsInParallel(
   steps: ValidationStep[],
   phaseName: string,
-  logPath: string
+  logPath: string,
+  enableFailFast: boolean = false
 ): Promise<{
   success: boolean;
   failedStep?: ValidationStep;
@@ -183,6 +186,8 @@ async function runStepsInParallel(
 
   const outputs = new Map<string, string>();
   const stepResults: { name: string; passed: boolean; duration: number }[] = [];
+  const processes: Array<{ proc: any; step: ValidationStep }> = [];
+  let firstFailure: { step: ValidationStep; output: string } | null = null;
 
   const results = await Promise.allSettled(
     steps.map(step =>
@@ -193,8 +198,15 @@ async function runStepsInParallel(
         const startTime = Date.now();
         const proc = spawn('sh', ['-c', step.command], {
           stdio: 'pipe',
-          env: { ...process.env, FORCE_COLOR: '0' }
+          env: {
+            ...process.env,
+            FORCE_COLOR: '0',
+            LLM_OUTPUT: '1'  // Enable LLM-optimized output for all tests
+          }
         });
+
+        // Track process for potential kill
+        processes.push({ proc, step });
 
         let stdout = '';
         let stderr = '';
@@ -217,6 +229,21 @@ async function runStepsInParallel(
           if (code === 0) {
             resolve({ step, output, duration });
           } else {
+            // On first failure, kill other processes if fail-fast enabled
+            if (enableFailFast && !firstFailure) {
+              firstFailure = { step, output };
+              console.log(`\n⚠️  Fail-fast enabled: Killing remaining processes...`);
+
+              for (const { proc: otherProc, step: otherStep } of processes) {
+                if (otherStep !== step && otherProc.exitCode === null) {
+                  try {
+                    otherProc.kill('SIGTERM');
+                  } catch (e) {
+                    // Process might have already exited
+                  }
+                }
+              }
+            }
             reject({ step, output, duration });
           }
         });
@@ -305,7 +332,12 @@ async function main(): Promise<void> {
   // Run each phase
   for (const phase of VALIDATION_PHASES) {
     const phaseStartTime = Date.now();
-    const result = await runStepsInParallel(phase.steps, phase.name, logPath);
+
+    // Disable fail-fast for now - it can leave ports in use and reduce reliability
+    // TODO: Re-enable with proper cleanup once we ensure servers are gracefully shutdown
+    const enableFailFast = false;
+
+    const result = await runStepsInParallel(phase.steps, phase.name, logPath, enableFailFast);
     const phaseDuration = Date.now() - phaseStartTime;
 
     // Append all outputs to log file

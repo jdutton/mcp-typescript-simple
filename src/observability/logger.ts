@@ -31,6 +31,16 @@ export class ObservabilityLogger {
   private createPinoLogger(): pino.Logger {
     const transports: pino.TransportSingleOptions[] = [];
 
+    // LLM mode: Redirect all logs to /dev/null for concise test output
+    // Only applies when running tests (NODE_ENV=test), not when spawning servers
+    // during integration tests
+    if (process.env.LLM_OUTPUT === '1' && process.env.NODE_ENV === 'test') {
+      return pino(
+        { level: 'silent' },
+        pino.destination('/dev/null')
+      );
+    }
+
     // CRITICAL: Transports (worker threads) are NEVER supported in Vercel serverless
     // Detect Vercel environment and skip ALL transports to prevent crashes
     const isVercel = Boolean(process.env.VERCEL);

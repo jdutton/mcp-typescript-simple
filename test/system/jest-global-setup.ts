@@ -138,6 +138,8 @@ export default async function globalSetup(): Promise<void> {
       stdio: ['ignore', 'pipe', 'pipe'], // ignore stdin, capture stdout/stderr for readiness detection
       env: {
         ...process.env,
+        NODE_ENV: 'development',  // Ensure server runs in development mode, not test mode
+        LLM_OUTPUT: undefined,    // Unset LLM_OUTPUT to allow server logs for startup detection
         MCP_MODE: 'streamable_http',
         MCP_DEV_SKIP_AUTH: 'true',
         HTTP_PORT: httpPort,
