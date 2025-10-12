@@ -154,7 +154,8 @@ function generateWorkflow(): string {
  */
 function generateCheckScript(jobNames: string[]): string {
   const checks = jobNames.map(job => {
-    const envVar = `needs.${job.replace(/-/g, '_')}.result`;
+    // GitHub Actions requires job IDs to be referenced exactly as defined (with dashes)
+    const envVar = `needs.${job}.result`;
     return `[ "\${{ ${envVar} }}" != "success" ]`;
   }).join(' || \\\n             ');
 

@@ -182,11 +182,11 @@ jobs:
                        [ "${{ needs.lint.result }}" != "success" ] || \
                        [ "${{ needs.openapi.result }}" != "success" ] || \
                        [ "${{ needs.build.result }}" != "success" ] || \
-                       [ "${{ needs.unit_tests.result }}" != "success" ] || \
-                       [ "${{ needs.integration_tests.result }}" != "success" ] || \
-                       [ "${{ needs.stdio_tests.result }}" != "success" ] || \
-                       [ "${{ needs.http_tests.result }}" != "success" ] || \
-                       [ "${{ needs.headless_tests.result }}" != "success" ]; then
+                       [ "${{ needs.unit-tests.result }}" != "success" ] || \
+                       [ "${{ needs.integration-tests.result }}" != "success" ] || \
+                       [ "${{ needs.stdio-tests.result }}" != "success" ] || \
+                       [ "${{ needs.http-tests.result }}" != "success" ] || \
+                       [ "${{ needs.headless-tests.result }}" != "success" ]; then
                       echo "❌ Some validation checks failed"
                       exit 1
                     fi
