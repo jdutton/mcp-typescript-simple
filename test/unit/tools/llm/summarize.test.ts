@@ -121,7 +121,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const geminiGenerate = jest.fn(async () => ({
+      const geminiGenerate = vi.fn(async () => ({
         response: {
           text: () => 'Summary result',
           usageMetadata: {
@@ -149,7 +149,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should use default provider and model when only text is provided', async () => {
-      const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+      const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
         content: 'This is a summary.',
         provider: 'gemini',
         model: 'gemini-2.5-flash',
@@ -195,7 +195,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const claudeCreate = jest.fn(async () => ({
+      const claudeCreate = vi.fn(async () => ({
         content: [{ type: 'text', text: 'Claude summary' }],
         usage: {
           input_tokens: 10,
@@ -231,7 +231,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const openaiCreate = jest.fn(async () => ({
+      const openaiCreate = vi.fn(async () => ({
         choices: [{ message: { content: 'OpenAI summary' } }],
         usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }
       }));
@@ -262,7 +262,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const claudeCreate = jest.fn(async () => ({
+      const claudeCreate = vi.fn(async () => ({
         content: [{ type: 'text', text: 'Claude summary result' }],
         usage: {
           input_tokens: 10,
@@ -306,7 +306,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const openaiCreate = jest.fn(async () => ({
+      const openaiCreate = vi.fn(async () => ({
         choices: [{ message: { content: 'OpenAI summary result' } }],
         usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }
       }));
@@ -342,7 +342,7 @@ describe('Summarize Tool', () => {
       setupConfigSpies();
       const manager = new LLMManager();
 
-      const geminiGenerate = jest.fn(async () => ({
+      const geminiGenerate = vi.fn(async () => ({
         response: {
           text: () => 'Gemini summary result',
           usageMetadata: {
@@ -381,7 +381,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should use explicit provider with its default model (mocked LLMManager)', async () => {
-      const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+      const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
         content: 'Summary from Claude.',
         provider: 'claude',
         model: 'claude-3-5-haiku-20241022',
@@ -432,7 +432,7 @@ describe('Summarize Tool', () => {
       it('should accept claude + claude-3-5-haiku-20241022', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        const claudeCreate = jest.fn(async () => ({
+        const claudeCreate = vi.fn(async () => ({
           content: [{ type: 'text', text: 'Summary' }],
           usage: { input_tokens: 10, output_tokens: 20, cache_creation: null, cache_creation_input_tokens: null, cache_read_input_tokens: null, server_tool_use: null, service_tier: null }
         }));
@@ -451,7 +451,7 @@ describe('Summarize Tool', () => {
       it('should accept openai + gpt-4o', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        const openaiCreate = jest.fn(async () => ({
+        const openaiCreate = vi.fn(async () => ({
           choices: [{ message: { content: 'Summary' } }],
           usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }
         }));
@@ -470,7 +470,7 @@ describe('Summarize Tool', () => {
       it('should accept gemini + gemini-2.5-flash', async () => {
         setupConfigSpies();
         const manager = new LLMManager();
-        const geminiGenerate = jest.fn(async () => ({
+        const geminiGenerate = vi.fn(async () => ({
           response: {
             text: () => 'Summary',
             usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 20, totalTokenCount: 30 }
@@ -489,7 +489,7 @@ describe('Summarize Tool', () => {
       });
 
       it('should use both explicit provider and model when specified', async () => {
-        const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+        const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
           content: 'Summary from GPT-4o.',
           provider: 'openai',
           model: 'gpt-4o',
@@ -666,7 +666,7 @@ describe('Summarize Tool', () => {
    */
   describe('Model Override with Default Provider', () => {
     it('should use explicit model when specified with default provider', async () => {
-      const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+      const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
         content: 'Summary from Gemini Pro.',
         provider: 'gemini',
         model: 'gemini-2.5-flash-lite',
@@ -712,7 +712,7 @@ describe('Summarize Tool', () => {
    */
   describe('Optional Parameters with Defaults', () => {
     it('should accept length parameter with default provider/model', async () => {
-      const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+      const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
         content: 'Brief summary.',
         provider: 'gemini',
         model: 'gemini-2.5-flash',
@@ -751,7 +751,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should accept format parameter with default provider/model', async () => {
-      const completeMock = jest.fn<() => Promise<any>>().mockResolvedValue({
+      const completeMock = vi.fn<() => Promise<any>>().mockResolvedValue({
         content: '• Point 1\n• Point 2',
         provider: 'gemini',
         model: 'gemini-2.5-flash',

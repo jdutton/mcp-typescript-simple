@@ -78,7 +78,7 @@ describe('LLM tool error handling', () => {
 
   describe('Provider unavailable error handling (bug fix regression test)', () => {
     it('returns MCP-compliant text error when summarize tool provider fails', async () => {
-      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as MockFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error("LLM provider 'gemini' not available"));
 
       const manager = {
@@ -106,7 +106,7 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when chat tool provider fails', async () => {
-      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as MockFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {
@@ -129,7 +129,7 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when analyze tool provider fails', async () => {
-      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as MockFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {
@@ -152,7 +152,7 @@ describe('LLM tool error handling', () => {
     });
 
     it('returns MCP-compliant text error when explain tool provider fails', async () => {
-      const completeMock = vi.fn() as jest.MockedFunction<LLMManager['complete']>;
+      const completeMock = vi.fn() as MockFunction<LLMManager['complete']>;
       completeMock.mockRejectedValue(new Error('LLM request failed: Provider error'));
 
       const manager = {

@@ -47,18 +47,18 @@ describe('Token Refresh Optimization', () => {
       };
 
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const microsoftProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -113,13 +113,13 @@ describe('Token Refresh Optimization', () => {
       };
 
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -169,18 +169,18 @@ describe('Token Refresh Optimization', () => {
       };
 
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const microsoftProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -220,13 +220,13 @@ describe('Token Refresh Optimization', () => {
   describe('Fallback behavior', () => {
     it('should fallback to sequential when token not in store', async () => {
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Not found')),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Not found')),
       };
 
       const githubProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -264,8 +264,8 @@ describe('Token Refresh Optimization', () => {
 
     it('should fallback when token store lookup throws error', async () => {
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -318,8 +318,8 @@ describe('Token Refresh Optimization', () => {
       };
 
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -382,8 +382,8 @@ describe('Token Refresh Optimization', () => {
         return {
           name,
           provider: {
-            getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-            handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+            getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+            handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
           },
         };
       });
@@ -449,13 +449,13 @@ describe('Token Refresh Optimization', () => {
       };
 
       const googleProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Token refresh failed')),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Token refresh failed')),
       };
 
       const githubProvider = {
-        getTokenStore: jest.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);

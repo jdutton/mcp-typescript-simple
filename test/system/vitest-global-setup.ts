@@ -1,5 +1,5 @@
 /**
- * Jest global setup - runs once per Jest execution
+ * Vitest global setup - runs once per Vitest execution
  * Manages HTTP server startup for all system tests
  */
 
@@ -50,7 +50,7 @@ function filterAndLogServerOutput(text: string, isStderr: boolean = false): void
   }
 }
 
-// Inline utility functions to avoid module resolution issues in Jest global setup
+// Inline utility functions to avoid module resolution issues in Vitest global setup
 interface TestEnvironment {
   name: string;
   baseUrl: string;
@@ -125,7 +125,7 @@ export default async function globalSetup(): Promise<void> {
   if (environment.name === 'express:ci' && !isSTDIOEnvironment(environment)) {
     // Use HTTP_TEST_PORT if set (for parallel testing), otherwise default to 3001
     const httpPort = process.env.HTTP_TEST_PORT || '3001';
-    console.log(`🚀 Jest Global Setup: Starting HTTP server for system tests on port ${httpPort}...`);
+    console.log(`🚀 Vitest Global Setup: Starting HTTP server for system tests on port ${httpPort}...`);
 
     // Kill any existing processes on the target port first
     await killProcessOnPort(parseInt(httpPort));
@@ -171,7 +171,7 @@ export default async function globalSetup(): Promise<void> {
             (text.includes('Streamable HTTP server listening') && text.includes(httpPort))) {
           // Server is ready
           setTimeout(() => {
-            console.log(`✅ Jest Global Setup: HTTP server ready on port ${httpPort}`);
+            console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort}`);
             resolve();
           }, 1000);
         }
@@ -191,7 +191,7 @@ export default async function globalSetup(): Promise<void> {
             (text.includes('Streamable HTTP server listening') && text.includes(httpPort))) {
           // Server is ready
           setTimeout(() => {
-            console.log(`✅ Jest Global Setup: HTTP server ready on port ${httpPort}`);
+            console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort}`);
             resolve();
           }, 1000);
         }
@@ -219,10 +219,10 @@ export default async function globalSetup(): Promise<void> {
 
     // Store server process info for teardown
     (global as any).__HTTP_SERVER_PID__ = globalHttpServer.pid;
-    console.log(`📋 Jest Global Setup: Stored server PID ${globalHttpServer.pid}`);
+    console.log(`📋 Vitest Global Setup: Stored server PID ${globalHttpServer.pid}`);
 
   } else {
-    console.log(`📋 Jest Global Setup: Skipping server startup for environment: ${environment.name}`);
+    console.log(`📋 Vitest Global Setup: Skipping server startup for environment: ${environment.name}`);
   }
 }
 
@@ -230,7 +230,7 @@ export default async function globalSetup(): Promise<void> {
  * Kill any existing processes on the specified port
  */
 async function killProcessOnPort(port: number): Promise<void> {
-  console.log(`🔍 Jest Global Setup: Checking for processes on port ${port}...`);
+  console.log(`🔍 Vitest Global Setup: Checking for processes on port ${port}...`);
 
   return new Promise((resolve) => {
     const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
@@ -244,16 +244,16 @@ async function killProcessOnPort(port: number): Promise<void> {
       if (code === 0 && output.trim()) {
         const pids = output.trim().split('\n').filter(pid => pid.trim());
         if (pids.length > 0) {
-          console.log(`🛑 Jest Global Setup: Found ${pids.length} processes on port ${port}, killing: ${pids.join(', ')}`);
+          console.log(`🛑 Vitest Global Setup: Found ${pids.length} processes on port ${port}, killing: ${pids.join(', ')}`);
 
           // Kill all processes with SIGKILL
           pids.forEach(pid => {
             try {
               const pidNum = parseInt(pid.trim());
               process.kill(pidNum, 'SIGKILL');
-              console.log(`⚡ Jest Global Setup: Killed process ${pidNum}`);
+              console.log(`⚡ Vitest Global Setup: Killed process ${pidNum}`);
             } catch (e) {
-              console.log(`⚠️  Jest Global Setup: Failed to kill process ${pid}: ${(e as Error).message}`);
+              console.log(`⚠️  Vitest Global Setup: Failed to kill process ${pid}: ${(e as Error).message}`);
             }
           });
 
@@ -261,23 +261,23 @@ async function killProcessOnPort(port: number): Promise<void> {
           spawn('pkill', ['-9', '-f', 'tsx src/index.ts'], { stdio: 'ignore' });
 
           // Wait for port to be fully freed
-          console.log(`⏳ Jest Global Setup: Waiting for port ${port} to be freed...`);
+          console.log(`⏳ Vitest Global Setup: Waiting for port ${port} to be freed...`);
           setTimeout(() => {
-            console.log(`✅ Jest Global Setup: Port ${port} cleanup complete`);
+            console.log(`✅ Vitest Global Setup: Port ${port} cleanup complete`);
             resolve();
           }, 3000);
         } else {
-          console.log(`✅ Jest Global Setup: No processes found on port ${port}`);
+          console.log(`✅ Vitest Global Setup: No processes found on port ${port}`);
           resolve();
         }
       } else {
-        console.log(`✅ Jest Global Setup: Port ${port} is clear (lsof exit code: ${code})`);
+        console.log(`✅ Vitest Global Setup: Port ${port} is clear (lsof exit code: ${code})`);
         resolve();
       }
     });
 
     lsof.on('error', (error) => {
-      console.log(`⚠️  Jest Global Setup: lsof command failed: ${error.message}, continuing...`);
+      console.log(`⚠️  Vitest Global Setup: lsof command failed: ${error.message}, continuing...`);
       resolve();
     });
   });

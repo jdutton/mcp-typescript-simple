@@ -1,9 +1,9 @@
 /**
- * Jest global teardown - runs once after all tests complete
+ * Vitest global teardown - runs once after all tests complete
  * Manages HTTP server cleanup for all system tests
  */
 
-// Inline utility functions to avoid module resolution issues in Jest global teardown
+// Inline utility functions to avoid module resolution issues in Vitest global teardown
 interface TestEnvironment {
   name: string;
   baseUrl: string;
@@ -79,7 +79,7 @@ export default async function globalTeardown(): Promise<void> {
     const serverPid = (global as any).__HTTP_SERVER_PID__;
 
     if (serverPid) {
-      console.log(`🛑 Jest Global Teardown: Stopping HTTP server (PID: ${serverPid})...`);
+      console.log(`🛑 Vitest Global Teardown: Stopping HTTP server (PID: ${serverPid})...`);
 
       try {
         // Try graceful shutdown first
@@ -92,32 +92,32 @@ export default async function globalTeardown(): Promise<void> {
         try {
           process.kill(serverPid, 0); // Check if process exists
           // If we reach here, process still exists, force kill
-          console.log('⚠️  Jest Global Teardown: Force killing HTTP server...');
+          console.log('⚠️  Vitest Global Teardown: Force killing HTTP server...');
           process.kill(serverPid, 'SIGKILL');
         } catch {
           // Process already dead, that's fine
         }
 
-        console.log('✅ Jest Global Teardown: HTTP server stopped');
+        console.log('✅ Vitest Global Teardown: HTTP server stopped');
 
         // Also cleanup any remaining tsx processes
         const { spawn } = await import('child_process');
         spawn('pkill', ['-f', 'tsx src/index.ts'], { stdio: 'ignore' });
 
       } catch (error) {
-        console.error(`⚠️  Jest Global Teardown: Error stopping server: ${(error as Error).message}`);
+        console.error(`⚠️  Vitest Global Teardown: Error stopping server: ${(error as Error).message}`);
         // Try to kill any remaining processes on port 3001
         const { spawn } = await import('child_process');
         spawn('pkill', ['-f', 'tsx src/index.ts'], { stdio: 'ignore' });
       }
     } else {
-      console.log('📋 Jest Global Teardown: No server PID found, skipping cleanup');
+      console.log('📋 Vitest Global Teardown: No server PID found, skipping cleanup');
     }
 
     // Clean up global state
     delete (global as any).__HTTP_SERVER_PID__;
 
   } else {
-    console.log(`📋 Jest Global Teardown: Skipping server cleanup for environment: ${environment.name}`);
+    console.log(`📋 Vitest Global Teardown: Skipping server cleanup for environment: ${environment.name}`);
   }
 }

@@ -47,11 +47,11 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -86,11 +86,11 @@ describe('Multi-Provider Token Refresh', () => {
 
     it('should fail when refresh token not found in any provider', async () => {
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
       };
 
       const githubProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
       };
 
       mockProviders.set('google', googleProvider);
@@ -133,16 +133,16 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        findTokenByRefreshToken: jest.fn<(token: string) => Promise<any>>().mockResolvedValue(null),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Token not found')),
+        findTokenByRefreshToken: vi.fn<(token: string) => Promise<any>>().mockResolvedValue(null),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Token not found')),
       };
 
       const githubProvider = {
-        findTokenByRefreshToken: jest.fn<(token: string) => Promise<any>>().mockResolvedValue({
+        findTokenByRefreshToken: vi.fn<(token: string) => Promise<any>>().mockResolvedValue({
           accessToken: 'github-access-token',
           tokenInfo: githubTokenInfo,
         }),
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -187,7 +187,7 @@ describe('Multi-Provider Token Refresh', () => {
 
       let callCount = 0;
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockImplementation(async () => {
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockImplementation(async () => {
           callCount++;
           // Simulate async work
           await new Promise(resolve => setTimeout(resolve, 10));
@@ -248,8 +248,8 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        findTokenByRefreshToken: jest.fn<(token: string) => Promise<any>>().mockResolvedValue(null), // Cleaned up
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
+        findTokenByRefreshToken: vi.fn<(token: string) => Promise<any>>().mockResolvedValue(null), // Cleaned up
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid refresh token')),
       };
 
       mockProviders.set('google', googleProvider);
@@ -295,11 +295,11 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -332,11 +332,11 @@ describe('Multi-Provider Token Refresh', () => {
 
     it('should fallback to sequential when token not in store', async () => {
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Not found')),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Not found')),
       };
 
       const githubProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -408,11 +408,11 @@ describe('Multi-Provider Token Refresh', () => {
   describe('Error handling', () => {
     it('should provide detailed error when all providers fail', async () => {
       const googleProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Google: Invalid token')),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Google: Invalid token')),
       };
 
       const githubProvider = {
-        handleTokenRefresh: jest.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('GitHub: Invalid token')),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('GitHub: Invalid token')),
       };
 
       mockProviders.set('google', googleProvider);

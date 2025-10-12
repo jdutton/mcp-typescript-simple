@@ -10,7 +10,7 @@ import { logger } from '../../../../src/utils/logger.js';
 import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
 
 let originalFetch: typeof globalThis.fetch;
-const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
+const fetchMock = vi.fn() as MockFunction<typeof fetch>;
 
 const baseConfig: GenericOAuthConfig = {
   type: 'generic',
@@ -41,15 +41,15 @@ const createMockResponse = (): MockResponse => {
     headers: {}
   };
 
-  data.status = jest.fn((code: number) => {
+  data.status = vi.fn((code: number) => {
     data.statusCode = code;
     return data as Response;
   });
-  data.json = jest.fn((payload: unknown) => {
+  data.json = vi.fn((payload: unknown) => {
     data.jsonPayload = payload;
     return data as Response;
   });
-  data.redirect = jest.fn((statusOrUrl: number | string, maybeUrl?: string) => {
+  data.redirect = vi.fn((statusOrUrl: number | string, maybeUrl?: string) => {
     if (typeof statusOrUrl === 'number') {
       data.statusCode = statusOrUrl;
       data.redirectUrl = maybeUrl ?? '';
@@ -58,13 +58,13 @@ const createMockResponse = (): MockResponse => {
     }
     return data as Response;
   });
-  data.set = jest.fn((name: string, value?: string | string[]) => {
+  data.set = vi.fn((name: string, value?: string | string[]) => {
     if (data.headers && typeof value === 'string') {
       data.headers[name] = value;
     }
     return data as Response;
   });
-  data.setHeader = jest.fn((name: string, value: string | string[]) => {
+  data.setHeader = vi.fn((name: string, value: string | string[]) => {
     if (data.headers && typeof value === 'string') {
       data.headers[name] = value;
     }

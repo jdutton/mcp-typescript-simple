@@ -43,13 +43,13 @@ export default defineConfig({
     },
 
     // Global setup and teardown for HTTP server management
-    globalSetup: ['./test/system/jest-global-setup.ts'],
-    globalTeardown: ['./test/system/jest-global-teardown.ts'],
+    globalSetup: ['./test/system/vitest-global-setup.ts'],
+    globalTeardown: ['./test/system/vitest-global-teardown.ts'],
 
     // System test specific setup (test utilities only, no server management)
     setupFiles: ['./test/vitest-setup.ts', './test/system/setup.ts'],
 
-    // Enable globals for Jest compatibility
+    // Enable globals for Vitest
     globals: true,
 
     // Clear and restore mocks between tests

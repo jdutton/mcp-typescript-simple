@@ -22,17 +22,17 @@ const createMockResponse = (): MockResponse => {
     headers?: Record<string, string>;
   } = { headers };
 
-  res.status = jest.fn((code: number) => {
+  res.status = vi.fn((code: number) => {
     res.statusCode = code;
     return res as Response;
   });
 
-  res.json = jest.fn((payload: unknown) => {
+  res.json = vi.fn((payload: unknown) => {
     res.jsonPayload = payload;
     return res as Response;
   });
 
-  res.setHeader = jest.fn((name: string, value: string) => {
+  res.setHeader = vi.fn((name: string, value: string) => {
     headers[name] = value;
     return res as Response;
   });

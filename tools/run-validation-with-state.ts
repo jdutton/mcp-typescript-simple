@@ -143,10 +143,10 @@ function checkExistingValidation(currentTreeHash: string): { alreadyPassed: bool
 function parseFailures(output: string, stepName: string): string[] {
   const failures: string[] = [];
 
-  // Jest test failures - extract test names
-  const jestFailures = output.match(/● .+/g);
-  if (jestFailures) {
-    failures.push(...jestFailures.slice(0, 10)); // Limit to first 10
+  // Vitest test failures - extract test names (format: "❌ test/path/file.test.ts > Test Suite > test name")
+  const vitestFailures = output.match(/❌ .+/g);
+  if (vitestFailures) {
+    failures.push(...vitestFailures.slice(0, 10)); // Limit to first 10
   }
 
   // TypeScript errors - extract file:line

@@ -75,7 +75,7 @@ describe('LLMManager', () => {
   it('initializes clients based on config and caches completions', async () => {
     const manager = createManager();
 
-    const openaiCreate = jest.fn(async () => ({
+    const openaiCreate = vi.fn(async () => ({
       choices: [{ message: { content: 'response' } }],
       usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 }
     }));
@@ -119,10 +119,10 @@ describe('LLMManager', () => {
     // Configure default provider to be OpenAI (via mocking)
     vi.spyOn(manager as any, 'getDefaultProvider').mockResolvedValue('openai');
 
-    const openaiCreate = jest.fn(async () => {
+    const openaiCreate = vi.fn(async () => {
       throw new Error('openai failure');
     });
-    const anthropicCreate = jest.fn(async () => anthropicResponse);
+    const anthropicCreate = vi.fn(async () => anthropicResponse);
 
     (manager as unknown as { clients: Record<string, unknown> }).clients = {
       openai: {
@@ -163,7 +163,7 @@ describe('LLMManager getProviderForTool', () => {
     // Initialize with only Claude available (no Gemini client)
     const claudeClient = {
       messages: {
-        create: jest.fn(async () => ({
+        create: vi.fn(async () => ({
           content: [{ type: 'text', text: 'response' }],
           usage: { input_tokens: 10, output_tokens: 20 }
         }))
@@ -242,7 +242,7 @@ describe('LLMManager error handling', () => {
     const openAiClient = {
       chat: {
         completions: {
-          create: jest.fn(async () => {
+          create: vi.fn(async () => {
             throw openAiError;
           })
         }
@@ -251,7 +251,7 @@ describe('LLMManager error handling', () => {
 
     const claudeClient = {
       messages: {
-        create: jest.fn(async () => ({ content: [{ type: 'text', text: 'Should not be called' }] }))
+        create: vi.fn(async () => ({ content: [{ type: 'text', text: 'Should not be called' }] }))
       }
     };
 
@@ -278,7 +278,7 @@ describe('LLMManager error handling', () => {
     const openAiClient = {
       chat: {
         completions: {
-          create: jest.fn(async () => {
+          create: vi.fn(async () => {
             throw new Error('OpenAI down');
           })
         }
@@ -301,7 +301,7 @@ describe('LLMManager error handling', () => {
 
     const claudeClient = {
       messages: {
-        create: jest.fn(async () => {
+        create: vi.fn(async () => {
           throw new Error('Claude offline');
         })
       }

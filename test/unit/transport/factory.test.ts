@@ -54,7 +54,7 @@ describe('TransportFactory', () => {
     });
 
     const failingTransport = {
-      close: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('close failed')),
+      close: vi.fn<() => Promise<void>>().mockRejectedValue(new Error('close failed')),
       sessionId: 'session'
     } as unknown as StreamableHTTPServerTransport;
 
@@ -62,7 +62,7 @@ describe('TransportFactory', () => {
       ['session', failingTransport]
     ]);
 
-    const stopSpy = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const stopSpy = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
     (manager as unknown as { httpServer?: { stop: () => Promise<void> } }).httpServer = { stop: stopSpy } as any;
 
     const stopPromise = manager.stop();
@@ -115,16 +115,16 @@ describe('TransportFactory', () => {
       manager = new StdioTransportManager({});
 
       mockServer = {
-        connect: jest.fn<() => Promise<void>>().mockResolvedValue()
+        connect: vi.fn<() => Promise<void>>().mockResolvedValue()
       };
 
       mockTransport = {
-        close: jest.fn<() => Promise<void>>().mockResolvedValue()
+        close: vi.fn<() => Promise<void>>().mockResolvedValue()
       };
 
       // Mock the StdioServerTransport constructor
-      jest.doMock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
-        StdioServerTransport: jest.fn(() => mockTransport)
+      vi.doMock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
+        StdioServerTransport: vi.fn(() => mockTransport)
       }));
     });
 
@@ -198,13 +198,13 @@ describe('TransportFactory', () => {
       manager = new StreamableHTTPTransportManager(options);
 
       mockServer = {
-        connect: jest.fn<() => Promise<void>>().mockResolvedValue()
+        connect: vi.fn<() => Promise<void>>().mockResolvedValue()
       };
 
       mockHttpServer = {
-        initialize: jest.fn<() => Promise<void>>().mockResolvedValue(),
-        start: jest.fn<() => Promise<void>>().mockResolvedValue(),
-        stop: jest.fn<() => Promise<void>>().mockResolvedValue(),
+        initialize: vi.fn<() => Promise<void>>().mockResolvedValue(),
+        start: vi.fn<() => Promise<void>>().mockResolvedValue(),
+        stop: vi.fn<() => Promise<void>>().mockResolvedValue(),
         onStreamableHTTPTransport: vi.fn()
       };
     });
