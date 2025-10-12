@@ -1,8 +1,7 @@
 # GitHub Workflow Generation Architecture
 
-**Status**: Implemented (PR #2.5)
-**Date**: 2025-01-11
-**For**: @agentic-workflow extraction
+**Status**: Implemented
+**Last Updated**: 2025-01-11
 
 ## Overview
 
@@ -103,11 +102,12 @@ Docker build NOT included in `npm run validate` (too slow for pre-commit).
 - ✅ Parallel execution (both local and CI)
 - ✅ Git-tracked (validate.yml committed, reviewable)
 
-## Extraction Notes for @agentic-workflow
+## Design Principles
 
-Key features to extract:
-1. Validation config as source of truth
-2. Auto-generation of CI workflow
-3. Sync checking (fail if out of sync)
-4. Phase-based parallel execution
-5. Clear separation of concerns (validation vs deployment)
+This architecture follows key principles that make validation reliable and maintainable:
+
+1. **Single Source of Truth**: validation-config.ts defines all steps
+2. **Auto-Generation**: CI workflow generated from config, not manually maintained
+3. **Sync Enforcement**: Validation fails if workflow outdated (fail-fast)
+4. **Parallel Execution**: Phase-based concurrency for speed
+5. **Separation of Concerns**: Validation separate from deployment/Docker workflows

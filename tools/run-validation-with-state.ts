@@ -21,7 +21,7 @@
  *    - Warn users of simultaneous runs (avoid duplicate work)
  *    - Best-effort locking (fails safe, no blocking)
  *    - Auto-cleanup stale locks (PID validation)
- *    - See: TODO in PR #2.5 and validation-concurrency.md
+ *    - See: docs/architecture/validation-concurrency.md for design details
  *
  * 3. **Agent-Friendly Design**: Context-aware behavior
  *    - Human context: Interactive prompts
@@ -37,7 +37,6 @@
  *
  * Architecture documentation: docs/architecture/validation-concurrency.md
  * Extraction plan: docs/agentic-workflow-extraction.md
- * Implementation tracking: TODO.md (PR #2.5)
  */
 
 import { execSync, spawn } from 'child_process';
@@ -69,12 +68,12 @@ async function checkWorkflowSync(): Promise<{ inSync: boolean; error?: string }>
  * in the commit object. This means identical code produces DIFFERENT hashes on
  * different runs, breaking revert-to-previous-state detection.
  *
- * TODO (PR #2.5): Replace with deterministic git write-tree approach:
+ * TODO: Replace with deterministic git write-tree approach:
  *   git add --intent-to-add .  # Mark untracked files (no staging)
  *   git write-tree              # Get content-based hash (no timestamps)
  *   git reset                   # Restore original index state
  *
- * See docs/architecture/validation-concurrency.md for full explanation.
+ * See docs/architecture/validation-concurrency.md for full explanation and design rationale.
  *
  * @returns SHA-1 hash representing working tree state (currently non-deterministic)
  *
