@@ -11,6 +11,7 @@ import { MemoryMCPMetadataStore } from '../../../src/session/memory-mcp-metadata
 import { CachingMCPMetadataStore } from '../../../src/session/caching-mcp-metadata-store.js';
 import { MCPSessionMetadata } from '../../../src/session/mcp-session-metadata-store-interface.js';
 import { MCPMetadataStoreFactory } from '../../../src/session/mcp-metadata-store-factory.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('MemoryMCPMetadataStore', () => {
   let store: MemoryMCPMetadataStore;
@@ -224,6 +225,16 @@ describe('MemoryMCPMetadataStore', () => {
 });
 
 describe('MCPMetadataStoreFactory', () => {
+  let restoreEnv: () => void;
+
+  beforeEach(() => {
+    restoreEnv = preserveEnv();
+  });
+
+  afterEach(() => {
+    restoreEnv();
+  });
+
   describe('create', () => {
     it('should create memory store when type is memory', () => {
       const store = MCPMetadataStoreFactory.create({ type: 'memory' });
@@ -232,10 +243,6 @@ describe('MCPMetadataStoreFactory', () => {
     });
 
     it('should create memory store by default (auto-detection)', () => {
-      // Save original env vars
-      const originalVercel = process.env.VERCEL;
-      const originalRedisUrl = process.env.REDIS_URL;
-
       // Clear Vercel/Redis env vars
       delete process.env.VERCEL;
       delete process.env.REDIS_URL;
@@ -244,10 +251,6 @@ describe('MCPMetadataStoreFactory', () => {
       // Auto-detection creates CachingMCPMetadataStore when file backend is available
       expect(store).toBeInstanceOf(CachingMCPMetadataStore);
       store.dispose();
-
-      // Restore env vars
-      if (originalVercel) process.env.VERCEL = originalVercel;
-      if (originalRedisUrl) process.env.REDIS_URL = originalRedisUrl;
     });
 
     it('should throw error for unknown store type', () => {
@@ -269,10 +272,6 @@ describe('MCPMetadataStoreFactory', () => {
 
 
     it('should auto-detect memory store when no external stores configured', () => {
-      // Save original env vars
-      const originalVercel = process.env.VERCEL;
-      const originalRedisUrl = process.env.REDIS_URL;
-
       // Clear all external store env vars
       delete process.env.VERCEL;
       delete process.env.REDIS_URL;
@@ -282,10 +281,6 @@ describe('MCPMetadataStoreFactory', () => {
       expect(result.valid).toBe(true);
       expect(result.storeType).toBe('memory');
       expect(result.warnings.some(w => w.includes('does not persist'))).toBe(true);
-
-      // Restore env vars
-      if (originalVercel) process.env.VERCEL = originalVercel;
-      if (originalRedisUrl) process.env.REDIS_URL = originalRedisUrl;
     });
   });
 });

@@ -12,18 +12,17 @@ import {
   getAllowlistStats,
   type AllowlistConfig
 } from '../../../src/auth/allowlist.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('User Allowlist', () => {
-  const originalEnv = process.env;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    // Reset environment for each test
-    process.env = { ...originalEnv };
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    // Restore original environment
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('loadAllowlistConfig', () => {

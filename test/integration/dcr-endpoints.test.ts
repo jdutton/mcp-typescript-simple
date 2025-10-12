@@ -6,6 +6,7 @@
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
+import { preserveEnv } from '../helpers/env-helper.js';
 
 // Hoist mocks so they're available in vi.mock() factories
 const mocks = vi.hoisted(() => ({
@@ -40,8 +41,11 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
   let server: MCPStreamableHttpServer;
   let app: Express;
   let testFilePath: string;
+  let restoreEnv: () => void;
 
   beforeEach(async () => {
+    restoreEnv = preserveEnv();
+
     // Use unique file path for each test to prevent state pollution
     testFilePath = `./data/test-oauth-clients-${Date.now()}-${Math.random().toString(36).substring(7)}.json`;
     process.env.DCR_FILE_PATH = testFilePath;
@@ -85,9 +89,7 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
       // Ignore cleanup errors (file might not exist)
     }
 
-    // Clean up environment variables
-    delete process.env.DCR_FILE_PATH;
-    delete process.env.DCR_STORE_TYPE;
+    restoreEnv();
   });
 
   describe('POST /register - Client Registration (RFC 7591)', () => {

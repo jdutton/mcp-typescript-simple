@@ -14,8 +14,8 @@ describe('SessionManager', () => {
   const managers: SessionManager[] = [];
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
   });
 
   afterEach(() => {
@@ -23,7 +23,7 @@ describe('SessionManager', () => {
     managers.forEach(manager => manager.destroy());
     managers.length = 0;
 
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   it('creates, retrieves, updates, and closes sessions', () => {
@@ -59,7 +59,7 @@ describe('SessionManager', () => {
 
     expect(manager.isSessionValid(session.sessionId)).toBe(true);
 
-    jest.setSystemTime(new Date('2024-01-02T01:00:00Z')); // > 24h later
+    vi.setSystemTime(new Date('2024-01-02T01:00:00Z')); // > 24h later
     expect(manager.isSessionValid(session.sessionId)).toBe(false);
     expect(manager.getSession(session.sessionId)).toBeUndefined();
 
@@ -71,15 +71,15 @@ describe('SessionManager', () => {
     managers.push(manager); // Track for cleanup
 
     // Create first session at T0
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     const active = manager.createSession();
 
     // Create second session 12 hours later (will expire 12 hours after first)
-    jest.setSystemTime(new Date('2024-01-01T12:00:00Z'));
+    vi.setSystemTime(new Date('2024-01-01T12:00:00Z'));
     const expired = manager.createSession();
 
     // Move to a time when first session is expired but second is still valid
-    jest.setSystemTime(new Date('2024-01-02T00:30:00Z')); // First expires at 00:00, second at 12:00
+    vi.setSystemTime(new Date('2024-01-02T00:30:00Z')); // First expires at 00:00, second at 12:00
     const internal = manager as unknown as { cleanup(): void };
     internal.cleanup();
 

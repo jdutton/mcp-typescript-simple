@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import request from 'supertest';
 import { Express } from 'express';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
+import { preserveEnv } from '../helpers/env-helper.js';
 
 // Hoist mocks so they're available in vi.mock() factories
 const mocks = vi.hoisted(() => ({
@@ -39,8 +40,11 @@ vi.mock('../../src/auth/factory.js', () => ({
 describe('Admin Token Management Endpoints Integration', () => {
   let server: MCPStreamableHttpServer;
   let app: Express;
+  let restoreEnv: () => void;
 
   beforeEach(async () => {
+    restoreEnv = preserveEnv();
+
     // Enable dev mode for testing (no auth required for admin endpoints)
     process.env.MCP_DEV_SKIP_AUTH = 'true';
 
@@ -69,9 +73,9 @@ describe('Admin Token Management Endpoints Integration', () => {
   });
 
   afterEach(async () => {
-    delete process.env.MCP_DEV_SKIP_AUTH;
     await server.stop();
     vi.clearAllMocks();
+    restoreEnv();
   });
 
   describe('POST /admin/tokens', () => {

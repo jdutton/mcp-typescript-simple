@@ -147,8 +147,8 @@ describe('BaseOAuthProvider', () => {
   });
 
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     fetchMock.mockReset();
     provider = new TestOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
     sessionAccess = provider as unknown as SessionAccess;
@@ -156,7 +156,7 @@ describe('BaseOAuthProvider', () => {
 
   afterEach(() => {
     provider.dispose();
-    jest.useRealTimers();
+    vi.useRealTimers();
   });
 
   const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) => {

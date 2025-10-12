@@ -6,21 +6,17 @@ import { ClientStoreFactory } from '../../../src/auth/client-store-factory.js';
 import { InMemoryClientStore } from '../../../src/auth/stores/memory-client-store.js';
 import { FileClientStore } from '../../../src/auth/stores/file-client-store.js';
 import { RedisClientStore } from '../../../src/auth/stores/redis-client-store.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('ClientStoreFactory', () => {
-  const originalEnv = process.env;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    // Reset environment for each test
-    process.env = { ...originalEnv };
-    delete process.env.DCR_STORE_TYPE;
-    delete process.env.VERCEL;
-    delete process.env.REDIS_URL;
-    delete process.env.NODE_ENV;
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('explicit store type', () => {
