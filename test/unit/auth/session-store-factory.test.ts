@@ -3,16 +3,17 @@
  */
 
 import { SessionStoreFactory, createSessionStore } from '../../../src/auth/session-store-factory.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('SessionStoreFactory', () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    originalEnv = { ...process.env };
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('Auto-Detection', () => {

@@ -3,16 +3,17 @@
  */
 
 import { PKCEStoreFactory, createPKCEStore } from '../../../src/auth/pkce-store-factory.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('PKCEStoreFactory', () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    originalEnv = { ...process.env };
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('Production Environment', () => {

@@ -5,19 +5,17 @@
 import { TokenStoreFactory, createTokenStore } from '../../../src/auth/token-store-factory.js';
 import { InMemoryTokenStore } from '../../../src/auth/stores/memory-token-store.js';
 import { FileTokenStore } from '../../../src/auth/stores/file-token-store.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
+
 describe('TokenStoreFactory', () => {
-  const originalEnv = process.env;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    // Reset environment
-    process.env = { ...originalEnv };
-    delete process.env.VERCEL;
-    delete process.env.NODE_ENV;
-    delete process.env.JEST_WORKER_ID;
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('create with explicit type', () => {
@@ -61,6 +59,12 @@ describe('TokenStoreFactory', () => {
     });
 
     it('should default to file store when no environment detected', () => {
+      // Clear test environment variables to simulate no environment detection
+      delete process.env.NODE_ENV;
+      delete process.env.JEST_WORKER_ID;
+      delete process.env.VITEST;
+      delete process.env.VITEST_WORKER_ID;
+
       const store = TokenStoreFactory.create({ type: 'auto' });
       expect(store).toBeInstanceOf(FileTokenStore);
     });
@@ -96,6 +100,12 @@ describe('TokenStoreFactory', () => {
     });
 
     it('should validate auto-detection defaults to file', () => {
+      // Clear test environment variables to simulate no environment detection
+      delete process.env.NODE_ENV;
+      delete process.env.JEST_WORKER_ID;
+      delete process.env.VITEST;
+      delete process.env.VITEST_WORKER_ID;
+
       const result = TokenStoreFactory.validateEnvironment('auto');
 
       expect(result.valid).toBe(true);

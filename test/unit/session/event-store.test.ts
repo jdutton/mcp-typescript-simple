@@ -5,12 +5,13 @@ import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
 describe('MemoryEventStore', () => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
+    vi.clearAllMocks();
   });
 
   const createMessage = (id: string): JSONRPCMessage => ({
@@ -78,10 +79,10 @@ describe('MemoryEventStore', () => {
       cleanup(): void;
     };
 
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     const eventId = await store.storeEvent('stream-1', createMessage('keep'));
 
-    jest.setSystemTime(new Date('2024-01-03T00:00:00Z')); // >24h later
+    vi.setSystemTime(new Date('2024-01-03T00:00:00Z')); // >24h later
     internal.cleanup();
 
     expect(internal.events.has(eventId)).toBe(false);
@@ -92,7 +93,7 @@ describe('MemoryEventStore', () => {
 
   it('reports aggregate statistics', async () => {
     const store = new MemoryEventStore();
-    jest.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     await store.storeEvent('stream-1', createMessage('1'));
 
     const stats = store.getStats();

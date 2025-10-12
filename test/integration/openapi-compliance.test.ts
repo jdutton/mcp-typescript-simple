@@ -146,46 +146,8 @@ describe('OpenAPI Compliance Integration Tests', () => {
   });
 
   describe('MCP Protocol Compliance', () => {
-    it.skip('should accept valid JSON-RPC 2.0 initialize request (requires MCP handler)', async () => {
-      const response = await request(app)
-        .post('/mcp')
-        .send({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: {
-              name: 'test-client',
-              version: '1.0.0'
-            }
-          }
-        })
-        .expect('Content-Type', /json/)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('jsonrpc', '2.0');
-      expect(response.body).toHaveProperty('id', 1);
-      expect(response.body).toHaveProperty('result');
-    });
-
-    it.skip('should accept valid tools/list request (requires MCP handler)', async () => {
-      const response = await request(app)
-        .post('/mcp')
-        .send({
-          jsonrpc: '2.0',
-          id: 2,
-          method: 'tools/list'
-        })
-        .expect('Content-Type', /json/)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('jsonrpc', '2.0');
-      expect(response.body).toHaveProperty('result');
-      expect(response.body.result).toHaveProperty('tools');
-      expect(Array.isArray(response.body.result.tools)).toBe(true);
-    });
+    // NOTE: Skipped tests removed - they require full MCP handler setup
+    // TODO: Add these tests back when integration test infrastructure supports MCP handlers
 
     it('should reject invalid JSON-RPC request (missing jsonrpc field)', async () => {
       const response = await request(app)
@@ -246,25 +208,8 @@ describe('OpenAPI Compliance Integration Tests', () => {
   });
 
   describe('Dynamic Client Registration', () => {
-    it.skip('should accept valid client registration request (requires OAuth setup)', async () => {
-      const response = await request(app)
-        .post('/register')
-        .send({
-          redirect_uris: ['http://localhost:3000/callback'],
-          client_name: 'OpenAPI Test Client',
-          grant_types: ['authorization_code', 'refresh_token'],
-          response_types: ['code'],
-          token_endpoint_auth_method: 'none'
-        })
-        .expect('Content-Type', /json/)
-        .expect(201);
-
-      // Validate against ClientRegistrationResponse schema
-      expect(response.body).toHaveProperty('client_id');
-      expect(response.body).toHaveProperty('client_secret');
-      expect(response.body).toHaveProperty('redirect_uris');
-      expect(response.body.redirect_uris).toContain('http://localhost:3000/callback');
-    });
+    // NOTE: Skipped test removed - requires full OAuth provider setup
+    // TODO: Add DCR test back when integration test infrastructure supports OAuth providers
 
     it('should reject invalid registration (missing redirect_uris)', async () => {
       const response = await request(app)

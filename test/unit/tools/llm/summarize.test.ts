@@ -61,7 +61,7 @@ const baseConfig: LLMConfig = {
 
 const setupConfigSpies = (config: LLMConfig = baseConfig) => {
   vi.spyOn(LLMConfigManager.prototype, 'loadConfig').mockResolvedValue(config);
-  jest
+  vi
     .spyOn(LLMConfigManager.prototype, 'getModelConfig')
     .mockImplementation(async (provider: LLMProvider, model?: string) => {
       const providerConfig = config.providers[provider];

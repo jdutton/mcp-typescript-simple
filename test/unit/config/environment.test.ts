@@ -1,53 +1,33 @@
 import { EnvironmentConfig, TransportMode, ConfigurationStatus } from '../../../src/config/environment.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('EnvironmentConfig', () => {
-  const managedKeys = [
-    'MCP_MODE',
-    'MCP_DEV_SKIP_AUTH',
-    'HTTP_PORT',
-    'HTTP_HOST',
-    'REQUIRE_HTTPS',
-    'ALLOWED_ORIGINS',
-    'ALLOWED_HOSTS',
-    'SESSION_SECRET',
-    'NODE_ENV',
-    'ANTHROPIC_API_KEY',
-    'OPENAI_API_KEY',
-    'GOOGLE_API_KEY',
-  ];
-
-  const originalValues: Record<string, string | undefined> = {};
-
-  const restore = () => {
-    EnvironmentConfig.reset();
-    for (const key of managedKeys) {
-      const value = originalValues[key];
-      if (value === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
-      }
-    }
-  };
-
-  beforeAll(() => {
-    for (const key of managedKeys) {
-      originalValues[key] = process.env[key];
-    }
-  });
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    restore();
+    restoreEnv = preserveEnv();
+    EnvironmentConfig.reset();
   });
 
-  afterAll(() => {
-    restore();
+  afterEach(() => {
+    EnvironmentConfig.reset();
+    restoreEnv();
   });
 
   test('applies sensible defaults when environment variables are absent', () => {
-    for (const key of managedKeys) {
-      delete process.env[key];
-    }
+    // Clear relevant environment variables
+    delete process.env.MCP_MODE;
+    delete process.env.MCP_DEV_SKIP_AUTH;
+    delete process.env.HTTP_PORT;
+    delete process.env.HTTP_HOST;
+    delete process.env.REQUIRE_HTTPS;
+    delete process.env.ALLOWED_ORIGINS;
+    delete process.env.ALLOWED_HOSTS;
+    delete process.env.SESSION_SECRET;
+    delete process.env.NODE_ENV;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.GOOGLE_API_KEY;
     EnvironmentConfig.reset();
 
     const config = EnvironmentConfig.get();
@@ -109,8 +89,6 @@ describe('EnvironmentConfig', () => {
 
   describe('Secret Status Reporting', () => {
     it('correctly identifies configured OAuth secrets', () => {
-      const originalEnv = { ...process.env };
-
       // Set Google OAuth credentials
       process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
       process.env.GOOGLE_CLIENT_SECRET = 'test-google-client-secret';
@@ -126,15 +104,9 @@ describe('EnvironmentConfig', () => {
       expect(status.secrets.configured).toContain('GOOGLE_CLIENT_SECRET');
       expect(status.secrets.missing).not.toContain('GOOGLE_CLIENT_ID');
       expect(status.secrets.missing).not.toContain('GOOGLE_CLIENT_SECRET');
-
-      // Restore original environment
-      process.env = originalEnv;
-      EnvironmentConfig.reset();
     });
 
     it('correctly identifies missing OAuth secrets', () => {
-      const originalEnv = { ...process.env };
-
       // Clear OAuth credentials
       delete process.env.GOOGLE_CLIENT_ID;
       delete process.env.GOOGLE_CLIENT_SECRET;
@@ -149,15 +121,9 @@ describe('EnvironmentConfig', () => {
       expect(status.secrets.configured).not.toContain('GOOGLE_CLIENT_SECRET');
       expect(status.secrets.missing).toContain('GOOGLE_CLIENT_ID');
       expect(status.secrets.missing).toContain('GOOGLE_CLIENT_SECRET');
-
-      // Restore original environment
-      process.env = originalEnv;
-      EnvironmentConfig.reset();
     });
 
     it('correctly reports SESSION_SECRET as missing only when using default value', () => {
-      const originalEnv = { ...process.env };
-
       // Test with default value - should be missing
       delete process.env.SESSION_SECRET;
       EnvironmentConfig.reset();
@@ -171,10 +137,6 @@ describe('EnvironmentConfig', () => {
       status = EnvironmentConfig.getConfigurationStatus();
       expect(status.secrets.configured).toContain('SESSION_SECRET');
       expect(status.secrets.missing).not.toContain('SESSION_SECRET');
-
-      // Restore original environment
-      process.env = originalEnv;
-      EnvironmentConfig.reset();
     });
   });
 });

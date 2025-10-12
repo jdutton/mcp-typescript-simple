@@ -17,9 +17,11 @@ import {
   expectsCorsHeaders,
   isSTDIOEnvironment
 } from './utils.js';
+import { preserveEnv } from '../helpers/env-helper.js';
 
 describeSystemTest('OAuth Discovery', () => {
   const environment = getCurrentEnvironment();
+  let restoreEnv: () => void;
 
   // Skip HTTP tests entirely in STDIO mode
   if (isSTDIOEnvironment(environment)) {
@@ -32,6 +34,7 @@ describeSystemTest('OAuth Discovery', () => {
   let client: AxiosInstance;
 
   beforeAll(async () => {
+    restoreEnv = preserveEnv();
     client = createHttpClient();
 
     if (isLocalEnvironment(environment)) {
@@ -45,6 +48,7 @@ describeSystemTest('OAuth Discovery', () => {
 
   afterAll(async () => {
     // Server cleanup handled at suite level
+    restoreEnv();
   });
 
   describe('Discovery Endpoint Availability', () => {

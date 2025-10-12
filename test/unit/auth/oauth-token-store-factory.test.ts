@@ -3,16 +3,17 @@
  */
 
 import { OAuthTokenStoreFactory, createOAuthTokenStore } from '../../../src/auth/oauth-token-store-factory.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('OAuthTokenStoreFactory', () => {
-  let originalEnv: NodeJS.ProcessEnv;
+  let restoreEnv: () => void;
 
   beforeEach(() => {
-    originalEnv = { ...process.env };
+    restoreEnv = preserveEnv();
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
   });
 
   describe('Auto-Detection', () => {

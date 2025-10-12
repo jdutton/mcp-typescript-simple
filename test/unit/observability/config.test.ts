@@ -7,8 +7,19 @@ import {
   detectEnvironment,
   getObservabilityConfig
 } from '../../../src/observability/config.js';
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('Observability Config', () => {
+  let restoreEnv: () => void;
+
+  beforeEach(() => {
+    restoreEnv = preserveEnv();
+  });
+
+  afterEach(() => {
+    restoreEnv();
+  });
+
   describe('detectRuntime', () => {
     it('should default to nodejs runtime', () => {
       const runtime = detectRuntime();
@@ -17,11 +28,6 @@ describe('Observability Config', () => {
   });
 
   describe('detectEnvironment', () => {
-    const originalEnv = process.env.NODE_ENV;
-
-    afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
-    });
 
     it('should detect test environment', () => {
       process.env.NODE_ENV = 'test';
@@ -43,12 +49,6 @@ describe('Observability Config', () => {
   });
 
   describe('getObservabilityConfig', () => {
-    const originalEnv = process.env.NODE_ENV;
-
-    afterEach(() => {
-      process.env.NODE_ENV = originalEnv;
-    });
-
     it('should return valid configuration for development', () => {
       process.env.NODE_ENV = 'development';
       const config = getObservabilityConfig();
@@ -90,8 +90,6 @@ describe('Observability Config', () => {
     });
 
     it('should have OTLP exporter configuration in non-test environments', () => {
-      // Save current env and set to development
-      const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'development';
 
       const config = getObservabilityConfig();
@@ -99,9 +97,6 @@ describe('Observability Config', () => {
       expect(config.exporters.otlp.enabled).toBe(true);
       expect(config.exporters.otlp.endpoint).toBeDefined();
       expect(config.exporters.otlp.protocol).toBe('http/protobuf');
-
-      // Restore env
-      process.env.NODE_ENV = originalEnv;
     });
   });
 });

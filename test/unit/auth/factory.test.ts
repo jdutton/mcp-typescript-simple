@@ -3,8 +3,7 @@ import { vi } from 'vitest';
 import { OAuthProviderFactory } from '../../../src/auth/factory.js';
 import { logger } from '../../../src/utils/logger.js';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
-
-const originalEnv = process.env;
+import { preserveEnv } from '../../helpers/env-helper.js';
 
 vi.mock('../../../src/auth/providers/google-provider.js', () => ({
   GoogleOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'google', config, dispose: vi.fn() }))
@@ -19,7 +18,11 @@ vi.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
 }));
 
 describe('OAuthProviderFactory', () => {
+  let restoreEnv: () => void;
+
   beforeEach(() => {
+    restoreEnv = preserveEnv();
+
     // CRITICAL: Clear EnvironmentConfig singleton cache to ensure tests don't inherit
     // cached env vars from previous tests. EnvironmentConfig.load() caches env vars in
     // a singleton _instance (src/config/environment.ts:102-104). Without this reset,
@@ -29,18 +32,20 @@ describe('OAuthProviderFactory', () => {
     // Reset factory singleton instance after clearing env config
     OAuthProviderFactory.resetInstance();
 
-    // Create clean environment without OAuth credentials
-    // Don't use originalEnv as it may contain credentials from actual environment
-    process.env = {
-      NODE_ENV: 'test',
-      // Keep only essential non-OAuth vars
-      PATH: originalEnv.PATH || '',
-      HOME: originalEnv.HOME || '',
-    };
+    // Clear OAuth credentials from environment
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_REDIRECT_URI;
+    delete process.env.GITHUB_CLIENT_ID;
+    delete process.env.GITHUB_CLIENT_SECRET;
+    delete process.env.GITHUB_REDIRECT_URI;
+    delete process.env.MICROSOFT_CLIENT_ID;
+    delete process.env.MICROSOFT_CLIENT_SECRET;
+    delete process.env.MICROSOFT_REDIRECT_URI;
   });
 
   afterEach(() => {
-    process.env = originalEnv;
+    restoreEnv();
     vi.clearAllMocks();
     try {
       OAuthProviderFactory.disposeAll();
