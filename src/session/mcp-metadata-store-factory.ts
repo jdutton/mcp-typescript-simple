@@ -14,6 +14,7 @@ import { FileMCPMetadataStore } from './file-mcp-metadata-store.js';
 import { CachingMCPMetadataStore } from './caching-mcp-metadata-store.js';
 import { RedisMCPMetadataStore } from './redis-mcp-metadata-store.js';
 import { logger } from '../observability/logger.js';
+import { getDataPath } from '../utils/data-paths.js';
 
 export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'redis' | 'auto';
 
@@ -92,16 +93,18 @@ export class MCPMetadataStoreFactory {
 
     // 3. Development with file preference: Use file backend
     if (!isProduction || process.env.USE_FILE_STORE) {
+      const filePath = options.filePath || getDataPath('mcp-sessions.json');
       logger.info('Creating caching MCP metadata store with file backend', {
         detected: true,
         scalable: false,
         persistent: true,
         environment: isProduction ? 'production-override' : 'development',
+        filePath,
       });
       return this.createCachingStore({
         ...options,
         type: 'file',
-        filePath: options.filePath || './data/mcp-sessions.json',
+        filePath,
       });
     }
 
@@ -128,7 +131,7 @@ export class MCPMetadataStoreFactory {
    * Create file-based session metadata store
    */
   private static createFileStore(filePath?: string): FileMCPMetadataStore {
-    return new FileMCPMetadataStore(filePath || './data/mcp-sessions.json');
+    return new FileMCPMetadataStore(filePath || getDataPath('mcp-sessions.json'));
   }
 
   /**

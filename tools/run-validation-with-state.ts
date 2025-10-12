@@ -44,6 +44,7 @@ import { writeFileSync, appendFileSync, existsSync, readFileSync } from 'fs';
 import yaml from 'js-yaml';
 import { ValidationStateWriter, ValidationState, PhaseResult } from './write-validation-state.js';
 import { VALIDATION_PHASES, ValidationPhase, ValidationStep } from './validation-config.js';
+import { stopProcessGroup } from '../test/helpers/process-utils.js';
 
 // Check if GitHub workflow is in sync
 async function checkWorkflowSync(): Promise<{ inSync: boolean; error?: string }> {
@@ -142,10 +143,10 @@ function checkExistingValidation(currentTreeHash: string): { alreadyPassed: bool
 function parseFailures(output: string, stepName: string): string[] {
   const failures: string[] = [];
 
-  // Jest test failures - extract test names
-  const jestFailures = output.match(/● .+/g);
-  if (jestFailures) {
-    failures.push(...jestFailures.slice(0, 10)); // Limit to first 10
+  // Vitest test failures - extract test names (format: "❌ test/path/file.test.ts > Test Suite > test name")
+  const vitestFailures = output.match(/❌ .+/g);
+  if (vitestFailures) {
+    failures.push(...vitestFailures.slice(0, 10)); // Limit to first 10
   }
 
   // TypeScript errors - extract file:line
@@ -164,12 +165,15 @@ function parseFailures(output: string, stepName: string): string[] {
 }
 
 /**
- * Run validation steps in parallel
+ * Run validation steps in parallel with smart fail-fast
+ *
+ * @param enableFailFast - If true, kills remaining processes on first failure (use for long-running test phases)
  */
 async function runStepsInParallel(
   steps: ValidationStep[],
   phaseName: string,
-  logPath: string
+  logPath: string,
+  enableFailFast: boolean = false
 ): Promise<{
   success: boolean;
   failedStep?: ValidationStep;
@@ -183,6 +187,8 @@ async function runStepsInParallel(
 
   const outputs = new Map<string, string>();
   const stepResults: { name: string; passed: boolean; duration: number }[] = [];
+  const processes: Array<{ proc: any; step: ValidationStep }> = [];
+  let firstFailure: { step: ValidationStep; output: string } | null = null;
 
   const results = await Promise.allSettled(
     steps.map(step =>
@@ -193,8 +199,17 @@ async function runStepsInParallel(
         const startTime = Date.now();
         const proc = spawn('sh', ['-c', step.command], {
           stdio: 'pipe',
-          env: { ...process.env, FORCE_COLOR: '0' }
+          detached: true,  // Create new process group for easier cleanup
+          env: {
+            ...process.env,
+            FORCE_COLOR: '0',
+            LLM_OUTPUT: '1'  // Enable LLM-optimized output for all tests
+          }
         });
+
+        // Track process for potential kill and signal handler cleanup
+        processes.push({ proc, step });
+        activeProcesses.add(proc);
 
         let stdout = '';
         let stderr = '';
@@ -207,6 +222,9 @@ async function runStepsInParallel(
           const output = stdout + stderr;
           outputs.set(step.name, output);
 
+          // Remove from active processes set
+          activeProcesses.delete(proc);
+
           const durationSec = (duration / 1000).toFixed(1);
           const status = code === 0 ? '✅' : '❌';
           const result = code === 0 ? 'PASSED' : 'FAILED';
@@ -217,6 +235,20 @@ async function runStepsInParallel(
           if (code === 0) {
             resolve({ step, output, duration });
           } else {
+            // On first failure, kill other processes if fail-fast enabled
+            if (enableFailFast && !firstFailure) {
+              firstFailure = { step, output };
+              console.log(`\n⚠️  Fail-fast enabled: Killing remaining processes...`);
+
+              // Use shared process cleanup utility for consistent behavior
+              for (const { proc: otherProc, step: otherStep } of processes) {
+                if (otherStep !== step && otherProc.exitCode === null) {
+                  stopProcessGroup(otherProc, otherStep.name).catch(() => {
+                    // Process may have already exited, ignore errors
+                  });
+                }
+              }
+            }
             reject({ step, output, duration });
           }
         });
@@ -235,7 +267,35 @@ async function runStepsInParallel(
   return { success: true, outputs, stepResults };
 }
 
+// Track all running processes for cleanup on signal
+const activeProcesses: Set<any> = new Set();
+
+/**
+ * Cleanup handler for SIGTERM/SIGINT
+ * Ensures all child processes are killed when validation runner is interrupted
+ * Uses shared stopProcessGroup utility for consistent cleanup behavior
+ */
+function setupSignalHandlers(): void {
+  const cleanup = async (signal: string) => {
+    console.log(`\n⚠️  Received ${signal}, cleaning up ${activeProcesses.size} active processes...`);
+
+    // Use shared process cleanup utility
+    const cleanupPromises = Array.from(activeProcesses).map(proc =>
+      stopProcessGroup(proc, 'Validation step')
+    );
+
+    await Promise.all(cleanupPromises);
+    process.exit(1);
+  };
+
+  process.on('SIGTERM', () => cleanup('SIGTERM'));
+  process.on('SIGINT', () => cleanup('SIGINT'));
+}
+
 async function main(): Promise<void> {
+  // Setup signal handlers for graceful cleanup
+  setupSignalHandlers();
+
   // Check for --force flag
   const args = process.argv.slice(2);
   const forceValidation = args.includes('--force') || args.includes('-f');
@@ -305,7 +365,12 @@ async function main(): Promise<void> {
   // Run each phase
   for (const phase of VALIDATION_PHASES) {
     const phaseStartTime = Date.now();
-    const result = await runStepsInParallel(phase.steps, phase.name, logPath);
+
+    // Enable fail-fast with improved cleanup (process groups + signal handlers)
+    // Now safe to use - we properly kill process groups and handle SIGTERM
+    const enableFailFast = true;
+
+    const result = await runStepsInParallel(phase.steps, phase.name, logPath, enableFailFast);
     const phaseDuration = Date.now() - phaseStartTime;
 
     // Append all outputs to log file

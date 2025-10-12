@@ -29,16 +29,16 @@ const createResponse = (): MockResponse => {
     statusCode?: number;
     jsonPayload?: unknown;
   } = {};
-  res.status = jest.fn((code: number) => {
+  res.status = vi.fn((code: number) => {
     res.statusCode = code;
     return res as Response;
   });
-  res.json = jest.fn((payload: unknown) => {
+  res.json = vi.fn((payload: unknown) => {
     res.jsonPayload = payload;
     return res as Response;
   });
-  res.redirect = jest.fn(() => res as Response);
-  res.setHeader = jest.fn(() => res as Response);
+  res.redirect = vi.fn(() => res as Response);
+  res.setHeader = vi.fn(() => res as Response);
   return res as MockResponse;
 };
 
@@ -135,7 +135,7 @@ describe('BaseOAuthProvider', () => {
   let provider: TestOAuthProvider;
   let sessionAccess: SessionAccess;
   let originalFetch: typeof globalThis.fetch;
-  const fetchMock = vi.fn() as jest.MockedFunction<typeof fetch>;
+  const fetchMock = vi.fn() as MockFunction<typeof fetch>;
 
   beforeAll(() => {
     originalFetch = globalThis.fetch;

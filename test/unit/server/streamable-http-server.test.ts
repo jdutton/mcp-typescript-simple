@@ -85,7 +85,7 @@ describe('MCPStreamableHttpServer', () => {
 
   it('stops the streamable server via close callback', async () => {
     const server = makeServer();
-    const close = jest.fn((cb) => { cb?.(); return undefined; });
+    const close = vi.fn((cb) => { cb?.(); return undefined; });
     (server as any).server = {
       close,
       on: vi.fn()

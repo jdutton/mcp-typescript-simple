@@ -55,7 +55,9 @@ async function startTestServer(): Promise<ChildProcess> {
 
   server.stdout?.on('data', (data) => {
     const text = data.toString();
-    console.log('[server]', text.trim());
+    if (process.env.LLM_OUTPUT !== '1') {
+      console.log('[server]', text.trim());
+    }
   });
 
   server.stderr?.on('data', (data) => {

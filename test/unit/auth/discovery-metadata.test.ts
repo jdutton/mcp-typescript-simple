@@ -32,7 +32,7 @@ describe('OAuthDiscoveryMetadata', () => {
       removeToken: vi.fn(),
       cleanup: vi.fn(),
       dispose: vi.fn()
-    } as jest.Mocked<OAuthProvider>;
+    } as Mock<OAuthProvider>;
 
     // Default mock implementations
     mockProvider.getEndpoints.mockReturnValue({

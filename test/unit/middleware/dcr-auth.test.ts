@@ -33,7 +33,7 @@ describe('DCR Authentication Middleware', () => {
       listTokens: vi.fn(),
       cleanup: vi.fn(),
       dispose: vi.fn(),
-    } as jest.Mocked<InitialAccessTokenStore>;
+    } as Mock<InitialAccessTokenStore>;
 
     // Create mock request
     mockRequest = {
