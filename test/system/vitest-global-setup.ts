@@ -11,8 +11,18 @@ let globalHttpServer: ChildProcess | null = null;
  * Filter and conditionally log server output
  * Only shows error/warn level logs to reduce noise during tests
  * Set SYSTEM_TEST_VERBOSE=true to see all server output
+ * Set LLM_OUTPUT=1 to suppress ALL server logs (except fatal errors)
  */
 function filterAndLogServerOutput(text: string, isStderr: boolean = false): void {
+  // LLM mode: suppress all server logs (only show fatal startup errors)
+  if (process.env.LLM_OUTPUT === '1') {
+    // Only log fatal errors that would prevent startup
+    if (text.includes('FATAL') || text.includes('Cannot start server')) {
+      console.error('[Server FATAL]:', text);
+    }
+    return;
+  }
+
   // Verbose mode: show all output
   if (process.env.SYSTEM_TEST_VERBOSE === 'true') {
     if (isStderr) {
