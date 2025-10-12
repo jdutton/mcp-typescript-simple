@@ -18,6 +18,7 @@ import { execSync } from 'child_process';
 import { writeFileSync, readFileSync, readdirSync, statSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import yaml from 'js-yaml';
+import { ErrorFormatter } from './error-formatter.js';
 
 interface PhaseResult {
   name: string;
@@ -93,8 +94,26 @@ class ValidationStateWriter {
 
     const timestamp = new Date().toISOString();
 
-    // Parse failed tests from failed step output
-    const failedTests = failedStepOutput ? this.parseFailedTests(failedStepOutput) : undefined;
+    // Format failed step output using error formatter
+    let formattedOutput = failedStepOutput;
+    let enhancedGuidance: string | undefined;
+
+    if (failedStepOutput && failedStep) {
+      // Strip ANSI codes first
+      const cleanOutput = ErrorFormatter.stripAnsiCodes(failedStepOutput);
+
+      // Apply smart formatting based on step type
+      const formatted = ErrorFormatter.formatByStepName(failedStep, cleanOutput);
+
+      // Use formatted clean output
+      formattedOutput = formatted.cleanOutput || cleanOutput;
+
+      // Use formatter guidance if available
+      enhancedGuidance = formatted.guidance;
+    }
+
+    // Parse failed tests from formatted output
+    const failedTests = formattedOutput ? this.parseFailedTests(formattedOutput) : undefined;
 
     // Create state object
     const state: ValidationState = {
@@ -104,7 +123,7 @@ class ValidationStateWriter {
       fullLogFile: logFile || undefined,  // ALWAYS include log file path
       phases,  // Include phase timing information
       summary: this.generateSummary(validationPassed, failedStep, failedTests),
-      agentPrompt: validationPassed ? undefined : this.generateAgentPrompt(failedStep, rerunCommand),
+      agentPrompt: validationPassed ? undefined : this.generateAgentPrompt(failedStep, rerunCommand, enhancedGuidance),
     };
 
     // Add failure details if validation failed
@@ -112,7 +131,12 @@ class ValidationStateWriter {
       state.failedStep = failedStep;
       state.rerunCommand = rerunCommand;
       state.failedTests = failedTests;
-      state.failedStepOutput = failedStepOutput;
+      state.failedStepOutput = formattedOutput;  // Use formatted output
+
+      // Add enhanced guidance if available
+      if (enhancedGuidance) {
+        state.summary = `${state.summary}\n💡 ${enhancedGuidance}`;
+      }
     }
 
     // Write YAML with custom formatting
@@ -247,12 +271,20 @@ class ValidationStateWriter {
   /**
    * Generate agent prompt for validation-fixer sub-agent
    */
-  private generateAgentPrompt(failedStep?: string, rerunCommand?: string): string | null {
+  private generateAgentPrompt(failedStep?: string, rerunCommand?: string, guidance?: string): string | null {
     if (!failedStep) {
       return null; // Validation passed, no fixes needed
     }
 
-    return `Fix failures in "${failedStep}". Read .validate-state.yaml for test failures and output. Fix issues, then run: ${rerunCommand || 'npm run validate'}`;
+    let prompt = `Fix failures in "${failedStep}". Read .validate-state.yaml for test failures and output.`;
+
+    if (guidance) {
+      prompt += ` Guidance: ${guidance}.`;
+    }
+
+    prompt += ` Fix issues, then run: ${rerunCommand || 'npm run validate'}`;
+
+    return prompt;
   }
 
   /**
