@@ -73,9 +73,16 @@ function generateWorkflow(): string {
       // Add the actual test command
       const testStep: GitHubWorkflowStep = { run: step.command };
 
+      // Add environment variables for test steps
+      // ALL test steps get LLM_OUTPUT=1 for concise CI output
+      testStep.env = {
+        LLM_OUTPUT: '1',  // Enable LLM-optimized output (concise, failure-focused)
+      };
+
       // Add secrets for steps that need them
       if (step.requiresSecrets) {
         testStep.env = {
+          LLM_OUTPUT: '1',  // Enable LLM-optimized output
           ANTHROPIC_API_KEY: '${{ secrets.ANTHROPIC_API_KEY }}',
           OPENAI_API_KEY: '${{ secrets.OPENAI_API_KEY }}',
           GOOGLE_API_KEY: '${{ secrets.GOOGLE_API_KEY }}'

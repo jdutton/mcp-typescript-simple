@@ -1,8 +1,18 @@
 #!/usr/bin/env npx tsx
 
 /**
- * Comprehensive CI/CD test suite for MCP TypeScript Simple
- * This script runs all validation checks suitable for automated environments
+ * Mini E2E Deployment Validation
+ *
+ * Validates deployment readiness through comprehensive end-to-end checks:
+ * - TypeScript compilation and type safety
+ * - Code quality and linting
+ * - Vercel serverless configuration
+ * - Transport layer functionality
+ * - MCP server initialization and protocol compliance
+ * - Tool functionality and error handling
+ *
+ * This is NOT a Vitest integration test - it's a custom test runner for
+ * deployment validation that runs independently of the test framework.
  */
 
 import { spawn, exec } from 'child_process';

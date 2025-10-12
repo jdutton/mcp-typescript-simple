@@ -18,6 +18,7 @@ export default defineConfig({
       '**/test/playwright/**',
       '**/build/**',
       '**/coverage/**',
+      '**/test/integration/deployment-validation.test.ts', // Custom test runner, not a Vitest test
     ],
 
     // Coverage configuration

@@ -3,7 +3,7 @@
 # Regenerate with: npm run validate:generate-workflow
 #
 # Source of truth: tools/validation-config.ts
-# Generated: 2025-10-12T00:34:10.223Z
+# Generated: 2025-10-12T13:45:49.611Z
 name: Validation Pipeline
 "on":
   push:
@@ -25,6 +25,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+        env:
+          LLM_OUTPUT: "1"
   lint:
     name: ESLint code checking
     runs-on: ubuntu-latest
@@ -36,6 +38,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+        env:
+          LLM_OUTPUT: "1"
   openapi:
     name: OpenAPI validation
     runs-on: ubuntu-latest
@@ -47,6 +51,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:openapi
+        env:
+          LLM_OUTPUT: "1"
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -58,6 +64,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+        env:
+          LLM_OUTPUT: "1"
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -75,6 +83,7 @@ jobs:
       - run: npm ci
       - run: npm run test:unit
         env:
+          LLM_OUTPUT: "1"
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -94,6 +103,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:integration
+        env:
+          LLM_OUTPUT: "1"
   stdio-tests:
     name: STDIO system tests
     runs-on: ubuntu-latest
@@ -110,6 +121,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:system:stdio
+        env:
+          LLM_OUTPUT: "1"
   http-tests:
     name: HTTP system tests
     runs-on: ubuntu-latest
@@ -126,6 +139,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:system:ci
+        env:
+          LLM_OUTPUT: "1"
   headless-tests:
     name: Headless browser tests
     runs-on: ubuntu-latest
@@ -144,6 +159,8 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
       - run: npm run test:system:headless
+        env:
+          LLM_OUTPUT: "1"
   all-validation-passed:
     name: All Validation Passed
     runs-on: ubuntu-latest

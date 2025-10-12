@@ -21,7 +21,7 @@
     "deploy:vercel": "vercel --prod",
     "test": "npm run test:unit",
     "test:unit": "vitest run --coverage",
-    "test:integration": "npx tsx test/integration/ci-test.ts",
+    "test:integration": "npx tsx test/integration/deployment-validation.test.ts",
     "test:ci": "npm run test:integration",
     "test:mcp": "npx tsx tools/manual/test-mcp.ts",
     "test:interactive": "npx tsx tools/interactive-client.ts",

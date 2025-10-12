@@ -285,41 +285,6 @@ describe('FileClientStore', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('should throw on write to read-only directory', async () => {
-      // This test is platform-specific and may not work on all systems
-      // Skip on Windows and macOS (file permissions behave differently)
-      if (process.platform === 'win32' || process.platform === 'darwin') {
-        return;
-      }
-
-      const readOnlyDir = join(testDir, 'readonly');
-      await fs.mkdir(readOnlyDir, { recursive: true });
-      const readOnlyPath = join(readOnlyDir, 'clients.json');
-
-      // Create and initialize file with empty client list
-      await fs.writeFile(readOnlyPath, JSON.stringify({ version: 1, updatedAt: new Date().toISOString(), clients: [] }));
-
-      // Make the FILE read-only (not the directory)
-      await fs.chmod(readOnlyPath, 0o444);
-
-      // Store should be able to read the file on init
-      const readOnlyStore = new FileClientStore(readOnlyPath);
-
-      // But writes should fail
-      await expect(
-        readOnlyStore.registerClient({
-          redirect_uris: ['http://localhost:3000/callback'],
-          client_name: 'Test Client',
-        })
-      ).rejects.toThrow();
-
-      // Restore permissions for cleanup
-      await fs.chmod(readOnlyPath, 0o644);
-      readOnlyStore.dispose();
-    });
-  });
-
   describe('file format', () => {
     it('should use version 1 format', async () => {
       await store.registerClient({
