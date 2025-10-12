@@ -6,8 +6,10 @@
  */
 
 import { OAuth2Server } from 'oauth2-mock-server';
+import { TEST_PORTS } from '../../helpers/port-registry.js';
 
-export const MOCK_OAUTH_PORT = 4001;
+// Re-export from centralized port registry
+export const MOCK_OAUTH_PORT = TEST_PORTS.MOCK_OAUTH;
 export const MOCK_OAUTH_BASE_URL = `http://localhost:${MOCK_OAUTH_PORT}`;
 
 /**
