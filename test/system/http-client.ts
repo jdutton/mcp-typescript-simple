@@ -3,9 +3,16 @@
  *
  * Provides a test client that manages an HTTP server for MCP system tests.
  * Similar to STDIOTestClient but for HTTP transport testing.
+ *
+ * Features:
+ * - Automatic signal handling (CTRL-C cleanup)
+ * - Port availability checking
+ * - Graceful shutdown with SIGTERM → SIGKILL cascade
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { getHTTPTestPort } from '../helpers/port-registry.js';
+import { registerProcess } from '../helpers/signal-handler.js';
 
 export interface HTTPClientOptions {
   port?: number;
@@ -17,10 +24,11 @@ export class HTTPTestClient {
   private server: ChildProcess | null = null;
   private readonly options: Required<HTTPClientOptions>;
   private isStarted = false;
+  private unregisterSignalHandler?: () => void;
 
   constructor(options: HTTPClientOptions = {}) {
-    // Use the same port logic as test environment configuration
-    const defaultPort = parseInt(process.env.HTTP_TEST_PORT || '3001', 10);
+    // Use centralized port registry
+    const defaultPort = options.port || getHTTPTestPort();
 
     this.options = {
       port: options.port || defaultPort,
@@ -59,6 +67,9 @@ export class HTTPTestClient {
         reject(new Error('Failed to start HTTP server process'));
         return;
       }
+
+      // Register with signal handler for automatic CTRL-C cleanup
+      this.unregisterSignalHandler = registerProcess(this.server);
 
       let startupOutput = '';
       let errorOutput = '';
@@ -129,6 +140,13 @@ export class HTTPTestClient {
       // Set up exit handler
       const exitHandler = () => {
         console.log('✅ HTTP MCP server stopped');
+
+        // Unregister from signal handler
+        if (this.unregisterSignalHandler) {
+          this.unregisterSignalHandler();
+          this.unregisterSignalHandler = undefined;
+        }
+
         this.server = null;
         this.isStarted = false;
         resolve();
@@ -157,6 +175,13 @@ export class HTTPTestClient {
   private forceStop(): void {
     if (this.server && !this.server.killed) {
       this.server.kill('SIGKILL');
+
+      // Unregister from signal handler
+      if (this.unregisterSignalHandler) {
+        this.unregisterSignalHandler();
+        this.unregisterSignalHandler = undefined;
+      }
+
       this.server = null;
       this.isStarted = false;
     }

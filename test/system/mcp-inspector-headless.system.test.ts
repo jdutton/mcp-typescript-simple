@@ -22,7 +22,9 @@ import { getMockOAuthEnvVars, MOCK_USER_DATA } from '../playwright/helpers/mock-
 
 const execAsync = promisify(exec);
 
-const TEST_PORT = 3555;
+import { TEST_PORTS } from '../helpers/port-registry.js';
+
+const TEST_PORT = TEST_PORTS.HEADLESS_TEST;
 const TEST_BASE_URL = `http://localhost:${TEST_PORT}`;
 
 interface OAuthToken {

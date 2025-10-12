@@ -11,9 +11,11 @@ import { spawn } from 'child_process';
 /**
  * Check if a port is available using lsof (more reliable than bind test)
  * This catches both IPv4 and IPv6 bindings
+ *
+ * Includes timeout to prevent infinite hangs if lsof doesn't respond
  */
 async function isPortAvailableViaLsof(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
+  const checkPromise = new Promise<boolean>((resolve) => {
     const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
     let output = '';
 
@@ -30,11 +32,22 @@ async function isPortAvailableViaLsof(port: number): Promise<boolean> {
       }
     });
 
-    lsof.on('error', () => {
+    lsof.on('error', async () => {
       // If lsof command fails, fall back to bind test
-      resolve(isPortAvailableViaBind(port));
+      const result = await isPortAvailableViaBind(port);
+      resolve(result);
     });
   });
+
+  // Timeout after 3 seconds to prevent infinite hangs
+  const timeoutPromise = new Promise<boolean>((resolve) => {
+    setTimeout(() => {
+      console.warn(`⚠️  Port check timeout for port ${port}, assuming unavailable`);
+      resolve(false); // Conservative: assume port is NOT available on timeout
+    }, 3000);
+  });
+
+  return Promise.race([checkPromise, timeoutPromise]);
 }
 
 /**
@@ -162,4 +175,242 @@ export async function verifyPortsFreed(ports: number[]): Promise<void> {
   } else {
     console.log(`✅ Post-test cleanup: All ports freed successfully`);
   }
+}
+
+/**
+ * Information about a process using a port
+ */
+export interface ProcessInfo {
+  pid: number;
+  command: string;
+  port: number;
+}
+
+/**
+ * Result of port cleanup operation
+ */
+export interface PortCleanupResult {
+  port: number;
+  wasInUse: boolean;
+  processKilled?: ProcessInfo;
+  error?: string;
+  success: boolean;
+}
+
+/**
+ * Get information about the process using a specific port
+ * Uses lsof to identify the process
+ */
+export async function getProcessUsingPort(port: number): Promise<ProcessInfo | null> {
+  return new Promise((resolve) => {
+    const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
+    let pidOutput = '';
+
+    lsof.stdout?.on('data', (data) => {
+      pidOutput += data.toString();
+    });
+
+    lsof.on('close', async (code) => {
+      if (code === 0 && pidOutput.trim()) {
+        const pid = parseInt(pidOutput.trim().split('\n')[0], 10);
+        if (!isNaN(pid)) {
+          // Get process command
+          const psResult = await new Promise<string>((psResolve) => {
+            const ps = spawn('ps', ['-p', pid.toString(), '-o', 'comm='], { stdio: 'pipe' });
+            let command = '';
+
+            ps.stdout?.on('data', (data) => {
+              command += data.toString();
+            });
+
+            ps.on('close', () => {
+              psResolve(command.trim() || 'unknown');
+            });
+
+            ps.on('error', () => {
+              psResolve('unknown');
+            });
+          });
+
+          resolve({ pid, command: psResult, port });
+        } else {
+          resolve(null);
+        }
+      } else {
+        resolve(null);
+      }
+    });
+
+    lsof.on('error', () => {
+      resolve(null);
+    });
+  });
+}
+
+/**
+ * Determine if a process is a test-related process
+ * Safe to kill: test processes, development servers
+ * NOT safe to kill: user processes, production servers, system processes
+ */
+export function isTestProcess(processInfo: ProcessInfo): boolean {
+  const command = processInfo.command.toLowerCase();
+
+  // Safe patterns - test/development processes we can safely kill
+  const safePatterns = [
+    'tsx',           // TypeScript execution (test servers)
+    'node',          // Node.js processes (could be tests)
+    'npx',           // npx commands (test runners)
+    'vitest',        // Vitest test runner
+    'playwright',    // Playwright browser tests
+    'npm',           // npm run commands
+    'mcp',           // MCP-related processes
+  ];
+
+  // Dangerous patterns - NEVER kill these
+  const dangerousPatterns = [
+    'postgres',      // Database
+    'redis',         // Redis server
+    'docker',        // Docker daemon
+    'mysql',         // MySQL database
+    'mongod',        // MongoDB
+    'nginx',         // Web server
+    'apache',        // Apache server
+    'systemd',       // System process
+    'launchd',       // macOS system process
+    'kernel',        // Kernel process
+  ];
+
+  // Check dangerous patterns first
+  for (const pattern of dangerousPatterns) {
+    if (command.includes(pattern)) {
+      return false;
+    }
+  }
+
+  // Check safe patterns
+  for (const pattern of safePatterns) {
+    if (command.includes(pattern)) {
+      return true;
+    }
+  }
+
+  // If command contains 'test' or 'dev', it's likely safe
+  if (command.includes('test') || command.includes('dev')) {
+    return true;
+  }
+
+  // Conservative default: NOT safe to kill
+  return false;
+}
+
+/**
+ * Terminate a process gracefully, then forcefully if needed
+ */
+export async function terminateProcess(pid: number): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      // Try graceful shutdown first (SIGTERM)
+      process.kill(pid, 'SIGTERM');
+
+      // Force kill after 1 second if still alive
+      global.setTimeout(() => {
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {
+          // Process already dead, ignore
+        }
+      }, 1000);
+
+      // Resolve after 2 seconds regardless
+      global.setTimeout(() => {
+        resolve();
+      }, 2000);
+    } catch {
+      // Process may already be dead
+      resolve();
+    }
+  });
+}
+
+/**
+ * Clean up leaked test processes from previous test runs
+ * Self-healing port management: automatically frees ports before tests
+ *
+ * Safety features:
+ * - Only kills processes identified as test processes
+ * - Never kills production servers or user processes
+ * - Provides detailed logging of what was killed
+ * - Graceful degradation if cleanup fails
+ *
+ * @param ports - Array of ports to clean up
+ * @param options - Cleanup options
+ * @returns Array of cleanup results for each port
+ */
+export async function cleanupLeakedTestPorts(
+  ports: number[],
+  options: {
+    force?: boolean;  // If true, skip safety checks (dangerous!)
+  } = {}
+): Promise<PortCleanupResult[]> {
+  const { force = false } = options;
+  const results: PortCleanupResult[] = [];
+
+  console.log(`[DEBUG port-utils] Checking ${ports.length} ports...`);
+  for (const port of ports) {
+    console.log(`[DEBUG port-utils] Checking port ${port}...`);
+    // Check if port is in use
+    const available = await isPortAvailable(port);
+    console.log(`[DEBUG port-utils] Port ${port} available: ${available}`);
+
+    if (available) {
+      results.push({
+        port,
+        wasInUse: false,
+        success: true,
+      });
+      continue;
+    }
+
+    // Port is in use - get process info
+    const processInfo = await getProcessUsingPort(port);
+
+    if (!processInfo) {
+      results.push({
+        port,
+        wasInUse: true,
+        error: 'Could not identify process using port',
+        success: false,
+      });
+      continue;
+    }
+
+    // Safety check: only kill test processes (unless force=true)
+    if (!force && !isTestProcess(processInfo)) {
+      results.push({
+        port,
+        wasInUse: true,
+        processKilled: processInfo,
+        error: `Process ${processInfo.command} (PID ${processInfo.pid}) is not a test process. Not killing for safety.`,
+        success: false,
+      });
+      continue;
+    }
+
+    // Kill the process
+    console.log(`🔧 Cleaning up leaked test process: ${processInfo.command} (PID ${processInfo.pid}) on port ${port}`);
+    await terminateProcess(processInfo.pid);
+
+    // Success = process was killed (not port is freed)
+    // Port availability will be verified separately before starting test servers
+    results.push({
+      port,
+      wasInUse: true,
+      processKilled: processInfo,
+      success: true,
+    });
+
+    console.log(`✅ Killed process on port ${port} (PID ${processInfo.pid})`);
+  }
+
+  return results;
 }

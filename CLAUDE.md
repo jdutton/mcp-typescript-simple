@@ -134,6 +134,13 @@ Test with increasing production-like fidelity:
 │   ├── health.ts               # Health check and status
 │   └── admin.ts                # Administration and metrics
 ├── test/                        # Automated test suite (unit/integration tests)
+│   ├── helpers/                # Shared test utilities
+│   │   ├── port-utils.ts      # Self-healing port management
+│   │   ├── test-setup.ts      # Automatic test environment setup
+│   │   └── process-utils.ts   # Process group cleanup
+│   ├── unit/                  # Unit tests
+│   ├── integration/           # Integration tests
+│   └── system/                # System tests
 ├── tools/                       # Manual development and testing utilities
 ├── docs/                        # Deployment and architecture documentation
 ├── build/                       # Compiled JavaScript output
@@ -413,6 +420,62 @@ Google → MCP Server → Claude Code
 - **Development impact**: When testing/debugging, restarting the server loses all active sessions
 
 **For comprehensive deployment architecture and scaling patterns, see [docs/session-management.md](docs/session-management.md)**
+
+## Self-Healing Port Management
+
+**NEW**: Automated port cleanup system eliminates manual intervention when tests fail or are interrupted.
+
+### How It Works
+
+Tests automatically clean up leaked processes from previous runs before starting:
+
+```typescript
+import { setupTestEnvironment } from '../helpers/test-setup.js';
+
+describe('My System Tests', () => {
+  let cleanup: TestEnvironmentCleanup;
+
+  beforeAll(async () => {
+    // Automatically cleans up any leaked test processes on these ports
+    cleanup = await setupTestEnvironment({
+      ports: [3000, 3001, 6274],
+    });
+  });
+
+  afterAll(async () => {
+    await cleanup();
+  });
+});
+```
+
+### Safety Features
+
+The system only kills processes identified as test-related:
+- ✅ **Safe to kill**: tsx, node, vitest, playwright, npm, npx, mcp
+- ✅ **Checks for "test" or "dev" in command**
+- ❌ **Never kills**: postgres, redis, mysql, nginx, docker, systemd
+
+### Benefits
+
+- **No manual cleanup needed**: Ports are automatically freed before tests
+- **Safe by default**: Conservative process identification prevents accidents
+- **Resilient to interruption**: Handles Ctrl+C and failed test runs
+- **Clear logging**: Shows what was cleaned up and why
+
+### Manual Port Cleanup (if needed)
+
+If you need to manually clean up leaked ports:
+
+```bash
+# Check what's using a port
+lsof -ti:3000
+
+# Kill processes on specific ports
+lsof -ti:3000,3001 | xargs -r kill -9
+
+# Or use the automated cleanup
+npm run dev:clean
+```
 
 ## Testing Strategy
 

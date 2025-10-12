@@ -368,7 +368,7 @@ async function main(): Promise<void> {
 
     // Enable fail-fast with improved cleanup (process groups + signal handlers)
     // Now safe to use - we properly kill process groups and handle SIGTERM
-    const enableFailFast = true;
+    const enableFailFast = false;  // Temporarily disabled to diagnose test failures
 
     const result = await runStepsInParallel(phase.steps, phase.name, logPath, enableFailFast);
     const phaseDuration = Date.now() - phaseStartTime;

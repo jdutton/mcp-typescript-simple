@@ -3,9 +3,14 @@
  *
  * Provides a test client that communicates with MCP server via STDIO transport
  * using JSON-RPC messages over stdin/stdout pipes.
+ *
+ * Features:
+ * - Automatic signal handling (CTRL-C cleanup)
+ * - Graceful shutdown with SIGTERM → SIGKILL cascade
  */
 
 import { spawn, ChildProcess } from 'child_process';
+import { registerProcess } from '../helpers/signal-handler.js';
 
 export interface MCPRequest {
   jsonrpc: '2.0';
@@ -40,6 +45,7 @@ export class STDIOTestClient {
   }>();
   private readonly options: Required<STDIOClientOptions>;
   private isStarted = false;
+  private unregisterSignalHandler?: () => void;
 
   constructor(options: STDIOClientOptions = {}) {
     this.options = {
@@ -71,6 +77,9 @@ export class STDIOTestClient {
     if (!this.server.stdout || !this.server.stderr || !this.server.stdin) {
       throw new Error('Failed to start MCP server - stdio pipes not available');
     }
+
+    // Register with signal handler for automatic CTRL-C cleanup
+    this.unregisterSignalHandler = registerProcess(this.server);
 
     // Set up response handling
     this.server.stdout.on('data', (data) => {
@@ -282,6 +291,12 @@ export class STDIOTestClient {
       reject(new Error('Server connection lost'));
     });
     this.pendingRequests.clear();
+
+    // Unregister from signal handler
+    if (this.unregisterSignalHandler) {
+      this.unregisterSignalHandler();
+      this.unregisterSignalHandler = undefined;
+    }
 
     // Kill server process if still running
     if (this.server && !this.server.killed) {

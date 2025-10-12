@@ -110,20 +110,22 @@ import {
   startMCPInspector,
   stopMCPInspector,
   waitForInspectorLoad,
-  checkPortsAvailable,
+  setupTestEnvironment,
+  type TestEnvironmentCleanup,
   verifyPortsFreed,
-  INSPECTOR_URL,
-  INSPECTOR_PORT
+  INSPECTOR_URL
 } from '../playwright/helpers/mcp-inspector.js';
+import { checkPortsAvailable } from '../helpers/port-utils.js';
 import { stopProcessGroup } from '../helpers/process-utils.js';
+import { TEST_PORTS, getHeadlessPorts } from '../helpers/port-registry.js';
 
-const TEST_PORT = 3555;
+const TEST_PORT = TEST_PORTS.HEADLESS_TEST;
 const TEST_BASE_URL = `http://localhost:${TEST_PORT}`;
 const MCP_ENDPOINT = `${TEST_BASE_URL}/mcp`;
 
 // Inspector URLs - the UI needs to know which proxy port to connect to
 // We also need to tell the UI that auth is disabled (DANGEROUSLY_OMIT_AUTH)
-const INSPECTOR_PROXY_PORT = INSPECTOR_PORT + 3; // 16277
+const INSPECTOR_PROXY_PORT = TEST_PORTS.INSPECTOR_PROXY;
 const INSPECTOR_URL_WITH_PROXY = `${INSPECTOR_URL}/?MCP_PROXY_PORT=${INSPECTOR_PROXY_PORT}&DANGEROUSLY_OMIT_AUTH=true`;
 
 /**
@@ -199,26 +201,30 @@ test.describe('MCP Inspector Protocol Testing', () => {
   let server: ChildProcess | null = null;
   let inspector: ChildProcess | null = null;
   let browser: Browser | null = null;
+  let cleanup: TestEnvironmentCleanup;
 
   test.beforeAll(async () => {
-    console.log('🔍 Pre-flight: Checking port availability...');
+    console.log('🔍 Pre-flight: Setting up test environment with self-healing port cleanup...');
 
-    // Check ports that this test manages (not including globally managed ports)
-    // Port 4001 is managed by Playwright global setup (mock OAuth server)
-    // This fails fast with a helpful error message if ports are in use
+    // Self-healing port management: automatically cleans up leaked test processes
+    // NOTE: Mock OAuth server (port 4001) is started by Playwright global setup
+    // Only cleanup ports that THIS test will start (test server, inspector, inspector proxy)
     const testManagedPorts = [
-      TEST_PORT,           // 3555 - MCP server
-      INSPECTOR_PORT,      // 16274 - Inspector UI
-      INSPECTOR_PORT + 3   // 16277 - Inspector proxy
+      TEST_PORTS.HEADLESS_TEST,  // 3555 - test server
+      TEST_PORTS.INSPECTOR,       // 16274 - MCP inspector
+      TEST_PORTS.INSPECTOR_PROXY, // 16277 - inspector proxy
+      // NOT cleaning TEST_PORTS.MOCK_OAUTH (4001) - managed by global setup
     ];
 
-    try {
-      await checkPortsAvailable(testManagedPorts);
-      console.log(`✅ Test-managed ports available: ${testManagedPorts.join(', ')}`);
-    } catch (error) {
-      console.error('❌ Port availability check failed');
-      throw error;
-    }
+    cleanup = await setupTestEnvironment({
+      ports: testManagedPorts,
+    });
+
+    // Verify ports are actually available before starting test servers
+    // This catches race conditions where cleanup killed a process but port isn't freed yet
+    console.log('🔍 Verifying ports are available before starting test servers...');
+    await checkPortsAvailable(testManagedPorts);
+    console.log('✅ All ports verified available');
 
     // Start test server
     server = await startTestServer();
@@ -253,9 +259,14 @@ test.describe('MCP Inspector Protocol Testing', () => {
     await sleep(5000);
 
     // Post-test cleanup verification (only for test-managed ports)
-    // Port 4001 is managed by Playwright global teardown
-    const testManagedPorts = [TEST_PORT, INSPECTOR_PORT, INSPECTOR_PORT + 3];
+    // Verify all headless test ports are freed
+    const testManagedPorts = getHeadlessPorts();
     await verifyPortsFreed(testManagedPorts);
+
+    // Run test environment cleanup
+    if (cleanup) {
+      await cleanup();
+    }
   });
 
   test('should load MCP Inspector UI successfully', async () => {

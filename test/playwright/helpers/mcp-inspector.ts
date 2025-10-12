@@ -2,21 +2,28 @@
  * MCP Inspector Automation Helper
  *
  * Provides utilities for automating MCP Inspector interactions in headless tests
+ *
+ * Features:
+ * - Automatic signal handling (CTRL-C cleanup)
+ * - Process group management for Inspector and its children
  */
 
 import { Page, expect } from '@playwright/test';
 import { ChildProcess, spawn } from 'child_process';
 import axios from 'axios';
 import { setTimeout as sleep } from 'timers/promises';
-import { checkPortsAvailable, verifyPortsFreed } from '../../helpers/port-utils';
-import { stopProcessGroup } from '../../helpers/process-utils';
+import { verifyPortsFreed } from '../../helpers/port-utils.js';
+import { stopProcessGroup } from '../../helpers/process-utils.js';
+import { setupTestEnvironment, TestEnvironmentCleanup } from '../../helpers/test-setup.js';
+import { TEST_PORTS } from '../../helpers/port-registry.js';
+import { registerProcess } from '../../helpers/signal-handler.js';
 
-// Use non-standard ports to avoid conflicts
-export const INSPECTOR_PORT = 16274; // Changed from 6274 to avoid conflicts
+// Re-export from centralized port registry
+export const INSPECTOR_PORT = TEST_PORTS.INSPECTOR;
 export const INSPECTOR_URL = `http://localhost:${INSPECTOR_PORT}`;
 
 // Re-export for convenience
-export { checkPortsAvailable, verifyPortsFreed };
+export { setupTestEnvironment, type TestEnvironmentCleanup, verifyPortsFreed };
 
 /**
  * Start MCP Inspector process in its own process group
@@ -58,6 +65,9 @@ export async function startMCPInspector(mcpServerUrl: string): Promise<ChildProc
       console.error('[inspector:error]', text.trim());
     }
   });
+
+  // Register with signal handler for automatic CTRL-C cleanup
+  registerProcess(inspector);
 
   // Wait for Inspector to be ready
   const maxWaitTime = 30000; // 30 seconds
