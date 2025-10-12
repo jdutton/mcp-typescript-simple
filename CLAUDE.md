@@ -263,12 +263,28 @@ vercel                    # Deploys to preview URL for testing
 npm run dev:vercel        # Local Vercel development server
 ```
 
-#### Production Deployment (Automated Only)
+#### Production Deployment (Automated via GitHub Actions)
 **IMPORTANT**: Production deployments happen automatically via GitHub Actions when PRs are merged to main.
 
-- **Claude Code should NEVER deploy to production**
+**Deployment Workflow:**
+1. PR is merged to `main` branch
+2. GitHub Actions runs validation pipeline (`.github/workflows/validate.yml`)
+3. If all validation checks pass, Vercel deployment workflow runs (`.github/workflows/vercel.yml`)
+4. Code is deployed to Vercel production: https://mcp-typescript-simple.vercel.app
+5. Health check verifies deployment success
+
+**Required GitHub Secrets:**
+The repository must have these secrets configured for automated Vercel deployments:
+- `VERCEL_TOKEN` - Vercel authentication token (get from: https://vercel.com/account/tokens)
+- `VERCEL_ORG_ID` - Vercel organization/team ID (found in project settings)
+- `VERCEL_PROJECT_ID` - Vercel project ID (found in project settings)
+
+To configure secrets: Repository Settings → Secrets and variables → Actions → New repository secret
+
+**Deployment Guidelines:**
+- **Claude Code should NEVER manually deploy to production**
 - **Only GitHub Actions deploys to production after all CI checks pass**
-- **Preview deployments are for testing during PR development**
+- **Preview deployments are for testing during PR development only**
 
 #### Vercel Deployment Critical Behavior
 **CRITICAL**: Vercel deploys from git commits only - local file changes are ignored until committed and pushed.
