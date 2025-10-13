@@ -259,7 +259,7 @@ describe('Health Routes Integration', () => {
       // Full token should not appear anywhere in response
       const responseText = JSON.stringify(response.body);
       expect(responseText).not.toContain(testToken);
-    });
+    }, 20000); // Increase timeout for external API call
   });
 
   describe('Health endpoints CORS', () => {
