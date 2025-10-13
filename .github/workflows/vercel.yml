@@ -27,6 +27,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      - name: Configure Vercel Project Build Settings
+        run: |
+          curl -X PATCH "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}?teamId=${{ secrets.VERCEL_ORG_ID }}" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "buildCommand": "npm run build:vercel",
+              "installCommand": "npm install",
+              "outputDirectory": null
+            }'
+
       - name: Deploy to Vercel Production
         id: deploy
         run: |
