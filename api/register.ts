@@ -4,10 +4,10 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { ClientStoreFactory } from '../build/auth/client-store-factory.js';
-import { OAuthRegisteredClientsStore } from '../build/auth/stores/client-store-interface.js';
-import { logger } from '../build/observability/logger.js';
-import { setOAuthAntiCachingHeaders } from '../build/auth/shared/oauth-helpers.js';
+import { ClientStoreFactory } from '../src/auth/client-store-factory.js';
+import { OAuthRegisteredClientsStore } from '../src/auth/stores/client-store-interface.js';
+import { logger } from '../src/observability/logger.js';
+import { setOAuthAntiCachingHeaders } from '../src/auth/shared/oauth-helpers.js';
 
 // Global client store instance for reuse across function invocations
 let clientStoreInstance: OAuthRegisteredClientsStore | null = null;

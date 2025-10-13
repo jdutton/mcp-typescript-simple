@@ -3,7 +3,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { logger } from '../build/utils/logger.js';
+import { logger } from '../src/utils/logger.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

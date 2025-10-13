@@ -9,10 +9,10 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { OAuthProviderFactory } from '../build/auth/factory.js';
-import { createOAuthDiscoveryMetadata } from '../build/auth/discovery-metadata.js';
-import type { OAuthProvider } from '../build/auth/providers/types.js';
-import { logger } from '../build/utils/logger.js';
+import { OAuthProviderFactory } from '../src/auth/factory.js';
+import { createOAuthDiscoveryMetadata } from '../src/auth/discovery-metadata.js';
+import type { OAuthProvider } from '../src/auth/providers/types.js';
+import { logger } from '../src/utils/logger.js';
 import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 
 // Global OAuth providers map for multi-provider support
