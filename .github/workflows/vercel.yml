@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/vercel-build-step
 
 jobs:
   deploy:

@@ -219,7 +219,7 @@ describe('Health Routes Integration', () => {
       // Check that it attempted to call GitHub API (will fail with invalid token)
       expect(response.body).toHaveProperty('github_user_api');
       expect(response.body.github_user_api.status).toBeGreaterThanOrEqual(400);
-    });
+    }, 30000); // 30s timeout for external API call
 
     it('should return proper error structure when token is missing', async () => {
       const response = await request(app)
