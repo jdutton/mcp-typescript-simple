@@ -36,27 +36,5 @@
       "source": "/admin/:path*",
       "destination": "/api/admin"
     }
-  ],
-  "functions": {
-    "api/mcp.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    },
-    "api/auth.ts": {
-      "maxDuration": 15,
-      "memory": 512
-    },
-    "api/register.ts": {
-      "maxDuration": 10,
-      "memory": 256
-    },
-    "api/health.ts": {
-      "maxDuration": 10,
-      "memory": 256
-    },
-    "api/admin.ts": {
-      "maxDuration": 20,
-      "memory": 512
-    }
-  }
+  ]
 }
