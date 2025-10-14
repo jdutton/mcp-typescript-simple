@@ -1,59 +1,24 @@
 name: Vercel Production Deployment
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   push:
     branches:
       - main
 
 jobs:
   deploy:
-    name: Deploy to Vercel Production
+    name: Deploy to Vercel
     runs-on: ubuntu-latest
-    # Only deploy if validation pipeline passed
-    needs: []
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22.x
-          cache: npm
-
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      - name: Deploy to Vercel Production
-        id: deploy
-        run: |
-          url=$(vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --yes)
-          echo "deployment_url=$url" >> $GITHUB_OUTPUT
+      - name: Deploy to Vercel
+        run: vercel --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Verify Deployment
-        run: |
-          echo "Deployment successful!"
-          echo "Production URL: ${{ steps.deploy.outputs.deployment_url }}"
-          echo "Note: Deployment is protected by Vercel authentication"
-
-      - name: Comment on Issue
-        if: success()
-        run: |
-          gh issue comment 74 --body "✅ Vercel deployment completed successfully!
-
-          **Deployment Details:**
-          - Commit: \`${{ github.sha }}\`
-          - Production URL: ${{ steps.deploy.outputs.deployment_url }}
-          - Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          - Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-
-          **Next Steps:**
-          Please manually verify the deployment is working correctly before closing this issue."
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

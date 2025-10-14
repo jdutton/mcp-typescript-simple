@@ -7,13 +7,13 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import { LLMManager } from "../src/llm/manager.js";
-import { MCPInstanceManager } from "../src/server/mcp-instance-manager.js";
-import { setupMCPServer } from "../src/server/mcp-setup.js";
-import { EnvironmentConfig } from "../src/config/environment.js";
-import { OAuthProviderFactory } from "../src/auth/factory.js";
-import { OAuthProvider } from "../src/auth/providers/types.js";
-import { logger } from "../src/observability/logger.js";
+import { LLMManager } from "../build/llm/manager.js";
+import { MCPInstanceManager } from "../build/server/mcp-instance-manager.js";
+import { setupMCPServer } from "../build/server/mcp-setup.js";
+import { EnvironmentConfig } from "../build/config/environment.js";
+import { OAuthProviderFactory } from "../build/auth/factory.js";
+import { OAuthProvider } from "../build/auth/providers/types.js";
+import { logger } from "../build/observability/logger.js";
 
 // Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;
