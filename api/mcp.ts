@@ -115,6 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID, mcp-session-id, mcp-protocol-version');
+    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id, mcp-protocol-version');
     res.setHeader('X-Request-ID', requestId);
 
     // Handle preflight requests
@@ -188,21 +189,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         for (const [type, provider] of oauthProviders.entries()) {
           // Check if this provider's token store has this token
-          // This calls getToken() which is a local store lookup, NOT an API call
-          if ('getToken' in provider && typeof provider.getToken === 'function') {
-            try {
-              const tokenInfo = await provider.getToken(token);
+          // This calls hasToken() which is a local store lookup, NOT an API call
+          try {
+            const hasToken = await provider.hasToken(token);
 
-              if (tokenInfo && tokenInfo.provider === type) {
-                providerType = type;
-                correctProvider = provider;
-                logger.debug("Token belongs to provider", { provider: type, requestId });
-                break;
-              }
-            } catch (error) {
-              // Token not in this provider's store, continue
-              continue;
+            if (hasToken) {
+              providerType = type;
+              correctProvider = provider;
+              logger.debug("Token belongs to provider", { provider: type, requestId });
+              break;
             }
+          } catch (error) {
+            // Token not in this provider's store, continue
+            logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
+            continue;
           }
         }
 
