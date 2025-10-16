@@ -964,3 +964,118 @@ npm run pre-commit
 - **Pre-commit Hook**: `docs/pre-commit-hook.md`
 - **Architecture Research**: Issue #68 (chief-arch agent output)
 - **Source Code**: `tools/` directory
+
+## Validation with vibe-validate
+
+**NEW (2025-10-16)**: This project now uses [vibe-validate](https://github.com/jdutton-vercel/vibe-validate) for validation orchestration!
+
+### What is vibe-validate?
+
+vibe-validate is a **language-agnostic validation orchestration tool** with:
+- **Git tree hash-based validation state caching** (312x speedup on repeat runs!)
+- **Agent-friendly error output** optimized for AI assistants like Claude Code
+- **Parallel phase execution** for fast validation
+- **Pre-commit workflow integration** with automatic branch sync checking
+- **TypeScript/JavaScript presets** for common project types
+
+### Why we switched
+
+The SDLC automation tools in this project (`tools/run-validation-with-state.ts`, `tools/sync-check.ts`, etc.) were **extracted into vibe-validate** as a standalone npm package. We're now using the published package instead of the local scripts.
+
+### Local Development Setup
+
+**Current Mode**: This project uses vibe-validate from the **local workspace** at `/Users/jeff/Workspaces/vibe-validate` (via file: protocol symlinks).
+
+**Why**: We're actively developing vibe-validate alongside this project. Once vibe-validate is published to npm, this will switch to the published version.
+
+### Available Commands
+
+```bash
+# Show configuration
+npx vibe-validate config
+
+# Run full validation (~90s first run)
+npx vibe-validate validate
+
+# Run cached validation (~288ms if unchanged)
+npx vibe-validate validate
+
+# Check validation state
+npx vibe-validate state
+
+# Pre-commit workflow (branch sync + cached validation)
+npx vibe-validate pre-commit
+
+# Check if branch is behind origin/main
+npx vibe-validate sync-check
+
+# Post-PR merge cleanup
+npx vibe-validate cleanup
+```
+
+### Configuration
+
+The validation configuration is in `vibe-validate.config.mjs` (root directory):
+
+- **Preset**: `typescript-nodejs` (optimized for Node.js applications)
+- **2 Parallel Phases**:
+  - Phase 1: Pre-Qualification + Build (typecheck, lint, OpenAPI validation, build)
+  - Phase 2: Testing (unit, integration, STDIO, HTTP, headless browser tests)
+- **Caching**: Git tree hash-based (deterministic, content-based)
+- **Fail Fast**: Disabled (runs all steps even if one fails, for complete error reporting)
+
+### Performance
+
+**Validation Caching Performance:**
+- **Full validation**: ~90 seconds (9 validation steps across 2 parallel phases)
+- **Cached validation**: 288ms (git tree hash calculation + state file read)
+- **Speedup**: **312x** when code hasn't changed!
+
+### Workflow Integration
+
+**Pre-commit workflow** (`npm run pre-commit` / `npx vibe-validate pre-commit`):
+1. Checks branch sync with origin/main
+2. Calculates git tree hash of current working tree
+3. If hash matches cached state → skip validation (288ms)
+4. If hash differs → run full validation (~90s)
+5. Cache new state for next run
+
+**When to use:**
+- **MANDATORY before every commit** (already integrated in package.json scripts)
+- Before pushing to GitHub
+- When switching branches or pulling changes
+
+### Migration Status
+
+**Completed:**
+- ✅ Installed all 5 vibe-validate packages (@vibe-validate/cli, config, core, formatters, git)
+- ✅ Created `vibe-validate.config.mjs` with project-specific configuration
+- ✅ Updated package.json scripts to use vibe-validate commands
+- ✅ Tested all commands successfully
+- ✅ Validated caching performance (312x speedup!)
+
+**Next Steps (Post-Publish):**
+- [ ] Switch from `file:` protocol to published npm version
+- [ ] Update CI/CD to use published vibe-validate
+- [ ] Remove old `tools/` validation scripts (kept as reference for now)
+
+### Related Documentation
+
+For vibe-validate development and contribution:
+- **vibe-validate/CONTRIBUTING.md** - Local development setup
+- **vibe-validate/docs/local-development.md** - Multi-mode development workflow
+- **vibe-validate/README.md** - User-facing documentation
+
+### Troubleshooting
+
+**Q**: Validation is slow (90s every time)
+**A**: Caching might not be working. Check:
+1. `.vibe-validate-state.yaml` exists and is up to date
+2. Working tree is clean (`git status`)
+3. No uncommitted changes
+
+**Q**: How do I force re-validation?
+**A**: `npx vibe-validate validate --force` (bypasses cache)
+
+**Q**: Validation fails but old tooling passed
+**A**: vibe-validate runs steps in parallel phases - may expose race conditions or timing issues. Check test isolation.
