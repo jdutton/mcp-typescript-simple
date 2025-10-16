@@ -250,6 +250,11 @@ export class MCPStreamableHttpServer {
       if (!res.getHeader('Access-Control-Allow-Headers')) {
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID, mcp-protocol-version, mcp-session-id, Accept, User-Agent');
       }
+      // CRITICAL: Expose mcp-session-id header so JavaScript can read it
+      // Without this, MCP Inspector cannot read the session ID from responses
+      if (!res.getHeader('Access-Control-Expose-Headers')) {
+        res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id, mcp-protocol-version');
+      }
 
       // Handle OPTIONS preflight requests (preflightContinue: true means we need to end them)
       if (req.method === 'OPTIONS') {
@@ -579,16 +584,20 @@ export class MCPStreamableHttpServer {
 
             for (const [type, provider] of this.oauthProviders!.entries()) {
               // Check if this provider's token store has this token
-              // This calls getToken() which is a local store lookup, NOT an API call
-              if ('getToken' in provider && typeof provider.getToken === 'function') {
-                const tokenInfo = await provider.getToken(token);
+              // This calls hasToken() which is a local store lookup, NOT an API call
+              try {
+                const hasToken = await provider.hasToken(token);
 
-                if (tokenInfo && tokenInfo.provider === type) {
+                if (hasToken) {
                   providerType = type;
                   correctProvider = provider;
                   logger.debug("Token belongs to provider", { provider: type, requestId });
                   break;
                 }
+              } catch (error) {
+                // Token not in this provider's store, continue
+                logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
+                continue;
               }
             }
 

@@ -174,6 +174,13 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   handleAuthorizationCallback(req: Request, res: Response): Promise<void>;
 
   /**
+   * Check if this provider has a token in its local store (no external API call)
+   * Returns true if the token exists in this provider's token store
+   * This is a fast, local-only lookup to identify which provider owns a token
+   */
+  hasToken(accessToken: string): Promise<boolean>;
+
+  /**
    * Handle token refresh requests
    * Refreshes an expired access token using the refresh token
    */

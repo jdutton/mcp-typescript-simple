@@ -115,6 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Last-Event-ID, mcp-session-id, mcp-protocol-version');
+    res.setHeader('Access-Control-Expose-Headers', 'mcp-session-id, mcp-protocol-version');
     res.setHeader('X-Request-ID', requestId);
 
     // Handle preflight requests
@@ -181,39 +182,59 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return;
         }
 
-        // Verify token with any configured provider (try all providers)
+        // Look up token in token stores to find which provider issued it (secure - local lookup only)
         const token = authHeader.substring(7);
-        let authResult = null;
-        let successfulProvider: OAuthProvider | null = null;
+        let providerType: string | undefined;
+        let correctProvider: OAuthProvider | undefined;
 
-        for (const [providerType, provider] of oauthProviders.entries()) {
+        for (const [type, provider] of oauthProviders.entries()) {
+          // Check if this provider's token store has this token
+          // This calls hasToken() which is a local store lookup, NOT an API call
           try {
-            logger.debug("Trying token verification with provider", { provider: providerType, requestId });
-            authResult = await provider.verifyAccessToken(token);
-            if (authResult) {
-              successfulProvider = provider;
-              logger.info("Token verified successfully", {
-                requestId,
-                provider: providerType,
-                clientId: authResult.clientId
-              });
-              break; // Success
+            const hasToken = await provider.hasToken(token);
+
+            if (hasToken) {
+              providerType = type;
+              correctProvider = provider;
+              logger.debug("Token belongs to provider", { provider: type, requestId });
+              break;
             }
           } catch (error) {
-            logger.debug("Token verification failed with provider", { provider: providerType, requestId });
-            // Try next provider
+            // Token not in this provider's store, continue
+            logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
             continue;
           }
         }
 
-        // No provider could verify the token
-        if (!authResult || !successfulProvider) {
-          logger.warn("Token verification failed with all providers", { requestId });
+        if (!correctProvider || !providerType) {
+          logger.warn("Token not found in any provider token store", { requestId });
           res.status(401).json({
             jsonrpc: '2.0',
             error: {
               code: -32000,
-              message: 'Unauthorized: Invalid bearer token',
+              message: 'Unauthorized: Invalid or expired access token',
+            },
+            id: null,
+          });
+          return;
+        }
+
+        // Now verify ONLY with the correct provider (secure - no token leakage)
+        logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
+        let authResult;
+        try {
+          authResult = await correctProvider.verifyAccessToken(token);
+        } catch (error) {
+          logger.warn("Token verification failed", {
+            requestId,
+            provider: providerType,
+            error: error instanceof Error ? error.message : error
+          });
+          res.status(401).json({
+            jsonrpc: '2.0',
+            error: {
+              code: -32000,
+              message: 'Unauthorized: Token verification failed',
             },
             id: null,
           });
@@ -223,7 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Extract auth info for metadata
         const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
         authInfo = {
-          provider: successfulProvider.getProviderType(),
+          provider: providerType,
           userId: userInfo?.sub,
           email: userInfo?.email,
         };

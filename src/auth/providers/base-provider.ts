@@ -554,6 +554,20 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
+   * Check if this provider has a token in its local store (no external API call)
+   * Fast, local-only lookup to identify which provider owns a token
+   */
+  async hasToken(accessToken: string): Promise<boolean> {
+    try {
+      const tokenInfo = await this.tokenStore.getToken(accessToken);
+      return tokenInfo !== null && tokenInfo.provider === this.getProviderType();
+    } catch (error) {
+      this.logDebug('Token lookup failed in hasToken', { error });
+      return false;
+    }
+  }
+
+  /**
    * Find token by refresh token
    */
   protected async findTokenByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | undefined> {
