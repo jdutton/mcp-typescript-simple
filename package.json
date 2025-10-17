@@ -67,7 +67,6 @@
     "docs:preview": "redocly preview-docs openapi.yaml",
     "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",
     "validate": "vibe-validate validate",
-    "validate:old": "npx tsx tools/run-validation-with-state.ts",
     "validate:generate-workflow": "npx tsx tools/generate-validate-workflow.ts --write",
     "validate:check-workflow-sync": "npx tsx tools/generate-validate-workflow.ts --check",
     "docker:build": "docker build -t mcp-typescript-simple .",
