@@ -23,8 +23,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
-        env:
-          LLM_OUTPUT: "1"
   eslint-code-checking:
     name: ESLint code checking
     runs-on: ubuntu-latest
@@ -36,8 +34,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
-        env:
-          LLM_OUTPUT: "1"
   openapi-validation:
     name: OpenAPI validation
     runs-on: ubuntu-latest
@@ -49,8 +45,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:openapi
-        env:
-          LLM_OUTPUT: "1"
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -62,8 +56,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-        env:
-          LLM_OUTPUT: "1"
   unit-tests:
     name: Unit tests
     runs-on: ubuntu-latest
@@ -80,8 +72,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:unit
-        env:
-          LLM_OUTPUT: "1"
   integration-tests:
     name: Integration tests
     runs-on: ubuntu-latest
@@ -98,8 +88,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:integration
-        env:
-          LLM_OUTPUT: "1"
   stdio-system-tests:
     name: STDIO system tests
     runs-on: ubuntu-latest
@@ -116,8 +104,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:system:stdio
-        env:
-          LLM_OUTPUT: "1"
   http-system-tests:
     name: HTTP system tests
     runs-on: ubuntu-latest
@@ -134,8 +120,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:system:ci
-        env:
-          LLM_OUTPUT: "1"
   headless-browser-tests:
     name: Headless browser tests
     runs-on: ubuntu-latest
@@ -152,8 +136,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:system:headless
-        env:
-          LLM_OUTPUT: "1"
   all-validation-passed:
     name: All Validation Passed
     runs-on: ubuntu-latest

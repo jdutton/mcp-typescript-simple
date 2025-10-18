@@ -57,7 +57,9 @@ async function startTestServer(): Promise<ChildProcess> {
 
   server.stdout?.on('data', (data) => {
     const text = data.toString();
-    if (process.env.LLM_OUTPUT !== '1') {
+    // Suppress server logs for cleaner test output
+    // Set SYSTEM_TEST_VERBOSE=true to see server logs
+    if (process.env.SYSTEM_TEST_VERBOSE === 'true') {
       console.log('[server]', text.trim());
     }
   });

@@ -56,9 +56,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
 
-    // Reporters - use LLM reporter in LLM_OUTPUT mode (same as unit tests)
-    reporters: process.env.LLM_OUTPUT === '1'
-      ? [['./test/llm-reporter.ts', {}]]
-      : ['default'],
+    // Reporters - use LLM reporter for concise output
+    reporters: [['./test/llm-reporter.ts', {}]],
   },
 });

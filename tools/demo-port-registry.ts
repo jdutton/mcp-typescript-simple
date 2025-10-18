@@ -46,8 +46,7 @@ async function leakPort(port: number): Promise<ChildProcess> {
     stdio: ['ignore', 'pipe', 'pipe'],
     detached: false,
     env: {
-      ...process.env,
-      LLM_OUTPUT: '1'
+      ...process.env
     }
   });
 

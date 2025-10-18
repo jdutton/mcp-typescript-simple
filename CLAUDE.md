@@ -44,20 +44,6 @@ npm run test:system:express  # Express HTTP server system tests
 npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
 npm run test:models          # Validate ALL LLM models with real API calls (requires API keys)
 
-# LLM-Optimized Test Output (IMPORTANT for Claude Code)
-# When running tests manually, ALWAYS use LLM_OUTPUT=1 for concise, failure-focused output
-LLM_OUTPUT=1 npm test                   # Clean output with only failures
-LLM_OUTPUT=1 npm run test:unit          # Unit tests with LLM-friendly output
-LLM_OUTPUT=1 npm run test:integration   # Integration tests with minimal noise
-LLM_OUTPUT=1 npm run test:system:ci     # System tests without server log spam
-
-# Why LLM_OUTPUT=1?
-# - Suppresses verbose server logs and startup messages
-# - Shows only test failures and errors (not passing tests)
-# - Reduces output from 200+ lines to <20 lines on failure
-# - Makes failures immediately visible (not buried in noise)
-# Note: npm run validate automatically uses LLM_OUTPUT=1
-
 # Note: Vitest migration in progress (181/294 tests passing)
 # See docs/vitest-migration.md for status and remaining work
 
