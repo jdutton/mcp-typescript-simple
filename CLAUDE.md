@@ -573,9 +573,13 @@ The CI pipeline includes 10 comprehensive test categories:
 
 **ALL tests must pass** before code can be merged. No exceptions.
 
-## Validation Error Handling with Sub-Agents
+## Validation Error Handling
 
-**When `npm run validate` fails, ALWAYS launch the `validation-fixer` sub-agent to fix errors.** Read `.validation-state` for the ready-to-use `agentPrompt` field.
+**When `npm run validate` fails:**
+1. Check validation status: `npx vibe-validate validate --check`
+2. View detailed errors: `npx vibe-validate state`
+3. Fix the errors listed in the output
+4. Re-run validation: `npx vibe-validate validate`
 
 ## Security Requirements
 
@@ -878,8 +882,9 @@ Runs complete validation pipeline with git tree hash state caching.
 **Features:**
 - Caches results based on git tree hash (includes all changes)
 - Skips validation if code unchanged (massive time savings)
-- Embeds error output in `.validate-state.yaml`
-- Provides agent-friendly prompts for fixing errors
+- Stores validation state in `.vibe-validate-state.yaml` (git-ignored)
+- Check status with: `npx vibe-validate validate --check`
+- View errors with: `npx vibe-validate state`
 - Use `--force` flag to bypass cache
 
 **Validation steps:**
@@ -893,15 +898,23 @@ Runs complete validation pipeline with git tree hash state caching.
 8. HTTP system tests
 9. Headless browser tests
 
-### Validation State File
+### Checking Validation Status
 
-`.validate-state.yaml` - Git-ignored state file tracking validation results:
-- `passed`: Boolean validation result
-- `timestamp`: ISO 8601 timestamp
-- `treeHash`: Git tree hash (deterministic code state)
-- `failedStep`: Name of failed step (if any)
-- `failedStepOutput`: Complete error output (embedded)
-- `agentPrompt`: Ready-to-use prompt for fixing errors
+Use these commands to check validation status:
+
+**Quick status check:**
+```bash
+npx vibe-validate validate --check
+# Exit codes: 0 (passed), 1 (failed), 2 (no state), 3 (outdated)
+```
+
+**Detailed validation state:**
+```bash
+npx vibe-validate state
+# Returns JSON with: passed, timestamp, treeHash, phases, steps
+```
+
+**State file location:** `.vibe-validate-state.yaml` (git-ignored, do not read directly - use commands above)
 
 ### Why These Tools Exist
 
@@ -1070,9 +1083,16 @@ For vibe-validate development and contribution:
 
 **Q**: Validation is slow (90s every time)
 **A**: Caching might not be working. Check:
-1. `.vibe-validate-state.yaml` exists and is up to date
-2. Working tree is clean (`git status`)
-3. No uncommitted changes
+1. Check validation status: `npx vibe-validate validate --check`
+2. Ensure working tree is clean: `git status`
+3. View validation state: `npx vibe-validate state`
+4. Try force re-validation: `npx vibe-validate validate --force`
+
+**Q**: How do I check if validation passed?
+**A**: `npx vibe-validate validate --check` (returns exit code 0 if passed)
+
+**Q**: How do I see validation errors?
+**A**: `npx vibe-validate state` (returns JSON with all error details)
 
 **Q**: How do I force re-validation?
 **A**: `npx vibe-validate validate --force` (bypasses cache)
