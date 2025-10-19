@@ -54,9 +54,11 @@ data/
 
 # Validation state (never commit - contains git tree hash and validation results)
 .validate-state.yaml
+.vibe-validate-state.yaml
 
 # Work-in-progress tracking (never commit - used for local PR/task tracking only)
 TODO.md
+SUMMARY.md
 
 # Playwright test artifacts
 test-results/

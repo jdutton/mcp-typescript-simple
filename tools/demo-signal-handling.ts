@@ -52,8 +52,7 @@ async function startServer(port: number): Promise<ChildProcess> {
   `], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
-      ...process.env,
-      LLM_OUTPUT: '1'
+      ...process.env
     }
   });
 

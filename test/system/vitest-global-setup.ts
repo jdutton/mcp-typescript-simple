@@ -9,17 +9,14 @@ let globalHttpServer: ChildProcess | null = null;
 
 /**
  * Filter and conditionally log server output
- * Only shows error/warn level logs to reduce noise during tests
+ * Only shows fatal errors to reduce noise during tests
  * Set SYSTEM_TEST_VERBOSE=true to see all server output
- * Set LLM_OUTPUT=1 to suppress ALL server logs (except fatal errors)
  */
 function filterAndLogServerOutput(text: string, isStderr: boolean = false): void {
-  // LLM mode: suppress all server logs (only show fatal startup errors)
-  if (process.env.LLM_OUTPUT === '1') {
-    // Only log fatal errors that would prevent startup
-    if (text.includes('FATAL') || text.includes('Cannot start server')) {
-      console.error('[Server FATAL]:', text);
-    }
+  // Suppress all server logs (only show fatal startup errors)
+  // Only log fatal errors that would prevent startup
+  if (text.includes('FATAL') || text.includes('Cannot start server')) {
+    console.error('[Server FATAL]:', text);
     return;
   }
 
@@ -149,7 +146,6 @@ export default async function globalSetup(): Promise<void> {
       env: {
         ...process.env,
         NODE_ENV: 'development',  // Ensure server runs in development mode, not test mode
-        LLM_OUTPUT: undefined,    // Unset LLM_OUTPUT to allow server logs for startup detection
         MCP_MODE: 'streamable_http',
         MCP_DEV_SKIP_AUTH: 'true',
         HTTP_PORT: httpPort,

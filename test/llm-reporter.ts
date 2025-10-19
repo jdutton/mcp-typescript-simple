@@ -1,19 +1,14 @@
 /**
- * LLM-Friendly Vitest Reporter
+ * LLM-Optimized Vitest Reporter
  *
- * Supports two modes:
- * 1. Standard mode: Adds LLM summary after default reporter output
- * 2. LLM mode (LLM_OUTPUT=1): Shows concise failure summaries only + suppresses pino logs
+ * Shows concise failure summaries optimized for AI assistants.
+ * - Only shows failures and errors (not passing tests)
+ * - Suppresses verbose server logs
+ * - Reduces output from 200+ lines to <20 lines on failure
+ * - Makes failures immediately visible
  *
- * Usage:
- *   npm run test:unit               # Standard mode (verbose + summary + logs)
- *   LLM_OUTPUT=1 npm run test:unit  # LLM mode (concise failures only, no logs)
- *   npm run validate                # Automatically uses LLM mode
- *
- * When LLM_OUTPUT=1 is set:
- * - Vitest reporter shows only concise failure summaries
- * - Pino logs are redirected to /dev/null (see src/observability/logger.ts)
- * - Full verbose logs still written to /tmp/mcp-validation-*.log for debugging
+ * Used automatically by all test commands and validation.
+ * Full verbose logs still written to /tmp/mcp-validation-*.log for debugging.
  *
  * Only applies to Vitest-based tests (test:unit). Integration tests (ci-test.ts)
  * and Playwright tests (test:system:headless) use different test runners.
@@ -38,8 +33,8 @@ export default class LLMReporter implements Reporter {
   onInit(ctx: Vitest) {
     this.ctx = ctx;
 
-    // Check for LLM_OUTPUT environment variable
-    this.llmMode = process.env.LLM_OUTPUT === '1';
+    // Always use LLM mode for concise output
+    this.llmMode = true;
 
     if (this.llmMode) {
       // Suppress default Vitest output by configuring reporter

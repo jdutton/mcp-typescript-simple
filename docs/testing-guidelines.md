@@ -646,19 +646,17 @@ npm run test:system      # System tests (STDIO + HTTP)
 
 #### LLM-Optimized Output
 
-For concise, failure-focused output (recommended when using Claude Code or other AI assistants):
+All test commands use concise, failure-focused output optimized for AI assistants:
 
 ```bash
-# Clean output with only failures
-LLM_OUTPUT=1 npm test
-LLM_OUTPUT=1 npm run test:integration
-LLM_OUTPUT=1 npm run test:system
-
-# Validation with LLM output (automatically enabled)
+# All these commands use LLM-optimized output automatically
+npm test
+npm run test:integration
+npm run test:system
 npm run validate
 ```
 
-**Benefits of LLM_OUTPUT=1**:
+**Benefits of LLM-optimized output**:
 - Suppresses verbose server logs
 - Shows only test failures (not passing tests)
 - Reduces output from 200+ lines to <20 lines on failure
@@ -729,7 +727,7 @@ Tests run automatically on pull requests via `.github/workflows/validate.yml`:
 9. Headless browser tests
 10. Docker build
 
-All tests use `LLM_OUTPUT=1` for concise output.
+All tests use LLM-optimized output automatically for concise, failure-focused reporting.
 
 #### Pre-Commit Validation
 
@@ -764,8 +762,8 @@ for i in {1..10}; do npm test -- test/unit/flaky.test.ts; done
 
 2. **Enable verbose logging**:
 ```bash
-# Run without LLM_OUTPUT to see all logs
-npm test -- test/unit/flaky.test.ts
+# Set SYSTEM_TEST_VERBOSE to see all server logs
+SYSTEM_TEST_VERBOSE=true npm test -- test/unit/flaky.test.ts
 ```
 
 3. **Check for resource leaks**:

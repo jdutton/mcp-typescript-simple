@@ -1,8 +1,16 @@
 # Agentic Workflow Tooling - Extraction Strategy
 
+**Status**: ✅ COMPLETE - Extracted as [vibe-validate](https://github.com/jdutton/vibe-validate)
+
+**Published to npm**: `@vibe-validate/*` packages
+
 ## Executive Summary
 
-This document outlines the strategy for extracting our custom SDLC automation tooling into a standalone, reusable open-source project: **`@agentic-workflow`**
+This document outlines the strategy for extracting our custom SDLC automation tooling into a standalone, reusable open-source project.
+
+**Original Name**: `@agentic-workflow`
+**Final Name**: `vibe-validate` (better brand recognition, clearer purpose)
+**Status**: Published to npm registry and actively maintained
 
 ## Research Foundation
 

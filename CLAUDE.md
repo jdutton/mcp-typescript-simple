@@ -44,20 +44,6 @@ npm run test:system:express  # Express HTTP server system tests
 npm run test:system:ci       # Express HTTP server for CI testing (cross-origin)
 npm run test:models          # Validate ALL LLM models with real API calls (requires API keys)
 
-# LLM-Optimized Test Output (IMPORTANT for Claude Code)
-# When running tests manually, ALWAYS use LLM_OUTPUT=1 for concise, failure-focused output
-LLM_OUTPUT=1 npm test                   # Clean output with only failures
-LLM_OUTPUT=1 npm run test:unit          # Unit tests with LLM-friendly output
-LLM_OUTPUT=1 npm run test:integration   # Integration tests with minimal noise
-LLM_OUTPUT=1 npm run test:system:ci     # System tests without server log spam
-
-# Why LLM_OUTPUT=1?
-# - Suppresses verbose server logs and startup messages
-# - Shows only test failures and errors (not passing tests)
-# - Reduces output from 200+ lines to <20 lines on failure
-# - Makes failures immediately visible (not buried in noise)
-# Note: npm run validate automatically uses LLM_OUTPUT=1
-
 # Note: Vitest migration in progress (181/294 tests passing)
 # See docs/vitest-migration.md for status and remaining work
 
@@ -573,9 +559,13 @@ The CI pipeline includes 10 comprehensive test categories:
 
 **ALL tests must pass** before code can be merged. No exceptions.
 
-## Validation Error Handling with Sub-Agents
+## Validation Error Handling
 
-**When `npm run validate` fails, ALWAYS launch the `validation-fixer` sub-agent to fix errors.** Read `.validation-state` for the ready-to-use `agentPrompt` field.
+**When `npm run validate` fails:**
+1. Check validation status: `npx vibe-validate validate --check`
+2. View detailed errors: `npx vibe-validate state`
+3. Fix the errors listed in the output
+4. Re-run validation: `npx vibe-validate validate`
 
 ## Security Requirements
 
@@ -878,8 +868,8 @@ Runs complete validation pipeline with git tree hash state caching.
 **Features:**
 - Caches results based on git tree hash (includes all changes)
 - Skips validation if code unchanged (massive time savings)
-- Embeds error output in `.validate-state.yaml`
-- Provides agent-friendly prompts for fixing errors
+- Check status with: `npx vibe-validate validate --check`
+- View errors with: `npx vibe-validate state`
 - Use `--force` flag to bypass cache
 
 **Validation steps:**
@@ -893,15 +883,22 @@ Runs complete validation pipeline with git tree hash state caching.
 8. HTTP system tests
 9. Headless browser tests
 
-### Validation State File
+### Checking Validation Status
 
-`.validate-state.yaml` - Git-ignored state file tracking validation results:
-- `passed`: Boolean validation result
-- `timestamp`: ISO 8601 timestamp
-- `treeHash`: Git tree hash (deterministic code state)
-- `failedStep`: Name of failed step (if any)
-- `failedStepOutput`: Complete error output (embedded)
-- `agentPrompt`: Ready-to-use prompt for fixing errors
+Use these commands to check validation status:
+
+**Quick status check:**
+```bash
+npx vibe-validate validate --check
+# Exit codes: 0 (passed), 1 (failed), 2 (no state), 3 (outdated)
+```
+
+**Detailed validation state:**
+```bash
+npx vibe-validate state
+# Returns JSON with: passed, timestamp, treeHash, phases, steps
+```
+
 
 ### Why These Tools Exist
 
@@ -964,3 +961,124 @@ npm run pre-commit
 - **Pre-commit Hook**: `docs/pre-commit-hook.md`
 - **Architecture Research**: Issue #68 (chief-arch agent output)
 - **Source Code**: `tools/` directory
+
+## Validation with vibe-validate
+
+**NEW (2025-10-16)**: This project now uses [vibe-validate](https://github.com/jdutton-vercel/vibe-validate) for validation orchestration!
+
+### What is vibe-validate?
+
+vibe-validate is a **language-agnostic validation orchestration tool** with:
+- **Git tree hash-based validation state caching** (312x speedup on repeat runs!)
+- **Agent-friendly error output** optimized for AI assistants like Claude Code
+- **Parallel phase execution** for fast validation
+- **Pre-commit workflow integration** with automatic branch sync checking
+- **TypeScript/JavaScript presets** for common project types
+
+### Why we switched
+
+The SDLC automation tools in this project (`tools/run-validation-with-state.ts`, `tools/sync-check.ts`, etc.) were **extracted into vibe-validate** as a standalone npm package. We're now using the published package instead of the local scripts.
+
+### Installation
+
+This project uses vibe-validate from npm registry:
+
+```bash
+npm install -D @vibe-validate/cli @vibe-validate/config @vibe-validate/core @vibe-validate/formatters @vibe-validate/git
+```
+
+### Available Commands
+
+```bash
+# Show configuration
+npx vibe-validate config
+
+# Run full validation (~90s first run)
+npx vibe-validate validate
+
+# Run cached validation (~288ms if unchanged)
+npx vibe-validate validate
+
+# Check validation state
+npx vibe-validate state
+
+# Pre-commit workflow (branch sync + cached validation)
+npx vibe-validate pre-commit
+
+# Check if branch is behind origin/main
+npx vibe-validate sync-check
+
+# Post-PR merge cleanup
+npx vibe-validate cleanup
+```
+
+### Configuration
+
+The validation configuration is in `vibe-validate.config.mjs` (root directory):
+
+- **Preset**: `typescript-nodejs` (optimized for Node.js applications)
+- **2 Parallel Phases**:
+  - Phase 1: Pre-Qualification + Build (typecheck, lint, OpenAPI validation, build)
+  - Phase 2: Testing (unit, integration, STDIO, HTTP, headless browser tests)
+- **Caching**: Git tree hash-based (deterministic, content-based)
+- **Fail Fast**: Disabled (runs all steps even if one fails, for complete error reporting)
+
+### Performance
+
+**Validation Caching Performance:**
+- **Full validation**: ~90 seconds (9 validation steps across 2 parallel phases)
+- **Cached validation**: 288ms (git tree hash calculation + state file read)
+- **Speedup**: **312x** when code hasn't changed!
+
+### Workflow Integration
+
+**Pre-commit workflow** (`npm run pre-commit` / `npx vibe-validate pre-commit`):
+1. Checks branch sync with origin/main
+2. Calculates git tree hash of current working tree
+3. If hash matches cached state → skip validation (288ms)
+4. If hash differs → run full validation (~90s)
+5. Cache new state for next run
+
+**When to use:**
+- **MANDATORY before every commit** (already integrated in package.json scripts)
+- Before pushing to GitHub
+- When switching branches or pulling changes
+
+### Migration Status
+
+**Completed:**
+- ✅ Installed all 5 vibe-validate packages (@vibe-validate/cli, config, core, formatters, git)
+- ✅ Created `vibe-validate.config.mjs` with project-specific configuration
+- ✅ Updated package.json scripts to use vibe-validate commands
+- ✅ Tested all commands successfully
+- ✅ Validated caching performance (312x speedup!)
+- ✅ Switched to published npm version
+- ✅ CI/CD using published vibe-validate
+
+### Related Documentation
+
+For vibe-validate development and contribution:
+- **vibe-validate/CONTRIBUTING.md** - Local development setup
+- **vibe-validate/docs/local-development.md** - Multi-mode development workflow
+- **vibe-validate/README.md** - User-facing documentation
+
+### Troubleshooting
+
+**Q**: Validation is slow (90s every time)
+**A**: Caching might not be working. Check:
+1. Check validation status: `npx vibe-validate validate --check`
+2. Ensure working tree is clean: `git status`
+3. View validation state: `npx vibe-validate state`
+4. Try force re-validation: `npx vibe-validate validate --force`
+
+**Q**: How do I check if validation passed?
+**A**: `npx vibe-validate validate --check` (returns exit code 0 if passed)
+
+**Q**: How do I see validation errors?
+**A**: `npx vibe-validate state` (returns JSON with all error details)
+
+**Q**: How do I force re-validation?
+**A**: `npx vibe-validate validate --force` (bypasses cache)
+
+**Q**: Validation fails but old tooling passed
+**A**: vibe-validate runs steps in parallel phases - may expose race conditions or timing issues. Check test isolation.
