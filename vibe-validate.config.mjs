@@ -33,6 +33,10 @@ export default defineConfig({
             name: 'Build',
             command: 'npm run build',
           },
+          {
+            name: 'Setup Playwright browsers',
+            command: 'npx playwright install --with-deps chromium',
+          },
         ],
       },
       {
