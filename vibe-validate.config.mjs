@@ -33,10 +33,6 @@ export default defineConfig({
             name: 'Build',
             command: 'npm run build',
           },
-          {
-            name: 'Setup Playwright browsers',
-            command: 'npx playwright install --with-deps chromium',
-          },
         ],
       },
       {
@@ -62,7 +58,7 @@ export default defineConfig({
           },
           {
             name: 'Headless browser tests',
-            command: 'npm run test:system:headless',
+            command: 'npx playwright install --with-deps chromium && npm run test:system:headless',
           },
         ],
       },
