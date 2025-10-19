@@ -1,0 +1,37 @@
+extends: typescript-nodejs
+validation:
+  phases:
+    - name: 'Phase 1: Pre-Qualification + Build'
+      parallel: true
+      steps:
+        - name: TypeScript type checking
+          command: npm run typecheck
+        - name: ESLint code checking
+          command: npm run lint
+        - name: OpenAPI validation
+          command: npm run test:openapi
+        - name: Build
+          command: npm run build
+    - name: 'Phase 2: Testing'
+      parallel: true
+      dependsOn:
+        - 'Phase 1: Pre-Qualification + Build'
+      steps:
+        - name: Unit tests
+          command: npm run test:unit
+        - name: Integration tests
+          command: npm run test:integration
+        - name: STDIO system tests
+          command: npm run test:system:stdio
+        - name: HTTP system tests
+          command: npm run test:system:ci
+        - name: Headless browser tests
+          command: npx playwright install --with-deps chromium && npm run test:system:headless
+  caching:
+    enabled: true
+    strategy: git-tree-hash
+git:
+  mainBranch: main
+  autoSync: false
+output:
+  format: auto
