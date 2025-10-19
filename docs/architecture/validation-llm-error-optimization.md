@@ -1,8 +1,14 @@
 # LLM-Optimized Validation Failure Handling
 
+**Status**: Historical reference - this functionality is now provided by [vibe-validate](https://github.com/jdutton/vibe-validate)
+
+**Package**: `@vibe-validate/formatters`
+
 ## Overview
 
 This document describes the intelligent error formatting system for validation failures, optimizing output for consumption by LLMs like Claude Code. The system automatically detects validation step types and applies appropriate formatting, noise removal, and actionable guidance.
+
+**Note**: The original implementation described here (`tools/error-formatter.ts`) has been extracted into the vibe-validate package and is maintained there.
 
 ## Problem Statement
 

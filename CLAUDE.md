@@ -868,7 +868,6 @@ Runs complete validation pipeline with git tree hash state caching.
 **Features:**
 - Caches results based on git tree hash (includes all changes)
 - Skips validation if code unchanged (massive time savings)
-- Stores validation state in `.vibe-validate-state.yaml` (git-ignored)
 - Check status with: `npx vibe-validate validate --check`
 - View errors with: `npx vibe-validate state`
 - Use `--force` flag to bypass cache
@@ -900,7 +899,6 @@ npx vibe-validate state
 # Returns JSON with: passed, timestamp, treeHash, phases, steps
 ```
 
-**State file location:** `.vibe-validate-state.yaml` (git-ignored, do not read directly - use commands above)
 
 ### Why These Tools Exist
 
@@ -981,11 +979,13 @@ vibe-validate is a **language-agnostic validation orchestration tool** with:
 
 The SDLC automation tools in this project (`tools/run-validation-with-state.ts`, `tools/sync-check.ts`, etc.) were **extracted into vibe-validate** as a standalone npm package. We're now using the published package instead of the local scripts.
 
-### Local Development Setup
+### Installation
 
-**Current Mode**: This project uses vibe-validate from the **local workspace** at `/Users/jeff/Workspaces/vibe-validate` (via file: protocol symlinks).
+This project uses vibe-validate from npm registry:
 
-**Why**: We're actively developing vibe-validate alongside this project. Once vibe-validate is published to npm, this will switch to the published version.
+```bash
+npm install -D @vibe-validate/cli @vibe-validate/config @vibe-validate/core @vibe-validate/formatters @vibe-validate/git
+```
 
 ### Available Commands
 
@@ -1052,11 +1052,8 @@ The validation configuration is in `vibe-validate.config.mjs` (root directory):
 - ✅ Updated package.json scripts to use vibe-validate commands
 - ✅ Tested all commands successfully
 - ✅ Validated caching performance (312x speedup!)
-
-**Next Steps (Post-Publish):**
-- [ ] Switch from `file:` protocol to published npm version
-- [ ] Update CI/CD to use published vibe-validate
-- [ ] Remove old `tools/` validation scripts (kept as reference for now)
+- ✅ Switched to published npm version
+- ✅ CI/CD using published vibe-validate
 
 ### Related Documentation
 

@@ -1,6 +1,9 @@
 # Validation Concurrency Architecture
 
-**Status**: Design Document
+**Status**: Historical reference - this functionality is now provided by [vibe-validate](https://github.com/jdutton/vibe-validate)
+
+**Package**: `@vibe-validate/core`
+
 **Last Updated**: 2025-01-11
 
 ## Executive Summary
