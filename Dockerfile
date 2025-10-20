@@ -28,7 +28,7 @@ COPY openapi.yaml ./
 
 # Remove dev dependencies and source files to reduce image size
 RUN rm -rf src/ tsconfig.json
-RUN npm ci --only=production
+RUN npm prune --production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs
