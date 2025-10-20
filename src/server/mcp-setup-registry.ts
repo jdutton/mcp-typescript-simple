@@ -22,7 +22,7 @@ export async function setupMCPServerWithRegistry(
   // Tool definitions - get from registry
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     const tools = registry.list();
-    logger.debug("Listing tools from registry", { count: tools.length, tools: tools.map(t => t.name) });
+    logger.debug("Listing tools from registry", { count: tools.length, tools: tools.map((t: { name: string }) => t.name) });
     return { tools };
   });
 
