@@ -259,9 +259,9 @@ class VercelConfigTestRunner {
 
       // Check for critical build outputs needed by API functions
       const requiredBuildFiles = [
-        'build/llm/manager.js',
-        'build/server/mcp-setup.js',
-        'build/auth/factory.js'
+        'build/server/mcp-setup-registry.js',  // Updated after tool extraction
+        'build/auth/factory.js',
+        'build/index.js'  // Main entry point
       ];
 
       for (const file of requiredBuildFiles) {
