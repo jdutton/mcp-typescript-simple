@@ -10,11 +10,12 @@ COPY tsconfig.json ./
 # Copy workspace packages for build
 COPY packages/ ./packages/
 
-# Install all dependencies (needed for build)
-RUN npm ci
+# Copy tools directory (needed for postinstall script)
+COPY tools/ ./tools/
 
-# Build workspace packages first
-RUN npm run build --workspaces
+# Install all dependencies (needed for build)
+# Note: postinstall script automatically builds workspace packages
+RUN npm ci
 
 # Copy source code
 COPY src/ ./src/
