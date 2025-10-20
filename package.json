@@ -76,7 +76,6 @@
     "docker:build": "docker build -t mcp-typescript-simple .",
     "docker:run": "docker run --rm -it mcp-typescript-simple",
     "docker:dev": "npm run docker:build && npm run docker:run",
-    "postinstall": "npm run build --workspaces --if-present",
     "prepare": "husky || true"
   },
   "keywords": [

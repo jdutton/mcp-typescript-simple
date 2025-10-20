@@ -1,8 +1,15 @@
 extends: typescript-nodejs
 validation:
   phases:
+    - name: 'Phase 0: Workspace Build'
+      parallel: false
+      steps:
+        - name: Build workspace packages
+          command: bash tools/build-workspaces.sh
     - name: 'Phase 1: Pre-Qualification + Build'
       parallel: true
+      dependsOn:
+        - 'Phase 0: Workspace Build'
       steps:
         - name: TypeScript type checking
           command: npm run typecheck
