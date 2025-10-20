@@ -7,7 +7,7 @@
  * Run with: npx jest test/integration/gemini-retired-models.test.ts
  */
 
-import { LLMManager } from '../../src/llm/manager.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 describe('Gemini Retired Models Bug Reproduction', () => {
   let llmManager: LLMManager;

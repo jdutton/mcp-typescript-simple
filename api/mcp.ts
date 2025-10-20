@@ -7,9 +7,12 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
-import { LLMManager } from "../build/llm/manager.js";
+import { LLMManager } from "../packages/tools-llm/dist/index.js";
+import { ToolRegistry } from "../packages/tools/dist/index.js";
+import { basicTools } from "../packages/example-tools-basic/dist/index.js";
+import { createLLMTools } from "../packages/example-tools-llm/dist/index.js";
 import { MCPInstanceManager } from "../build/server/mcp-instance-manager.js";
-import { setupMCPServer } from "../build/server/mcp-setup.js";
+import { setupMCPServerWithRegistry } from "../build/server/mcp-setup-registry.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
 import { OAuthProviderFactory } from "../build/auth/factory.js";
 import { OAuthProvider } from "../build/auth/providers/types.js";
@@ -17,6 +20,9 @@ import { logger } from "../build/observability/logger.js";
 
 // Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;
+
+// Global tool registry for reuse
+let toolRegistryInstance: ToolRegistry | null = null;
 
 // Global OAuth providers map for multi-provider authentication
 let oauthProvidersInstance: Map<string, OAuthProvider> | null = null;
@@ -53,6 +59,33 @@ async function getLLMManager(): Promise<LLMManager> {
 }
 
 /**
+ * Get or initialize tool registry (singleton)
+ */
+async function getToolRegistry(): Promise<ToolRegistry> {
+  if (toolRegistryInstance) {
+    return toolRegistryInstance;
+  }
+
+  logger.info("Initializing tool registry for Vercel");
+  const registry = new ToolRegistry();
+
+  // Add basic tools (always available)
+  registry.merge(basicTools);
+
+  // Try to add LLM tools if available
+  try {
+    const llmManager = await getLLMManager();
+    registry.merge(createLLMTools(llmManager));
+    logger.info("LLM tools registered successfully");
+  } catch (error) {
+    logger.warn("LLM tools not available", { error });
+  }
+
+  toolRegistryInstance = registry;
+  return registry;
+}
+
+/**
  * Get or initialize OAuth providers (singleton - multi-provider support)
  */
 async function getOAuthProviders(): Promise<Map<string, OAuthProvider> | null> {
@@ -86,10 +119,10 @@ async function getInstanceManager(): Promise<MCPInstanceManager> {
   }
 
   logger.info("Initializing MCP instance manager for Vercel");
-  const llmManager = await getLLMManager();
+  const toolRegistry = await getToolRegistry();
 
   // Instance manager auto-detects Redis when available
-  instanceManagerInstance = new MCPInstanceManager(llmManager);
+  instanceManagerInstance = new MCPInstanceManager(toolRegistry);
 
   logger.info("MCP instance manager initialized");
   return instanceManagerInstance;
@@ -275,8 +308,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
       });
 
-      // Create new server using LLM manager
-      const llmManager = await getLLMManager();
+      // Create new server using tool registry
+      const toolRegistry = await getToolRegistry();
       const server = new Server(
         {
           name: "mcp-typescript-simple",
@@ -289,8 +322,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       );
 
-      // Setup server with tools
-      await setupMCPServer(server, llmManager);
+      // Setup server with tools from registry
+      await setupMCPServerWithRegistry(server, toolRegistry);
 
       // Connect server to transport
       await server.connect(transport);

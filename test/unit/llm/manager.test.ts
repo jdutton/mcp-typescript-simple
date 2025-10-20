@@ -1,8 +1,7 @@
 import { vi } from 'vitest';
 
-import { LLMManager } from '../../../src/llm/manager.js';
-import { LLMConfigManager } from '../../../src/llm/config.js';
-import type { LLMConfig, LLMProvider } from '../../../src/llm/types.js';
+import { LLMManager, LLMConfigManager } from '@mcp-typescript-simple/tools-llm';
+import type { LLMConfig, LLMProvider } from '@mcp-typescript-simple/tools-llm';
 
 const baseConfig: LLMConfig = {
   defaultProvider: 'claude',

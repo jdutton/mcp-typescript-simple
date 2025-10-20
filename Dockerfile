@@ -5,13 +5,19 @@ WORKDIR /app
 
 # Copy package files and npm configuration
 COPY package*.json .npmrc ./
+COPY tsconfig.json ./
+
+# Copy workspace packages for build
+COPY packages/ ./packages/
 
 # Install all dependencies (needed for build)
 RUN npm ci
 
-# Copy source code and TypeScript config
+# Build workspace packages first
+RUN npm run build --workspaces
+
+# Copy source code
 COPY src/ ./src/
-COPY tsconfig.json ./
 
 # Build the TypeScript project
 RUN npm run build

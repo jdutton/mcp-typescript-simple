@@ -2,7 +2,6 @@
  * LLM configuration management
  */
 
-import { EnvironmentConfig } from '../config/environment.js';
 import { LLMConfig, LLMProvider, ProviderModelMap, ModelsForProvider } from './types.js';
 import { logger } from '../utils/logger.js';
 
@@ -12,11 +11,10 @@ export class LLMConfigManager {
   constructor() {}
 
   async loadConfig(): Promise<LLMConfig> {
-    const env = EnvironmentConfig.get();
-
-    const claudeKey = env.ANTHROPIC_API_KEY || '';
-    const openaiKey = env.OPENAI_API_KEY || '';
-    const geminiKey = env.GOOGLE_API_KEY || '';
+    // Read directly from process.env
+    const claudeKey = process.env.ANTHROPIC_API_KEY || '';
+    const openaiKey = process.env.OPENAI_API_KEY || '';
+    const geminiKey = process.env.GOOGLE_API_KEY || '';
 
     const emptyKeys: string[] = [];
     if (!claudeKey) {
@@ -118,8 +116,8 @@ export class LLMConfigManager {
   }
 
   private async getDefaultProvider(): Promise<LLMProvider> {
-    const env = EnvironmentConfig.get();
-    const defaultProvider = env.LLM_DEFAULT_PROVIDER || process.env.LLM_DEFAULT_PROVIDER;
+    // Read directly from process.env
+    const defaultProvider = process.env.LLM_DEFAULT_PROVIDER;
 
     if (defaultProvider && ['claude', 'openai', 'gemini'].includes(defaultProvider)) {
       return defaultProvider as LLMProvider;

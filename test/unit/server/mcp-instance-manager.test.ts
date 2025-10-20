@@ -6,26 +6,34 @@
 
 import { MCPInstanceManager } from '../../../src/server/mcp-instance-manager.js';
 import { MemoryMCPMetadataStore } from '../../../src/session/memory-mcp-metadata-store.js';
-import { LLMManager } from '../../../src/llm/manager.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
+import { ToolRegistry } from '@mcp-typescript-simple/tools';
+import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
+import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { MCPSessionMetadata } from '../../../src/session/mcp-session-metadata-store-interface.js';
 
 describe('MCPInstanceManager', () => {
   let manager: MCPInstanceManager;
   let metadataStore: MemoryMCPMetadataStore;
-  let llmManager: LLMManager;
+  let toolRegistry: ToolRegistry;
 
   beforeEach(async () => {
     metadataStore = new MemoryMCPMetadataStore();
-    llmManager = new LLMManager();
 
-    // Initialize LLM manager (gracefully handle missing API keys)
+    // Create tool registry with basic tools
+    toolRegistry = new ToolRegistry();
+    toolRegistry.merge(basicTools);
+
+    // Try to add LLM tools (gracefully handle missing API keys)
     try {
+      const llmManager = new LLMManager();
       await llmManager.initialize();
+      toolRegistry.merge(createLLMTools(llmManager));
     } catch (error) {
       // Ignore - LLM tools will be unavailable but basic tools still work
     }
 
-    manager = new MCPInstanceManager(llmManager, metadataStore);
+    manager = new MCPInstanceManager(toolRegistry, metadataStore);
   });
 
   afterEach(() => {

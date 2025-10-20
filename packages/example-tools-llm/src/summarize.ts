@@ -1,0 +1,107 @@
+/**
+ * Summarize tool - Cost-effective text summarization with Gemini
+ *
+ * Example tool demonstrating:
+ * - Length and format customization (brief/medium/detailed, paragraph/bullets/outline)
+ * - Focus area specification
+ * - Multi-provider LLM integration (optimized for Gemini Flash)
+ * - Consistent summarization output
+ */
+
+import { defineTool } from '@mcp-typescript-simple/tools';
+import { z } from 'zod';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
+import { AnyModel, isValidModelForProvider, getDefaultModelForProvider } from '@mcp-typescript-simple/tools-llm';
+
+const SummarizeToolZodSchema = z.object({
+  text: z.string().describe('The text to summarize'),
+  length: z.enum(['brief', 'medium', 'detailed']).optional()
+    .describe('Length of summary. Options: brief, medium, detailed (default: medium)'),
+  format: z.enum(['paragraph', 'bullets', 'outline']).optional()
+    .describe('Format of the summary. Options: paragraph, bullets, outline (default: paragraph)'),
+  focus: z.string().optional().describe('Specific aspect to focus the summary on'),
+  provider: z.enum(['claude', 'openai', 'gemini']).optional().describe('LLM provider to use (default: gemini)'),
+  model: z.string().optional().describe('Specific model to use. Must be valid for the selected provider.')
+});
+
+export type SummarizeToolInput = z.infer<typeof SummarizeToolZodSchema>;
+
+/**
+ * Create summarize tool with injected LLM manager
+ */
+export function createSummarizeTool(llmManager: LLMManager) {
+  return defineTool({
+    name: 'summarize',
+    description: 'Text summarization with flexible length and format options',
+    inputSchema: SummarizeToolZodSchema,
+    handler: async (input: SummarizeToolInput) => {
+      try {
+        const length = input.length || 'medium';
+        const format = input.format || 'paragraph';
+
+        const lengthInstructions = {
+          brief: 'Create a very concise summary in 1-2 sentences.',
+          medium: 'Create a balanced summary in 2-4 sentences.',
+          detailed: 'Create a comprehensive summary in multiple paragraphs.'
+        };
+
+        const formatInstructions = {
+          paragraph: 'Format as flowing prose paragraphs.',
+          bullets: 'Format as bullet points highlighting key information.',
+          outline: 'Format as a structured outline with main points and sub-points.'
+        };
+
+        let systemPrompt = `You are an expert summarizer. ${lengthInstructions[length]} ${formatInstructions[format]}`;
+
+        if (input.focus) {
+          systemPrompt += ` Focus especially on: ${input.focus}`;
+        }
+
+        systemPrompt += ' Ensure accuracy and capture the most important information.';
+
+        // Get default provider/model for summarize tool if not specified
+        const toolDefaults = llmManager.getProviderForTool('summarize');
+        const provider = input.provider ?? toolDefaults.provider;
+
+        // If user specified provider without model, use that provider's default model
+        let model: string | undefined;
+        if (input.provider && !input.model) {
+          model = getDefaultModelForProvider(input.provider);
+        } else {
+          model = input.model ?? toolDefaults.model;
+        }
+
+        if (model && !isValidModelForProvider(provider, model as AnyModel)) {
+          throw new Error(`Model '${model}' is not valid for provider '${provider}'`);
+        }
+
+        const response = await llmManager.complete({
+          message: `Please summarize the following text:\n\n${input.text}`,
+          systemPrompt,
+          temperature: 0.3, // Lower temperature for consistent summarization
+          provider,
+          model: model as AnyModel | undefined
+        });
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: response.content
+            }
+          ]
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Summarization failed: ${errorMessage}\n\nError details:\n- Tool: summarize\n- Code: SUMMARIZE_TOOL_ERROR`
+            }
+          ]
+        };
+      }
+    }
+  });
+}

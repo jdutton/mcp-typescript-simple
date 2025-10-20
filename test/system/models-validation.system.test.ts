@@ -8,7 +8,7 @@
  * Run with: npm run test:system -- test/system/models-validation.system.test.ts
  */
 
-import { LLMManager } from '../../src/llm/manager.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import type { LLMProvider, ClaudeModel, OpenAIModel, GeminiModel } from '../../src/llm/types.js';
 
 describe('Model Validation System Tests', () => {

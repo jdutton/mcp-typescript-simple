@@ -10,29 +10,37 @@
 
 import { MCPInstanceManager } from '../../src/server/mcp-instance-manager.js';
 import { MemoryMCPMetadataStore } from '../../src/session/memory-mcp-metadata-store.js';
-import { LLMManager } from '../../src/llm/manager.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
+import { ToolRegistry } from '@mcp-typescript-simple/tools';
+import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
+import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { logger } from '../../src/observability/logger.js';
 
 describe('MCP Horizontal Scaling Integration Tests', () => {
   let instanceManager: MCPInstanceManager;
   let metadataStore: MemoryMCPMetadataStore;
-  let llmManager: LLMManager;
+  let toolRegistry: ToolRegistry;
 
   beforeEach(async () => {
     // Create fresh metadata store
     metadataStore = new MemoryMCPMetadataStore();
 
-    // Create LLM manager
-    llmManager = new LLMManager();
+    // Create tool registry with basic tools
+    toolRegistry = new ToolRegistry();
+    toolRegistry.merge(basicTools);
+
+    // Try to add LLM tools
     try {
+      const llmManager = new LLMManager();
       await llmManager.initialize();
+      toolRegistry.merge(createLLMTools(llmManager));
     } catch (error) {
       // Ignore - LLM tools will be unavailable but basic tools still work
       logger.debug('LLM initialization failed in test', { error });
     }
 
     // Create instance manager with explicit metadata store
-    instanceManager = new MCPInstanceManager(llmManager, metadataStore);
+    instanceManager = new MCPInstanceManager(toolRegistry, metadataStore);
   });
 
   afterEach(() => {
@@ -204,7 +212,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
 
       // Use a shared metadata store (simulating Redis)
       const sharedMetadataStore = new MemoryMCPMetadataStore();
-      const manager1 = new MCPInstanceManager(llmManager, sharedMetadataStore);
+      const manager1 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
 
       // Instance 1: Create session and store metadata
       await manager1.storeSessionMetadata(sessionId, authInfo);
@@ -215,7 +223,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
       manager1.dispose();
 
       // Instance 2: Create new manager (simulating different server with same Redis)
-      const manager2 = new MCPInstanceManager(llmManager, sharedMetadataStore);
+      const manager2 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
 
       // Instance 2 should be able to reconstruct from metadata
       const instance2 = await manager2.getOrRecreateInstance(sessionId, {});
@@ -277,7 +285,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
 
       // Use a separate metadata store that we control
       const separateMetadataStore = new MemoryMCPMetadataStore();
-      const separateManager = new MCPInstanceManager(llmManager, separateMetadataStore);
+      const separateManager = new MCPInstanceManager(toolRegistry, separateMetadataStore);
 
       await separateManager.storeSessionMetadata(sessionId, authInfo);
 

@@ -11,8 +11,11 @@ import request from 'supertest';
 import { Express } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { setupMCPServer } from '../../src/server/mcp-setup.js';
-import { LLMManager } from '../../src/llm/manager.js';
+import { setupMCPServerWithRegistry } from '../../src/server/mcp-setup-registry.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
+import { ToolRegistry } from '@mcp-typescript-simple/tools';
+import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
+import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { MemoryMCPMetadataStore } from '../../src/session/memory-mcp-metadata-store.js';
 import { logger } from '../../src/observability/logger.js';
 
@@ -20,16 +23,21 @@ describe('Session Reconstruction Integration Tests', () => {
   let app: Express;
   let mcpServer: MCPStreamableHttpServer;
   let metadataStore: MemoryMCPMetadataStore;
-  let llmManager: LLMManager;
+  let toolRegistry: ToolRegistry;
 
   beforeEach(async () => {
     // Create shared metadata store (simulates Redis)
     metadataStore = new MemoryMCPMetadataStore();
 
-    // Create LLM manager
-    llmManager = new LLMManager();
+    // Create tool registry with basic tools
+    toolRegistry = new ToolRegistry();
+    toolRegistry.merge(basicTools);
+
+    // Try to add LLM tools
     try {
+      const llmManager = new LLMManager();
       await llmManager.initialize();
+      toolRegistry.merge(createLLMTools(llmManager));
     } catch (error) {
       logger.debug('LLM initialization failed in test', { error });
     }
@@ -56,8 +64,8 @@ describe('Session Reconstruction Integration Tests', () => {
         { capabilities: { tools: {} } }
       );
 
-      // Setup MCP server with tools
-      await setupMCPServer(mcpServerInstance, llmManager);
+      // Setup MCP server with tools from registry
+      await setupMCPServerWithRegistry(mcpServerInstance, toolRegistry);
 
       // Connect transport to server
       await mcpServerInstance.connect(transport);

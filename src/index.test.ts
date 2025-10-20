@@ -60,12 +60,12 @@ describe('MCP server bootstrap', () => {
     const transportModule = await import('./transport/factory');
     const createTransportSpy = vi.spyOn(transportModule.TransportFactory, 'createFromEnvironment').mockReturnValue(transportManager as any);
 
-    const llmModule = await import('./llm/manager');
+    // Mock package imports
+    const llmModule = await import('@mcp-typescript-simple/tools-llm');
     const initializeSpy = vi.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue(undefined);
-    const getAvailableProvidersSpy = vi.spyOn(llmModule.LLMManager.prototype, 'getAvailableProviders').mockReturnValue(['claude']);
 
-    const setupModule = await import('./server/mcp-setup');
-    const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServer').mockResolvedValue(undefined);
+    const setupModule = await import('./server/mcp-setup-registry');
+    const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServerWithRegistry').mockResolvedValue(undefined);
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
       throw new Error(`process.exit called with ${code}`);
@@ -83,10 +83,11 @@ describe('MCP server bootstrap', () => {
     expect(getSpy).toHaveBeenCalledTimes(1);
     expect(getTransportModeSpy).toHaveBeenCalledTimes(1);
     expect(initializeSpy).toHaveBeenCalledTimes(1);
-    expect(getAvailableProvidersSpy).toHaveBeenCalledTimes(1);
-    expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.any(llmModule.LLMManager));
+    // New architecture: setupMCPServerWithRegistry is called with server and ToolRegistry
+    expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.anything());
     expect(createTransportSpy).toHaveBeenCalledTimes(1);
-    expect(transportInitialize).toHaveBeenCalledWith(serverInstance, expect.any(llmModule.LLMManager));
+    // New architecture: transport.initialize no longer receives llmManager
+    expect(transportInitialize).toHaveBeenCalledWith(serverInstance);
     expect(transportStart).toHaveBeenCalledTimes(1);
     expect(transportGetInfo).toHaveBeenCalledTimes(1);
     expect(exitSpy).not.toHaveBeenCalled();

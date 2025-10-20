@@ -3,10 +3,11 @@ import typescriptParser from '@typescript-eslint/parser';
 
 export default [
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'packages/**/src/**/*.ts'],
     ignores: [
       'src/observability/**/*.ts', // Observability infrastructure uses console for bootstrap logging
-      'src/utils/logger.ts' // Logger infrastructure file
+      'src/utils/logger.ts', // Logger infrastructure file
+      'packages/tools-llm/src/utils/logger.ts' // Package-internal simple logger
     ],
     languageOptions: {
       parser: typescriptParser,

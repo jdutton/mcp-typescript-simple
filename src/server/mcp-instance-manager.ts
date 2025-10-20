@@ -17,8 +17,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo } from '../session/mcp-session-metadata-store-interface.js';
 import { createMCPMetadataStore } from '../session/mcp-metadata-store-factory.js';
 import { EventStoreFactory } from '../session/event-store.js';
-import { setupMCPServer } from './mcp-setup.js';
-import { LLMManager } from '../llm/manager.js';
+import { setupMCPServerWithRegistry } from './mcp-setup-registry.js';
+import type { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { logger } from '../observability/logger.js';
 
 /**
@@ -51,12 +51,12 @@ export interface TransportCreationOptions {
 export class MCPInstanceManager {
   private metadataStore: MCPSessionMetadataStore;
   private instanceCache: Map<string, MCPServerInstance> = new Map();
-  private llmManager: LLMManager;
+  private toolRegistry: ToolRegistry;
   private readonly INSTANCE_TTL = 10 * 60 * 1000; // 10 minutes
   private cleanupTimer?: NodeJS.Timeout;
 
-  constructor(llmManager: LLMManager, metadataStore?: MCPSessionMetadataStore) {
-    this.llmManager = llmManager;
+  constructor(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore) {
+    this.toolRegistry = toolRegistry;
     this.metadataStore = metadataStore || createMCPMetadataStore();
 
     // Start cleanup timer for expired instances
@@ -142,8 +142,8 @@ export class MCPInstanceManager {
       }
     );
 
-    // Setup server with tools
-    await setupMCPServer(server, this.llmManager);
+    // Setup server with tools from registry
+    await setupMCPServerWithRegistry(server, this.toolRegistry);
 
     // Create transport with existing session ID
     const transport = this.createTransportWithSessionId(sessionId, metadata, {

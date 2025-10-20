@@ -15,8 +15,11 @@ import {
   StreamableHTTPTransportOptions
 } from "./types.js";
 import { MCPStreamableHttpServer } from "../server/streamable-http-server.js";
-import { LLMManager } from "../llm/manager.js";
-import { setupMCPServer } from "../server/mcp-setup.js";
+import { LLMManager } from "@mcp-typescript-simple/tools-llm";
+import { ToolRegistry } from "@mcp-typescript-simple/tools";
+import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
+import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
+import { setupMCPServerWithRegistry } from "../server/mcp-setup-registry.js";
 import { logger } from "../utils/logger.js";
 
 /**
@@ -29,7 +32,7 @@ export class StdioTransportManager implements TransportManager {
   constructor(private options: StdioTransportOptions) {}
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async initialize(server: Server, _llmManager?: LLMManager): Promise<void> {
+  async initialize(server: Server, _toolRegistry?: ToolRegistry): Promise<void> {
     this.server = server;
     this.transport = new StdioServerTransport();
   }
@@ -69,9 +72,11 @@ export class StreamableHTTPTransportManager implements TransportManager {
 
   constructor(private options: StreamableHTTPTransportOptions) {}
 
-  async initialize(server: Server, llmManager?: LLMManager): Promise<void> {
-    // Store LLM manager for creating new server instances
-    this.llmManager = llmManager;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async initialize(server: Server, toolRegistry?: ToolRegistry): Promise<void> {
+    // Note: server and toolRegistry parameters unused - HTTPServer creates its own instances
+    // The HTTPServer creates its own registry and server instances internally
+    this.llmManager = undefined; // Will be recreated by the HTTPServer
 
     // Create HTTP server with OAuth support and Streamable HTTP transport
     this.httpServer = new MCPStreamableHttpServer({
@@ -124,10 +129,21 @@ export class StreamableHTTPTransportManager implements TransportManager {
           }
         );
 
-        // Set up the server with tools and handlers
+        // Set up the server with tool registry (new package-based architecture)
+        const toolRegistry = new ToolRegistry();
+        toolRegistry.merge(basicTools);
+
+        // Add LLM tools if available
         if (this.llmManager) {
-          await setupMCPServer(transportServer, this.llmManager);
+          try {
+            const llmTools = createLLMTools(this.llmManager);
+            toolRegistry.merge(llmTools);
+          } catch {
+            logger.debug("LLM tools not available for this connection", { sessionId });
+          }
         }
+
+        await setupMCPServerWithRegistry(transportServer, toolRegistry);
 
         await transportServer.connect(streamableTransport);
         logger.info("New Streamable HTTP connection established", { sessionId });

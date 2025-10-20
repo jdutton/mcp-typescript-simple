@@ -20,7 +20,10 @@ import { OAuthRegisteredClientsStore } from '../auth/stores/client-store-interfa
 import { TokenStoreFactory } from '../auth/token-store-factory.js';
 import { InitialAccessTokenStore } from '../auth/stores/token-store-interface.js';
 import { MCPInstanceManager } from './mcp-instance-manager.js';
-import { LLMManager } from '../llm/manager.js';
+import { LLMManager } from '@mcp-typescript-simple/tools-llm';
+import { ToolRegistry } from '@mcp-typescript-simple/tools';
+import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
+import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { OAuthProviderType } from '../auth/providers/types.js';
@@ -55,6 +58,7 @@ export class MCPStreamableHttpServer {
   private tokenStore?: InitialAccessTokenStore;
   private sessionManager: SessionManager;
   private llmManager: LLMManager;
+  private toolRegistry: ToolRegistry;
   private instanceManager: MCPInstanceManager;
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
 
@@ -71,8 +75,12 @@ export class MCPStreamableHttpServer {
     // Create LLM manager for tool support
     this.llmManager = new LLMManager();
 
+    // Create tool registry with basic tools (LLM tools added after initialization)
+    this.toolRegistry = new ToolRegistry();
+    this.toolRegistry.merge(basicTools);
+
     // Create MCP instance manager for horizontal scalability
-    this.instanceManager = new MCPInstanceManager(this.llmManager);
+    this.instanceManager = new MCPInstanceManager(this.toolRegistry);
 
     this.setupMiddleware();
 
@@ -90,6 +98,9 @@ export class MCPStreamableHttpServer {
     // Initialize LLM manager (gracefully handle missing API keys)
     try {
       await this.llmManager.initialize();
+      // Add LLM tools to registry after successful initialization
+      this.toolRegistry.merge(createLLMTools(this.llmManager));
+      logger.info('LLM tools registered successfully');
     } catch (error) {
       logger.warn('LLM manager initialization failed, LLM tools will be unavailable', { error });
       // Continue - basic tools still work without LLM providers
