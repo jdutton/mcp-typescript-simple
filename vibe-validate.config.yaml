@@ -1,8 +1,4 @@
 extends: typescript-nodejs
-ci:
-  setup:
-    # Run before all steps in CI (builds workspace packages once per job)
-    command: bash tools/build-workspaces.sh
 validation:
   phases:
     - name: 'Phase 1: Pre-Qualification + Build'
