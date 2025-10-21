@@ -184,8 +184,10 @@ class VercelConfigTestRunner {
       try {
         // Check if API files compile without errors
         await execAsync('npx tsc --noEmit api/*.ts --esModuleInterop --allowSyntheticDefaultImports --moduleResolution node --target ES2020');
-      } catch (error) {
-        throw new Error(`API files have TypeScript syntax errors: ${error.message}`);
+      } catch (error: any) {
+        const stderr = error.stderr || '';
+        const stdout = error.stdout || '';
+        throw new Error(`API files have TypeScript syntax errors:\n${stderr}\n${stdout}\nError: ${error.message}`);
       }
     });
   }
