@@ -4,8 +4,7 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { ClientStoreFactory } from '../build/auth/client-store-factory.js';
-import { OAuthRegisteredClientsStore } from '../build/auth/stores/client-store-interface.js';
+import { ClientStoreFactory, OAuthRegisteredClientsStore } from '../packages/persistence/dist/index.js';
 import { logger } from '../build/observability/logger.js';
 import { setOAuthAntiCachingHeaders } from '../build/auth/shared/oauth-helpers.js';
 
