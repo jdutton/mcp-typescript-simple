@@ -19,7 +19,7 @@
     "validate": "npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
-    "@mcp-typescript-simple/config": "workspace:*",
+    "@mcp-typescript-simple/config": "*",
     "ioredis": "^5.4.2"
   },
   "devDependencies": {
