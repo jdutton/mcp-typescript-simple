@@ -11,7 +11,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthRegisteredClientsStore } from '../../auth/stores/client-store-interface.js';
+import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { logger } from '../../observability/logger.js';
 
 /**

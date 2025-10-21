@@ -15,9 +15,9 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../../utils/logger.js';
-import { OAuthSessionStore } from '../stores/session-store-interface.js';
-import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
-import { PKCEStore } from '../stores/pkce-store-interface.js';
+import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
+import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Microsoft Azure AD OAuth provider implementation

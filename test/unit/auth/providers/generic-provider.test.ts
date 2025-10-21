@@ -7,7 +7,7 @@ import type {
   OAuthUserInfo
 } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
-import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;

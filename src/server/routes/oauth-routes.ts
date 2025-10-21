@@ -10,7 +10,7 @@
 
 import { Router, Request, Response } from 'express';
 import { OAuthProvider, OAuthProviderType } from '../../auth/providers/types.js';
-import { OAuthRegisteredClientsStore } from '../../auth/stores/client-store-interface.js';
+import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { setupDCRRoutes } from './dcr-routes.js';
 import { logger } from '../../observability/logger.js';
 import { generateLoginPageHTML } from '../../auth/login-page.js';

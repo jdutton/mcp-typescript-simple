@@ -14,9 +14,9 @@
 import { GoogleOAuthProvider } from '../../../src/auth/providers/google-provider.js';
 import { GitHubOAuthProvider } from '../../../src/auth/providers/github-provider.js';
 import { MicrosoftOAuthProvider } from '../../../src/auth/providers/microsoft-provider.js';
-import { MemoryPKCEStore } from '../../../src/auth/stores/memory-pkce-store.js';
-import { MemorySessionStore } from '../../../src/auth/stores/memory-session-store.js';
-import { MemoryOAuthTokenStore } from '../../../src/auth/stores/memory-oauth-token-store.js';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
+import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
+import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import type { GoogleOAuthConfig, GitHubOAuthConfig, MicrosoftOAuthConfig, OAuthProvider } from '../../../src/auth/providers/types.js';
 
 describe('Multi-Provider PKCE Isolation', () => {

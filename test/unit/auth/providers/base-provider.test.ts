@@ -16,8 +16,8 @@ import type {
 import { OAuthTokenError } from '../../../../src/auth/providers/types.js';
 import { OAuthSessionStore } from '../../../../src/auth/stores/session-store-interface.js';
 import { OAuthTokenStore } from '../../../../src/auth/stores/oauth-token-store-interface.js';
-import { PKCEStore } from '../../../../src/auth/stores/pkce-store-interface.js';
-import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
+import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 type MockResponse = Response & {
   statusCode?: number;

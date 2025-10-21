@@ -16,7 +16,7 @@ import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
 import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
-import { MemoryMCPMetadataStore } from '../../src/session/memory-mcp-metadata-store.js';
+import { MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { logger } from '../../src/observability/logger.js';
 
 describe('Session Reconstruction Integration Tests', () => {

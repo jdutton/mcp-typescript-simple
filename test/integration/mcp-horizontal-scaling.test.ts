@@ -9,7 +9,7 @@
  */
 
 import { MCPInstanceManager } from '../../src/server/mcp-instance-manager.js';
-import { MemoryMCPMetadataStore } from '../../src/session/memory-mcp-metadata-store.js';
+import { MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';

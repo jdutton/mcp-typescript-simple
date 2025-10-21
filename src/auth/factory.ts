@@ -20,12 +20,14 @@ import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
 import { GenericOAuthProvider } from './providers/generic-provider.js';
 import { EnvironmentConfig } from '../config/environment.js';
 import { logger } from '../utils/logger.js';
-import { createSessionStore } from './session-store-factory.js';
-import { OAuthSessionStore } from './stores/session-store-interface.js';
-import { createOAuthTokenStore } from './oauth-token-store-factory.js';
-import { OAuthTokenStore } from './stores/oauth-token-store-interface.js';
-import { createPKCEStore } from './pkce-store-factory.js';
-import { PKCEStore } from './stores/pkce-store-interface.js';
+import {
+  SessionStoreFactory,
+  OAuthSessionStore,
+  OAuthTokenStoreFactory,
+  OAuthTokenStore,
+  PKCEStoreFactory,
+  PKCEStore
+} from '@mcp-typescript-simple/persistence';
 
 /**
  * Factory for creating OAuth provider instances
@@ -41,9 +43,9 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
 
   constructor() {
     // Initialize stores (auto-detect Redis vs memory)
-    this.sessionStore = createSessionStore();
-    this.tokenStore = createOAuthTokenStore();
-    this.pkceStore = createPKCEStore();
+    this.sessionStore = SessionStoreFactory.create();
+    this.tokenStore = OAuthTokenStoreFactory.create();
+    this.pkceStore = PKCEStoreFactory.create();
   }
 
   /**

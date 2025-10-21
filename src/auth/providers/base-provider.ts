@@ -22,11 +22,11 @@ import {
 } from './types.js';
 import { logger } from '../../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
-import { OAuthSessionStore } from '../stores/session-store-interface.js';
-import { MemorySessionStore } from '../stores/memory-session-store.js';
-import { OAuthTokenStore } from '../stores/oauth-token-store-interface.js';
-import { MemoryOAuthTokenStore } from '../stores/memory-oauth-token-store.js';
-import { PKCEStore } from '../stores/pkce-store-interface.js';
+import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
+import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
+import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Abstract base class providing common OAuth functionality

@@ -15,7 +15,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { InitialAccessTokenStore, InitialAccessToken } from '../auth/stores/token-store-interface.js';
+import { InitialAccessTokenStore, InitialAccessToken } from '@mcp-typescript-simple/persistence';
 import { logger } from '../utils/logger.js';
 
 /**

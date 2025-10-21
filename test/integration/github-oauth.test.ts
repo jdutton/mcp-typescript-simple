@@ -4,7 +4,7 @@
  */
 
 import { GitHubOAuthProvider } from '../../src/auth/providers/github-provider.js';
-import { MemoryPKCEStore } from '../../src/auth/stores/memory-pkce-store.js';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 import express, { Express } from 'express';
 import request from 'supertest';
 import nock from 'nock';

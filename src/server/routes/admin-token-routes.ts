@@ -16,8 +16,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { InitialAccessTokenStore } from '../../auth/stores/token-store-interface.js';
-import { OAuthRegisteredClientsStore } from '../../auth/stores/client-store-interface.js';
+import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
+import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { requireInitialAccessToken } from '../../middleware/dcr-auth.js';
 import { logger } from '../../utils/logger.js';
 

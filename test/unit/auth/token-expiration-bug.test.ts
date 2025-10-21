@@ -21,7 +21,7 @@ import {
   GoogleOAuthConfig,
   MicrosoftOAuthConfig,
 } from '../../../src/auth/providers/types.js';
-import { MemoryPKCEStore } from '../../../src/auth/stores/memory-pkce-store.js';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 // Mock fetch globally
 global.fetch = vi.fn();

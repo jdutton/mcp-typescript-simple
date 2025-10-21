@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import type { Request, Response } from 'express';
 import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '../../../../src/auth/providers/types.js';
 import { logger } from '../../../../src/utils/logger.js';
-import { MemoryPKCEStore } from '../../../../src/auth/stores/memory-pkce-store.js';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 const mockGenerateAuthUrl = vi.fn<(options: Record<string, unknown>) => string>();
 const mockGetToken = vi.fn<(options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
