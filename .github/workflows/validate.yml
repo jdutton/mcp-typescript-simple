@@ -39,6 +39,7 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      - run: npm run build
       - run: npm run test:unit && npm run test:integration
   stdio-http-system-tests:
     name: STDIO & HTTP System Tests
