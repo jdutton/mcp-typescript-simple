@@ -17,7 +17,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo } from '../session/mcp-session-metadata-store-interface.js';
 import { createMCPMetadataStore } from '../session/mcp-metadata-store-factory.js';
 import { EventStoreFactory } from '../session/event-store.js';
-import { setupMCPServerWithRegistry } from './mcp-setup-registry.js';
+import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
 import type { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { logger } from '../observability/logger.js';
 
@@ -143,7 +143,7 @@ export class MCPInstanceManager {
     );
 
     // Setup server with tools from registry
-    await setupMCPServerWithRegistry(server, this.toolRegistry);
+    await setupMCPServerWithRegistry(server, this.toolRegistry, logger);
 
     // Create transport with existing session ID
     const transport = this.createTransportWithSessionId(sessionId, metadata, {

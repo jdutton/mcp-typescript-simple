@@ -10,11 +10,11 @@ import { ToolRegistry } from "@mcp-typescript-simple/tools";
 import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
 import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
+import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 
 // Import new transport system
 import { EnvironmentConfig } from "./config/environment.js";
 import { TransportFactory } from "./transport/factory.js";
-import { setupMCPServerWithRegistry } from "./server/mcp-setup-registry.js";
 
 // Import structured logger
 import { logger } from "./utils/logger.js";
@@ -68,7 +68,7 @@ async function main() {
     }
 
     // Setup MCP server with tool registry (new package-based architecture)
-    await setupMCPServerWithRegistry(server, toolRegistry);
+    await setupMCPServerWithRegistry(server, toolRegistry, logger);
 
     // Create and start transport
     const transportManager = TransportFactory.createFromEnvironment();

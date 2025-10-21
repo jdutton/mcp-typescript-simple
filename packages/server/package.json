@@ -1,0 +1,30 @@
+{
+  "name": "@mcp-typescript-simple/server",
+  "version": "1.0.0",
+  "description": "High-level MCP server creation and management",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'Lint not configured for this package'",
+    "validate": "npm run typecheck && npm run build && npm run test"
+  },
+  "keywords": [
+    "mcp",
+    "server",
+    "typescript"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT",
+  "dependencies": {
+    "@mcp-typescript-simple/tools": "*",
+    "@modelcontextprotocol/sdk": "^1.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

@@ -5,7 +5,7 @@
  */
 
 import { vi } from 'vitest';
-import { setupMCPServerWithRegistry } from '../../../src/server/mcp-setup-registry.js';
+import { setupMCPServerWithRegistry } from '../src/setup.js';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
 import { ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';

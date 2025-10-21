@@ -19,7 +19,7 @@ import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { ToolRegistry } from "@mcp-typescript-simple/tools";
 import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
 import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
-import { setupMCPServerWithRegistry } from "../server/mcp-setup-registry.js";
+import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 import { logger } from "../utils/logger.js";
 
 /**

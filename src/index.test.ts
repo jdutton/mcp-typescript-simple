@@ -64,7 +64,7 @@ describe('MCP server bootstrap', () => {
     const llmModule = await import('@mcp-typescript-simple/tools-llm');
     const initializeSpy = vi.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue(undefined);
 
-    const setupModule = await import('./server/mcp-setup-registry');
+    const setupModule = await import('@mcp-typescript-simple/server');
     const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServerWithRegistry').mockResolvedValue(undefined);
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -83,8 +83,8 @@ describe('MCP server bootstrap', () => {
     expect(getSpy).toHaveBeenCalledTimes(1);
     expect(getTransportModeSpy).toHaveBeenCalledTimes(1);
     expect(initializeSpy).toHaveBeenCalledTimes(1);
-    // New architecture: setupMCPServerWithRegistry is called with server and ToolRegistry
-    expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.anything());
+    // New architecture: setupMCPServerWithRegistry is called with server, ToolRegistry, and logger
+    expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.anything(), expect.anything());
     expect(createTransportSpy).toHaveBeenCalledTimes(1);
     // New architecture: transport.initialize no longer receives llmManager
     expect(transportInitialize).toHaveBeenCalledWith(serverInstance);

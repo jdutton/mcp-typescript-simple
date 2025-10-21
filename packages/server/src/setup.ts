@@ -8,7 +8,25 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolRegistry } from "@mcp-typescript-simple/tools";
-import { logger } from "../utils/logger.js";
+
+/**
+ * Optional logger interface for server operations
+ */
+export interface ServerLogger {
+  debug(message: string, data?: unknown): void;
+  error(message: string, error?: unknown): void;
+}
+
+/**
+ * Simple console-based logger fallback
+ */
+const defaultLogger: ServerLogger = {
+  debug: () => {}, // Silent by default
+  error: (message: string, error?: unknown) => {
+    // eslint-disable-next-line no-console
+    console.error(message, error);
+  },
+};
 
 /**
  * Set up MCP server with tools from a registry
@@ -17,7 +35,8 @@ import { logger } from "../utils/logger.js";
  */
 export async function setupMCPServerWithRegistry(
   server: Server,
-  registry: ToolRegistry
+  registry: ToolRegistry,
+  logger: ServerLogger = defaultLogger
 ): Promise<void> {
   // Tool definitions - get from registry
   server.setRequestHandler(ListToolsRequestSchema, async () => {

@@ -95,6 +95,7 @@
     "@google/generative-ai": "^0.24.1",
     "@mcp-typescript-simple/example-tools-basic": "*",
     "@mcp-typescript-simple/example-tools-llm": "*",
+    "@mcp-typescript-simple/server": "*",
     "@mcp-typescript-simple/tools": "*",
     "@mcp-typescript-simple/tools-llm": "*",
     "@modelcontextprotocol/sdk": "^1.18.0",

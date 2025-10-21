@@ -11,8 +11,8 @@ import { LLMManager } from "../packages/tools-llm/dist/index.js";
 import { ToolRegistry } from "../packages/tools/dist/index.js";
 import { basicTools } from "../packages/example-tools-basic/dist/index.js";
 import { createLLMTools } from "../packages/example-tools-llm/dist/index.js";
+import { setupMCPServerWithRegistry } from "../packages/server/dist/index.js";
 import { MCPInstanceManager } from "../build/server/mcp-instance-manager.js";
-import { setupMCPServerWithRegistry } from "../build/server/mcp-setup-registry.js";
 import { EnvironmentConfig } from "../build/config/environment.js";
 import { OAuthProviderFactory } from "../build/auth/factory.js";
 import { OAuthProvider } from "../build/auth/providers/types.js";
@@ -323,7 +323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
 
       // Setup server with tools from registry
-      await setupMCPServerWithRegistry(server, toolRegistry);
+      await setupMCPServerWithRegistry(server, toolRegistry, logger);
 
       // Connect server to transport
       await server.connect(transport);

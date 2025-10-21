@@ -11,7 +11,7 @@ import request from 'supertest';
 import { Express } from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
-import { setupMCPServerWithRegistry } from '../../src/server/mcp-setup-registry.js';
+import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
