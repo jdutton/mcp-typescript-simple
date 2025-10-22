@@ -1,21 +1,37 @@
 import { vi } from 'vitest';
 
-import { OAuthProviderFactory } from '../../../src/auth/factory.js';
-import { logger } from '../../../src/utils/logger.js';
+import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
+import { logger } from '@mcp-typescript-simple/auth';
 import { EnvironmentConfig } from '../../../src/config/environment.js';
 import { preserveEnv } from '../../helpers/env-helper.js';
 
-vi.mock('../../../src/auth/providers/google-provider.js', () => ({
-  GoogleOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'google', config, dispose: vi.fn() }))
-}));
-
-vi.mock('../../../src/auth/providers/github-provider.js', () => ({
-  GitHubOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'github', config, dispose: vi.fn() }))
-}));
-
-vi.mock('../../../src/auth/providers/microsoft-provider.js', () => ({
-  MicrosoftOAuthProvider: vi.fn().mockImplementation((config) => ({ type: 'microsoft', config, dispose: vi.fn() }))
-}));
+vi.mock('@mcp-typescript-simple/auth', async () => {
+  const actual = await vi.importActual<typeof import('@mcp-typescript-simple/auth')>('@mcp-typescript-simple/auth');
+  return {
+    ...actual,
+    GoogleOAuthProvider: vi.fn().mockImplementation((config) => ({
+      type: 'google',
+      config,
+      dispose: vi.fn(),
+      getProviderType: () => 'google',
+      getProviderName: () => 'Google OAuth',
+    })),
+    GitHubOAuthProvider: vi.fn().mockImplementation((config) => ({
+      type: 'github',
+      config,
+      dispose: vi.fn(),
+      getProviderType: () => 'github',
+      getProviderName: () => 'GitHub OAuth',
+    })),
+    MicrosoftOAuthProvider: vi.fn().mockImplementation((config) => ({
+      type: 'microsoft',
+      config,
+      dispose: vi.fn(),
+      getProviderType: () => 'microsoft',
+      getProviderName: () => 'Microsoft OAuth',
+    })),
+  };
+});
 
 describe('OAuthProviderFactory', () => {
   let restoreEnv: () => void;
@@ -63,7 +79,8 @@ describe('OAuthProviderFactory', () => {
 
     expect(providers).not.toBeNull();
     expect(providers?.has('google')).toBe(true);
-    expect(providers?.get('google')).toMatchObject({ type: 'google' });
+    const googleProvider = providers?.get('google');
+    expect(googleProvider?.getProviderType()).toBe('google');
   });
 
   it('returns null when no OAuth providers are configured', async () => {
@@ -101,10 +118,13 @@ describe('OAuthProviderFactory', () => {
     expect(providers).toBeTruthy();
 
     const provider = providers?.get('google');
-    const typedProvider = provider as unknown as { dispose: Mock };
-    expect(typedProvider.dispose).not.toHaveBeenCalled();
+    expect(provider).toBeTruthy();
+
+    // Spy on the dispose method of the actual provider instance
+    const disposeSpy = vi.spyOn(provider!, 'dispose');
+    expect(disposeSpy).not.toHaveBeenCalled();
 
     OAuthProviderFactory.disposeAll();
-    expect(typedProvider.dispose).toHaveBeenCalled();
+    expect(disposeSpy).toHaveBeenCalled();
   });
 });

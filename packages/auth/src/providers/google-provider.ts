@@ -18,7 +18,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
@@ -380,7 +380,10 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
             throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
           }
 
-          const userData = await response.json();
+          const userData = await response.json() as {
+            id?: string;
+            email?: string;
+          };
           logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
           logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
 
@@ -562,7 +565,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       throw new OAuthProviderError(`Failed to fetch user info: ${response.status}`, 'google');
     }
 
-    const userData = await response.json();
+    const userData = await response.json() as {
+      id: string;
+      email: string;
+      name?: string;
+      picture?: string;
+    };
 
     return {
       sub: userData.id,

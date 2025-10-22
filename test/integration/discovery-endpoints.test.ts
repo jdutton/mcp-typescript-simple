@@ -28,12 +28,16 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Mock the OAuth provider factory to return a test provider
-vi.mock('../../src/auth/factory.js', () => ({
-  OAuthProviderFactory: {
-    createFromEnvironment: mocks.createFromEnvironment,
-    createAllFromEnvironment: mocks.createAllFromEnvironment,
-  },
-}));
+vi.mock('@mcp-typescript-simple/auth', async () => {
+  const actual = await vi.importActual<typeof import('@mcp-typescript-simple/auth')>('@mcp-typescript-simple/auth');
+  return {
+    ...actual,
+    OAuthProviderFactory: {
+      createFromEnvironment: mocks.createFromEnvironment,
+      createAllFromEnvironment: mocks.createAllFromEnvironment,
+    },
+  };
+});
 
 describe('OAuth Discovery Endpoints Integration', () => {
   let server: MCPStreamableHttpServer;

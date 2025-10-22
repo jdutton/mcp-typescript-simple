@@ -5,7 +5,7 @@
 import { randomBytes, createHash } from 'crypto';
 import { Request, Response } from 'express';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { EnvironmentConfig } from '../../config/environment.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import {
   OAuthProvider,
   OAuthSession,
@@ -20,7 +20,7 @@ import {
   OAuthTokenResponse,
   ProviderTokenResponse
 } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
 import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
 import { MemorySessionStore } from '@mcp-typescript-simple/persistence';

@@ -14,7 +14,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
@@ -127,7 +127,14 @@ export class GenericOAuthProvider extends BaseOAuthProvider {
       throw new OAuthTokenError(`Token exchange failed: ${response.status} ${response.statusText}`, 'generic');
     }
 
-    return response.json();
+    const tokenData = await response.json() as {
+      access_token: string;
+      refresh_token?: string;
+      id_token?: string;
+      expires_in?: number;
+    };
+
+    return tokenData;
   }
 
   /**
@@ -151,13 +158,13 @@ export class GenericOAuthProvider extends BaseOAuthProvider {
       throw new OAuthProviderError(`Failed to fetch user info: ${response.status}`, 'generic');
     }
 
-    const userData = await response.json();
+    const userData = await response.json() as Record<string, unknown>;
 
     return {
-      sub: userData.sub || userData.id || 'unknown',
-      email: userData.email || 'unknown@example.com',
-      name: userData.name || userData.email || 'Unknown User',
-      picture: userData.picture || userData.avatar_url,
+      sub: (userData.sub as string) || (userData.id as string) || 'unknown',
+      email: (userData.email as string) || 'unknown@example.com',
+      name: (userData.name as string) || (userData.email as string) || 'Unknown User',
+      picture: (userData.picture as string) || (userData.avatar_url as string),
       provider: 'generic',
       providerData: userData,
     };

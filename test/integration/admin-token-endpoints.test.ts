@@ -30,7 +30,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // Mock the OAuth provider factory to return a test provider
-vi.mock('../../src/auth/factory.js', () => ({
+vi.mock('@mcp-typescript-simple/auth', () => ({
   OAuthProviderFactory: {
     createFromEnvironment: mocks.createFromEnvironment,
     createAllFromEnvironment: mocks.createAllFromEnvironment,

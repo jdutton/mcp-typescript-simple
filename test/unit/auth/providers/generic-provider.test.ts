@@ -5,7 +5,7 @@ import type {
   GenericOAuthConfig,
   OAuthSession,
   OAuthUserInfo
-} from '../../../../src/auth/providers/types.js';
+} from '@mcp-typescript-simple/auth';
 import { logger } from '../../../../src/utils/logger.js';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
@@ -83,10 +83,10 @@ const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) 
   });
 };
 
-let GenericOAuthProvider: typeof import('../../../../src/auth/providers/generic-provider.js').GenericOAuthProvider;
+let GenericOAuthProvider: typeof import('@mcp-typescript-simple/auth').GenericOAuthProvider;
 
 beforeAll(async () => {
-  ({ GenericOAuthProvider } = await import('../../../../src/auth/providers/generic-provider.js'));
+  ({ GenericOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
 
 describe('GenericOAuthProvider', () => {

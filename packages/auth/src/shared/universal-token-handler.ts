@@ -9,7 +9,7 @@
  */
 
 import { OAuthProvider, OAuthProviderType } from '../providers/types.js';
-import { logger } from '../../observability/logger.js';
+import { logger } from '../utils/logger.js';
 import {
   OAuthRequestAdapter,
   OAuthResponseAdapter,

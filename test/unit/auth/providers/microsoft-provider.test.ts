@@ -6,8 +6,8 @@ import type {
   OAuthSession,
   StoredTokenInfo,
   OAuthUserInfo
-} from '../../../../src/auth/providers/types.js';
-import { logger } from '../../../../src/utils/logger.js';
+} from '@mcp-typescript-simple/auth';
+import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 let originalFetch: typeof globalThis.fetch;
@@ -81,10 +81,10 @@ const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) 
   });
 };
 
-let MicrosoftOAuthProvider: typeof import('../../../../src/auth/providers/microsoft-provider.js').MicrosoftOAuthProvider;
+let MicrosoftOAuthProvider: typeof import('@mcp-typescript-simple/auth').MicrosoftOAuthProvider;
 
 beforeAll(async () => {
-  ({ MicrosoftOAuthProvider } = await import('../../../../src/auth/providers/microsoft-provider.js'));
+  ({ MicrosoftOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
 
 describe('MicrosoftOAuthProvider', () => {

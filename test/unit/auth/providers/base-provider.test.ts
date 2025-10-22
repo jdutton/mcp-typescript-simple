@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import type { Request, Response } from 'express';
 import {
   BaseOAuthProvider
-} from '../../../../src/auth/providers/base-provider.js';
+} from '@mcp-typescript-simple/auth';
 import type {
   OAuthConfig,
   OAuthEndpoints,
@@ -12,10 +12,10 @@ import type {
   OAuthUserInfo,
   ProviderTokenResponse,
   StoredTokenInfo
-} from '../../../../src/auth/providers/types.js';
-import { OAuthTokenError } from '../../../../src/auth/providers/types.js';
-import { OAuthSessionStore } from '../../../../src/auth/stores/session-store-interface.js';
-import { OAuthTokenStore } from '../../../../src/auth/stores/oauth-token-store-interface.js';
+} from '@mcp-typescript-simple/auth';
+import { OAuthTokenError } from '@mcp-typescript-simple/auth';
+import { OAuthSessionStore } from '@mcp-typescript-simple/auth';
+import { OAuthTokenStore } from '@mcp-typescript-simple/auth';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 

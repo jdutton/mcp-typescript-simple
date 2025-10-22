@@ -13,14 +13,14 @@
  */
 
 import { vi } from 'vitest';
-import { GitHubOAuthProvider } from '../../../src/auth/providers/github-provider.js';
-import { GoogleOAuthProvider } from '../../../src/auth/providers/google-provider.js';
-import { MicrosoftOAuthProvider } from '../../../src/auth/providers/microsoft-provider.js';
+import { GitHubOAuthProvider } from '@mcp-typescript-simple/auth';
+import { GoogleOAuthProvider } from '@mcp-typescript-simple/auth';
+import { MicrosoftOAuthProvider } from '@mcp-typescript-simple/auth';
 import {
   GitHubOAuthConfig,
   GoogleOAuthConfig,
   MicrosoftOAuthConfig,
-} from '../../../src/auth/providers/types.js';
+} from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 // Mock fetch globally

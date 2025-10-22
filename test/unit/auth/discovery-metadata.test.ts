@@ -7,8 +7,8 @@ import {
   type ProtectedResourceMetadata,
   type MCPProtectedResourceMetadata,
   type OpenIDConnectConfiguration
-} from '../../../src/auth/discovery-metadata.js';
-import type { OAuthProvider, OAuthEndpoints, OAuthProviderType } from '../../../src/auth/providers/types.js';
+} from '@mcp-typescript-simple/auth';
+import type { OAuthProvider, OAuthEndpoints, OAuthProviderType } from '@mcp-typescript-simple/auth';
 
 describe('OAuthDiscoveryMetadata', () => {
   let mockProvider: Mocked<OAuthProvider>;

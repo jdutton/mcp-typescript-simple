@@ -11,13 +11,13 @@
  * invalid_grant errors during token exchange.
  */
 
-import { GoogleOAuthProvider } from '../../../src/auth/providers/google-provider.js';
-import { GitHubOAuthProvider } from '../../../src/auth/providers/github-provider.js';
-import { MicrosoftOAuthProvider } from '../../../src/auth/providers/microsoft-provider.js';
+import { GoogleOAuthProvider } from '@mcp-typescript-simple/auth';
+import { GitHubOAuthProvider } from '@mcp-typescript-simple/auth';
+import { MicrosoftOAuthProvider } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import type { GoogleOAuthConfig, GitHubOAuthConfig, MicrosoftOAuthConfig, OAuthProvider } from '../../../src/auth/providers/types.js';
+import type { GoogleOAuthConfig, GitHubOAuthConfig, MicrosoftOAuthConfig, OAuthProvider } from '@mcp-typescript-simple/auth';
 
 describe('Multi-Provider PKCE Isolation', () => {
   let sharedPKCEStore: MemoryPKCEStore;

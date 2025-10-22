@@ -18,8 +18,8 @@ import { GoogleOAuthProvider } from './providers/google-provider.js';
 import { GitHubOAuthProvider } from './providers/github-provider.js';
 import { MicrosoftOAuthProvider } from './providers/microsoft-provider.js';
 import { GenericOAuthProvider } from './providers/generic-provider.js';
-import { EnvironmentConfig } from '../config/environment.js';
-import { logger } from '../utils/logger.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
+import { logger } from './utils/logger.js';
 import {
   SessionStoreFactory,
   OAuthSessionStore,

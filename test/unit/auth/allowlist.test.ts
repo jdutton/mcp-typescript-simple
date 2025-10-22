@@ -11,7 +11,7 @@ import {
   getAllowedUsers,
   getAllowlistStats,
   type AllowlistConfig
-} from '../../../src/auth/allowlist.js';
+} from '@mcp-typescript-simple/auth';
 import { preserveEnv } from '../../helpers/env-helper.js';
 
 describe('User Allowlist', () => {

@@ -12,7 +12,7 @@ import {
   MicrosoftOAuthConfig,
   GenericOAuthConfig,
   OAuthTokenResponse,
-} from '../../../../src/auth/providers/types.js';
+} from '@mcp-typescript-simple/auth';
 
 describe('OAuth Types', () => {
   test('OAuthProviderType should be valid string literals', () => {

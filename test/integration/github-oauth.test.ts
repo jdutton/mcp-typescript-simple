@@ -3,7 +3,7 @@
  * Tests the complete OAuth flow including authorization, callback, refresh, and logout
  */
 
-import { GitHubOAuthProvider } from '../../src/auth/providers/github-provider.js';
+import { GitHubOAuthProvider } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 import express, { Express } from 'express';
 import request from 'supertest';

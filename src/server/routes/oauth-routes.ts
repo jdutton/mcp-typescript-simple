@@ -9,21 +9,21 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthProvider, OAuthProviderType } from '../../auth/providers/types.js';
+import { OAuthProvider, OAuthProviderType } from '@mcp-typescript-simple/auth';
 import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { setupDCRRoutes } from './dcr-routes.js';
 import { logger } from '../../observability/logger.js';
-import { generateLoginPageHTML } from '../../auth/login-page.js';
-import { setOAuthAntiCachingHeaders } from '../../auth/shared/oauth-helpers.js';
-import { handleUniversalTokenRequest } from '../../auth/shared/universal-token-handler.js';
-import { handleUniversalRevokeRequest } from '../../auth/shared/universal-revoke-handler.js';
+import { generateLoginPageHTML } from '@mcp-typescript-simple/auth';
+import { setOAuthAntiCachingHeaders } from '@mcp-typescript-simple/auth';
+import { handleUniversalTokenRequest } from '@mcp-typescript-simple/auth';
+import { handleUniversalRevokeRequest } from '@mcp-typescript-simple/auth';
 import {
   handleProviderAuthorizationRequest,
   handleProviderAuthorizationCallback,
   handleProviderLogout,
   handleOAuthDiscovery,
   handleGenericAuthorize
-} from '../../auth/shared/provider-router.js';
+} from '@mcp-typescript-simple/auth';
 
 /**
  * Setup OAuth 2.0 authentication routes with multi-provider support

@@ -14,7 +14,7 @@ import {
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
@@ -188,7 +188,12 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         );
       }
 
-      const userData = await userResponse.json();
+      const userData = await userResponse.json() as {
+        id: string;
+        mail?: string;
+        userPrincipalName?: string;
+        displayName?: string;
+      };
       logger.oauthDebug('Microsoft user data received', {
         id: userData.id,
         mail: userData.mail,
@@ -202,13 +207,14 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
-      const email = userData.mail || userData.userPrincipalName;
+      // Safe to use non-null assertion since we've validated above
+      const email = (userData.mail || userData.userPrincipalName)!;
       logger.oauthDebug('Selected email', { email });
 
       return {
         sub: userData.id,
         email: email,
-        name: userData.displayName || userData.userPrincipalName,
+        name: userData.displayName || email,
         provider: 'microsoft',
         providerData: userData,
       };

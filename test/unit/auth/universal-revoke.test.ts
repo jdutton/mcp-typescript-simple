@@ -6,7 +6,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { OAuthProvider, OAuthProviderType, StoredTokenInfo } from '../../../src/auth/providers/types.js';
+import { OAuthProvider, OAuthProviderType, StoredTokenInfo } from '@mcp-typescript-simple/auth';
 
 type MockResponse = Response & {
   statusCode?: number;

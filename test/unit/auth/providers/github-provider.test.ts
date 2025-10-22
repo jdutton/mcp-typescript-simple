@@ -6,7 +6,7 @@ import type {
   OAuthSession,
   StoredTokenInfo,
   OAuthUserInfo
-} from '../../../../src/auth/providers/types.js';
+} from '@mcp-typescript-simple/auth';
 import { logger } from '../../../../src/utils/logger.js';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
@@ -80,10 +80,10 @@ const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) 
   });
 };
 
-let GitHubOAuthProvider: typeof import('../../../../src/auth/providers/github-provider.js').GitHubOAuthProvider;
+let GitHubOAuthProvider: typeof import('@mcp-typescript-simple/auth').GitHubOAuthProvider;
 
 beforeAll(async () => {
-  ({ GitHubOAuthProvider } = await import('../../../../src/auth/providers/github-provider.js'));
+  ({ GitHubOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
 
 describe('GitHubOAuthProvider', () => {

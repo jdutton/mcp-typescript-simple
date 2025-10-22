@@ -5,7 +5,7 @@
  * Configured via ALLOWED_USERS environment variable.
  */
 
-import { logger } from '../utils/logger.js';
+import { logger } from './utils/logger.js';
 
 export interface AllowlistConfig {
   enabled: boolean;

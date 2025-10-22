@@ -11,7 +11,7 @@ import {
   OAuthUserInfo,
   OAuthProviderError
 } from './types.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '../utils/logger.js';
 import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
@@ -165,7 +165,13 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         );
       }
 
-      const userData = await userResponse.json();
+      const userData = await userResponse.json() as {
+        id: number;
+        login: string;
+        name: string | null;
+        email: string | null;
+        avatar_url: string;
+      };
       logger.oauthDebug('GitHub user data received', {
         login: userData.login,
         id: userData.id,
@@ -192,14 +198,18 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
           logger.oauthDebug('GitHub emails API response', { status: emailResponse.status, statusText: emailResponse.statusText });
 
           if (emailResponse.ok) {
-            const emails = await emailResponse.json();
+            const emails = await emailResponse.json() as Array<{
+              email: string;
+              primary: boolean;
+              verified: boolean;
+            }>;
             logger.oauthInfo('GitHub emails API response', {
               count: emails.length,
-              emails: emails.map((e: any) => ({ email: e.email, primary: e.primary, verified: e.verified }))
+              emails: emails.map((e) => ({ email: e.email, primary: e.primary, verified: e.verified }))
             });
 
-            const primary = emails.find((email: any) => email.primary && email.verified);
-            const fallback = emails.find((email: any) => email.verified);
+            const primary = emails.find((email) => email.primary && email.verified);
+            const fallback = emails.find((email) => email.verified);
             primaryEmail = primary?.email || fallback?.email || emails[0]?.email;
 
             logger.oauthInfo('Selected email', { email: primaryEmail || 'none' });

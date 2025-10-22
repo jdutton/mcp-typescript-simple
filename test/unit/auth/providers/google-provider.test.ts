@@ -1,8 +1,8 @@
 import { vi } from 'vitest';
 
 import type { Request, Response } from 'express';
-import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '../../../../src/auth/providers/types.js';
-import { logger } from '../../../../src/utils/logger.js';
+import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '@mcp-typescript-simple/auth';
+import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 const mockGenerateAuthUrl = vi.fn<(options: Record<string, unknown>) => string>();
@@ -27,10 +27,10 @@ vi.mock('google-auth-library', () => ({
   }))
 }));
 
-let GoogleOAuthProvider: typeof import('../../../../src/auth/providers/google-provider.js').GoogleOAuthProvider;
+let GoogleOAuthProvider: typeof import('@mcp-typescript-simple/auth').GoogleOAuthProvider;
 
 beforeAll(async () => {
-  ({ GoogleOAuthProvider } = await import('../../../../src/auth/providers/google-provider.js'));
+  ({ GoogleOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
 
 const baseConfig: GoogleOAuthConfig = {

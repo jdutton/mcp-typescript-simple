@@ -94,6 +94,7 @@
     "@anthropic-ai/sdk": "^0.63.0",
     "@google/generative-ai": "^0.24.1",
     "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/auth": "*",
     "@mcp-typescript-simple/persistence": "*",
     "@mcp-typescript-simple/example-tools-basic": "*",
     "@mcp-typescript-simple/example-tools-llm": "*",

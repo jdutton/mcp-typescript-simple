@@ -3,7 +3,7 @@
  */
 
 import type { Request, Response } from 'express';
-import type { StoredTokenInfo } from '../../../src/auth/providers/types.js';
+import type { StoredTokenInfo } from '@mcp-typescript-simple/auth';
 
 describe('Multi-Provider Token Refresh', () => {
   let mockReq: Partial<Request>;
