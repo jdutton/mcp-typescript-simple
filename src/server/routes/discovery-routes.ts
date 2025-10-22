@@ -11,7 +11,7 @@
 import { Router, Request, Response } from 'express';
 import { OAuthProvider } from '@mcp-typescript-simple/auth';
 import { createOAuthDiscoveryMetadata } from '@mcp-typescript-simple/auth';
-import { logger } from '../../observability/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 export interface DiscoveryRoutesOptions {
   endpoint: string;

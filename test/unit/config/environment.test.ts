@@ -1,5 +1,5 @@
 import { EnvironmentConfig, TransportMode, ConfigurationStatus } from '../../../src/config/environment.js';
-import { preserveEnv } from '../../helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('EnvironmentConfig', () => {
   let restoreEnv: () => void;

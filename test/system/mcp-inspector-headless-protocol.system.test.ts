@@ -105,7 +105,7 @@ import { test, expect, chromium, Browser } from '@playwright/test';
 import { spawn, ChildProcess } from 'child_process';
 import axios from 'axios';
 import { setTimeout as sleep } from 'timers/promises';
-import { getMockOAuthEnvVars, MOCK_USER_DATA } from '../playwright/helpers/mock-oauth-server.js';
+import { getMockOAuthEnvVars, MOCK_USER_DATA } from '@mcp-typescript-simple/testing/mock-oauth-server';
 import {
   startMCPInspector,
   stopMCPInspector,
@@ -114,10 +114,10 @@ import {
   type TestEnvironmentCleanup,
   verifyPortsFreed,
   INSPECTOR_URL
-} from '../playwright/helpers/mcp-inspector.js';
-import { checkPortsAvailable } from '../helpers/port-utils.js';
-import { stopProcessGroup } from '../helpers/process-utils.js';
-import { TEST_PORTS, getHeadlessPorts } from '../helpers/port-registry.js';
+} from '@mcp-typescript-simple/testing/mcp-inspector';
+import { checkPortsAvailable } from '@mcp-typescript-simple/testing/port-utils';
+import { stopProcessGroup } from '@mcp-typescript-simple/testing/process-utils';
+import { TEST_PORTS, getHeadlessPorts } from '@mcp-typescript-simple/testing/port-registry';
 
 const TEST_PORT = TEST_PORTS.HEADLESS_TEST;
 const TEST_BASE_URL = `http://localhost:${TEST_PORT}`;
@@ -137,7 +137,7 @@ async function startTestServer(): Promise<ChildProcess> {
   // Get mock OAuth environment variables
   const mockOAuthEnv = getMockOAuthEnvVars(TEST_PORT);
 
-  const server = spawn('npx', ['tsx', '--import', './src/observability/register.ts', 'src/index.ts'], {
+  const server = spawn('npx', ['tsx', '--import', '@mcp-typescript-simple/observability/register', 'src/index.ts'], {
     env: {
       ...process.env,
       ...mockOAuthEnv,

@@ -17,7 +17,7 @@ import {
   expectsCorsHeaders,
   isSTDIOEnvironment
 } from './utils.js';
-import { preserveEnv } from '../helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describeSystemTest('OAuth Discovery', () => {
   const environment = getCurrentEnvironment();

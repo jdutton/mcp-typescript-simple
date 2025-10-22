@@ -8,9 +8,11 @@ echo "0/5: Cleaning stale build info..."
 find packages -name "tsconfig.tsbuildinfo" -type f -delete 2>/dev/null || true
 
 # Build base packages first (no dependencies on other workspaces)
-echo "1/5: Building base packages (config, persistence, tools, tools-llm)..."
+echo "1/5: Building base packages (config, observability, persistence, testing, tools, tools-llm)..."
 npm run build -w @mcp-typescript-simple/config --if-present
+npm run build -w @mcp-typescript-simple/observability --if-present
 npm run build -w @mcp-typescript-simple/persistence --if-present
+npm run build -w @mcp-typescript-simple/testing --if-present
 npm run build -w @mcp-typescript-simple/tools --if-present
 npm run build -w @mcp-typescript-simple/tools-llm --if-present
 

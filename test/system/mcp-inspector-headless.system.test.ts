@@ -18,11 +18,11 @@ import axios from 'axios';
 import { setTimeout as sleep } from 'timers/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { getMockOAuthEnvVars, MOCK_USER_DATA } from '../playwright/helpers/mock-oauth-server.js';
+import { getMockOAuthEnvVars, MOCK_USER_DATA } from '@mcp-typescript-simple/testing/mock-oauth-server';
 
 const execAsync = promisify(exec);
 
-import { TEST_PORTS } from '../helpers/port-registry.js';
+import { TEST_PORTS } from '@mcp-typescript-simple/testing/port-registry';
 
 const TEST_PORT = TEST_PORTS.HEADLESS_TEST;
 const TEST_BASE_URL = `http://localhost:${TEST_PORT}`;
@@ -43,7 +43,7 @@ async function startTestServer(): Promise<ChildProcess> {
   // Get mock OAuth environment variables
   const mockOAuthEnv = getMockOAuthEnvVars(TEST_PORT);
 
-  const server = spawn('npx', ['tsx', '--import', './src/observability/register.ts', 'src/index.ts'], {
+  const server = spawn('npx', ['tsx', '--import', '@mcp-typescript-simple/observability/register', 'src/index.ts'], {
     env: {
       ...process.env,
       ...mockOAuthEnv,

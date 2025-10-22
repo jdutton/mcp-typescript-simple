@@ -6,7 +6,17 @@
  */
 
 import { trace } from '@opentelemetry/api';
-import type { SessionInfo } from '../session/session-manager.js';
+
+/**
+ * Minimal session info interface for observability
+ * Users can pass any object with these fields
+ */
+export interface SessionInfo {
+  sessionId: string;
+  createdAt: number;
+  expiresAt: number;
+  authInfo?: unknown;
+}
 
 /**
  * Session correlation context for spans

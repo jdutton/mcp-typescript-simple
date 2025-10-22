@@ -12,7 +12,7 @@ import {
   getAllowlistStats,
   type AllowlistConfig
 } from '@mcp-typescript-simple/auth';
-import { preserveEnv } from '../../helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('User Allowlist', () => {
   let restoreEnv: () => void;

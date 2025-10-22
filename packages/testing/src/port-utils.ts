@@ -212,7 +212,8 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
 
     lsof.on('close', async (code) => {
       if (code === 0 && pidOutput.trim()) {
-        const pid = parseInt(pidOutput.trim().split('\n')[0], 10);
+        const firstLine = pidOutput.trim().split('\n')[0] || '';
+        const pid = parseInt(firstLine, 10);
         if (!isNaN(pid)) {
           // Get process command
           const psResult = await new Promise<string>((psResolve) => {

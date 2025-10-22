@@ -6,7 +6,7 @@ import { ClientStoreFactory } from '../src/index.js';
 import { InMemoryClientStore } from '../src/index.js';
 import { FileClientStore } from '../src/index.js';
 import { RedisClientStore } from '../src/index.js';
-import { preserveEnv } from '../../../test/helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('ClientStoreFactory', () => {
   let restoreEnv: () => void;

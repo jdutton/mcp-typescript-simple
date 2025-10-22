@@ -12,11 +12,11 @@ import { Page, expect } from '@playwright/test';
 import { ChildProcess, spawn } from 'child_process';
 import axios from 'axios';
 import { setTimeout as sleep } from 'timers/promises';
-import { verifyPortsFreed } from '../../helpers/port-utils.js';
-import { stopProcessGroup } from '../../helpers/process-utils.js';
-import { setupTestEnvironment, TestEnvironmentCleanup } from '../../helpers/test-setup.js';
-import { TEST_PORTS } from '../../helpers/port-registry.js';
-import { registerProcess } from '../../helpers/signal-handler.js';
+import { verifyPortsFreed } from './port-utils.js';
+import { stopProcessGroup } from './process-utils.js';
+import { setupTestEnvironment, TestEnvironmentCleanup } from './test-setup.js';
+import { TEST_PORTS } from './port-registry.js';
+import { registerProcess } from './signal-handler.js';
 
 // Re-export from centralized port registry
 export const INSPECTOR_PORT = TEST_PORTS.INSPECTOR;

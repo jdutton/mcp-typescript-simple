@@ -7,7 +7,7 @@
 
 import { FullConfig } from '@playwright/test';
 import { OAuth2Server } from 'oauth2-mock-server';
-import { stopMockOAuthServer } from './helpers/mock-oauth-server.js';
+import { stopMockOAuthServer } from '@mcp-typescript-simple/testing/mock-oauth-server';
 
 /**
  * Global teardown - runs after all tests

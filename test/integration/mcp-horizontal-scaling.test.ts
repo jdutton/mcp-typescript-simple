@@ -14,7 +14,7 @@ import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
 import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
-import { logger } from '../../src/observability/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 describe('MCP Horizontal Scaling Integration Tests', () => {
   let instanceManager: MCPInstanceManager;

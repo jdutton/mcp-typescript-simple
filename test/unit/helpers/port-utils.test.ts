@@ -10,7 +10,7 @@ import {
   getProcessUsingPort,
   terminateProcess,
   cleanupLeakedTestPorts,
-} from '../../helpers/port-utils.js';
+} from '@mcp-typescript-simple/testing/port-utils';
 
 describe('Port Utilities - Safety Logic', () => {
   describe('isTestProcess', () => {

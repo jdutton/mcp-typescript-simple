@@ -3,7 +3,7 @@
  * Now delegates to observability logger for enhanced functionality
  */
 
-import { logger as observabilityLogger } from '../observability/logger.js';
+import { logger as observabilityLogger } from '@mcp-typescript-simple/observability';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

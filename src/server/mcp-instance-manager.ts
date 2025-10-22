@@ -19,7 +19,7 @@ import { createMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
 import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
 import type { ToolRegistry } from '@mcp-typescript-simple/tools';
-import { logger } from '../observability/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * MCP Server instance with associated transport (non-serializable)

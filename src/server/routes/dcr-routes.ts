@@ -12,7 +12,7 @@
 
 import { Router, Request, Response } from 'express';
 import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
-import { logger } from '../../observability/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Setup OAuth 2.0 Dynamic Client Registration routes

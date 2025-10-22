@@ -11,7 +11,7 @@ import { MemoryMCPMetadataStore } from '../src/index.js';
 import { CachingMCPMetadataStore } from '../src/index.js';
 import { MCPSessionMetadata } from '../src/index.js';
 import { MCPMetadataStoreFactory } from '../src/index.js';
-import { preserveEnv } from '../../../test/helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('MemoryMCPMetadataStore', () => {
   let store: MemoryMCPMetadataStore;

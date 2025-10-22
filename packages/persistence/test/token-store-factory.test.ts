@@ -5,7 +5,7 @@
 import { TokenStoreFactory, createTokenStore } from '../src/index.js';
 import { InMemoryTokenStore } from '../src/index.js';
 import { FileTokenStore } from '../src/index.js';
-import { preserveEnv } from '../../../test/helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('TokenStoreFactory', () => {
   let restoreEnv: () => void;

@@ -3,7 +3,7 @@
  */
 
 import { OAuthTokenStoreFactory, createOAuthTokenStore } from '../src/index.js';
-import { preserveEnv } from '../../../test/helpers/env-helper.js';
+import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('OAuthTokenStoreFactory', () => {
   let restoreEnv: () => void;

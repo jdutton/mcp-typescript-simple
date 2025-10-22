@@ -10,7 +10,7 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { registerProcess } from '../helpers/signal-handler.js';
+import { registerProcess } from '@mcp-typescript-simple/testing/signal-handler';
 
 export interface MCPRequest {
   jsonrpc: '2.0';

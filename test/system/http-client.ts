@@ -11,8 +11,8 @@
  */
 
 import { spawn, ChildProcess } from 'child_process';
-import { getHTTPTestPort } from '../helpers/port-registry.js';
-import { registerProcess } from '../helpers/signal-handler.js';
+import { getHTTPTestPort } from '@mcp-typescript-simple/testing/port-registry';
+import { registerProcess } from '@mcp-typescript-simple/testing/signal-handler';
 
 export interface HTTPClientOptions {
   port?: number;

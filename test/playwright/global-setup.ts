@@ -11,8 +11,8 @@ import {
   createMockOAuthServer,
   startMockOAuthServer,
   MOCK_OAUTH_PORT
-} from './helpers/mock-oauth-server.js';
-import { checkPortsAvailable } from '../helpers/port-utils';
+} from '@mcp-typescript-simple/testing/mock-oauth-server';
+import { checkPortsAvailable } from '@mcp-typescript-simple/testing/port-utils';
 import { promises as fs } from 'fs';
 import { existsSync } from 'fs';
 
