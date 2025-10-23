@@ -1,0 +1,87 @@
+{
+  "name": "@mcp-typescript-simple/auth",
+  "version": "0.1.0",
+  "description": "OAuth 2.0/2.1 + Dynamic Client Registration (DCR) implementation for MCP servers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js"
+    },
+    "./factory": {
+      "types": "./dist/factory.d.ts",
+      "import": "./dist/factory.js"
+    },
+    "./providers/types": {
+      "types": "./dist/providers/types.d.ts",
+      "import": "./dist/providers/types.js"
+    },
+    "./shared/oauth-helpers": {
+      "types": "./dist/shared/oauth-helpers.d.ts",
+      "import": "./dist/shared/oauth-helpers.js"
+    },
+    "./login-page": {
+      "types": "./dist/login-page.d.ts",
+      "import": "./dist/login-page.js"
+    },
+    "./shared/universal-token-handler": {
+      "types": "./dist/shared/universal-token-handler.d.ts",
+      "import": "./dist/shared/universal-token-handler.js"
+    },
+    "./shared/universal-revoke-handler": {
+      "types": "./dist/shared/universal-revoke-handler.d.ts",
+      "import": "./dist/shared/universal-revoke-handler.js"
+    },
+    "./shared/provider-router": {
+      "types": "./dist/shared/provider-router.d.ts",
+      "import": "./dist/shared/provider-router.js"
+    },
+    "./discovery-metadata": {
+      "types": "./dist/discovery-metadata.d.ts",
+      "import": "./dist/discovery-metadata.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/persistence": "*"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "oauth",
+    "oauth2",
+    "authentication",
+    "dcr",
+    "dynamic-client-registration",
+    "google",
+    "github",
+    "microsoft"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT"
+}

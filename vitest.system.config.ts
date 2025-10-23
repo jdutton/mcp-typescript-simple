@@ -7,7 +7,7 @@ export default defineConfig({
 
     // Test file patterns - only system tests
     include: [
-      '**/test/system/**/*.test.ts'
+      '**/packages/example-mcp/test/system/**/*.test.ts'
     ],
 
     // Exclude patterns
@@ -15,7 +15,7 @@ export default defineConfig({
       '**/node_modules/**',
       '**/build/**',
       '**/coverage/**',
-      '**/test/system/**/*headless*', // Exclude Playwright tests (run via 'playwright test')
+      '**/packages/example-mcp/test/system/**/*headless*', // Exclude Playwright tests (run via 'playwright test')
     ],
 
     // Coverage configuration
@@ -43,11 +43,11 @@ export default defineConfig({
     },
 
     // Global setup and teardown for HTTP server management
-    globalSetup: ['./test/system/vitest-global-setup.ts'],
-    globalTeardown: ['./test/system/vitest-global-teardown.ts'],
+    globalSetup: ['./packages/example-mcp/test/system/vitest-global-setup.ts'],
+    globalTeardown: ['./packages/example-mcp/test/system/vitest-global-teardown.ts'],
 
     // System test specific setup (test utilities only, no server management)
-    setupFiles: ['./test/vitest-setup.ts', './test/system/setup.ts'],
+    setupFiles: ['./test/framework/vitest-setup.ts', './packages/example-mcp/test/system/setup.ts'],
 
     // Enable globals for Vitest
     globals: true,
@@ -57,6 +57,6 @@ export default defineConfig({
     restoreMocks: true,
 
     // Reporters - use LLM reporter for concise output
-    reporters: [['./test/llm-reporter.ts', {}]],
+    reporters: [['./test/framework/llm-reporter.ts', {}]],
   },
 });

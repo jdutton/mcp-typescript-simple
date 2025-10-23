@@ -1,0 +1,54 @@
+{
+  "name": "@mcp-typescript-simple/http-server",
+  "version": "0.1.0",
+  "description": "HTTP server infrastructure for MCP with session management, middleware, and transport layers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mcp-typescript-simple/auth": "*",
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/observability": "*",
+    "@mcp-typescript-simple/persistence": "*",
+    "@mcp-typescript-simple/server": "*",
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "uuid": "^11.0.4"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "http",
+    "server",
+    "session-management",
+    "transport",
+    "middleware"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT"
+}

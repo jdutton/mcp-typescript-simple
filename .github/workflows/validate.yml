@@ -12,8 +12,8 @@ name: Validation Pipeline
     branches:
       - main
 jobs:
-  typescript-type-checking:
-    name: TypeScript type checking
+  typescript-lint-openapi-build:
+    name: TypeScript & Lint & OpenAPI & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,36 +24,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-  eslint-code-checking:
-    name: ESLint code checking
+      - run: npm run typecheck && npm run lint && npm run test:openapi && npm run build
+  unit-integration-tests:
+    name: Unit & Integration Tests
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run lint
-  openapi-validation:
-    name: OpenAPI validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:openapi
-  build:
-    name: Build
-    runs-on: ubuntu-latest
+    needs:
+      - typescript-lint-openapi-build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -64,14 +40,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-  unit-tests:
-    name: Unit tests
+      - run: npm run test:unit && npm run test:integration
+  stdio-http-system-tests:
+    name: STDIO & HTTP System Tests
     runs-on: ubuntu-latest
     needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
+      - typescript-lint-openapi-build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,69 +55,12 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run test:unit
-  integration-tests:
-    name: Integration tests
-    runs-on: ubuntu-latest
-    needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:integration
-  stdio-system-tests:
-    name: STDIO system tests
-    runs-on: ubuntu-latest
-    needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:system:stdio
-  http-system-tests:
-    name: HTTP system tests
-    runs-on: ubuntu-latest
-    needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:system:ci
+      - run: npm run test:system:stdio && npm run test:system:ci
   headless-browser-tests:
-    name: Headless browser tests
+    name: Headless Browser Tests
     runs-on: ubuntu-latest
     needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
+      - typescript-lint-openapi-build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,27 +75,17 @@ jobs:
     name: All Validation Passed
     runs-on: ubuntu-latest
     needs:
-      - typescript-type-checking
-      - eslint-code-checking
-      - openapi-validation
-      - build
-      - unit-tests
-      - integration-tests
-      - stdio-system-tests
-      - http-system-tests
+      - typescript-lint-openapi-build
+      - unit-integration-tests
+      - stdio-http-system-tests
       - headless-browser-tests
     if: always()
     steps:
       - name: Check all validation jobs
         run: |-
-          if [ "${{ needs.typescript-type-checking.result }}" != "success" ] || \
-                       [ "${{ needs.eslint-code-checking.result }}" != "success" ] || \
-                       [ "${{ needs.openapi-validation.result }}" != "success" ] || \
-                       [ "${{ needs.build.result }}" != "success" ] || \
-                       [ "${{ needs.unit-tests.result }}" != "success" ] || \
-                       [ "${{ needs.integration-tests.result }}" != "success" ] || \
-                       [ "${{ needs.stdio-system-tests.result }}" != "success" ] || \
-                       [ "${{ needs.http-system-tests.result }}" != "success" ] || \
+          if [ "${{ needs.typescript-lint-openapi-build.result }}" != "success" ] || \
+                       [ "${{ needs.unit-integration-tests.result }}" != "success" ] || \
+                       [ "${{ needs.stdio-http-system-tests.result }}" != "success" ] || \
                        [ "${{ needs.headless-browser-tests.result }}" != "success" ]; then
                       echo "❌ Some validation checks failed"
                       exit 1

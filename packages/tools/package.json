@@ -1,0 +1,36 @@
+{
+  "name": "@mcp-typescript-simple/tools",
+  "version": "0.1.0",
+  "description": "Core tool system for building MCP tools in TypeScript",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "mcp",
+    "typescript",
+    "tools"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT",
+  "peerDependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2",
+    "zod": "^3.25.76"
+  }
+}

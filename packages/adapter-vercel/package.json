@@ -1,0 +1,70 @@
+{
+  "name": "@mcp-typescript-simple/adapter-vercel",
+  "version": "1.0.0",
+  "description": "Vercel serverless adapter for MCP TypeScript Simple server",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mcp": {
+      "types": "./dist/mcp.d.ts",
+      "import": "./dist/mcp.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js"
+    },
+    "./health": {
+      "types": "./dist/health.d.ts",
+      "import": "./dist/health.js"
+    },
+    "./admin": {
+      "types": "./dist/admin.d.ts",
+      "import": "./dist/admin.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "import": "./dist/register.js"
+    },
+    "./well-known": {
+      "types": "./dist/well-known.d.ts",
+      "import": "./dist/well-known.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ test/"
+  },
+  "dependencies": {
+    "@vercel/node": "^3.0.0",
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@mcp-typescript-simple/tools": "*",
+    "@mcp-typescript-simple/tools-llm": "*",
+    "@mcp-typescript-simple/example-tools-basic": "*",
+    "@mcp-typescript-simple/example-tools-llm": "*",
+    "@mcp-typescript-simple/server": "*",
+    "@mcp-typescript-simple/http-server": "*",
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/auth": "*",
+    "@mcp-typescript-simple/observability": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.8",
+    "eslint": "^9.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "vercel",
+    "serverless",
+    "adapter"
+  ]
+}

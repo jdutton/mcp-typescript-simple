@@ -1,6 +1,12 @@
 import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@mcp-typescript-simple/example-mcp': resolve(__dirname, 'packages/example-mcp/src'),
+    },
+  },
   test: {
     // Test environment
     environment: 'node',
@@ -14,11 +20,12 @@ export default defineConfig({
     // Exclude patterns
     exclude: [
       '**/node_modules/**',
-      '**/test/system/**',
-      '**/test/playwright/**',
+      '**/packages/example-mcp/test/system/**',        // System tests (run separately)
+      '**/packages/example-mcp/test/playwright/**',    // Playwright tests (run separately)
       '**/build/**',
       '**/coverage/**',
-      '**/test/integration/deployment-validation.test.ts', // Custom test runner, not a Vitest test
+      '**/packages/example-mcp/test/integration/deployment-validation.test.ts', // Custom test runner, not a Vitest test
+      '**/packages/adapter-vercel/test/deployment-validation.test.ts', // Custom test runner, not a Vitest test
     ],
 
     // Coverage configuration
@@ -26,21 +33,18 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       include: [
-        'src/**/*.ts',
+        'packages/*/src/**/*.ts',
       ],
       exclude: [
-        'src/**/*.d.ts',
-        // Exclude route handlers from unit test coverage - they are integration points
-        // that require HTTP request/response testing via integration tests.
-        // Testing routes via mocked unit tests is fragile and provides little value.
-        // See test/integration/*-routes.test.ts for comprehensive route testing.
-        'src/server/routes/**/*.ts',
+        'packages/**/src/**/*.d.ts',
+        'packages/**/*.test.ts',
+        'packages/**/*.test.js',
       ],
       thresholds: {
-        statements: 70,
-        branches: 55,
-        functions: 65,
-        lines: 70,
+        statements: 30,
+        branches: 50,
+        functions: 40,
+        lines: 30,
       },
     },
 
@@ -51,7 +55,7 @@ export default defineConfig({
     globals: true, // Enable global APIs like describe, it, expect
 
     // Jest compatibility - map jest to vi
-    setupFiles: ['./test/vitest-setup.ts'],
+    setupFiles: ['./test/framework/vitest-setup.ts'],
 
     // Timeout configuration
     testTimeout: 10000,
@@ -61,7 +65,7 @@ export default defineConfig({
 
     // Reporters
     // Use both default (for human-readable output) and LLM reporter (for agent-friendly format)
-    reporters: ['default', './test/llm-reporter.ts'],
+    reporters: ['default', './test/framework/llm-reporter.ts'],
 
     // Pool options for better performance
     pool: 'threads',

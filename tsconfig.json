@@ -4,7 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./build",
-    "rootDir": "./src",
+    "rootDir": "./api",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -22,6 +22,21 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "**/*.test.ts", "**/__tests__/**"]
+  "include": ["api/**/*"],
+  "exclude": ["node_modules", "build", "**/*.test.ts", "**/__tests__/**"],
+  "references": [
+    { "path": "./packages/config" },
+    { "path": "./packages/observability" },
+    { "path": "./packages/persistence" },
+    { "path": "./packages/testing" },
+    { "path": "./packages/tools" },
+    { "path": "./packages/tools-llm" },
+    { "path": "./packages/auth" },
+    { "path": "./packages/server" },
+    { "path": "./packages/example-tools-basic" },
+    { "path": "./packages/example-tools-llm" },
+    { "path": "./packages/http-server" },
+    { "path": "./packages/example-mcp" },
+    { "path": "./packages/adapter-vercel" }
+  ]
 }

@@ -1,0 +1,29 @@
+{
+  "name": "@mcp-typescript-simple/example-tools-basic",
+  "version": "0.1.0",
+  "description": "Example: Basic MCP tools for demonstration and testing",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "mcp",
+    "tools",
+    "example"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT",
+  "dependencies": {
+    "@mcp-typescript-simple/tools": "*",
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "typescript": "^5.9.2"
+  }
+}

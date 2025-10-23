@@ -1,31 +1,26 @@
 extends: typescript-nodejs
 validation:
   phases:
-    - name: 'Phase 1: Pre-Qualification + Build'
-      parallel: true
+    - name: 'Code Quality & Build'
+      parallel: false  # Sequential - saves 3 runners (was 4 parallel jobs)
       steps:
-        - name: TypeScript type checking
-          command: npm run typecheck
-        - name: ESLint code checking
-          command: npm run lint
-        - name: OpenAPI validation
-          command: npm run test:openapi
-        - name: Build
-          command: npm run build
-    - name: 'Phase 2: Testing'
-      parallel: true
+        - name: TypeScript & Lint & OpenAPI & Build
+          command: npm run typecheck && npm run lint && npm run test:openapi && npm run build
+    - name: 'Fast Tests'
+      parallel: false  # Sequential - saves 1 runner (was 2 parallel jobs)
       dependsOn:
-        - 'Phase 1: Pre-Qualification + Build'
+        - 'Code Quality & Build'
       steps:
-        - name: Unit tests
-          command: npm run test:unit
-        - name: Integration tests
-          command: npm run test:integration
-        - name: STDIO system tests
-          command: npm run test:system:stdio
-        - name: HTTP system tests
-          command: npm run test:system:ci
-        - name: Headless browser tests
+        - name: Unit & Integration Tests
+          command: npm run test:unit && npm run test:integration
+    - name: 'System Tests'
+      parallel: false  # Sequential - saves 2 runners (was 3 parallel jobs)
+      dependsOn:
+        - 'Code Quality & Build'
+      steps:
+        - name: STDIO & HTTP System Tests
+          command: npm run test:system:stdio && npm run test:system:ci
+        - name: Headless Browser Tests
           command: npx playwright install --with-deps chromium && npm run test:system:headless
   caching:
     enabled: true

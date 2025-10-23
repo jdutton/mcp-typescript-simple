@@ -59,23 +59,29 @@ The multi-node deployment consists of:
 
 ### Required
 - Docker and Docker Compose installed
-- Redis available (started automatically by docker-compose)
-- Project built: `npm run build`
+
+### What's Included in docker-compose
+The `docker-compose.yml` automatically starts ALL required services:
+- ✅ **3 MCP Server Instances** (mcp-server-1, mcp-server-2, mcp-server-3)
+- ✅ **Redis** for session storage (port 6380)
+- ✅ **Nginx Load Balancer** (port 8080)
+- ✅ **Grafana OTEL Stack** for observability (ports 3200, 4317-4318)
+
+**No separate setup needed!** Just run `docker-compose up` and everything starts together.
 
 ### Optional
-- OpenTelemetry stack for observability: `npm run otel:start`
-- OAuth credentials (for production testing with authentication)
+- OAuth credentials (for production testing with authentication) via `.env.oauth.docker`
 
 ## Quick Start
 
 ### 1. Start the Multi-Node Deployment
 
 ```bash
-# Start 3 MCP servers + Redis + Nginx load balancer
-docker-compose --profile loadbalanced up -d
+# Start ALL services: 3 MCP servers + Redis + Nginx + OTEL observability
+docker-compose up -d
 
 # Verify all services are running
-docker-compose --profile loadbalanced ps
+docker-compose ps
 ```
 
 **Expected output:**
@@ -85,8 +91,11 @@ mcp-nginx                             Up
 mcp-typescript-simple-mcp-server-1-1  Up
 mcp-typescript-simple-mcp-server-2-1  Up
 mcp-typescript-simple-mcp-server-3-1  Up
-mcp-redis-lb                          Up (healthy)
+mcp-redis-compose                     Up (healthy)
+mcp-grafana-otel                      Up (healthy)
 ```
+
+**Note**: All services start together. OTEL stack is ready at http://localhost:3200.
 
 ### 2. Verify Health
 
@@ -332,17 +341,9 @@ docker exec mcp-redis redis-cli GET "mcp:session:$SESSION_ID"
 
 ## Observability Integration
 
-The multi-node deployment integrates with OpenTelemetry for distributed tracing.
+The multi-node deployment automatically includes OpenTelemetry for distributed tracing.
 
-### Start Observability Stack
-
-```bash
-# Start Grafana OTEL stack (port 3200)
-npm run otel:start
-
-# Verify it's running
-curl http://localhost:3200/
-```
+**OTEL is already running!** It started automatically with `docker-compose up`.
 
 ### View Distributed Traces
 
@@ -503,21 +504,17 @@ docker-compose --profile loadbalanced exec mcp-server-1 env | grep REDIS_URL
 
 ## Cleanup
 
-### Stop Deployment
+### Stop All Services
 
 ```bash
-# Stop all services
-docker-compose --profile loadbalanced down
+# Stop all services (MCP servers, Redis, Nginx, OTEL)
+docker-compose down
 
-# Stop and remove volumes (clears Redis data)
-docker-compose --profile loadbalanced down -v
+# Stop and remove volumes (clears Redis data and OTEL data)
+docker-compose down -v
 ```
 
-### Stop Observability Stack
-
-```bash
-npm run otel:stop
-```
+**Note**: `docker-compose down` stops everything - no separate OTEL cleanup needed!
 
 ## Related Documentation
 
@@ -540,8 +537,9 @@ The multi-node Docker deployment provides:
 
 **Quick reference**:
 ```bash
-# Start:  docker-compose --profile loadbalanced up -d
+# Start:  docker-compose up -d
 # Test:   curl http://localhost:8080/health
-# Logs:   docker-compose --profile loadbalanced logs -f
-# Stop:   docker-compose --profile loadbalanced down
+# Logs:   docker-compose logs -f
+# Grafana: http://localhost:3200
+# Stop:   docker-compose down
 ```
