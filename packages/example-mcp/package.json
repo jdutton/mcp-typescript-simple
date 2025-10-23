@@ -1,0 +1,45 @@
+{
+  "name": "@mcp-typescript-simple/example-mcp",
+  "version": "1.0.0",
+  "description": "Example MCP server demonstrating framework usage",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "example-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev:stdio": "NODE_ENV=development MCP_DEV_SKIP_AUTH=true tsx --env-file-if-exists=.env.local --import @mcp-typescript-simple/observability/register src/index.ts",
+    "dev:http": "NODE_ENV=development MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true tsx --import @mcp-typescript-simple/observability/register src/index.ts",
+    "dev:oauth": "NODE_ENV=development MCP_MODE=streamable_http tsx --import @mcp-typescript-simple/observability/register --env-file=.env.oauth src/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts test/**/*.ts"
+  },
+  "keywords": [
+    "mcp",
+    "typescript",
+    "example",
+    "server"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@mcp-typescript-simple/tools": "*",
+    "@mcp-typescript-simple/tools-llm": "*",
+    "@mcp-typescript-simple/example-tools-basic": "*",
+    "@mcp-typescript-simple/example-tools-llm": "*",
+    "@mcp-typescript-simple/server": "*",
+    "@mcp-typescript-simple/http-server": "*",
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/observability": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -13,11 +13,11 @@ import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
 import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 
 // Import configuration and transport system
-import { EnvironmentConfig } from "./config/environment.js";
+import { EnvironmentConfig } from "@mcp-typescript-simple/config";
 import { TransportFactory } from "@mcp-typescript-simple/http-server";
 
 // Import structured logger
-import { logger } from "./utils/logger.js";
+import { logger } from "@mcp-typescript-simple/observability";
 
 // Initialize LLM manager
 const llmManager = new LLMManager();

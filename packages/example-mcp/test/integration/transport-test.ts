@@ -206,8 +206,9 @@ class TransportTestRunner {
       // Test that environment variables properly control transport mode
       const { readFileSync } = await import('fs');
 
-      // Check main index.ts for environment-based transport selection
-      const indexContent = readFileSync('src/index.ts', 'utf8');
+      // Check example-mcp package for environment-based transport selection
+      // (src/index.ts is now a thin wrapper that delegates to example-mcp)
+      const indexContent = readFileSync('packages/example-mcp/src/index.ts', 'utf8');
 
       if (!indexContent.includes('TransportFactory')) {
         throw new Error('Missing TransportFactory for mode selection');

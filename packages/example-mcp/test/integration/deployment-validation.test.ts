@@ -83,15 +83,27 @@ class CITestRunner {
 
   private async testTypeScriptBuild(): Promise<void> {
     const { stdout: _stdout, stderr } = await execAsync('npm run build');
-    if (stderr && !stderr.includes('warning')) {
-      throw new Error(`Build failed: ${stderr}`);
+    // Filter out npm warnings (like "npm warn using --force")
+    const filteredStderr = stderr
+      ?.split('\n')
+      .filter(line => !line.includes('npm warn'))
+      .join('\n')
+      .trim();
+    if (filteredStderr && !filteredStderr.includes('warning')) {
+      throw new Error(`Build failed: ${filteredStderr}`);
     }
   }
 
   private async testTypeCheck(): Promise<void> {
     const { stdout: _stdout, stderr } = await execAsync('npm run typecheck');
-    if (stderr) {
-      throw new Error(`Type check failed: ${stderr}`);
+    // Filter out npm warnings (like "npm warn using --force")
+    const filteredStderr = stderr
+      ?.split('\n')
+      .filter(line => !line.includes('npm warn'))
+      .join('\n')
+      .trim();
+    if (filteredStderr) {
+      throw new Error(`Type check failed: ${filteredStderr}`);
     }
   }
 
@@ -109,7 +121,7 @@ class CITestRunner {
 
   private async testServerStartup(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = spawn('npx', ['tsx', 'src/index.ts'], {
+      const child = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, MCP_DEV_SKIP_AUTH: 'true' }
       });
@@ -244,7 +256,7 @@ class CITestRunner {
   private async testVercelConfiguration(): Promise<void> {
     try {
       // Run Vercel configuration tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/vercel-config-test.ts');
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx packages/example-mcp/test/integration/vercel-config-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Vercel configuration validation failed: ${stderr}`);
       }
@@ -260,7 +272,7 @@ class CITestRunner {
   private async testTransportLayer(): Promise<void> {
     try {
       // Run transport layer tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/transport-test.ts');
+      const { stdout: _stdout, stderr } = await execAsync('npx tsx packages/example-mcp/test/integration/transport-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Transport layer validation failed: ${stderr}`);
       }
@@ -313,7 +325,7 @@ class CITestRunner {
 
   private async sendMCPRequest(request: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
-      const child = spawn('npx', ['tsx', 'src/index.ts'], {
+      const child = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
         stdio: ['pipe', 'pipe', 'pipe']
       });
 

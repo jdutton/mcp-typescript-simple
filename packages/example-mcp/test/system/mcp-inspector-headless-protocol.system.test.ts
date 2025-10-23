@@ -137,7 +137,7 @@ async function startTestServer(): Promise<ChildProcess> {
   // Get mock OAuth environment variables
   const mockOAuthEnv = getMockOAuthEnvVars(TEST_PORT);
 
-  const server = spawn('npx', ['tsx', '--import', '@mcp-typescript-simple/observability/register', 'src/index.ts'], {
+  const server = spawn('npx', ['tsx', '--import', '@mcp-typescript-simple/observability/register', 'packages/example-mcp/src/index.ts'], {
     env: {
       ...process.env,
       ...mockOAuthEnv,

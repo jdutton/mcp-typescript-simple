@@ -6,12 +6,12 @@ import { defineConfig, devices } from '@playwright/test';
  * See https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
-  testDir: './test/system',
+  testDir: './packages/example-mcp/test/system',
   testMatch: 'mcp-inspector-headless*.system.test.ts', // All MCP Inspector tests (OAuth + protocol)
 
   // Global setup and teardown for mock OAuth server
-  globalSetup: './test/playwright/global-setup.ts',
-  globalTeardown: './test/playwright/global-teardown.ts',
+  globalSetup: './packages/example-mcp/test/playwright/global-setup.ts',
+  globalTeardown: './packages/example-mcp/test/playwright/global-teardown.ts',
 
   // Maximum time one test can run
   timeout: 60 * 1000, // 60 seconds

@@ -6,7 +6,7 @@ import type {
   OAuthSession,
   OAuthUserInfo
 } from '@mcp-typescript-simple/auth';
-import { logger } from '../../../../src/utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 let originalFetch: typeof globalThis.fetch;

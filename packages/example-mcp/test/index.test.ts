@@ -30,7 +30,7 @@ describe('MCP server bootstrap', () => {
 
     const typesModule = await import('@modelcontextprotocol/sdk/types.js');
 
-    const envModule = await import('./config/environment');
+    const envModule = await import('@mcp-typescript-simple/config');
     const transportMode = envModule.TransportMode.STDIO;
     const getSpy = vi.spyOn(envModule.EnvironmentConfig, 'get').mockReturnValue({ NODE_ENV: 'test' } as any);
     const getTransportModeSpy = vi.spyOn(envModule.EnvironmentConfig, 'getTransportMode').mockReturnValue(transportMode);
@@ -73,7 +73,7 @@ describe('MCP server bootstrap', () => {
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-    await import('./index.js');
+    await import('../src/index.js');
     await startCalled;
     await new Promise((resolve) => setImmediate(resolve));
 

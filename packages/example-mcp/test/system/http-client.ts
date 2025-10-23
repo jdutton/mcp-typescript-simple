@@ -52,7 +52,7 @@ export class HTTPTestClient {
 
     return new Promise((resolve, reject) => {
       // Start the server process
-      this.server = spawn('npx', ['tsx', 'src/index.ts'], {
+      this.server = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: {
           ...process.env,

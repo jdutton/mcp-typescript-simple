@@ -65,7 +65,7 @@ export class STDIOTestClient {
     console.log('🚀 Starting MCP server in STDIO mode...');
 
     // Start the MCP server process
-    this.server = spawn('npx', ['tsx', 'src/index.ts'], {
+    this.server = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       cwd: process.cwd(),
       env: {

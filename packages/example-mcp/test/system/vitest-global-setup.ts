@@ -141,7 +141,7 @@ export default async function globalSetup(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Start the server process (suppress output to reduce test verbosity)
-    globalHttpServer = spawn('npx', ['tsx', 'src/index.ts'], {
+    globalHttpServer = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
       stdio: ['ignore', 'pipe', 'pipe'], // ignore stdin, capture stdout/stderr for readiness detection
       env: {
         ...process.env,
