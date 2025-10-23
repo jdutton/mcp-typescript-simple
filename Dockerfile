@@ -41,4 +41,4 @@ EXPOSE 3000
 
 # Start the server with observability instrumentation
 # Note: main entry point is now in packages/example-mcp
-CMD ["node", "--import", "./build/packages/observability/dist/register.js", "build/packages/example-mcp/dist/index.js"]
+CMD ["node", "--import", "./packages/observability/dist/register.js", "packages/example-mcp/dist/index.js"]
