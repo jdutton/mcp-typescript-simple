@@ -114,10 +114,10 @@ class TransportTestRunner {
       const { readFileSync } = await import('fs');
 
       const apiFiles = [
-        'api/mcp.ts',
-        'api/health.ts',
-        'api/auth.ts',
-        'api/admin.ts'
+        'packages/adapter-vercel/src/mcp.ts',
+        'packages/adapter-vercel/src/health.ts',
+        'packages/adapter-vercel/src/auth.ts',
+        'packages/adapter-vercel/src/admin.ts'
       ];
 
       for (const file of apiFiles) {
@@ -148,7 +148,7 @@ class TransportTestRunner {
     await this.runTest('Streaming Headers Configuration', async () => {
       // Verify that MCP API function has proper streaming headers
       const { readFileSync } = await import('fs');
-      const mcpContent = readFileSync('api/mcp.ts', 'utf8');
+      const mcpContent = readFileSync('packages/adapter-vercel/src/mcp.ts', 'utf8');
 
       // Check for streaming-related headers
       const streamingHeaders = [
@@ -174,10 +174,10 @@ class TransportTestRunner {
       const { readFileSync } = await import('fs');
 
       const apiFiles = [
-        'api/mcp.ts',
-        'api/health.ts',
-        'api/auth.ts',
-        'api/admin.ts'
+        'packages/adapter-vercel/src/mcp.ts',
+        'packages/adapter-vercel/src/health.ts',
+        'packages/adapter-vercel/src/auth.ts',
+        'packages/adapter-vercel/src/admin.ts'
       ];
 
       for (const file of apiFiles) {
@@ -236,10 +236,10 @@ class TransportTestRunner {
       const { readFileSync } = await import('fs');
 
       const apiFiles = [
-        'api/mcp.ts',
-        'api/health.ts',
-        'api/auth.ts',
-        'api/admin.ts'
+        'packages/adapter-vercel/src/mcp.ts',
+        'packages/adapter-vercel/src/health.ts',
+        'packages/adapter-vercel/src/auth.ts',
+        'packages/adapter-vercel/src/admin.ts'
       ];
 
       for (const file of apiFiles) {

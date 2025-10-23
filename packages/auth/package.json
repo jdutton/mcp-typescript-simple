@@ -13,6 +13,38 @@
     "./providers": {
       "types": "./dist/providers/index.d.ts",
       "import": "./dist/providers/index.js"
+    },
+    "./factory": {
+      "types": "./dist/factory.d.ts",
+      "import": "./dist/factory.js"
+    },
+    "./providers/types": {
+      "types": "./dist/providers/types.d.ts",
+      "import": "./dist/providers/types.js"
+    },
+    "./shared/oauth-helpers": {
+      "types": "./dist/shared/oauth-helpers.d.ts",
+      "import": "./dist/shared/oauth-helpers.js"
+    },
+    "./login-page": {
+      "types": "./dist/login-page.d.ts",
+      "import": "./dist/login-page.js"
+    },
+    "./shared/universal-token-handler": {
+      "types": "./dist/shared/universal-token-handler.d.ts",
+      "import": "./dist/shared/universal-token-handler.js"
+    },
+    "./shared/universal-revoke-handler": {
+      "types": "./dist/shared/universal-revoke-handler.d.ts",
+      "import": "./dist/shared/universal-revoke-handler.js"
+    },
+    "./shared/provider-router": {
+      "types": "./dist/shared/provider-router.d.ts",
+      "import": "./dist/shared/provider-router.js"
+    },
+    "./discovery-metadata": {
+      "types": "./dist/discovery-metadata.d.ts",
+      "import": "./dist/discovery-metadata.js"
     }
   },
   "files": [

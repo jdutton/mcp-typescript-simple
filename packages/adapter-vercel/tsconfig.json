@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+    "declarationMap": true,
+    "skipLibCheck": true,
+    "moduleResolution": "bundler"
+  },
+  "include": ["src/**/*"],
+  "exclude": ["dist", "node_modules", "test"],
+  "references": [
+    { "path": "../tools" },
+    { "path": "../tools-llm" },
+    { "path": "../example-tools-basic" },
+    { "path": "../example-tools-llm" },
+    { "path": "../server" },
+    { "path": "../http-server" },
+    { "path": "../config" },
+    { "path": "../auth" },
+    { "path": "../observability" }
+  ]
+}

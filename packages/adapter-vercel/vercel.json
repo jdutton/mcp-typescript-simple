@@ -1,0 +1,58 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/mcp",
+      "destination": "/api/mcp"
+    },
+    {
+      "source": "/debug/github-oauth",
+      "destination": "/api/health"
+    },
+    {
+      "source": "/.well-known/:path*",
+      "destination": "/api/well-known"
+    },
+    {
+      "source": "/register",
+      "destination": "/api/register"
+    },
+    {
+      "source": "/auth/:path(.*)",
+      "destination": "/api/auth?path=:path"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "/api/admin"
+    }
+  ],
+  "functions": {
+    "api/mcp.ts": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/auth.ts": {
+      "maxDuration": 15,
+      "memory": 512
+    },
+    "api/register.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "api/health.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "api/admin.ts": {
+      "maxDuration": 20,
+      "memory": 512
+    }
+  }
+}
