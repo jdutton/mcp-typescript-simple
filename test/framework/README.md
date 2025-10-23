@@ -42,11 +42,14 @@ test/framework/
 ## Running Framework Tests
 
 ```bash
-# Run all framework tests
-npm run test:framework
+# Run all unit tests (includes framework tests)
+npm run test:unit
 
 # Run specific framework test file
 npx vitest test/framework/docs/openapi-validation.test.ts
+
+# Run only framework tests
+npx vitest test/framework/
 ```
 
 ## Relationship to Package Tests

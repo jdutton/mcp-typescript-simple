@@ -254,7 +254,7 @@ class VercelConfigTestRunner {
       // Check for critical build outputs needed by API functions
       const requiredBuildFiles = [
         'packages/auth/dist/factory.js',  // Auth package (used by api/)
-        'build/index.js',  // Main entry point
+        'packages/example-mcp/dist/index.js',  // Main entry point
         'packages/server/dist/index.js'  // Server package (used by api/)
       ];
 
