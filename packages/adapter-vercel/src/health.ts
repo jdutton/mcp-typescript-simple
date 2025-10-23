@@ -60,9 +60,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       observability: {
         logs_enabled: true,
-        metrics_endpoint: '/api/admin/metrics',
-        health_endpoint: '/api/health',
-        admin_endpoint: '/api/admin',
+        metrics_endpoint: '/admin/metrics',
+        health_endpoint: '/health',
+        admin_endpoint: '/admin',
       }
     };
 

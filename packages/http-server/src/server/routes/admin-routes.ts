@@ -83,9 +83,6 @@ export function setupAdminRoutes(
   };
   router.get('/admin/info', infoHandler);
 
-  // Admin status endpoint (alias for /admin/info)
-  router.get('/admin/status', infoHandler);
-
   // Admin metrics endpoint (matches Vercel API)
   const metricsHandler = (req: Request, res: Response) => {
     const sessionStats = sessionManager.getStats();
@@ -140,7 +137,6 @@ export function setupAdminRoutes(
       available_endpoints: [
         '/admin/sessions',
         '/admin/info',
-        '/admin/status',
         '/admin/metrics'
       ]
     });

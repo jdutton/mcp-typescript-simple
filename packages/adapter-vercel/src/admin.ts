@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Deployment info endpoint
-    if (adminPath === '/info' || adminPath === '/status') {
+    if (adminPath === '/info') {
       if (req.method === 'GET') {
         const deploymentInfo = {
           platform: 'vercel',
@@ -133,10 +133,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             transport_mode: 'streamable_http',
           },
           endpoints: {
-            health: '/api/health',
-            mcp: '/api/mcp',
-            auth: '/api/auth',
-            admin: '/api/admin',
+            health: '/health',
+            mcp: '/mcp',
+            auth: '/auth',
+            admin: '/admin',
           }
         };
 
@@ -149,7 +149,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(404).json({
       error: 'Not found',
       message: `Admin endpoint not found: ${adminPath}`,
-      available_endpoints: ['/sessions', '/info', '/status', '/metrics']
+      available_endpoints: ['/sessions', '/info', '/metrics']
     });
 
   } catch (error) {
