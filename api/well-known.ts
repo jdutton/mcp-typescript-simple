@@ -9,9 +9,9 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { OAuthProviderFactory } from '../build/auth/factory.js';
-import { createOAuthDiscoveryMetadata } from '../build/auth/discovery-metadata.js';
-import type { OAuthProvider } from '../build/auth/providers/types.js';
+import { OAuthProviderFactory } from '../packages/auth/dist/factory.js';
+import { createOAuthDiscoveryMetadata } from '../packages/auth/dist/discovery-metadata.js';
+import type { OAuthProvider } from '../packages/auth/dist/providers/types.js';
 import { logger } from '../build/utils/logger.js';
 import { setOAuthAntiCachingHeaders } from './_utils/headers.js';
 

@@ -13,10 +13,10 @@ import { basicTools } from "../packages/example-tools-basic/dist/index.js";
 import { createLLMTools } from "../packages/example-tools-llm/dist/index.js";
 import { setupMCPServerWithRegistry } from "../packages/server/dist/index.js";
 import { MCPInstanceManager } from "../packages/http-server/dist/index.js";
-import { EnvironmentConfig } from "../build/config/environment.js";
-import { OAuthProviderFactory } from "../build/auth/factory.js";
-import { OAuthProvider } from "../build/auth/providers/types.js";
-import { logger } from "../build/observability/logger.js";
+import { EnvironmentConfig } from "../packages/config/dist/environment.js";
+import { OAuthProviderFactory } from "../packages/auth/dist/factory.js";
+import { OAuthProvider } from "../packages/auth/dist/providers/types.js";
+import { logger } from "../packages/observability/dist/logger.js";
 
 // Global LLM manager instance for reuse (it's stateless and expensive to create)
 let llmManagerInstance: LLMManager | null = null;

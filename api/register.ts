@@ -5,8 +5,8 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { ClientStoreFactory, OAuthRegisteredClientsStore } from '../packages/persistence/dist/index.js';
-import { logger } from '../build/observability/logger.js';
-import { setOAuthAntiCachingHeaders } from '../build/auth/shared/oauth-helpers.js';
+import { logger } from '../packages/observability/dist/logger.js';
+import { setOAuthAntiCachingHeaders } from '../packages/auth/dist/shared/oauth-helpers.js';
 
 // Global client store instance for reuse across function invocations
 let clientStoreInstance: OAuthRegisteredClientsStore | null = null;

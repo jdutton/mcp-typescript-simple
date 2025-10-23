@@ -3,20 +3,20 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { OAuthProviderFactory } from '../build/auth/factory.js';
-import { OAuthProvider, OAuthProviderType } from '../build/auth/providers/types.js';
+import { OAuthProviderFactory } from '../packages/auth/dist/factory.js';
+import { OAuthProvider, OAuthProviderType } from '../packages/auth/dist/providers/types.js';
 import { logger } from '../build/utils/logger.js';
-import { setOAuthAntiCachingHeaders } from '../build/auth/shared/oauth-helpers.js';
-import { generateLoginPageHTML } from '../build/auth/login-page.js';
-import { handleUniversalTokenRequest } from '../build/auth/shared/universal-token-handler.js';
-import { handleUniversalRevokeRequest } from '../build/auth/shared/universal-revoke-handler.js';
+import { setOAuthAntiCachingHeaders } from '../packages/auth/dist/shared/oauth-helpers.js';
+import { generateLoginPageHTML } from '../packages/auth/dist/login-page.js';
+import { handleUniversalTokenRequest } from '../packages/auth/dist/shared/universal-token-handler.js';
+import { handleUniversalRevokeRequest } from '../packages/auth/dist/shared/universal-revoke-handler.js';
 import {
   handleProviderAuthorizationRequest,
   handleProviderAuthorizationCallback,
   handleProviderLogout,
   handleOAuthDiscovery,
   handleGenericAuthorize
-} from '../build/auth/shared/provider-router.js';
+} from '../packages/auth/dist/shared/provider-router.js';
 
 // Global OAuth providers map for multi-provider support
 let oauthProvidersInstance: Map<OAuthProviderType, OAuthProvider> | null = null;
