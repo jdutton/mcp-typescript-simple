@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 
 import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
-import { EnvironmentConfig } from '../../../src/config/environment.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 vi.mock('@mcp-typescript-simple/auth', async () => {

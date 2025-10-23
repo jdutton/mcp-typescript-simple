@@ -2,8 +2,8 @@ import { vi } from 'vitest';
 
 import { LLMConfigManager } from '@mcp-typescript-simple/tools-llm';
 import type { LLMConfig } from '@mcp-typescript-simple/tools-llm';
-import { EnvironmentConfig } from '../../../src/config/environment.js';
-import { logger } from '../../../src/utils/logger.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
+import { logger } from '@mcp-typescript-simple/observability';
 
 describe('LLMConfigManager', () => {
   afterEach(() => {
