@@ -218,7 +218,7 @@ class TransportTestRunner {
       }
 
       // Check transport factory
-      const factoryContent = readFileSync('src/transport/factory.ts', 'utf8');
+      const factoryContent = readFileSync('packages/http-server/src/transport/factory.ts', 'utf8');
 
       if (!factoryContent.includes('getTransportMode')) {
         throw new Error('Missing transport mode detection logic');

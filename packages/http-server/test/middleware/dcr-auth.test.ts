@@ -3,11 +3,11 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { requireInitialAccessToken, requireAdminToken } from '../../../src/middleware/dcr-auth.js';
-import { InitialAccessTokenStore, InitialAccessToken, TokenValidationResult } from '../../../src/auth/stores/token-store-interface.js';
+import { requireInitialAccessToken, requireAdminToken } from '../../src/middleware/dcr-auth.js';
+import { InitialAccessTokenStore, InitialAccessToken, TokenValidationResult } from '@mcp-typescript-simple/auth';
 
 // Mock logger
-vi.mock('../../../src/utils/logger.js', () => ({
+vi.mock('@mcp-typescript-simple/observability', () => ({
   logger: {
     warn: vi.fn(),
     info: vi.fn(),

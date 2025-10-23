@@ -7,7 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'yaml';
-import { logger } from '../../utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Setup documentation routes for OpenAPI spec, Swagger UI, and Redoc

@@ -4,7 +4,7 @@
 
 // import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { TransportMode } from "../config/environment.js";
+import { TransportMode } from '@mcp-typescript-simple/config';
 import type { ToolRegistry } from "@mcp-typescript-simple/tools";
 
 /**

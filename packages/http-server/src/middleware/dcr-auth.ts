@@ -16,7 +16,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { InitialAccessTokenStore, InitialAccessToken } from '@mcp-typescript-simple/persistence';
-import { logger } from '../utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Extend Express Request to include validated token

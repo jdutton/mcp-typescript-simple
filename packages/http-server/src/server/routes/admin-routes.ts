@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { SessionManager } from '../../session/session-manager.js';
-import { EnvironmentConfig } from '../../config/environment.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 
 /**
  * Setup admin and session management routes

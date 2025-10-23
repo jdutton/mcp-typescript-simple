@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { SessionManager } from '../../session/session-manager.js';
 import { OAuthProvider } from '@mcp-typescript-simple/auth';
-import { EnvironmentConfig } from '../../config/environment.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { logger } from '@mcp-typescript-simple/observability';
 
 export interface HealthRoutesOptions {

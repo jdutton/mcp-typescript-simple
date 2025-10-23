@@ -5,7 +5,7 @@
 import { randomUUID } from 'crypto';
 import { EventStore } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Session information stored by the session manager

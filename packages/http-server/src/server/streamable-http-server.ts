@@ -10,7 +10,7 @@ import * as OpenApiValidator from 'express-openapi-validator';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { EnvironmentConfig } from '../config/environment.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
 import { OAuthProvider, OAuthUserInfo } from '@mcp-typescript-simple/auth';
 import { SessionManager } from '../session/session-manager.js';
@@ -31,7 +31,7 @@ import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { setupDocsRoutes } from './routes/docs-routes.js';
-import { logger } from '../utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 export interface StreamableHttpServerOptions {
   port: number;

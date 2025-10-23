@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
 
-import { TransportFactory, StdioTransportManager, StreamableHTTPTransportManager } from '../../../src/transport/factory.js';
-import { EnvironmentConfig, TransportMode } from '../../../src/config/environment.js';
+import { TransportFactory, StdioTransportManager, StreamableHTTPTransportManager } from '../../src/transport/factory.js';
+import { EnvironmentConfig, TransportMode } from '@mcp-typescript-simple/config';
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { logger } from '../../../src/utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 describe('TransportFactory', () => {
   afterEach(() => {

@@ -5,7 +5,7 @@
 import { vi } from 'vitest';
 import request from 'supertest';
 import { Express } from 'express';
-import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
+import { MCPStreamableHttpServer } from '@mcp-typescript-simple/http-server';
 
 // Hoist mocks so they're available in vi.mock() factories
 const mocks = vi.hoisted(() => ({

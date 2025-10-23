@@ -19,7 +19,7 @@ import { Router, Request, Response } from 'express';
 import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
 import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { requireInitialAccessToken } from '../../middleware/dcr-auth.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 export interface AdminTokenRoutesOptions {
   /** Allow unrestricted access in development mode (default: false) */

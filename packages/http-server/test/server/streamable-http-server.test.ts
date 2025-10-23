@@ -1,10 +1,10 @@
 import { vi } from 'vitest';
 
-import { MCPStreamableHttpServer } from '../../../src/server/streamable-http-server.js';
-import { EnvironmentConfig } from '../../../src/config/environment.js';
+import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
+import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { logger } from '../../../src/utils/logger.js';
+import { logger } from '@mcp-typescript-simple/observability';
 import request from 'supertest';
 
 describe('MCPStreamableHttpServer', () => {

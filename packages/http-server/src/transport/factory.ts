@@ -6,7 +6,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { TransportMode, EnvironmentConfig } from "../config/environment.js";
+import { TransportMode, EnvironmentConfig } from '@mcp-typescript-simple/config';
 import {
   TransportManager,
   TransportFactory as ITransportFactory,
@@ -20,7 +20,7 @@ import { ToolRegistry } from "@mcp-typescript-simple/tools";
 import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
 import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
 import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
-import { logger } from "../utils/logger.js";
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Transport manager for stdio mode (development)

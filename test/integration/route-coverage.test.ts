@@ -8,7 +8,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import yaml from 'yaml';
-import { MCPStreamableHttpServer } from '../../src/server/streamable-http-server.js';
+import { MCPStreamableHttpServer } from '@mcp-typescript-simple/http-server';
 import type { Express } from 'express';
 
 describe('Route Coverage - Detect Undocumented Routes', () => {

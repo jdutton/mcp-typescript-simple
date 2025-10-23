@@ -57,7 +57,7 @@ describe('MCP server bootstrap', () => {
       getInfo: transportGetInfo,
     };
 
-    const transportModule = await import('./transport/factory');
+    const transportModule = await import('@mcp-typescript-simple/http-server');
     const createTransportSpy = vi.spyOn(transportModule.TransportFactory, 'createFromEnvironment').mockReturnValue(transportManager as any);
 
     // Mock package imports

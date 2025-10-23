@@ -8,7 +8,7 @@
  * - Cache warming and TTL behavior
  */
 
-import { MCPInstanceManager } from '../../src/server/mcp-instance-manager.js';
+import { MCPInstanceManager } from '@mcp-typescript-simple/http-server';
 import { MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';

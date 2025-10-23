@@ -12,9 +12,9 @@ import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
 import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 
-// Import new transport system
+// Import configuration and transport system
 import { EnvironmentConfig } from "./config/environment.js";
-import { TransportFactory } from "./transport/factory.js";
+import { TransportFactory } from "@mcp-typescript-simple/http-server";
 
 // Import structured logger
 import { logger } from "./utils/logger.js";
