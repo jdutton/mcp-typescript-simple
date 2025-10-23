@@ -45,15 +45,15 @@
   "dependencies": {
     "@vercel/node": "^3.0.0",
     "@modelcontextprotocol/sdk": "^1.18.0",
-    "@mcp-typescript-simple/tools": "workspace:*",
-    "@mcp-typescript-simple/tools-llm": "workspace:*",
-    "@mcp-typescript-simple/example-tools-basic": "workspace:*",
-    "@mcp-typescript-simple/example-tools-llm": "workspace:*",
-    "@mcp-typescript-simple/server": "workspace:*",
-    "@mcp-typescript-simple/http-server": "workspace:*",
-    "@mcp-typescript-simple/config": "workspace:*",
-    "@mcp-typescript-simple/auth": "workspace:*",
-    "@mcp-typescript-simple/observability": "workspace:*"
+    "@mcp-typescript-simple/tools": "*",
+    "@mcp-typescript-simple/tools-llm": "*",
+    "@mcp-typescript-simple/example-tools-basic": "*",
+    "@mcp-typescript-simple/example-tools-llm": "*",
+    "@mcp-typescript-simple/server": "*",
+    "@mcp-typescript-simple/http-server": "*",
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/auth": "*",
+    "@mcp-typescript-simple/observability": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

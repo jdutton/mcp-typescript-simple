@@ -17,17 +17,15 @@ COPY tools/ ./tools/
 # Note: postinstall script automatically builds workspace packages
 RUN npm ci
 
-# Copy source code
-COPY src/ ./src/
-
 # Build the TypeScript project
+# Note: packages/ already copied above, postinstall builds workspace packages
 RUN npm run build
 
 # Copy runtime files needed for server
 COPY openapi.yaml ./
 
-# Remove dev dependencies and source files to reduce image size
-RUN rm -rf src/ tsconfig.json
+# Remove dev dependencies and package source files to reduce image size
+RUN rm -rf packages/*/src/ packages/*/test/ tsconfig.json
 RUN npm prune --production
 
 # Create non-root user
@@ -42,4 +40,5 @@ USER mcpuser
 EXPOSE 3000
 
 # Start the server with observability instrumentation
-CMD ["node", "--import", "./build/observability/register.js", "build/index.js"]
+# Note: main entry point is now in packages/example-mcp
+CMD ["node", "--import", "./build/packages/observability/dist/register.js", "build/packages/example-mcp/dist/index.js"]
