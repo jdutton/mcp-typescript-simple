@@ -253,10 +253,7 @@ describe('API Contract Tests - Multi-Target OpenAPI Compliance', () => {
       expect(response.headers['content-type']).toMatch(/application\/json/);
     });
 
-    // SKIP: Homepage content negotiation tests fail due to module caching issue
-    // The homepage handler exists in source but isn't being called by the running server
-    // This will be fixed in Phase 6 when we refactor the route registration order
-    it.skip('should serve homepage at / with HTML by default', async () => {
+    it('should serve homepage at / with HTML by default', async () => {
       const response = await request(baseUrl)
         .get('/')
         .set('Accept', 'text/html');
@@ -265,7 +262,7 @@ describe('API Contract Tests - Multi-Target OpenAPI Compliance', () => {
       expect(response.text).toContain('MCP TypeScript Simple');
     });
 
-    it.skip('should serve homepage at / with markdown when requested', async () => {
+    it('should serve homepage at / with markdown when requested', async () => {
       const response = await request(baseUrl)
         .get('/')
         .set('Accept', 'text/markdown');
@@ -274,7 +271,7 @@ describe('API Contract Tests - Multi-Target OpenAPI Compliance', () => {
       expect(response.text).toContain('# MCP TypeScript Simple');
     });
 
-    it.skip('should serve homepage at / with plain text fallback', async () => {
+    it('should serve homepage at / with plain text fallback', async () => {
       const response = await request(baseUrl)
         .get('/')
         .set('Accept', 'text/plain');
