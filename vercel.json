@@ -31,6 +31,26 @@
     {
       "source": "/admin/:path*",
       "destination": "/api/admin"
+    },
+    {
+      "source": "/docs",
+      "destination": "/api/docs"
+    },
+    {
+      "source": "/api-docs",
+      "destination": "/api/docs"
+    },
+    {
+      "source": "/openapi.yaml",
+      "destination": "/api/docs"
+    },
+    {
+      "source": "/openapi.json",
+      "destination": "/api/docs"
+    },
+    {
+      "source": "/",
+      "destination": "/api/docs"
     }
   ],
   "functions": {
@@ -53,6 +73,10 @@
     "api/admin.ts": {
       "maxDuration": 20,
       "memory": 512
+    },
+    "api/docs.ts": {
+      "maxDuration": 10,
+      "memory": 256
     }
   }
 }
