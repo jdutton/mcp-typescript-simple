@@ -6,6 +6,15 @@
  */
 
 /**
+ * Session statistics interface used across health and admin responses
+ */
+export interface SessionStats {
+  totalSessions: number;
+  activeSessions: number;
+  expiredSessions: number;
+}
+
+/**
  * Check if OAuth credentials are configured for a specific provider
  *
  * @param provider - The OAuth provider to check ('google', 'github', 'microsoft', 'generic')

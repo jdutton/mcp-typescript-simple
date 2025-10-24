@@ -4,13 +4,7 @@
  * Provides consistent health check response structure across all deployment modes.
  */
 
-import { getConfiguredOAuthProviders, getConfiguredLLMProviders } from './provider-utils.js';
-
-export interface SessionStats {
-  totalSessions: number;
-  activeSessions: number;
-  expiredSessions: number;
-}
+import { getConfiguredOAuthProviders, getConfiguredLLMProviders, SessionStats } from './provider-utils.js';
 
 export interface HealthResponseOptions {
   deployment: 'local' | 'vercel';
