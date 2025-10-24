@@ -1,4 +1,20 @@
-extends: typescript-nodejs
+# vibe-validate configuration for mcp-typescript-simple
+# See: https://github.com/jdutton/vibe-validate/blob/main/docs/configuration-reference.md
+
+$schema: https://raw.githubusercontent.com/jdutton/vibe-validate/main/packages/config/vibe-validate.schema.json
+
+# Git settings
+git:
+  mainBranch: main
+
+# Pre-commit hooks configuration
+hooks:
+  preCommit:
+    enabled: false  # Disabled - using husky for pre-commit hooks
+    secretScanning:
+      enabled: false
+
+# Validation configuration
 validation:
   phases:
     - name: 'Code Quality & Build'
@@ -6,39 +22,27 @@ validation:
       steps:
         - name: TypeScript & Lint & OpenAPI & Build
           command: npm run typecheck && npm run lint && npm run test:openapi && npm run build
+
     - name: 'Fast Tests'
       parallel: false  # Sequential - saves 1 runner (was 2 parallel jobs)
-      dependsOn:
-        - 'Code Quality & Build'
       steps:
         - name: Unit & Integration Tests
           command: npm run test:unit && npm run test:integration
+
     - name: 'System Tests'
       parallel: false  # Sequential - all tests run one after another to avoid port conflicts
-      dependsOn:
-        - 'Code Quality & Build'
       steps:
         - name: STDIO & HTTP System Tests
           command: npm run test:system:stdio && npm run test:system:ci
+
     - name: 'Headless Browser Tests'
       parallel: false
-      dependsOn:
-        - 'System Tests'
       steps:
         - name: Headless Browser Tests
           command: npx playwright install --with-deps chromium && npm run test:system:headless
+
     - name: 'Contract Tests (Local)'
       parallel: false
-      dependsOn:
-        - 'Headless Browser Tests'
       steps:
         - name: Contract Tests (Local)
           command: npm run test:contract:local
-  caching:
-    enabled: true
-    strategy: git-tree-hash
-git:
-  mainBranch: main
-  autoSync: false
-output:
-  format: auto
