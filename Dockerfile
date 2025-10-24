@@ -13,6 +13,9 @@ COPY packages/ ./packages/
 # Copy tools directory (needed for postinstall script)
 COPY tools/ ./tools/
 
+# Copy docs directory (needed for homepage build)
+COPY docs/ ./docs/
+
 # Install all dependencies (needed for build)
 # Note: postinstall script automatically builds workspace packages
 RUN npm ci
