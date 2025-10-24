@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run docs:build:homepage && tsc",
     "build:vercel": "tsc && cp -r api build/",
     "dev:stdio": "NODE_ENV=development MCP_DEV_SKIP_AUTH=true tsx --env-file-if-exists=.env.local --import @mcp-typescript-simple/observability/register packages/example-mcp/src/index.ts",
     "dev:http": "NODE_ENV=development MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true tsx --import @mcp-typescript-simple/observability/register packages/example-mcp/src/index.ts",
@@ -50,8 +50,8 @@
     "test:openapi:compliance": "vitest run packages/example-mcp/test/integration/openapi-compliance.test.ts",
     "test:openapi:coverage": "vitest run packages/example-mcp/test/integration/route-coverage.test.ts",
     "test:openapi": "npm run docs:validate && npm run test:openapi:compliance && npm run test:openapi:coverage",
-    "test:contract": "vitest run packages/example-mcp/test/contract/api-contract.test.ts",
-    "test:contract:local": "TEST_TARGET=local npm run test:contract",
+    "test:contract": "vitest run --config vitest.contract.config.ts",
+    "test:contract:local": "TEST_TARGET=local TEST_ENV=express:ci npm run test:contract",
     "test:contract:docker": "TEST_TARGET=docker npm run test:contract",
     "test:contract:vercel": "TEST_TARGET=vercel npm run test:contract",
     "lint": "eslint packages/**/*.ts test/**/*.ts tools/**/*.ts",
@@ -71,6 +71,7 @@
     "otel:validate": "echo '✓ Testing Grafana health...' && curl -sf http://localhost:3200/api/health > /dev/null && echo '✓ Grafana is healthy' && echo '✓ Testing OTLP traces endpoint...' && curl -sf -w '%{http_code}' -X POST http://localhost:4318/v1/traces -H 'Content-Type: application/x-protobuf' --data-binary @/dev/null -o /dev/null | grep -qE '^(200|400|415)$' && echo '✓ OTLP endpoint is accepting requests' && echo '✓ All observability services are healthy'",
     "dev:with-otel": "npm run otel:start && sleep 10 && npm run dev:http",
     "docs:build": "redocly build-docs openapi.yaml -o docs/api-reference.html",
+    "docs:build:homepage": "npx tsx tools/build-homepage.ts",
     "docs:validate": "redocly lint openapi.yaml",
     "docs:preview": "redocly preview-docs openapi.yaml",
     "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",

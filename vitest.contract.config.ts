@@ -9,6 +9,25 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 30000,
     hookTimeout: 30000,
+
+    // Global setup and teardown for HTTP server management (reuse system test setup)
+    globalSetup: ['./packages/example-mcp/test/system/vitest-global-setup.ts'],
+    globalTeardown: ['./packages/example-mcp/test/system/vitest-global-teardown.ts'],
+
+    // Setup files for test utilities
+    setupFiles: ['./test/framework/vitest-setup.ts'],
+
+    // Contract tests should run sequentially to avoid conflicts
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true, // Run in single process to avoid port conflicts
+      },
+    },
+
+    // Clear and restore mocks between tests
+    clearMocks: true,
+    restoreMocks: true,
   },
   resolve: {
     alias: {
