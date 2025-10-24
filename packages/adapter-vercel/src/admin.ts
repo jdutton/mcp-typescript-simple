@@ -4,6 +4,7 @@
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { logger } from '@mcp-typescript-simple/observability/logger';
+import { buildSessionsResponse, buildInfoResponse, buildMetricsResponse } from '@mcp-typescript-simple/http-server/responses/admin-response';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -31,36 +32,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (adminPath === '/sessions' || adminPath === '') {
       if (req.method === 'GET') {
         // For serverless deployment, we don't maintain persistent sessions
-        // Return deployment and runtime information instead
-        const deploymentInfo = {
+        const response = buildSessionsResponse({
+          deployment: 'vercel',
           sessions: [],
-          stats: {
+          sessionStats: {
             totalSessions: 0,
             activeSessions: 0,
             expiredSessions: 0
           },
-          deployment: {
-            platform: 'vercel',
-            mode: 'serverless',
-            region: process.env.VERCEL_REGION || 'unknown',
-            deployment_id: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
-            version: process.env.npm_package_version || '1.0.0',
-            node_version: process.version.split('.')[0], // Major version only
-            uptime: Math.floor(process.uptime()),
-            memory_usage: {
-              heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024), // MB
-              heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024), // MB
-            },
-          },
-          environment: {
-            oauth_providers: checkConfiguredOAuthProviders(),
-            oauth_configured: checkOAuthConfigured(),
-            llm_providers: checkLLMProviders(),
-          },
+          region: process.env.VERCEL_REGION || 'unknown',
+          deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
           note: 'Serverless deployments do not maintain persistent sessions between requests'
-        };
+        });
 
-        res.status(200).json(deploymentInfo);
+        res.status(200).json(response);
         return;
       }
     }
@@ -83,26 +68,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Deployment info endpoint
     if (adminPath === '/info') {
       if (req.method === 'GET') {
-        const deploymentInfo = {
-          platform: 'vercel',
-          mode: 'serverless',
-          version: process.env.npm_package_version || '1.0.0',
-          node_version: process.version.split('.')[0], // Major version only
+        const response = buildInfoResponse({
+          deployment: 'vercel',
           region: process.env.VERCEL_REGION || 'unknown',
-          deployment_id: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
-          deployment_url: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'unknown',
-          git_commit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-          git_branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
-          environment: process.env.NODE_ENV || 'development',
+          deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
+          deploymentUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'unknown',
+          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
+          gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
           uptime: process.uptime(),
-          memory_usage: process.memoryUsage(),
-          cpu_usage: process.cpuUsage(),
-          oauth_providers: checkConfiguredOAuthProviders(),
-          oauth_configured: checkOAuthConfigured(),
-          llm_providers: checkLLMProviders(),
-        };
+          memoryUsage: process.memoryUsage(),
+          cpuUsage: process.cpuUsage(),
+        });
 
-        res.status(200).json(deploymentInfo);
+        res.status(200).json(response);
         return;
       }
     }
@@ -110,37 +88,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Metrics endpoint
     if (adminPath === '/metrics') {
       if (req.method === 'GET') {
-        const metrics = {
-          timestamp: new Date().toISOString(),
-          platform: 'vercel-serverless',
-          performance: {
-            uptime_seconds: process.uptime(),
-            memory_usage: process.memoryUsage(),
-            cpu_usage: process.cpuUsage(),
-          },
-          deployment: {
-            region: process.env.VERCEL_REGION || 'unknown',
-            deployment_id: process.env.VERCEL_DEPLOYMENT_ID || 'local',
-            version: process.env.npm_package_version || '1.0.0',
-            node_version: process.version,
-            git_commit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-            git_branch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
-          },
-          configuration: {
-            oauth_providers: checkConfiguredOAuthProviders(),
-            oauth_configured: checkOAuthConfigured(),
-            llm_providers: checkLLMProviders(),
-            transport_mode: 'streamable_http',
-          },
-          endpoints: {
-            health: '/health',
-            mcp: '/mcp',
-            auth: '/auth',
-            admin: '/admin',
-          }
-        };
+        const response = buildMetricsResponse({
+          deployment: 'vercel',
+          region: process.env.VERCEL_REGION || 'unknown',
+          deploymentId: process.env.VERCEL_DEPLOYMENT_ID || 'local',
+          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
+          gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+        });
 
-        res.status(200).json(metrics);
+        res.status(200).json(response);
         return;
       }
     }
@@ -162,54 +118,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
   }
-}
-
-/**
- * Check which OAuth providers are configured
- */
-function checkConfiguredOAuthProviders(): string[] {
-  const providers: string[] = [];
-
-  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-    providers.push('google');
-  }
-  if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
-    providers.push('github');
-  }
-  if (process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET) {
-    providers.push('microsoft');
-  }
-  if (process.env.OAUTH_CLIENT_ID && process.env.OAUTH_CLIENT_SECRET &&
-      process.env.OAUTH_AUTHORIZATION_URL && process.env.OAUTH_TOKEN_URL &&
-      process.env.OAUTH_USER_INFO_URL) {
-    providers.push('generic');
-  }
-
-  return providers;
-}
-
-/**
- * Check if OAuth is properly configured (at least one provider)
- */
-function checkOAuthConfigured(): boolean {
-  return checkConfiguredOAuthProviders().length > 0;
-}
-
-/**
- * Check which LLM providers have API keys configured
- */
-function checkLLMProviders(): string[] {
-  const providers: string[] = [];
-
-  if (process.env.ANTHROPIC_API_KEY) {
-    providers.push('claude');
-  }
-  if (process.env.OPENAI_API_KEY) {
-    providers.push('openai');
-  }
-  if (process.env.GOOGLE_API_KEY) {
-    providers.push('gemini');
-  }
-
-  return providers;
 }

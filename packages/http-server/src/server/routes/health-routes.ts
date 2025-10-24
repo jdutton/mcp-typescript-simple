@@ -7,8 +7,8 @@
 import { Router, Request, Response } from 'express';
 import { SessionManager } from '../../session/session-manager.js';
 import { OAuthProvider } from '@mcp-typescript-simple/auth';
-import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { logger } from '@mcp-typescript-simple/observability';
+import { buildHealthResponse } from '../responses/health-response.js';
 
 export interface HealthRoutesOptions {
   enableResumability?: boolean;
@@ -33,42 +33,15 @@ export function setupHealthRoutes(
   const healthHandler = (req: Request, res: Response) => {
     const sessionStats = sessionManager.getStats();
 
-    // Check OAuth credentials availability (multi-provider)
-    const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
-    const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
-    const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
-    const genericConfigured = EnvironmentConfig.checkOAuthCredentials('generic');
-    const configuredOAuthProviders = [
-      googleConfigured && 'google',
-      githubConfigured && 'github',
-      microsoftConfigured && 'microsoft',
-      genericConfigured && 'generic'
-    ].filter(Boolean) as string[];
-
-    // Check LLM providers
-    const llmProviders = EnvironmentConfig.checkLLMProviders();
-
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
+    const healthResponse = buildHealthResponse({
       deployment: 'local',
       mode: 'streamable_http',
-      auth: configuredOAuthProviders.length > 0 ? 'enabled' : 'disabled',
-      oauth_providers: configuredOAuthProviders,
-      llm_providers: llmProviders,
-      version: process.env.npm_package_version || '1.0.0',
-      node_version: process.version,
-      environment: process.env.NODE_ENV || 'development',
-      sessions: sessionStats,
-      performance: {
-        uptime_seconds: process.uptime(),
-        memory_usage: process.memoryUsage(),
-      },
-      features: {
-        resumability: options.enableResumability || false,
-        jsonResponse: options.enableJsonResponse || false,
-      },
+      sessionStats,
+      enableResumability: options.enableResumability,
+      enableJsonResponse: options.enableJsonResponse,
     });
+
+    res.json(healthResponse);
   };
 
   // Register health endpoints for both standalone and Vercel deployments
