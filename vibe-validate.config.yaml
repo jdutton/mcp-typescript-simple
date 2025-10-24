@@ -3,6 +3,8 @@
 
 $schema: https://raw.githubusercontent.com/jdutton/vibe-validate/main/packages/config/vibe-validate.schema.json
 
+developerFeedback: true
+
 # Git settings
 git:
   mainBranch: main
@@ -10,9 +12,10 @@ git:
 # Pre-commit hooks configuration
 hooks:
   preCommit:
-    enabled: false  # Disabled - using husky for pre-commit hooks
+    enabled: true
     secretScanning:
-      enabled: false
+      enabled: true
+      scanCommand: "gitleaks protect --staged --verbose"
 
 # Validation configuration
 validation:
