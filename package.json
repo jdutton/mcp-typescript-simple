@@ -75,7 +75,7 @@
     "docs:validate": "redocly lint openapi.yaml",
     "docs:preview": "redocly preview-docs openapi.yaml",
     "docs:bundle": "redocly bundle openapi.yaml -o public/openapi.json",
-    "validate": "vibe-validate validate",
+    "validate": "vibe-validate validate --yaml",
     "validate:generate-workflow": "vibe-validate generate-workflow",
     "validate:check-workflow-sync": "vibe-validate generate-workflow --check",
     "docker:build": "docker build -t mcp-typescript-simple .",

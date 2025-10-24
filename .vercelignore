@@ -5,6 +5,7 @@
 test/
 examples/
 *.md
+!docs/homepage.md
 .gitignore
 .git/
 

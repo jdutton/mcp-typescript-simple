@@ -75,6 +75,34 @@ describeSystemTest('Tools Execution System', () => {
       console.log('⚠️ No LLM providers detected');
     }
 
+    // Initialize MCP session (required before calling tools/list)
+    const initRequest: MCPRequest = {
+      jsonrpc: '2.0',
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: {
+          name: 'test-client',
+          version: '1.0.0',
+        },
+      },
+      id: 'init'
+    };
+
+    const initResponse = await client.post('/mcp', initRequest, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+      },
+    });
+
+    if (initResponse.status === 200) {
+      console.log('✅ MCP session initialized');
+    } else {
+      console.log(`⚠️ MCP session initialization returned ${initResponse.status}`);
+    }
+
     // Get available tools
     const toolsListRequest: MCPRequest = {
       jsonrpc: '2.0',
@@ -91,6 +119,8 @@ describeSystemTest('Tools Execution System', () => {
     if (toolsResponse.status === 200 && toolsResponse.data.result && toolsResponse.data.result.tools) {
       availableTools = toolsResponse.data.result.tools.map((tool: any) => tool.name);
       console.log(`🔧 Tools available: ${availableTools.join(', ')}`);
+    } else {
+      console.log(`⚠️ tools/list returned ${toolsResponse.status}`);
     }
   }
 
@@ -105,6 +135,11 @@ describeSystemTest('Tools Execution System', () => {
     expectValidApiResponse(response, 200);
     return response.data as MCPResponse;
   }
+
+  // Note: Tool registration order testing is covered by:
+  // - Unit tests: packages/tools/test/registry.test.ts (ToolRegistry preserves insertion order)
+  // - Integration tests: packages/example-tools-basic/test/basic-tools-order.test.ts (basicTools alphabetical order)
+  // HTTP-based system tests are skipped here due to session persistence limitations documented in CLAUDE.md
 
   describe('Basic Tool Execution', () => {
     it('should execute hello tool with various inputs', async () => {

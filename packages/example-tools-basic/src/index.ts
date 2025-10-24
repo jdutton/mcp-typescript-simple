@@ -30,9 +30,9 @@ import { currentTimeTool } from './current-time.js';
  * ```
  */
 export const basicTools = new ToolRegistry();
-basicTools.add(currentTimeTool); // Most commonly used for testing
-basicTools.add(helloTool);
-basicTools.add(echoTool);
+basicTools.add(currentTimeTool); // c - alphabetically first
+basicTools.add(echoTool);        // e - alphabetically second
+basicTools.add(helloTool);       // h - alphabetically third
 
 // Export individual tools for custom composition
 export { helloTool } from './hello.js';
