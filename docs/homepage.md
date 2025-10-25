@@ -1,156 +1,85 @@
-# MCP TypeScript Simple Server
+# MCP TypeScript Simple
 
-Production-ready Model Context Protocol (MCP) server with dual-mode operation, multi-LLM integration, and OAuth authentication.
+A simple, production-ready MCP server that demonstrates how to build Model Context Protocol servers in TypeScript. Use it as an example, reference implementation, or framework for your own MCP projects.
 
-## Features
+**[View Source on GitHub](https://github.com/jdutton/mcp-typescript-simple)** | **[API Documentation](/docs)**
 
-- **Dual Transport**: STDIO (traditional) + Streamable HTTP with OAuth
-- **Multi-LLM Support**: Claude, OpenAI, and Gemini with type-safe provider selection
-- **OAuth 2.1**: Dynamic Client Registration (DCR) with PKCE support
-- **Production Ready**: Vercel serverless deployment with observability
-- **Type Safe**: Full TypeScript with comprehensive testing
+## What is this?
 
-## Quick Start
+This project shows you how to build production-quality MCP servers with:
+- **Dual Transport Support**: STDIO (for desktop clients) + Streamable HTTP (for web/cloud)
+- **Multi-LLM Integration**: Claude, OpenAI, and Gemini with type-safe APIs
+- **OAuth Authentication**: Support for Google, GitHub, and Microsoft, or extend with your own
+- **Production Ready**: Deploy to Vercel or Docker/K8s with full OTEL observability
+- **Comprehensive Testing**: Full test coverage with CI/CD validation
 
-### For MCP Clients
+## Try It Out Now
 
-Connect to this server from your MCP client:
+### Connect from Claude Code
 
-**STDIO Mode (Local Development):**
 ```bash
-# Add to your MCP client configuration
+claude mcp add https://mcp-typescript-simple.vercel.app/mcp
+```
+
+### Connect from Claude Desktop
+
+Add this to your Claude Desktop `claude_desktop_config.json` configuration file:
+
+```json
 {
   "mcpServers": {
     "typescript-simple": {
       "command": "npx",
-      "args": ["-y", "@mcp-typescript-simple/server"]
+      "args": ["-y", "@mcp-typescript-simple/example-mcp"]
     }
   }
 }
 ```
 
-**HTTP Mode (Production):**
+### Connect from MCP Inspector
+
+Test the hosted example server:
 ```bash
-# For Claude Code or MCP Inspector
-claude mcp add https://mcp-typescript-simple.vercel.app
+npx @modelcontextprotocol/inspector
+# In the UI, add: https://mcp-typescript-simple.vercel.app/mcp
 ```
 
-### For Developers
-
-**Clone and Run:**
+Or test stdio mode:
 ```bash
-git clone https://github.com/jdutton/mcp-typescript-simple.git
-cd mcp-typescript-simple
-npm install
-
-# Choose your mode:
-npm run dev:stdio        # STDIO mode (MCP Inspector)
-npm run dev:http         # HTTP mode (no auth)
-npm run dev:oauth        # HTTP mode (with OAuth)
-```
-
-**Test the Server:**
-```bash
-npm test                 # Unit tests
-npm run test:integration # Integration tests
-npm run validate         # Full validation pipeline
+npx @modelcontextprotocol/inspector npx -y @mcp-typescript-simple/example-mcp
 ```
 
 ## Available Tools
 
-### Basic Tools (Always Available)
-- `hello` - Greet users by name
-- `echo` - Echo back messages
-- `current-time` - Get current timestamp
+This server provides several example tools to demonstrate MCP capabilities:
 
-### LLM-Powered Tools (Requires API Keys)
-- `chat` - Interactive AI assistant
-- `analyze` - Deep text analysis
-- `summarize` - Text summarization
-- `explain` - Educational explanations
+### Basic Tools (Simple, non-LLM tools for testing)
+- **current-time** - Get current timestamp
+- **hello** - Greet users by name
+- **echo** - Echo back messages
 
-## API Endpoints
-
-### Core Endpoints
-- `GET /` - This homepage
-- `GET /health` - Server health check
-- `POST /mcp` - MCP JSON-RPC protocol endpoint
-
-### OAuth Endpoints
-- `GET /.well-known/oauth-authorization-server` - OAuth discovery
-- `GET /auth` - OAuth authorization
-- `POST /token` - OAuth token exchange
-- `POST /register` - Dynamic client registration
-
-### Documentation
-- `GET /docs` - Interactive API documentation (Redoc)
-- `GET /api-docs` - Swagger UI for testing
-- `GET /openapi.yaml` - OpenAPI specification
-
-### Administration
-- `GET /admin/info` - Deployment information
-- `GET /admin/sessions` - Active MCP sessions
-- `GET /admin/metrics` - Server metrics
-
-## Environment Variables
-
-### LLM Providers (Optional)
-Configure one or more LLM providers:
-```bash
-ANTHROPIC_API_KEY=sk-ant-...    # Claude models
-OPENAI_API_KEY=sk-...           # GPT models
-GOOGLE_API_KEY=...              # Gemini models
-```
-
-### OAuth Providers (Optional)
-Configure one or more OAuth providers:
-```bash
-# Google OAuth
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-
-# GitHub OAuth
-GITHUB_CLIENT_ID=...
-GITHUB_CLIENT_SECRET=...
-
-# Microsoft OAuth
-MICROSOFT_CLIENT_ID=...
-MICROSOFT_CLIENT_SECRET=...
-MICROSOFT_TENANT_ID=common
-```
+### AI-Powered Tools (Require LLM API Keys Configured)
+- **chat** - Interactive AI assistant with multi-provider support
+- **analyze** - Deep text analysis
+- **summarize** - Text summarization
+- **explain** - Educational explanations
 
 ## Documentation
 
-- **API Reference**: [/docs](/docs) - Complete API documentation
-- **OpenAPI Spec**: [/openapi.yaml](/openapi.yaml) - Machine-readable API spec
-- **GitHub Repository**: [github.com/jdutton/mcp-typescript-simple](https://github.com/jdutton/mcp-typescript-simple)
+- **[API Reference](/docs)** - Complete API documentation with interactive examples
+- **[OpenAPI Specification](/openapi.yaml)** - Machine-readable API spec
+- **[GitHub Repository](https://github.com/jdutton/mcp-typescript-simple)** - Source code, developer guides, and examples
+- **[Report Issues](https://github.com/jdutton/mcp-typescript-simple/issues)** - Bug reports and feature requests
 
-## Deployment
+## For Developers
 
-**Vercel (Recommended):**
-```bash
-npm run build
-vercel --prod
-```
-
-**Docker:**
-```bash
-docker build -t mcp-server .
-docker run -p 3000:3000 mcp-server
-```
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/jdutton/mcp-typescript-simple/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/jdutton/mcp-typescript-simple/discussions)
-- **Documentation**: [docs/](https://github.com/jdutton/mcp-typescript-simple/tree/main/docs)
+Want to build your own MCP server, see the example code, or contribute? Check out the [GitHub repository](https://github.com/jdutton/mcp-typescript-simple) for:
+- Complete TypeScript source code with comprehensive examples
+- Step-by-step developer documentation
+- Testing and validation guides
+- Deployment instructions for Vercel, Docker, and more
+- Modular package architecture you can reuse
 
 ## License
 
 MIT License - see [LICENSE](https://github.com/jdutton/mcp-typescript-simple/blob/main/LICENSE) for details.
-
----
-
-**Version**: 1.0.0
-**MCP Protocol**: v1.18.0
-**Last Updated**: 2025-10-23
