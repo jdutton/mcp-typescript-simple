@@ -8,9 +8,18 @@
  * - Automatic TTL support for token expiration
  * - Multi-instance deployment support
  * - Scales to millions of tokens
+ * - AES-256-GCM encryption at rest (SOC-2, ISO 27001, GDPR, HIPAA compliant)
+ *
+ * Security (Hard Security Stance):
+ * - All token data MUST be encrypted at rest with AES-256-GCM
+ * - Encryption service is REQUIRED (constructor parameter)
+ * - NO backward compatibility with plaintext tokens (fail fast)
+ * - Cryptographically secure IVs and authentication tags
+ * - Zero tolerance for unencrypted data
  *
  * Setup:
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
+ * Set TOKEN_ENCRYPTION_KEY environment variable (32-byte base64 string)
  */
 
 import Redis from 'ioredis';
@@ -23,6 +32,7 @@ import {
   validateTokenCommon,
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 
 /**
  * Redis key prefixes for namespacing
@@ -33,11 +43,16 @@ const INDEX_KEY = 'dcr:tokens:all';
 
 export class RedisTokenStore implements InitialAccessTokenStore {
   private redis: Redis;
+  private encryptionService: TokenEncryptionService;
 
-  constructor(redisUrl?: string) {
+  constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService) {
     const url = redisUrl || process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+    }
+
+    if (!encryptionService) {
+      throw new Error('Encryption service is required for RedisTokenStore. Token encryption is mandatory.');
     }
 
     this.redis = new Redis(url, {
@@ -62,7 +77,13 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       logger.error('Failed to connect to Redis', { error });
     });
 
-    logger.info('RedisTokenStore initialized', { url: this.maskUrl(url) });
+    // Store encryption service (REQUIRED - hard security stance)
+    this.encryptionService = encryptionService;
+
+    logger.info('RedisTokenStore initialized', {
+      url: this.maskUrl(url),
+      encryption: 'enabled (required)'
+    });
   }
 
   /**
@@ -77,6 +98,34 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       return parsed.toString();
     } catch {
       return 'redis://***';
+    }
+  }
+
+  /**
+   * Serialize and encrypt token data for storage
+   *
+   * Security: All tokens MUST be encrypted at rest (AES-256-GCM)
+   */
+  private serializeTokenData(tokenData: InitialAccessToken): string {
+    const json = JSON.stringify(tokenData);
+    return this.encryptionService.encrypt(json);
+  }
+
+  /**
+   * Deserialize and decrypt token data from storage
+   *
+   * Security: All tokens MUST be encrypted - fail fast if decryption fails.
+   * No backward compatibility with plaintext tokens.
+   */
+  private deserializeTokenData(data: string): InitialAccessToken {
+    try {
+      const json = this.encryptionService.decrypt(data);
+      return JSON.parse(json);
+    } catch (error) {
+      // Fail fast - no plaintext fallback for security
+      throw new Error(
+        `Failed to decrypt token data. All tokens must be encrypted. Error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -117,12 +166,15 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     // Calculate TTL (if expiration is set)
     const ttlSeconds = tokenData.expires_at > 0 ? tokenData.expires_at - now : undefined;
 
+    // Serialize (and optionally encrypt) token data
+    const serializedData = this.serializeTokenData(tokenData);
+
     // Store token metadata
     if (ttlSeconds) {
-      await this.redis.setex(tokenKey, ttlSeconds, JSON.stringify(tokenData));
+      await this.redis.setex(tokenKey, ttlSeconds, serializedData);
       await this.redis.setex(valueKey, ttlSeconds, id);
     } else {
-      await this.redis.set(tokenKey, JSON.stringify(tokenData));
+      await this.redis.set(tokenKey, serializedData);
       await this.redis.set(valueKey, id);
     }
 
@@ -165,7 +217,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       };
     }
 
-    const tokenData: InitialAccessToken = JSON.parse(tokenJson);
+    // Deserialize (and optionally decrypt) token data
+    const tokenData: InitialAccessToken = this.deserializeTokenData(tokenJson);
 
     // Use common validation logic
     const result = validateTokenCommon(tokenData, token);
@@ -175,8 +228,11 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       result.token.usage_count++;
       result.token.last_used_at = Math.floor(Date.now() / 1000);
 
+      // Serialize (and optionally encrypt) updated token data
+      const updatedData = this.serializeTokenData(result.token);
+
       // Update token in Redis
-      await this.redis.set(tokenKey, JSON.stringify(result.token));
+      await this.redis.set(tokenKey, updatedData);
 
       logger.info('Token validated and used', {
         tokenId: result.token.id,
@@ -196,7 +252,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       return undefined;
     }
 
-    return JSON.parse(tokenJson);
+    // Deserialize (and optionally decrypt) token data
+    return this.deserializeTokenData(tokenJson);
   }
 
   async getTokenByValue(token: string): Promise<InitialAccessToken | undefined> {
@@ -251,7 +308,9 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     token.revoked = true;
 
     const tokenKey = this.getTokenKey(id);
-    await this.redis.set(tokenKey, JSON.stringify(token));
+    // Serialize (and optionally encrypt) updated token data
+    const serializedData = this.serializeTokenData(token);
+    await this.redis.set(tokenKey, serializedData);
 
     logger.info('Token revoked', { tokenId: id });
     return true;
