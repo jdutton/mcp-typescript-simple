@@ -33,6 +33,10 @@
     "./well-known": {
       "types": "./dist/well-known.d.ts",
       "import": "./dist/well-known.js"
+    },
+    "./docs": {
+      "types": "./dist/docs.d.ts",
+      "import": "./dist/docs.js"
     }
   },
   "scripts": {
@@ -53,7 +57,8 @@
     "@mcp-typescript-simple/http-server": "*",
     "@mcp-typescript-simple/config": "*",
     "@mcp-typescript-simple/auth": "*",
-    "@mcp-typescript-simple/observability": "*"
+    "@mcp-typescript-simple/observability": "*",
+    "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -6,7 +6,7 @@
 
 import { Router, Request, Response } from 'express';
 import { SessionManager } from '../../session/session-manager.js';
-import { EnvironmentConfig } from '@mcp-typescript-simple/config';
+import { buildInfoResponse, buildMetricsResponse, buildSessionsResponse } from '../responses/admin-response.js';
 
 /**
  * Setup admin and session management routes
@@ -23,7 +23,8 @@ export function setupAdminRoutes(
     const sessions = sessionManager.getActiveSessions();
     const stats = sessionManager.getStats();
 
-    res.json({
+    const response = buildSessionsResponse({
+      deployment: 'local',
       sessions: sessions.map(s => ({
         sessionId: s.sessionId,
         createdAt: new Date(s.createdAt).toISOString(),
@@ -31,14 +32,10 @@ export function setupAdminRoutes(
         hasAuth: !!s.authInfo,
         metadata: s.metadata,
       })),
-      stats,
-      deployment: {
-        platform: 'vercel',
-        mode: 'serverless',
-        version: process.env.npm_package_version || '1.0.0',
-        node_version: process.version
-      }
+      sessionStats: stats,
     });
+
+    res.json(response);
   };
   router.get('/admin/sessions', sessionsHandler);
 
@@ -61,73 +58,24 @@ export function setupAdminRoutes(
 
   // Admin info endpoint (deployment information)
   const infoHandler = (req: Request, res: Response) => {
-    const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
-    const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
-    const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
-    const configuredOAuthProviders = [
-      googleConfigured && 'google',
-      githubConfigured && 'github',
-      microsoftConfigured && 'microsoft'
-    ].filter(Boolean) as string[];
-    const llmProviders = EnvironmentConfig.checkLLMProviders();
-
-    res.json({
-      platform: 'vercel',
-      mode: 'serverless',
-      version: process.env.npm_package_version || '1.0.0',
-      node_version: process.version,
-      oauth_providers: configuredOAuthProviders,
-      oauth_configured: configuredOAuthProviders.length > 0,
-      llm_providers: llmProviders
+    const response = buildInfoResponse({
+      deployment: 'local',
     });
+
+    res.json(response);
   };
   router.get('/admin/info', infoHandler);
-
-  // Admin status endpoint (alias for /admin/info)
-  router.get('/admin/status', infoHandler);
 
   // Admin metrics endpoint (matches Vercel API)
   const metricsHandler = (req: Request, res: Response) => {
     const sessionStats = sessionManager.getStats();
-    const googleConfigured = EnvironmentConfig.checkOAuthCredentials('google');
-    const githubConfigured = EnvironmentConfig.checkOAuthCredentials('github');
-    const microsoftConfigured = EnvironmentConfig.checkOAuthCredentials('microsoft');
-    const configuredOAuthProviders = [
-      googleConfigured && 'google',
-      githubConfigured && 'github',
-      microsoftConfigured && 'microsoft'
-    ].filter(Boolean) as string[];
-    const llmProviders = EnvironmentConfig.checkLLMProviders();
 
-    const metrics = {
-      timestamp: new Date().toISOString(),
-      platform: 'vercel-serverless',
-      performance: {
-        uptime_seconds: process.uptime(),
-        memory_usage: process.memoryUsage(),
-        cpu_usage: process.cpuUsage(),
-      },
-      deployment: {
-        region: process.env.VERCEL_REGION || 'local',
-        version: process.env.npm_package_version || '1.0.0',
-        node_version: process.version,
-        environment: process.env.NODE_ENV || 'development',
-      },
-      configuration: {
-        oauth_providers: configuredOAuthProviders,
-        llm_providers: llmProviders,
-        transport_mode: 'streamable_http',
-      },
-      sessions: sessionStats,
-      endpoints: {
-        health: '/health',
-        mcp: '/mcp',
-        auth: '/auth',
-        admin: '/admin',
-      }
-    };
+    const response = buildMetricsResponse({
+      deployment: 'local',
+      sessionStats,
+    });
 
-    res.json(metrics);
+    res.json(response);
   };
   router.get('/admin/metrics', metricsHandler);
 
@@ -140,7 +88,6 @@ export function setupAdminRoutes(
       available_endpoints: [
         '/admin/sessions',
         '/admin/info',
-        '/admin/status',
         '/admin/metrics'
       ]
     });

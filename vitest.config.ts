@@ -21,6 +21,7 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/packages/example-mcp/test/system/**',        // System tests (run separately)
+      '**/packages/example-mcp/test/contract/**',      // Contract tests (run separately against live servers)
       '**/packages/example-mcp/test/playwright/**',    // Playwright tests (run separately)
       '**/build/**',
       '**/coverage/**',

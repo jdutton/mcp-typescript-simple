@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./responses/*": {
+      "types": "./dist/server/responses/*.d.ts",
+      "import": "./dist/server/responses/*.js"
     }
   },
   "files": [

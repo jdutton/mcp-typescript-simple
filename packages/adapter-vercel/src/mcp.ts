@@ -75,8 +75,15 @@ async function getToolRegistry(): Promise<ToolRegistry> {
   // Try to add LLM tools if available
   try {
     const llmManager = await getLLMManager();
-    registry.merge(createLLMTools(llmManager));
-    logger.info("LLM tools registered successfully");
+    const availableProviders = llmManager.getAvailableProviders();
+
+    // Only register LLM tools if at least one provider has an API key
+    if (availableProviders.length > 0) {
+      registry.merge(createLLMTools(llmManager));
+      logger.info("LLM tools registered successfully", { providers: availableProviders });
+    } else {
+      logger.info("No LLM providers available - skipping LLM tools registration");
+    }
   } catch (error) {
     logger.warn("LLM tools not available", { error });
   }

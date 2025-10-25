@@ -19,7 +19,72 @@ export function setupDocsRoutes(app: Express): void {
     const openapiYaml = readFileSync(openapiPath, 'utf-8');
     const openapiSpec = yaml.parse(openapiYaml);
 
+    // Load homepage content
+    const homepageMdPath = join(process.cwd(), 'docs', 'homepage.md');
+    const homepageHtmlPath = join(process.cwd(), 'public', 'index.html');
+    let homepageMd: string | null = null;
+    let homepageHtml: string | null = null;
+
+    try {
+      homepageMd = readFileSync(homepageMdPath, 'utf-8');
+    } catch {
+      logger.warn('Homepage markdown not found', { path: homepageMdPath });
+    }
+
+    try {
+      homepageHtml = readFileSync(homepageHtmlPath, 'utf-8');
+    } catch {
+      logger.warn('Homepage HTML not found', { path: homepageHtmlPath });
+    }
+
     logger.info('OpenAPI specification loaded', { path: openapiPath });
+
+    // Serve homepage at / with content negotiation
+    app.get('/', (req: Request, res: Response) => {
+      const acceptHeader = req.get('accept') || '';
+
+      // If client explicitly requests markdown, send markdown
+      if (acceptHeader.includes('text/markdown') || acceptHeader.includes('text/plain')) {
+        if (homepageMd) {
+          res.type('text/markdown');
+          res.send(homepageMd);
+          return;
+        }
+        // Fallback to simple text response if markdown not available
+        res.type('text/plain');
+        res.send('MCP TypeScript Simple Server\n\nAPI Documentation: /docs\nSwagger UI: /api-docs\nOpenAPI Spec: /openapi.yaml\n');
+        return;
+      }
+
+      // Default to HTML for browsers
+      if (homepageHtml) {
+        res.type('text/html');
+        res.send(homepageHtml);
+        return;
+      }
+
+      // Fallback to simple HTML if homepage not built
+      res.type('text/html');
+      res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP TypeScript Simple Server</title>
+</head>
+<body>
+  <h1>MCP TypeScript Simple Server</h1>
+  <p>API is running. Documentation available at:</p>
+  <ul>
+    <li><a href="/docs">API Reference (Redoc)</a></li>
+    <li><a href="/api-docs">Try it out (Swagger UI)</a></li>
+    <li><a href="/openapi.yaml">OpenAPI Specification (YAML)</a></li>
+  </ul>
+</body>
+</html>
+      `.trim());
+    });
 
     // Serve OpenAPI spec in YAML format
     app.get('/openapi.yaml', (_req: Request, res: Response) => {
@@ -51,9 +116,9 @@ export function setupDocsRoutes(app: Express): void {
     };
 
     // Serve Swagger UI at /api-docs
-    // Use inline spec for Safari compatibility
-    app.get('/api-docs', swaggerUi.setup(openapiSpec, swaggerOptions));
+    // IMPORTANT: serve middleware must come BEFORE setup to prevent default redirects
     app.use('/api-docs', swaggerUi.serve);
+    app.get('/api-docs', swaggerUi.setup(openapiSpec, swaggerOptions));
 
     // Serve Redoc at /docs
     app.get('/docs', (_req: Request, res: Response) => {
@@ -120,7 +185,7 @@ export function setupDocsRoutes(app: Express): void {
     });
 
     logger.info('Documentation routes registered', {
-      routes: ['/openapi.yaml', '/openapi.json', '/api-docs', '/docs']
+      routes: ['/', '/openapi.yaml', '/openapi.json', '/api-docs', '/docs']
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);

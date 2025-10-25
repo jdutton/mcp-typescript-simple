@@ -578,11 +578,10 @@ The CI pipeline includes 10 comprehensive test categories:
 
 1. **Create feature branch** (never work on main)
 2. **Make your changes**
-3. **Run `npm run validate`** (MANDATORY - must pass)
-4. **Check if branch is up to date with origin/main** (MANDATORY - before pushing)
-5. **Commit and push** (creates or updates PR)
-6. **Monitor PR status** (every 15 seconds until all checks pass)
-7. **Fix immediately** if any checks fail, then resume monitoring
+3. **Run `npx vibe-validate pre-commit`** (MANDATORY - validates + syncs with main)
+4. **Commit and push** (creates or updates PR)
+5. **Monitor PR status**: `npx vibe-validate watch-pr` (auto-detects PR, watches until complete)
+6. **Fix immediately** if any checks fail, then resume monitoring
 
 ### Branch Management Requirements
 **CRITICAL**: All changes MUST be made on feature branches, never directly on `main`.
@@ -1010,6 +1009,11 @@ npx vibe-validate sync-check
 
 # Post-PR merge cleanup
 npx vibe-validate cleanup
+
+# RECOMMENDED: Watch PR CI checks in real-time (replaces gh pr checks --watch)
+npx vibe-validate watch-pr              # Auto-detect PR from current branch
+npx vibe-validate watch-pr 88           # Watch specific PR number
+npx vibe-validate watch-pr --fail-fast  # Exit on first failure
 ```
 
 ### Configuration

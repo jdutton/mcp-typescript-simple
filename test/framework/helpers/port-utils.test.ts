@@ -309,7 +309,8 @@ describe('Port Utilities - Safety Logic', () => {
     it('should use lsof for port detection', async () => {
       // lsof is the primary method for port detection
       // This test documents the dependency
-      const unusedPort = 63007;
+      // Use a high port number unlikely to conflict with system services
+      const unusedPort = 64123;
       const results = await cleanupLeakedTestPorts([unusedPort]);
 
       expect(results[0].success).toBe(true);

@@ -178,16 +178,6 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
       });
     });
 
-    describe('/admin/status', () => {
-      it('should return status information (alias for /info)', async () => {
-        const response = await axios.get(`${BASE_URL}/admin/status`);
-
-        expect(response.status).toBe(200);
-        expect(response.data).toHaveProperty('platform', 'vercel');
-        expect(response.data).toHaveProperty('mode', 'serverless');
-      });
-    });
-
     describe('/admin/metrics', () => {
       it('should return metrics data', async () => {
         const response = await axios.get(`${BASE_URL}/admin/metrics`);

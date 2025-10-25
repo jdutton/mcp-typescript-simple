@@ -814,6 +814,23 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /admin/info:
+    get:
+      tags:
+        - Admin & Monitoring
+      summary: Get deployment information
+      description: Returns deployment configuration and environment details
+      operationId: getDeploymentInfo
+      responses:
+        '200':
+          description: Deployment information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /admin/metrics:
     get:
       tags:
@@ -1297,6 +1314,92 @@ components:
               type: integer
             failed:
               type: integer
+
+    DeploymentInfo:
+      type: object
+      properties:
+        platform:
+          type: string
+          description: Deployment platform (e.g., 'vercel', 'local')
+          example: vercel
+        mode:
+          type: string
+          description: Deployment mode (e.g., 'serverless', 'local')
+          example: serverless
+        version:
+          type: string
+          description: Application version
+          example: 1.0.0
+        node_version:
+          type: string
+          description: Node.js version
+          example: v20
+        region:
+          type: string
+          description: Deployment region
+          example: iad1
+        deployment_id:
+          type: string
+          description: Unique deployment identifier
+          example: dpl_abc123
+        deployment_url:
+          type: string
+          description: Deployment URL
+          example: https://mcp-typescript-simple.vercel.app
+        git_commit:
+          type: string
+          description: Git commit SHA
+          example: 7f7dab7
+        git_branch:
+          type: string
+          description: Git branch name
+          example: main
+        environment:
+          type: string
+          description: Environment (development, production, etc.)
+          example: production
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 123.45
+        memory_usage:
+          type: object
+          description: Memory usage statistics
+          properties:
+            rss:
+              type: integer
+            heapTotal:
+              type: integer
+            heapUsed:
+              type: integer
+            external:
+              type: integer
+            arrayBuffers:
+              type: integer
+        cpu_usage:
+          type: object
+          description: CPU usage statistics
+          properties:
+            user:
+              type: integer
+            system:
+              type: integer
+        oauth_providers:
+          type: array
+          description: Configured OAuth providers
+          items:
+            type: string
+          example: ['google', 'github']
+        oauth_configured:
+          type: boolean
+          description: Whether OAuth is configured
+          example: true
+        llm_providers:
+          type: array
+          description: Configured LLM providers
+          items:
+            type: string
+          example: ['claude', 'openai']
 
     Error:
       type: object
