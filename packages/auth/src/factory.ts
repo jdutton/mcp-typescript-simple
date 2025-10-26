@@ -34,28 +34,48 @@ import {
  */
 export class OAuthProviderFactory implements IOAuthProviderFactory {
   private static instance: OAuthProviderFactory | null = null;
+  private static initPromise: Promise<OAuthProviderFactory> | null = null;
   private static shutdownHookRegistered = false;
   private static exitHandler?: () => void;
   private readonly activeProviders = new Set<OAuthProvider>();
-  private sessionStore: OAuthSessionStore;
-  private tokenStore: OAuthTokenStore;
-  private pkceStore: PKCEStore;
+  private sessionStore!: OAuthSessionStore;
+  private tokenStore!: OAuthTokenStore;
+  private pkceStore!: PKCEStore;
 
-  constructor() {
+  private constructor() {
+    // Private constructor - use getInstance() instead
+  }
+
+  /**
+   * Initialize stores asynchronously
+   */
+  private async initialize(): Promise<void> {
     // Initialize stores (auto-detect Redis vs memory)
     this.sessionStore = SessionStoreFactory.create();
-    this.tokenStore = OAuthTokenStoreFactory.create();
+    this.tokenStore = await OAuthTokenStoreFactory.create();
     this.pkceStore = PKCEStoreFactory.create();
   }
 
   /**
-   * Get singleton instance of the factory
+   * Get singleton instance of the factory (async initialization)
    */
-  static getInstance(): OAuthProviderFactory {
-    if (!OAuthProviderFactory.instance) {
-      OAuthProviderFactory.instance = new OAuthProviderFactory();
+  static async getInstance(): Promise<OAuthProviderFactory> {
+    if (OAuthProviderFactory.instance) {
+      return OAuthProviderFactory.instance;
     }
-    return OAuthProviderFactory.instance;
+
+    if (OAuthProviderFactory.initPromise) {
+      return OAuthProviderFactory.initPromise;
+    }
+
+    OAuthProviderFactory.initPromise = (async () => {
+      const instance = new OAuthProviderFactory();
+      await instance.initialize();
+      OAuthProviderFactory.instance = instance;
+      return instance;
+    })();
+
+    return OAuthProviderFactory.initPromise;
   }
 
   /**
@@ -67,6 +87,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     if (OAuthProviderFactory.instance) {
       OAuthProviderFactory.instance.disposeAll();
       OAuthProviderFactory.instance = null;
+      OAuthProviderFactory.initPromise = null;
       OAuthProviderFactory.shutdownHookRegistered = false;
 
       // Remove exit handler
@@ -176,13 +197,15 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     }
   }
 
-  static disposeProvider(provider: OAuthProvider): void {
-    OAuthProviderFactory.getInstance().disposeProvider(provider);
+  static async disposeProvider(provider: OAuthProvider): Promise<void> {
+    const factory = await OAuthProviderFactory.getInstance();
+    factory.disposeProvider(provider);
   }
 
-  static disposeAll(): void {
+  static async disposeAll(): Promise<void> {
     try {
-      OAuthProviderFactory.getInstance().disposeAll();
+      const factory = await OAuthProviderFactory.getInstance();
+      factory.disposeAll();
     } catch (error) {
       // Surface aggregated disposal errors to callers but ensure shutdown hook references reset
       throw error;
@@ -205,7 +228,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
    * @returns Map of provider type to provider instance, or null if no providers configured
    */
   static async createAllFromEnvironment(): Promise<Map<OAuthProviderType, OAuthProvider> | null> {
-    const factory = OAuthProviderFactory.getInstance();
+    const factory = await OAuthProviderFactory.getInstance();
     const providers = new Map<OAuthProviderType, OAuthProvider>();
 
     // Try to create each provider if credentials are present

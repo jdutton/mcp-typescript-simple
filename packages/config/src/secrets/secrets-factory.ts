@@ -45,8 +45,8 @@ export function detectSecretsProvider(): 'file' | 'encrypted-file' | 'vault' | '
     return 'vault';
   }
 
-  // Encrypted file (local dev with encryption key)
-  if (process.env.TOKEN_ENCRYPTION_KEY) {
+  // Encrypted file (local dev with master key for encrypted secrets file)
+  if (process.env.SECRETS_MASTER_KEY) {
     return 'encrypted-file';
   }
 

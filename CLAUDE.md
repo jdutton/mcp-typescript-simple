@@ -413,13 +413,14 @@ Google → MCP Server → Claude Code
 - Check OAuth discovery: `curl http://localhost:3000/.well-known/oauth-authorization-server`
 - Verify provider credentials in `.env` file
 
-## Session State Management Limitations
+## Horizontal Scalability and Session Management
 
-**CRITICAL for Claude Code Development**: The StreamableHTTPServerTransport has important limitations:
+**Session persistence with Redis**: MCP sessions are stored in Redis when `REDIS_URL` is configured, enabling horizontal scalability across multiple server instances.
 
-- **In-memory only**: Session transports cannot be serialized or persisted to external storage
-- **Single-instance**: Each server instance maintains its own session storage
-- **Development impact**: When testing/debugging, restarting the server loses all active sessions
+**How it works:**
+- Session metadata stored in Redis (persistent, shared across instances)
+- Server instances cached in memory (reconstructed on-demand from Redis)
+- Any server instance can handle any session (load-balanced deployments)
 
 **For comprehensive deployment architecture and scaling patterns, see [docs/session-management.md](docs/session-management.md)**
 

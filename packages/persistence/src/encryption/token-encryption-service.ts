@@ -30,7 +30,7 @@
  * - NIST SP 800-90A (Random Number Generation)
  */
 
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits (recommended for GCM)
@@ -192,5 +192,27 @@ export class TokenEncryptionService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Hash a token using SHA-256 (for Redis key names)
+   *
+   * This prevents exposing actual token values in Redis key names.
+   * Even though values are encrypted, key names are visible in Redis.
+   *
+   * Security Benefits:
+   * - Read-only Redis access doesn't expose usable tokens
+   * - Keys cannot be used to reconstruct original tokens
+   * - SHA-256 is one-way (no reversal possible)
+   *
+   * @param token Token to hash (access token, refresh token, etc.)
+   * @returns SHA-256 hex digest (64 characters)
+   */
+  hashKey(token: string): string {
+    if (!token) {
+      throw new Error('Cannot hash empty token');
+    }
+
+    return createHash('sha256').update(token).digest('hex');
   }
 }

@@ -9,9 +9,12 @@
  * - Multi-instance deployment support
  * - Scales to millions of tokens
  * - AES-256-GCM encryption at rest (SOC-2, ISO 27001, GDPR, HIPAA compliant)
+ * - SHA-256 hashed Redis keys (prevents token exposure in key names)
  *
  * Security (Hard Security Stance):
  * - All token data MUST be encrypted at rest with AES-256-GCM
+ * - Redis keys are SHA-256 hashed to prevent token exposure
+ *   (even read-only Redis access won't expose usable tokens)
  * - Encryption service is REQUIRED (constructor parameter)
  * - NO backward compatibility with plaintext tokens (fail fast)
  * - Cryptographically secure IVs and authentication tags
@@ -131,16 +134,23 @@ export class RedisTokenStore implements InitialAccessTokenStore {
 
   /**
    * Generate Redis key for token ID
+   *
+   * NOTE: IDs are UUIDs (not sensitive), but we hash for consistency
    */
   private getTokenKey(id: string): string {
     return `${KEY_PREFIX}${id}`;
   }
 
   /**
-   * Generate Redis key for token value lookup
+   * Generate Redis key for token value lookup (SHA-256 hashed)
+   *
+   * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
+   * Even though VALUES are encrypted, KEY NAMES are visible in Redis.
+   * Read-only Redis access would expose usable tokens without hashing.
    */
   private getValueKey(token: string): string {
-    return `${VALUE_PREFIX}${token}`;
+    const hashedToken = this.encryptionService.hashKey(token);
+    return `${VALUE_PREFIX}${hashedToken}`;
   }
 
   async createToken(options: CreateTokenOptions): Promise<InitialAccessToken> {

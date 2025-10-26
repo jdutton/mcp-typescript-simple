@@ -17,7 +17,7 @@ import { MemoryOAuthTokenStore } from '../stores/memory/memory-oauth-token-store
 import { FileOAuthTokenStore, FileOAuthTokenStoreOptions } from '../stores/file/file-oauth-token-store.js';
 import { RedisOAuthTokenStore } from '../stores/redis/redis-oauth-token-store.js';
 import { TokenEncryptionService } from '../encryption/token-encryption-service.js';
-import { getSecretsProvider } from '../../../config/src/secrets/index.js';
+import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 
 export type OAuthTokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
@@ -95,8 +95,34 @@ export class OAuthTokenStoreFactory {
   /**
    * Create file-based OAuth token store
    */
-  private static createFileStore(options?: FileOAuthTokenStoreOptions): FileOAuthTokenStore {
-    return new FileOAuthTokenStore(options);
+  private static async createFileStore(options?: FileOAuthTokenStoreOptions): Promise<FileOAuthTokenStore> {
+    // Get encryption key (direct from env in test mode, from secrets provider otherwise)
+    let encryptionKey: string | undefined;
+
+    // In test environment, use TOKEN_ENCRYPTION_KEY directly to avoid circular dependency
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+      encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      // In production, load encryption key from secrets provider
+      const secretsProvider = await getSecretsProvider();
+      encryptionKey = await secretsProvider.getSecret<string>('TOKEN_ENCRYPTION_KEY');
+    }
+
+    if (!encryptionKey) {
+      throw new Error(
+        'TOKEN_ENCRYPTION_KEY not configured. ' +
+        'Encryption is REQUIRED for all OAuth token storage - no plaintext fallback. ' +
+        'Set TOKEN_ENCRYPTION_KEY in your secrets provider.'
+      );
+    }
+
+    // Create encryption service with loaded key
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
+    return new FileOAuthTokenStore({
+      ...options,
+      encryptionService,
+    });
   }
 
   /**
@@ -115,7 +141,7 @@ export class OAuthTokenStoreFactory {
       encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
     } else {
       // In production, load encryption key from secrets provider
-      const secretsProvider = getSecretsProvider();
+      const secretsProvider = await getSecretsProvider();
       encryptionKey = await secretsProvider.getSecret<string>('TOKEN_ENCRYPTION_KEY');
     }
 

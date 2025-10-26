@@ -14,7 +14,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo } from '@mcp-typescript-simple/persistence';
+import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo, MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { createMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
 import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
@@ -57,7 +57,8 @@ export class MCPInstanceManager {
 
   constructor(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore) {
     this.toolRegistry = toolRegistry;
-    this.metadataStore = metadataStore || createMCPMetadataStore();
+    // Use memory store as default for backward compatibility (no Redis encryption key needed)
+    this.metadataStore = metadataStore || new MemoryMCPMetadataStore();
 
     // Start cleanup timer for expired instances
     this.cleanupTimer = setInterval(() => {
@@ -67,6 +68,15 @@ export class MCPInstanceManager {
     logger.info('MCPInstanceManager initialized', {
       storeType: this.metadataStore.constructor.name,
     });
+  }
+
+  /**
+   * Static factory method for async creation with auto-detected metadata store
+   * Use this for production deployments to get Redis-backed storage with encryption
+   */
+  static async createAsync(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore): Promise<MCPInstanceManager> {
+    const store = metadataStore || await createMCPMetadataStore();
+    return new MCPInstanceManager(toolRegistry, store);
   }
 
   /**

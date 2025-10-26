@@ -236,27 +236,27 @@ describe('MCPMetadataStoreFactory', () => {
   });
 
   describe('create', () => {
-    it('should create memory store when type is memory', () => {
-      const store = MCPMetadataStoreFactory.create({ type: 'memory' });
+    it('should create memory store when type is memory', async () => {
+      const store = await MCPMetadataStoreFactory.create({ type: 'memory' });
       expect(store).toBeInstanceOf(MemoryMCPMetadataStore);
       store.dispose();
     });
 
-    it('should create memory store by default (auto-detection)', () => {
+    it('should create memory store by default (auto-detection)', async () => {
       // Clear Vercel/Redis env vars
       delete process.env.VERCEL;
       delete process.env.REDIS_URL;
 
-      const store = MCPMetadataStoreFactory.create({ type: 'auto' });
+      const store = await MCPMetadataStoreFactory.create({ type: 'auto' });
       // Auto-detection creates CachingMCPMetadataStore when file backend is available
       expect(store).toBeInstanceOf(CachingMCPMetadataStore);
       store.dispose();
     });
 
-    it('should throw error for unknown store type', () => {
-      expect(() => {
-        MCPMetadataStoreFactory.create({ type: 'unknown' as any });
-      }).toThrow('Unknown MCP metadata store type: unknown');
+    it('should throw error for unknown store type', async () => {
+      await expect(async () => {
+        await MCPMetadataStoreFactory.create({ type: 'unknown' as any });
+      }).rejects.toThrow('Unknown MCP metadata store type: unknown');
     });
 
   });

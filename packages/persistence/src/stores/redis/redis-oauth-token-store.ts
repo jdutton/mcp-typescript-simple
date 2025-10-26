@@ -7,6 +7,7 @@
  *
  * Features:
  * - AES-256-GCM encryption at rest (REQUIRED - zero tolerance for unencrypted data)
+ * - SHA-256 hashed Redis keys (prevents token exposure in key names)
  * - Automatic expiration using Redis TTL
  * - Scales across multiple instances
  * - O(1) refresh token lookups via secondary index
@@ -14,6 +15,8 @@
  *
  * Security Stance:
  * - Encryption is MANDATORY, not optional
+ * - Redis keys are SHA-256 hashed to prevent token exposure
+ *   (even read-only Redis access won't expose usable tokens)
  * - Fail fast on decryption errors - no graceful degradation
  * - SOC-2, ISO 27001, GDPR, HIPAA compliant
  *
@@ -108,12 +111,27 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     return JSON.parse(decrypted) as StoredTokenInfo;
   }
 
+  /**
+   * Get Redis key for access token (SHA-256 hashed)
+   *
+   * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
+   * Even though VALUES are encrypted, KEY NAMES are visible in Redis.
+   * Read-only Redis access would expose usable tokens without hashing.
+   */
   private getTokenKey(accessToken: string): string {
-    return `${KEY_PREFIX}${accessToken}`;
+    const hashedToken = this.encryptionService.hashKey(accessToken);
+    return `${KEY_PREFIX}${hashedToken}`;
   }
 
+  /**
+   * Get Redis key for refresh token index (SHA-256 hashed)
+   *
+   * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
+   * Refresh tokens have longer validity, so exposure is especially risky.
+   */
   private getRefreshIndexKey(refreshToken: string): string {
-    return `${REFRESH_INDEX_PREFIX}${refreshToken}`;
+    const hashedToken = this.encryptionService.hashKey(refreshToken);
+    return `${REFRESH_INDEX_PREFIX}${hashedToken}`;
   }
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
@@ -133,9 +151,11 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     ];
 
     // Maintain secondary index for O(1) refresh token lookups
+    // CRITICAL: Encrypt access token before storing in index
     if (tokenInfo.refreshToken) {
       const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
-      storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, accessToken));
+      const encryptedAccessToken = await this.encryptionService.encrypt(accessToken);
+      storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, encryptedAccessToken));
     }
 
     await Promise.all(storePromises);
@@ -183,14 +203,17 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
     // O(1) lookup using secondary index
     const refreshIndexKey = this.getRefreshIndexKey(refreshToken);
-    const accessToken = await this.redis.get(refreshIndexKey);
+    const encryptedAccessToken = await this.redis.get(refreshIndexKey);
 
-    if (!accessToken) {
+    if (!encryptedAccessToken) {
       logger.debug('OAuth token not found by refresh token in Redis', {
         refreshTokenPrefix: refreshToken.substring(0, 8)
       });
       return null;
     }
+
+    // Decrypt access token from index - fail fast on decryption errors
+    const accessToken = await this.encryptionService.decrypt(encryptedAccessToken);
 
     // Fetch token data
     const key = this.getTokenKey(accessToken);

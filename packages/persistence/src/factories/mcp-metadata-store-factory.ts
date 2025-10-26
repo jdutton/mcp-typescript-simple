@@ -13,6 +13,8 @@ import { MemoryMCPMetadataStore } from '../stores/memory/memory-mcp-metadata-sto
 import { FileMCPMetadataStore } from '../stores/file/file-mcp-metadata-store.js';
 import { CachingMCPMetadataStore } from '../decorators/caching-mcp-metadata-store.js';
 import { RedisMCPMetadataStore } from '../stores/redis/redis-mcp-metadata-store.js';
+import { TokenEncryptionService } from '../encryption/token-encryption-service.js';
+import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 import { getDataPath } from '../utils/data-paths.js';
 
@@ -44,11 +46,11 @@ export class MCPMetadataStoreFactory {
   /**
    * Create a session metadata store based on configuration
    */
-  static create(options: MCPMetadataStoreFactoryOptions = {}): MCPSessionMetadataStore {
+  static async create(options: MCPMetadataStoreFactoryOptions = {}): Promise<MCPSessionMetadataStore> {
     const storeType = options.type || 'auto';
 
     if (storeType === 'auto') {
-      return this.createAutoDetected(options);
+      return await this.createAutoDetected(options);
     }
 
     switch (storeType) {
@@ -59,10 +61,10 @@ export class MCPMetadataStoreFactory {
         return this.createFileStore(options.filePath);
 
       case 'caching':
-        return this.createCachingStore(options);
+        return await this.createCachingStore(options);
 
       case 'redis':
-        return this.createRedisStore(options.redisUrl);
+        return await this.createRedisStore(options.redisUrl);
 
       default:
         throw new Error(`Unknown MCP metadata store type: ${storeType}`);
@@ -73,7 +75,7 @@ export class MCPMetadataStoreFactory {
    * Auto-detect the best store for current environment
    * Priority: Actual configuration > Environment detection
    */
-  private static createAutoDetected(options: MCPMetadataStoreFactoryOptions): MCPSessionMetadataStore {
+  private static async createAutoDetected(options: MCPMetadataStoreFactoryOptions): Promise<MCPSessionMetadataStore> {
     const isProduction = process.env.NODE_ENV === 'production';
 
     // 1. Redis configured: Use Redis (regardless of environment)
@@ -84,7 +86,7 @@ export class MCPMetadataStoreFactory {
         persistent: true,
         source: options.redisUrl ? 'options' : 'REDIS_URL',
       });
-      return this.createCachingStore({
+      return await this.createCachingStore({
         ...options,
         type: 'redis',
         redisUrl: options.redisUrl || process.env.REDIS_URL,
@@ -101,7 +103,7 @@ export class MCPMetadataStoreFactory {
         environment: isProduction ? 'production-override' : 'development',
         filePath,
       });
-      return this.createCachingStore({
+      return await this.createCachingStore({
         ...options,
         type: 'file',
         filePath,
@@ -114,7 +116,7 @@ export class MCPMetadataStoreFactory {
       persistent: false,
       recommendation: 'Configure REDIS_URL for multi-instance deployments',
     });
-    return this.createCachingStore({
+    return await this.createCachingStore({
       ...options,
       type: 'memory',
     });
@@ -139,14 +141,14 @@ export class MCPMetadataStoreFactory {
    * Primary: Memory (fast cache with LRU + TTL)
    * Secondary: Optional persistent backend (File/Redis)
    */
-  private static createCachingStore(options: MCPMetadataStoreFactoryOptions): CachingMCPMetadataStore {
+  private static async createCachingStore(options: MCPMetadataStoreFactoryOptions): Promise<CachingMCPMetadataStore> {
     const primaryStore = this.createMemoryStore();
 
     // Determine secondary store based on options (optional)
     let secondaryStore: MCPSessionMetadataStore | undefined;
 
     if (options.type === 'redis') {
-      secondaryStore = this.createRedisStore(options.redisUrl);
+      secondaryStore = await this.createRedisStore(options.redisUrl);
     } else if (options.type === 'file') {
       secondaryStore = this.createFileStore(options.filePath);
     }
@@ -159,11 +161,11 @@ export class MCPMetadataStoreFactory {
   }
 
   /**
-   * Create generic Redis session metadata store
+   * Create generic Redis session metadata store with mandatory encryption
    *
    * @param redisUrl - Redis connection URL (e.g., redis://localhost:6379)
    */
-  private static createRedisStore(redisUrl?: string): MCPSessionMetadataStore {
+  private static async createRedisStore(redisUrl?: string): Promise<MCPSessionMetadataStore> {
     if (!redisUrl) {
       throw new Error(
         'Redis URL not configured. ' +
@@ -171,7 +173,20 @@ export class MCPMetadataStoreFactory {
       );
     }
 
-    return new RedisMCPMetadataStore(redisUrl);
+    // Enterprise security: encryption is MANDATORY
+    const secretsProvider = await getSecretsProvider();
+    const encryptionKey = await secretsProvider.getSecret('TOKEN_ENCRYPTION_KEY');
+
+    if (!encryptionKey) {
+      throw new Error(
+        'TOKEN_ENCRYPTION_KEY not found. ' +
+        'Encryption is MANDATORY for Redis MCP metadata storage'
+      );
+    }
+
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
+    return new RedisMCPMetadataStore(redisUrl, encryptionService);
   }
 
   /**
@@ -229,6 +244,6 @@ export class MCPMetadataStoreFactory {
 /**
  * Convenience function to create a session metadata store with auto-detection
  */
-export function createMCPMetadataStore(options?: MCPMetadataStoreFactoryOptions): MCPSessionMetadataStore {
-  return MCPMetadataStoreFactory.create(options);
+export async function createMCPMetadataStore(options?: MCPMetadataStoreFactoryOptions): Promise<MCPSessionMetadataStore> {
+  return await MCPMetadataStoreFactory.create(options);
 }

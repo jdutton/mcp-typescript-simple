@@ -51,7 +51,7 @@ interface PersistedOAuthTokenData {
 }
 
 export interface FileOAuthTokenStoreOptions {
-  /** Path to the JSON file (default: './data/oauth-tokens.json') */
+  /** Path to the encrypted JSON file (default: './data/oauth-tokens.json.enc') */
   filePath?: string;
 
   /** Debounce writes to avoid excessive disk I/O (milliseconds, default: 1000) */
@@ -77,7 +77,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       throw new Error('TokenEncryptionService is REQUIRED - zero tolerance for unencrypted OAuth tokens');
     }
 
-    this.filePath = options.filePath || './data/oauth-tokens.json';
+    this.filePath = options.filePath || './data/oauth-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;

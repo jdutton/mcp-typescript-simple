@@ -34,10 +34,6 @@
       "types": "./dist/session-correlation.d.ts",
       "import": "./dist/session-correlation.js"
     },
-    "./instrumentation": {
-      "types": "./dist/instrumentation.d.ts",
-      "import": "./dist/instrumentation.js"
-    },
     "./instrumentation-edge": {
       "types": "./dist/instrumentation-edge.d.ts",
       "import": "./dist/instrumentation-edge.js"

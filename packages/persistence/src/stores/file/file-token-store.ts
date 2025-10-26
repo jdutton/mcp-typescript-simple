@@ -52,7 +52,7 @@ interface PersistedTokenData {
 }
 
 export interface FileTokenStoreOptions {
-  /** Path to the JSON file (default: './data/access-tokens.json') */
+  /** Path to the encrypted JSON file (default: './data/access-tokens.json.enc') */
   filePath?: string;
 
   /** Debounce writes to avoid excessive disk I/O (milliseconds, default: 1000) */
@@ -80,7 +80,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       );
     }
 
-    this.filePath = options.filePath || './data/access-tokens.json';
+    this.filePath = options.filePath || './data/access-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;

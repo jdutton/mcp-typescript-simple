@@ -194,7 +194,7 @@ export class TokenStoreFactory {
     // Create encryption service
     const encryptionService = new TokenEncryptionService({ encryptionKey });
 
-    return new RedisTokenStore(encryptionService);
+    return new RedisTokenStore(process.env.REDIS_URL, encryptionService);
   }
 
   /**

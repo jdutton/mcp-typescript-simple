@@ -471,6 +471,9 @@ export class MCPStreamableHttpServer {
   private setupNonOAuthRoutes(): void {
     // Admin and session management routes
     const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
+    if (!this.tokenStore) {
+      throw new Error('Token store not initialized - cannot setup admin routes');
+    }
     setupAdminRoutes(this.app, this.sessionManager, this.tokenStore, { devMode });
 
     // Catch-all error handler with enhanced logging
