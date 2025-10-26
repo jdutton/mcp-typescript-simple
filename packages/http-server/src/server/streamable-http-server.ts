@@ -59,7 +59,7 @@ export class MCPStreamableHttpServer {
   private sessionManager: SessionManager;
   private llmManager: LLMManager;
   private toolRegistry: ToolRegistry;
-  private instanceManager: MCPInstanceManager;
+  private instanceManager!: MCPInstanceManager; // Initialized in initialize() method
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
 
   constructor(private options: StreamableHttpServerOptions) {
@@ -79,8 +79,7 @@ export class MCPStreamableHttpServer {
     this.toolRegistry = new ToolRegistry();
     this.toolRegistry.merge(basicTools);
 
-    // Create MCP instance manager for horizontal scalability
-    this.instanceManager = new MCPInstanceManager(this.toolRegistry);
+    // MCP instance manager created in initialize() method (async factory needed for Redis auto-detection)
 
     this.setupMiddleware();
 
@@ -95,6 +94,13 @@ export class MCPStreamableHttpServer {
    * Initialize async components like OAuth and client store
    */
   async initialize(): Promise<void> {
+    // Create MCP instance manager with auto-detected metadata store (Redis if configured)
+    // CRITICAL: Must use createAsync() to enable Redis-backed session storage
+    this.instanceManager = await MCPInstanceManager.createAsync(this.toolRegistry);
+    logger.info('MCP instance manager initialized', {
+      storeType: (this.instanceManager as any).metadataStore?.constructor.name || 'Unknown'
+    });
+
     // Initialize LLM manager (gracefully handle missing API keys)
     try {
       await this.llmManager.initialize();
@@ -1181,7 +1187,9 @@ export class MCPStreamableHttpServer {
           this.sessionManager.destroy();
 
           // Dispose instance manager resources
-          this.instanceManager.dispose();
+          if (this.instanceManager) {
+            this.instanceManager.dispose();
+          }
 
           // Cleanup client store resources
           if (this.clientStore && 'dispose' in this.clientStore && typeof this.clientStore.dispose === 'function') {
