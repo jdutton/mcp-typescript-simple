@@ -48,6 +48,9 @@ describe('Admin Token Management Endpoints Integration', () => {
     // Enable dev mode for testing (no auth required for admin endpoints)
     process.env.MCP_DEV_SKIP_AUTH = 'true';
 
+    // Set encryption key for token storage
+    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
+
     // Mock successful OAuth provider creation
     mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
 
@@ -70,6 +73,32 @@ describe('Admin Token Management Endpoints Integration', () => {
     // Initialize server
     await server.initialize();
     app = server.getApp();
+
+    // DEBUG: Check what token store type was created and try to call it
+    // @ts-expect-error - accessing private property for debugging
+    const tokenStore = server.tokenStore;
+    console.log('[TEST] Token store type created:', {
+      constructorName: tokenStore?.constructor?.name,
+      hasCreateToken: typeof tokenStore?.createToken === 'function',
+      isInMemoryTestTokenStore: tokenStore?.constructor?.name === 'InMemoryTestTokenStore',
+    });
+
+    // Try to create a token directly to see the exact error
+    try {
+      // @ts-expect-error - accessing private property for debugging
+      const testToken = await server.tokenStore.createToken({
+        description: 'Debug Test',
+        expires_in: 3600,
+        max_uses: 1,
+      });
+      console.log('[TEST] Direct createToken succeeded:', { tokenId: testToken.id });
+    } catch (error) {
+      console.error('[TEST] Direct createToken failed:', {
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
+    }
   });
 
   afterEach(async () => {
@@ -86,9 +115,19 @@ describe('Admin Token Management Endpoints Integration', () => {
           description: 'Test Token',
           expires_in: 3600,
           max_uses: 10,
-        })
-        .expect(201)
-        .expect('Content-Type', /application\/json/);
+        });
+
+      // DEBUG: Log the response
+      if (response.status !== 201) {
+        console.log('ERROR RESPONSE:', {
+          status: response.status,
+          body: response.body,
+          text: response.text,
+        });
+      }
+
+      expect(response.status).toBe(201);
+      expect(response.headers['content-type']).toMatch(/application\/json/);
 
       expect(response.body).toMatchObject({
         id: expect.any(String),

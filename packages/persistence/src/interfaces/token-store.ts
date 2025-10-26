@@ -81,9 +81,9 @@ export interface TokenValidationResult {
  * Initial Access Token Store Interface
  *
  * Implementations:
- * - InMemoryTokenStore: Development/testing (not persistent)
- * - FileTokenStore: Single-instance deployments with local filesystem
- * - RedisTokenStore: Vercel serverless deployments with Redis-compatible KV
+ * - InMemoryTestTokenStore: Testing/dev only (ephemeral, no encryption, process-isolated)
+ * - FileTokenStore: Single-instance deployments (persistent, encrypted, local filesystem)
+ * - RedisTokenStore: Multi-instance deployments (persistent, encrypted, Redis)
  */
 export interface InitialAccessTokenStore {
   /**

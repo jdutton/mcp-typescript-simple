@@ -11,6 +11,11 @@ export default defineConfig({
     // Test environment
     environment: 'node',
 
+    // Set NODE_ENV for test detection
+    env: {
+      NODE_ENV: 'test',
+    },
+
     // Test file patterns
     include: [
       '**/__tests__/**/*.test.ts',

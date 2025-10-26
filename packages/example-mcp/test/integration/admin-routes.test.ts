@@ -41,6 +41,9 @@ describe('Admin Routes Integration', () => {
   let app: Express;
 
   beforeEach(async () => {
+    // Enable dev mode to skip authentication for admin routes
+    process.env.MCP_DEV_SKIP_AUTH = 'true';
+
     // Mock successful OAuth provider creation
     mocks.createFromEnvironment.mockResolvedValue(mocks.mockProvider as any);
 
@@ -67,6 +70,7 @@ describe('Admin Routes Integration', () => {
 
   afterEach(async () => {
     await server.stop();
+    delete process.env.MCP_DEV_SKIP_AUTH;
     vi.clearAllMocks();
   });
 

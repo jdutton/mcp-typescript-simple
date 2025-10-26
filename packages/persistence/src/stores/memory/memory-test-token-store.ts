@@ -1,22 +1,24 @@
 /**
- * In-Memory Initial Access Token Store
+ * In-Memory Test Token Store
  *
- * Fast, ephemeral token storage for development and testing.
+ * Fast, ephemeral token storage for testing and local development.
  *
  * Features:
- * - Lightning-fast token operations (all in-memory)
+ * - Lightning-fast token operations (all in-memory, no encryption overhead)
  * - Automatic cleanup of expired/revoked tokens
  * - Optional periodic cleanup timer
  *
- * Limitations:
- * - Tokens lost on server restart (not persistent)
- * - Not suitable for multi-instance deployments
- * - Limited by process memory
+ * Security:
+ * - No encryption - protected by OS process isolation
+ * - Data lost on process exit (ephemeral by design)
+ * - NOT suitable for production use
  *
  * Use cases:
- * - Development and testing
- * - Single-instance deployments where persistence isn't critical
- * - As a fallback when no persistent storage is configured
+ * - Unit and integration testing
+ * - Local development environments
+ * - Temporary single-instance deployments where persistence isn't needed
+ *
+ * **Production deployments should use RedisTokenStore or FileTokenStore with encryption.**
  */
 
 import { randomBytes } from 'crypto';
@@ -30,7 +32,7 @@ import {
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
 
-export interface InMemoryTokenStoreOptions {
+export interface InMemoryTestTokenStoreOptions {
   /** Enable automatic cleanup of expired tokens (default: false) */
   autoCleanup?: boolean;
 
@@ -38,12 +40,12 @@ export interface InMemoryTokenStoreOptions {
   cleanupIntervalMs?: number;
 }
 
-export class InMemoryTokenStore implements InitialAccessTokenStore {
+export class InMemoryTestTokenStore implements InitialAccessTokenStore {
   private tokens = new Map<string, InitialAccessToken>();
   private tokensByValue = new Map<string, InitialAccessToken>();
   private cleanupTimer?: NodeJS.Timeout;
 
-  constructor(private options: InMemoryTokenStoreOptions = {}) {
+  constructor(private options: InMemoryTestTokenStoreOptions = {}) {
     if (options.autoCleanup) {
       const intervalMs = options.cleanupIntervalMs || 60 * 60 * 1000; // 1 hour default
       this.cleanupTimer = setInterval(() => {
@@ -51,9 +53,10 @@ export class InMemoryTokenStore implements InitialAccessTokenStore {
       }, intervalMs);
     }
 
-    logger.info('InMemoryTokenStore initialized', {
+    logger.info('InMemoryTestTokenStore initialized (test/dev use only)', {
       autoCleanup: options.autoCleanup || false,
       cleanupIntervalMs: options.cleanupIntervalMs,
+      encryption: 'disabled (process-isolated)',
     });
   }
 
@@ -73,6 +76,7 @@ export class InMemoryTokenStore implements InitialAccessTokenStore {
       revoked: false,
     };
 
+    // Store plain objects (no encryption needed - process-isolated)
     this.tokens.set(id, tokenData);
     this.tokensByValue.set(token, tokenData);
 
@@ -88,6 +92,10 @@ export class InMemoryTokenStore implements InitialAccessTokenStore {
 
   async validateAndUseToken(token: string): Promise<TokenValidationResult> {
     const tokenData = this.tokensByValue.get(token);
+
+    if (!tokenData) {
+      return { valid: false, reason: 'Token not found' };
+    }
 
     // Use common validation logic
     const result = validateTokenCommon(tokenData, token);
@@ -207,6 +215,6 @@ export class InMemoryTokenStore implements InitialAccessTokenStore {
     this.tokens.clear();
     this.tokensByValue.clear();
 
-    logger.info('InMemoryTokenStore disposed');
+    logger.info('InMemoryTestTokenStore disposed');
   }
 }

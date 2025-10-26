@@ -13,6 +13,9 @@ describe('MCPStreamableHttpServer', () => {
   const servers: MCPStreamableHttpServer[] = [];
 
   beforeEach(() => {
+    // Set encryption key for tests (required by token stores)
+    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
+
     // Clear EnvironmentConfig singleton cache to ensure clean test environment
     EnvironmentConfig.reset();
 
@@ -327,7 +330,7 @@ describe('MCPStreamableHttpServer', () => {
       ...originalEnv
     };
     delete process.env.npm_package_version;
-    delete process.env.NODE_ENV;
+    // Note: NOT deleting NODE_ENV - it's required for token store factory to detect test mode
 
     const server = makeServer();
     await server.initialize();
@@ -337,7 +340,7 @@ describe('MCPStreamableHttpServer', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.version).toBe('1.0.0'); // Default
-    expect(response.body.environment).toBe('development'); // Default
+    expect(response.body.environment).toBe('test'); // Test environment (NODE_ENV is kept for token store factory)
 
     process.env = originalEnv;
   });

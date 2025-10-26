@@ -280,17 +280,27 @@ describe('API Contract Tests - Multi-Target OpenAPI Compliance', () => {
       expect(response.text).toContain('MCP TypeScript Simple');
     });
 
-    // These tests will fail until Phase 5 (Documentation Parity) is implemented
-    it.skip('should serve /docs (Redoc) endpoint', async () => {
+    // Unskipped in Issue #89 Phase 1.5 - Documentation endpoints now working
+    it('should serve /docs (Redoc) endpoint', async () => {
       const response = await request(baseUrl).get('/docs');
       expect(response.status).toBe(200);
       expect(response.headers['content-type']).toMatch(/text\/html/);
     });
 
-    it.skip('should serve /api-docs (Swagger UI) endpoint', async () => {
+    it('should serve /api-docs (Swagger UI) endpoint', async () => {
+      // swagger-ui-express redirects /api-docs to /api-docs/ (with trailing slash)
+      // Accept either 200 (direct) or 301 (redirect to trailing slash)
       const response = await request(baseUrl).get('/api-docs');
-      expect(response.status).toBe(200);
-      expect(response.headers['content-type']).toMatch(/text\/html/);
+      expect([200, 301]).toContain(response.status);
+
+      // If redirected, follow the redirect and verify HTML is served
+      if (response.status === 301) {
+        const redirectResponse = await request(baseUrl).get('/api-docs/');
+        expect(redirectResponse.status).toBe(200);
+        expect(redirectResponse.headers['content-type']).toMatch(/text\/html/);
+      } else {
+        expect(response.headers['content-type']).toMatch(/text\/html/);
+      }
     });
   });
 

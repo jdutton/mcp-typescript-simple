@@ -145,12 +145,13 @@ export default async function globalSetup(): Promise<void> {
       stdio: ['ignore', 'pipe', 'pipe'], // ignore stdin, capture stdout/stderr for readiness detection
       env: {
         ...process.env,
-        NODE_ENV: 'development',  // Ensure server runs in development mode, not test mode
+        NODE_ENV: 'test',  // Use test environment to enable InMemoryTestTokenStore (no encryption needed)
         MCP_MODE: 'streamable_http',
         MCP_DEV_SKIP_AUTH: 'true',
         HTTP_PORT: httpPort,
         HTTP_HOST: 'localhost',
-        LOG_LEVEL: 'error'  // Suppress info/debug logs during system tests
+        LOG_LEVEL: 'info',  // Need info level to see "server listening" message for readiness detection
+        TOKEN_ENCRYPTION_KEY: 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI='  // Required for encryption infrastructure (even though test mode uses InMemoryTestTokenStore)
       }
     });
 
@@ -158,69 +159,72 @@ export default async function globalSetup(): Promise<void> {
       throw new Error('Failed to start HTTP server process in global setup');
     }
 
-    // Wait for server to be ready
+    // Wait for server to be ready using health check polling (more reliable than log parsing)
     await new Promise<void>((resolve, reject) => {
       let startupOutput = '';
       let errorOutput = '';
+      let healthCheckAttempts = 0;
+      const maxHealthCheckAttempts = 30; // 30 attempts * 1 second = 30 seconds max
+      let healthCheckInterval: NodeJS.Timeout;
 
+      // Collect server output for debugging
       globalHttpServer!.stdout?.on('data', (data) => {
         const text = data.toString();
         startupOutput += text;
-
-        // Filter and conditionally log (only errors/warnings)
         filterAndLogServerOutput(text, false);
-
-        // Check for server ready patterns
-        if (text.includes(`Streamable HTTP server listening on localhost:${httpPort}`) ||
-            text.includes(`server running on localhost:${httpPort}`) ||
-            text.includes(`server listening on localhost:${httpPort}`) ||
-            (text.includes('Streamable HTTP server listening') && text.includes(httpPort))) {
-          // Server is ready
-          setTimeout(() => {
-            console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort}`);
-            resolve();
-          }, 1000);
-        }
       });
 
       globalHttpServer!.stderr?.on('data', (data) => {
         const text = data.toString();
         errorOutput += text;
-
-        // Filter and conditionally log (only errors/warnings)
         filterAndLogServerOutput(text, true);
-
-        // Check stderr for server ready messages
-        if (text.includes(`Streamable HTTP server listening on localhost:${httpPort}`) ||
-            text.includes(`server running on localhost:${httpPort}`) ||
-            text.includes(`server listening on localhost:${httpPort}`) ||
-            (text.includes('Streamable HTTP server listening') && text.includes(httpPort))) {
-          // Server is ready
-          setTimeout(() => {
-            console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort}`);
-            resolve();
-          }, 1000);
-        }
       });
 
       globalHttpServer!.on('error', (error) => {
+        clearInterval(healthCheckInterval);
         reject(new Error(`Global HTTP server process error: ${error.message}`));
       });
 
       globalHttpServer!.on('exit', (code, signal) => {
         if (code !== null && code !== 0) {
+          clearInterval(healthCheckInterval);
           console.error('Global server output:', startupOutput);
           console.error('Global server errors:', errorOutput);
           reject(new Error(`Global HTTP server exited with code ${code}, signal ${signal}`));
         }
       });
 
-      // Timeout if server doesn't start within 15 seconds
-      setTimeout(() => {
-        console.error('Global server output:', startupOutput);
-        console.error('Global server errors:', errorOutput);
-        reject(new Error('Global HTTP server startup timeout after 15 seconds'));
-      }, 15000);
+      // Poll health endpoint to detect when server is ready
+      const checkHealth = async () => {
+        healthCheckAttempts++;
+
+        try {
+          const response = await fetch(`http://localhost:${httpPort}/health`, {
+            method: 'GET',
+            signal: AbortSignal.timeout(2000) // 2 second timeout per request
+          });
+
+          if (response.ok) {
+            clearInterval(healthCheckInterval);
+            console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort} (health check passed after ${healthCheckAttempts} attempts)`);
+            resolve();
+          }
+        } catch (error) {
+          // Health check failed - server not ready yet
+          if (healthCheckAttempts >= maxHealthCheckAttempts) {
+            clearInterval(healthCheckInterval);
+            console.error('Global server output:', startupOutput);
+            console.error('Global server errors:', errorOutput);
+            reject(new Error(`Global HTTP server health check failed after ${healthCheckAttempts} attempts (${maxHealthCheckAttempts} seconds)`));
+          }
+        }
+      };
+
+      // Start health check polling (every 1 second)
+      healthCheckInterval = setInterval(checkHealth, 1000);
+
+      // Run first check immediately
+      checkHealth();
     });
 
     // Store server process info for teardown

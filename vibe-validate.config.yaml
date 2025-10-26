@@ -5,6 +5,14 @@ $schema: https://raw.githubusercontent.com/jdutton/vibe-validate/main/packages/c
 
 developerFeedback: true
 
+# Locking configuration - prevents concurrent validation runs from conflicting
+# Using project-level locking since ports (3001, 64123, etc.) are shared across
+# all directories running the same validation script
+locking:
+  enabled: true
+  concurrencyScope: project
+  projectId: mcp-typescript-simple
+
 # Git settings
 git:
   mainBranch: main
@@ -26,19 +34,16 @@ validation:
         - name: TypeScript & Lint & OpenAPI & Build
           command: npm run typecheck && npm run lint && npm run test:openapi && npm run build
 
-    # NOTE: Security Validation temporarily disabled until security gaps are fixed
-    # Will be re-enabled in follow-up commits after fixing:
-    # - 14 unprotected admin endpoints
-    # - 2 file-based token storage issues
-    # - name: 'Security Validation'
-    #   parallel: false  # Sequential - security checks run in order
-    #   steps:
-    #     - name: Admin Endpoint Protection
-    #       command: npm run security:check:admin
-    #     - name: Secrets in Logs Detection
-    #       command: npm run security:check:logs
-    #     - name: Production File Storage Check
-    #       command: npm run security:check:files
+    # Security Validation - all checks pass (Issue #89 Phase 2 complete)
+    - name: 'Security Validation'
+      parallel: false  # Sequential - security checks run in order
+      steps:
+        - name: Admin Endpoint Protection
+          command: npm run security:check:admin
+        - name: Secrets in Logs Detection
+          command: npm run security:check:logs
+        - name: Production File Storage Check
+          command: npm run security:check:files
 
     - name: 'Fast Tests'
       parallel: false  # Sequential - saves 1 runner (was 2 parallel jobs)

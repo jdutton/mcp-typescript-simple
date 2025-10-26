@@ -3,6 +3,7 @@
  */
 
 import { FileOAuthTokenStore, StoredTokenInfo } from '../../src/index.js';
+import { TokenEncryptionService } from '../../src/encryption/token-encryption-service.js';
 import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -12,7 +13,17 @@ describe('FileOAuthTokenStore', () => {
   let testDir: string;
   let testFilePath: string;
 
+  // Helper function to create encryption service
+  const createEncryptionService = () => {
+    return new TokenEncryptionService({
+      encryptionKey: process.env.TOKEN_ENCRYPTION_KEY!,
+    });
+  };
+
   beforeEach(() => {
+    // Set encryption key for tests (required by encryption service - must be 32 bytes base64)
+    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
+
     // Create temporary directory for test files
     testDir = join(tmpdir(), `oauth-token-store-test-${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
@@ -21,6 +32,7 @@ describe('FileOAuthTokenStore', () => {
     store = new FileOAuthTokenStore({
       filePath: testFilePath,
       debounceMs: 0, // Disable debouncing for tests
+      encryptionService: createEncryptionService(),
     });
   });
 
@@ -54,15 +66,16 @@ describe('FileOAuthTokenStore', () => {
       // Wait for file write
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Verify file exists
+      // Verify file exists and is not empty (content is encrypted, so can't parse as JSON)
       expect(existsSync(testFilePath)).toBe(true);
-
-      // Verify file content
       const content = readFileSync(testFilePath, 'utf8');
-      const data = JSON.parse(content);
-      expect(data.tokens).toHaveLength(1);
-      expect(data.tokens[0].accessToken).toBe('access-token-123');
-      expect(data.tokens[0].tokenInfo.provider).toBe('google');
+      expect(content.length).toBeGreaterThan(0);
+
+      // Verify token can be retrieved through store (decryption works)
+      const retrieved = await store.getToken('access-token-123');
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.accessToken).toBe('access-token-123');
+      expect(retrieved?.provider).toBe('google');
     });
 
     it('should store multiple tokens', async () => {
@@ -263,7 +276,10 @@ describe('FileOAuthTokenStore', () => {
       store.dispose();
 
       // Create new store instance
-      const newStore = new FileOAuthTokenStore({ filePath: testFilePath });
+      const newStore = new FileOAuthTokenStore({
+        filePath: testFilePath,
+        encryptionService: createEncryptionService(),
+      });
 
       // Verify tokens were loaded
       const count = await newStore.getTokenCount();
@@ -280,7 +296,10 @@ describe('FileOAuthTokenStore', () => {
 
     it('should handle non-existent file on startup', () => {
       const nonExistentPath = join(testDir, 'non-existent.json');
-      const newStore = new FileOAuthTokenStore({ filePath: nonExistentPath });
+      const newStore = new FileOAuthTokenStore({
+        filePath: nonExistentPath,
+        encryptionService: createEncryptionService(),
+      });
 
       expect(newStore).toBeDefined();
       newStore.dispose();
@@ -306,7 +325,10 @@ describe('FileOAuthTokenStore', () => {
       store.dispose();
 
       // Create new store instance
-      const newStore = new FileOAuthTokenStore({ filePath: testFilePath });
+      const newStore = new FileOAuthTokenStore({
+        filePath: testFilePath,
+        encryptionService: createEncryptionService(),
+      });
 
       // Verify refresh token index was rebuilt
       const result = await newStore.findByRefreshToken('refresh-token-abc');

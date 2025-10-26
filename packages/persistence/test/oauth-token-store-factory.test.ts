@@ -10,6 +10,8 @@ describe('OAuthTokenStoreFactory', () => {
 
   beforeEach(() => {
     restoreEnv = preserveEnv();
+    // Set encryption key for tests (required by encryption service - must be 32 bytes base64)
+    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
   });
 
   afterEach(() => {
@@ -17,19 +19,19 @@ describe('OAuthTokenStoreFactory', () => {
   });
 
   describe('Auto-Detection', () => {
-    it('should create Redis store when REDIS_URL configured', () => {
+    it('should create Redis store when REDIS_URL configured', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379';
 
-      const store = OAuthTokenStoreFactory.create();
+      const store = await OAuthTokenStoreFactory.create();
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('RedisOAuthTokenStore');
     });
 
-    it('should create Memory store when REDIS_URL not configured', () => {
+    it('should create Memory store when REDIS_URL not configured', async () => {
       delete process.env.REDIS_URL;
 
-      const store = OAuthTokenStoreFactory.create();
+      const store = await OAuthTokenStoreFactory.create();
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('MemoryOAuthTokenStore');
@@ -37,34 +39,34 @@ describe('OAuthTokenStoreFactory', () => {
   });
 
   describe('Explicit Type Selection', () => {
-    it('should create MemoryOAuthTokenStore when explicitly requested', () => {
+    it('should create MemoryOAuthTokenStore when explicitly requested', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379';
 
-      const store = OAuthTokenStoreFactory.create({ type: 'memory' });
+      const store = await OAuthTokenStoreFactory.create({ type: 'memory' });
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('MemoryOAuthTokenStore');
     });
 
-    it('should create RedisOAuthTokenStore when explicitly requested', () => {
+    it('should create RedisOAuthTokenStore when explicitly requested', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379';
 
-      const store = OAuthTokenStoreFactory.create({ type: 'redis' });
+      const store = await OAuthTokenStoreFactory.create({ type: 'redis' });
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('RedisOAuthTokenStore');
     });
 
-    it('should throw error when Redis requested but not configured', () => {
+    it('should throw error when Redis requested but not configured', async () => {
       delete process.env.REDIS_URL;
 
-      expect(() => OAuthTokenStoreFactory.create({ type: 'redis' }))
-        .toThrow('Redis URL not configured');
+      await expect(OAuthTokenStoreFactory.create({ type: 'redis' }))
+        .rejects.toThrow('Redis URL not configured');
     });
 
-    it('should throw error for unknown store type', () => {
-      expect(() => OAuthTokenStoreFactory.create({ type: 'invalid' as any }))
-        .toThrow('Unknown OAuth token store type');
+    it('should throw error for unknown store type', async () => {
+      await expect(OAuthTokenStoreFactory.create({ type: 'invalid' as any }))
+        .rejects.toThrow('Unknown OAuth token store type');
     });
   });
 
@@ -128,19 +130,19 @@ describe('OAuthTokenStoreFactory', () => {
   });
 
   describe('createOAuthTokenStore convenience function', () => {
-    it('should create store with auto-detection', () => {
+    it('should create store with auto-detection', async () => {
       delete process.env.REDIS_URL;
 
-      const store = createOAuthTokenStore();
+      const store = await createOAuthTokenStore();
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('MemoryOAuthTokenStore');
     });
 
-    it('should accept options parameter', () => {
+    it('should accept options parameter', async () => {
       process.env.REDIS_URL = 'redis://localhost:6379';
 
-      const store = createOAuthTokenStore({ type: 'redis' });
+      const store = await createOAuthTokenStore({ type: 'redis' });
 
       expect(store).toBeDefined();
       expect(store.constructor.name).toBe('RedisOAuthTokenStore');

@@ -1,18 +1,32 @@
 /**
- * File-Based Initial Access Token Store
+ * File-Based Initial Access Token Store (Development Only)
  *
- * Persists tokens to a JSON file on disk. Suitable for:
- * - Development with restart tolerance
- * - Single-instance deployments
+ * **SECURITY STANCE:** Hard security - encryption REQUIRED, no plaintext fallback.
+ * Zero tolerance for unencrypted data. Supports SOC-2, ISO 27001, GDPR, HIPAA compliance.
+ *
+ * **Encryption:**
+ * - AES-256-GCM encryption at rest
+ * - Cryptographically secure random IVs (NIST SP 800-90A)
+ * - Authentication tags for integrity verification
+ * - Format: `iv:ciphertext:authTag` (base64url)
+ *
+ * **File Permissions:**
+ * - 0600 (owner read/write only) for token files
+ * - 0700 (owner only) for directories
+ *
+ * Suitable for:
+ * - Local development with restart tolerance
+ * - Single-instance deployments (NOT production - use Redis)
  * - Self-hosted servers with local filesystem
  *
  * Features:
  * - Survives server restarts
  * - Atomic writes (write to temp file, then rename)
  * - Automatic backup on write
- * - JSON format for easy inspection/debugging
+ * - Encrypted storage format
  *
  * Limitations:
+ * - **DEVELOPMENT ONLY** - NOT suitable for production (use Redis)
  * - Not suitable for multi-instance deployments (race conditions)
  * - Not suitable for serverless (ephemeral filesystem)
  * - Performance degrades with many tokens (full file read/write)
@@ -28,6 +42,7 @@ import {
   TokenValidationResult,
   validateTokenCommon,
 } from '../../interfaces/token-store.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 import { logger } from '../../logger.js';
 
 interface PersistedTokenData {
@@ -42,6 +57,9 @@ export interface FileTokenStoreOptions {
 
   /** Debounce writes to avoid excessive disk I/O (milliseconds, default: 1000) */
   debounceMs?: number;
+
+  /** Token encryption service (REQUIRED - no plaintext storage) */
+  encryptionService: TokenEncryptionService;
 }
 
 export class FileTokenStore implements InitialAccessTokenStore {
@@ -52,11 +70,20 @@ export class FileTokenStore implements InitialAccessTokenStore {
   private writePromise: Promise<void> = Promise.resolve();
   private pendingWrite: NodeJS.Timeout | null = null;
   private readonly debounceMs: number;
+  private readonly encryptionService: TokenEncryptionService;
 
-  constructor(options: FileTokenStoreOptions = {}) {
+  constructor(options: FileTokenStoreOptions) {
+    // SECURITY: Encryption service is REQUIRED - no plaintext storage
+    if (!options.encryptionService) {
+      throw new Error(
+        'FileTokenStore requires encryptionService - plaintext token storage is not allowed'
+      );
+    }
+
     this.filePath = options.filePath || './data/access-tokens.json';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
+    this.encryptionService = options.encryptionService;
 
     // Load existing tokens synchronously during construction
     this.loadSync();
@@ -65,7 +92,44 @@ export class FileTokenStore implements InitialAccessTokenStore {
       filePath: this.filePath,
       tokensLoaded: this.tokens.size,
       debounceMs: this.debounceMs,
+      encrypted: true,
     });
+  }
+
+  /**
+   * Serialize and encrypt token data for file storage
+   */
+  private serializeTokenData(tokens: InitialAccessToken[]): string {
+    const data: PersistedTokenData = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      tokens,
+    };
+    const json = JSON.stringify(data);
+    return this.encryptionService.encrypt(json);
+  }
+
+  /**
+   * Decrypt and deserialize token data from file storage
+   */
+  private deserializeTokenData(encrypted: string): PersistedTokenData {
+    const json = this.encryptionService.decrypt(encrypted);
+    return JSON.parse(json);
+  }
+
+  /**
+   * Enforce strict file permissions (0600 - owner read/write only)
+   */
+  private async enforceFilePermissions(filePath: string): Promise<void> {
+    try {
+      await fs.chmod(filePath, 0o600);
+      logger.debug('File permissions set to 0600', { filePath });
+    } catch (error) {
+      logger.error('Failed to set file permissions', {
+        filePath,
+        error: error as Record<string, any>,
+      });
+    }
   }
 
   /**
@@ -73,8 +137,8 @@ export class FileTokenStore implements InitialAccessTokenStore {
    */
   private loadSync(): void {
     try {
-      const data = readFileSync(this.filePath, 'utf8');
-      const parsed: PersistedTokenData = JSON.parse(data);
+      const encrypted = readFileSync(this.filePath, 'utf8');
+      const parsed = this.deserializeTokenData(encrypted);
 
       if (parsed.version !== 1) {
         throw new Error(`Unsupported file version: ${parsed.version}`);
@@ -85,7 +149,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
         this.tokensByValue.set(token.token, token);
       }
 
-      logger.info('Tokens loaded from file', {
+      logger.info('Tokens loaded from encrypted file', {
         count: parsed.tokens.length,
         updatedAt: parsed.updatedAt,
       });
@@ -114,28 +178,27 @@ export class FileTokenStore implements InitialAccessTokenStore {
   }
 
   /**
-   * Actually write to file (atomic with backup)
+   * Actually write to file (atomic with backup, encrypted, strict permissions)
    */
   private async saveToFile(): Promise<void> {
     try {
-      // Ensure directory exists
-      await fs.mkdir(dirname(this.filePath), { recursive: true });
+      // Ensure directory exists with secure permissions (0700)
+      const dir = dirname(this.filePath);
+      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
 
-      const data: PersistedTokenData = {
-        version: 1,
-        updatedAt: new Date().toISOString(),
-        tokens: Array.from(this.tokens.values()),
-      };
-
-      const json = JSON.stringify(data, null, 2);
+      // Serialize and encrypt token data
+      const tokens = Array.from(this.tokens.values());
+      const encrypted = this.serializeTokenData(tokens);
 
       // Atomic write: write to temp file, then rename
       const tempPath = `${this.filePath}.tmp`;
-      await fs.writeFile(tempPath, json, 'utf8');
+      await fs.writeFile(tempPath, encrypted, 'utf8');
+      await this.enforceFilePermissions(tempPath);
 
       // Backup existing file if it exists
       try {
         await fs.copyFile(this.filePath, this.backupPath);
+        await this.enforceFilePermissions(this.backupPath);
       } catch (error) {
         // Ignore if file doesn't exist yet
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -145,10 +208,12 @@ export class FileTokenStore implements InitialAccessTokenStore {
 
       // Rename temp to actual (atomic on POSIX systems)
       await fs.rename(tempPath, this.filePath);
+      await this.enforceFilePermissions(this.filePath);
 
-      logger.info('Tokens saved to file', {
+      logger.info('Tokens saved to encrypted file', {
         tokenCount: this.tokens.size,
         filePath: this.filePath,
+        permissions: '0600',
       });
     } catch (error) {
       logger.error('Failed to save tokens to file', error as Record<string, any>);

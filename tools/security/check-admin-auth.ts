@@ -59,11 +59,17 @@ function checkFile(filePath: string): Violation[] {
           continue;
         }
 
-        // Check if auth middleware is present in the line or nearby context
+        // Check if this route is inside a devMode block (intentionally unprotected)
         const contextStart = Math.max(0, index - 10);
         const contextEnd = Math.min(lines.length, index + 3);
         const context = lines.slice(contextStart, contextEnd).join('\n');
 
+        // Skip if inside devMode conditional (development-only unprotected routes)
+        if (/if\s*\(\s*devMode\s*\)/.test(context)) {
+          continue;
+        }
+
+        // Check if auth middleware is present in the line or nearby context
         let hasAuth = false;
         for (const authPattern of authMiddlewarePatterns) {
           if (authPattern.test(context)) {

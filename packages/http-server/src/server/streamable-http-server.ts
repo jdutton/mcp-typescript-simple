@@ -110,7 +110,7 @@ export class MCPStreamableHttpServer {
     this.clientStore = ClientStoreFactory.create();
 
     // Initialize token store for protected DCR endpoints
-    this.tokenStore = TokenStoreFactory.create();
+    this.tokenStore = await TokenStoreFactory.create();
 
     // Initialize OAuth providers (always try, regardless of requireAuth)
     const multiProviders = await OAuthProviderFactory.createAllFromEnvironment();
@@ -470,7 +470,8 @@ export class MCPStreamableHttpServer {
    */
   private setupNonOAuthRoutes(): void {
     // Admin and session management routes
-    setupAdminRoutes(this.app, this.sessionManager);
+    const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
+    setupAdminRoutes(this.app, this.sessionManager, this.tokenStore, { devMode });
 
     // Catch-all error handler with enhanced logging
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1152,6 +1153,8 @@ export class MCPStreamableHttpServer {
           host: this.options.host,
           port: this.options.port
         });
+        // Output plain text message for test scripts waiting for server ready signal
+        console.log(`Streamable HTTP server listening on ${this.options.host}:${this.options.port}`);
         resolve();
       });
     });

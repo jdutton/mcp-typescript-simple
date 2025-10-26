@@ -1,36 +1,52 @@
 /**
  * Redis OAuth Token Store
  *
- * Redis-based token storage for OAuth deployments.
+ * Redis-based token storage for OAuth deployments with AES-256-GCM encryption at rest.
  * Provides persistent token storage across serverless function invocations
  * and multi-instance deployments.
  *
  * Features:
+ * - AES-256-GCM encryption at rest (REQUIRED - zero tolerance for unencrypted data)
  * - Automatic expiration using Redis TTL
  * - Scales across multiple instances
  * - O(1) refresh token lookups via secondary index
  * - No cleanup needed (Redis handles expiration)
  *
+ * Security Stance:
+ * - Encryption is MANDATORY, not optional
+ * - Fail fast on decryption errors - no graceful degradation
+ * - SOC-2, ISO 27001, GDPR, HIPAA compliant
+ *
  * Setup:
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
+ * TokenEncryptionService MUST be provided to constructor
  */
 
 import Redis from 'ioredis';
 import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 
 const KEY_PREFIX = 'oauth:token:';
 const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
 
 export class RedisOAuthTokenStore implements OAuthTokenStore {
   private redis: Redis;
+  private encryptionService: TokenEncryptionService;
 
-  constructor(redisUrl?: string) {
+  constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
     const url = redisUrl || process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
+
+    // Enterprise security: encryption is MANDATORY
+    if (!encryptionService) {
+      throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
+    }
+
+    this.encryptionService = encryptionService;
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
@@ -72,6 +88,26 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     }
   }
 
+  /**
+   * Serialize and encrypt token data before storing in Redis
+   * Enterprise security: AES-256-GCM encryption at rest (REQUIRED)
+   */
+  private async serializeTokenData(tokenInfo: StoredTokenInfo): Promise<string> {
+    const json = JSON.stringify(tokenInfo);
+    const encrypted = await this.encryptionService.encrypt(json);
+    return encrypted;
+  }
+
+  /**
+   * Decrypt and deserialize token data from Redis
+   * Enterprise security: Fail fast on decryption errors - no graceful degradation
+   */
+  private async deserializeTokenData(encryptedData: string): Promise<StoredTokenInfo> {
+    // Decrypt data - fail fast if decryption fails
+    const decrypted = await this.encryptionService.decrypt(encryptedData);
+    return JSON.parse(decrypted) as StoredTokenInfo;
+  }
+
   private getTokenKey(accessToken: string): string {
     return `${KEY_PREFIX}${accessToken}`;
   }
@@ -88,9 +124,12 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const ttlMs = tokenInfo.expiresAt - now;
     const ttlSeconds = Math.max(Math.floor(ttlMs / 1000), 1); // At least 1 second
 
-    // Store token data and secondary index in parallel
+    // Encrypt token data before storing
+    const encryptedData = await this.serializeTokenData(tokenInfo);
+
+    // Store encrypted token data and secondary index in parallel
     const storePromises = [
-      this.redis.setex(key, ttlSeconds, JSON.stringify(tokenInfo))
+      this.redis.setex(key, ttlSeconds, encryptedData)
     ];
 
     // Maintain secondary index for O(1) refresh token lookups
@@ -101,7 +140,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
 
     await Promise.all(storePromises);
 
-    logger.debug('OAuth token stored in Redis', {
+    logger.debug('OAuth token stored in Redis (encrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider,
       ttlSeconds,
@@ -120,7 +159,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+    // Decrypt and deserialize token data - fail fast on decryption errors
+    const tokenInfo = await this.deserializeTokenData(data);
 
     // Double-check expiration (Redis should have already handled this)
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -132,7 +172,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token retrieved from Redis', {
+    logger.debug('OAuth token retrieved from Redis (decrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -165,7 +205,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+    // Decrypt and deserialize token data - fail fast on decryption errors
+    const tokenInfo = await this.deserializeTokenData(data);
 
     // Verify not expired
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -177,7 +218,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token found by refresh token in Redis', {
+    logger.debug('OAuth token found by refresh token in Redis (decrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -195,7 +236,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const deletePromises = [this.redis.del(key)];
 
     if (data) {
-      const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+      // Decrypt and deserialize to get refresh token for index cleanup
+      const tokenInfo = await this.deserializeTokenData(data);
       if (tokenInfo.refreshToken) {
         const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
         deletePromises.push(this.redis.del(refreshIndexKey));

@@ -2,17 +2,19 @@
  * Initial Access Token Store Factory
  *
  * Auto-detects the best token store implementation based on environment:
- * - Redis: RedisTokenStore (multi-instance with Redis)
- * - Development: FileTokenStore (persistence with restart tolerance)
- * - Testing: InMemoryTokenStore (fast, ephemeral)
+ * - Redis: RedisTokenStore (multi-instance with encryption)
+ * - Development: FileTokenStore (single-instance with encryption)
+ * - Testing: InMemoryTestTokenStore (fast, ephemeral, process-isolated, no encryption)
  *
  * Manual override via DCR_TOKEN_STORE environment variable.
  */
 
 import { InitialAccessTokenStore } from '../interfaces/token-store.js';
-import { InMemoryTokenStore } from '../stores/memory/memory-token-store.js';
+import { InMemoryTestTokenStore } from '../stores/memory/memory-test-token-store.js';
 import { FileTokenStore } from '../stores/file/file-token-store.js';
 import { RedisTokenStore } from '../stores/redis/redis-token-store.js';
+import { TokenEncryptionService } from '../encryption/token-encryption-service.js';
+import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 
 export type TokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
@@ -56,11 +58,24 @@ export class TokenStoreFactory {
   /**
    * Create a token store based on configuration
    */
-  static create(options: TokenStoreFactoryOptions = {}): InitialAccessTokenStore {
+  static async create(options: TokenStoreFactoryOptions = {}): Promise<InitialAccessTokenStore> {
+    console.log('[TokenStoreFactory.create] ENTRY POINT - method called');
     const storeType = options.type || 'auto';
 
+    console.log('[TokenStoreFactory.create] Starting creation', {
+      storeType,
+      NODE_ENV: process.env.NODE_ENV,
+      VITEST_WORKER_ID: process.env.VITEST_WORKER_ID,
+      VITEST: process.env.VITEST,
+      REDIS_URL: !!process.env.REDIS_URL,
+    });
+
     if (storeType === 'auto') {
-      return this.createAutoDetected(options);
+      const store = await this.createAutoDetected(options);
+      console.log('[TokenStoreFactory.create] Created store via auto-detect', {
+        storeConstructorName: store.constructor.name,
+      });
+      return store;
     }
 
     switch (storeType) {
@@ -81,15 +96,15 @@ export class TokenStoreFactory {
   /**
    * Auto-detect the best store for current environment
    */
-  private static createAutoDetected(options: TokenStoreFactoryOptions): InitialAccessTokenStore {
+  private static async createAutoDetected(options: TokenStoreFactoryOptions): Promise<InitialAccessTokenStore> {
     // Check for Redis configured
     if (process.env.REDIS_URL) {
       logger.info('Creating Redis token store', { detected: true });
       return this.createRedisStore();
     }
 
-    // Check for test environment
-    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID) {
+    // Check for test environment (Jest or Vitest)
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
       logger.info('Creating in-memory token store (test environment)', { detected: true });
       return this.createMemoryStore(options);
     }
@@ -100,34 +115,86 @@ export class TokenStoreFactory {
   }
 
   /**
-   * Create in-memory token store
+   * Create in-memory test token store (no encryption - process-isolated)
    */
-  private static createMemoryStore(options: TokenStoreFactoryOptions): InMemoryTokenStore {
-    return new InMemoryTokenStore({
+  private static async createMemoryStore(options: TokenStoreFactoryOptions): Promise<InMemoryTestTokenStore> {
+    console.log('[TokenStoreFactory.createMemoryStore] Creating InMemoryTestTokenStore');
+    const store = new InMemoryTestTokenStore({
       autoCleanup: options.autoCleanup ?? false,
       cleanupIntervalMs: options.cleanupIntervalMs,
     });
+    console.log('[TokenStoreFactory.createMemoryStore] Created successfully', {
+      constructorName: store.constructor.name,
+    });
+    return store;
   }
 
   /**
-   * Create file-based token store
+   * Create file-based token store with encryption
    */
-  private static createFileStore(options: TokenStoreFactoryOptions): FileTokenStore {
+  private static async createFileStore(options: TokenStoreFactoryOptions): Promise<FileTokenStore> {
+    // Get encryption key (direct from env in test mode, from secrets provider otherwise)
+    let encryptionKey: string | undefined;
+
+    // In test environment, use TOKEN_ENCRYPTION_KEY directly to avoid circular dependency
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+      encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      // In production, load encryption key from secrets provider
+      const secrets = await getSecretsProvider();
+      encryptionKey = await secrets.getSecret<string>('TOKEN_ENCRYPTION_KEY');
+    }
+
+    if (!encryptionKey) {
+      throw new Error(
+        'Token encryption key not configured. ' +
+        'Set TOKEN_ENCRYPTION_KEY environment variable or configure in secrets provider. ' +
+        'Generate with: crypto.randomBytes(32).toString(\'base64\')'
+      );
+    }
+
+    // Create encryption service
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
     return new FileTokenStore({
       filePath: options.filePath,
       debounceMs: options.debounceMs,
+      encryptionService,
     });
   }
 
   /**
-   * Create Redis token store
+   * Create Redis token store with encryption
    */
-  private static createRedisStore(): RedisTokenStore {
+  private static async createRedisStore(): Promise<RedisTokenStore> {
     if (!process.env.REDIS_URL) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
-    return new RedisTokenStore();
+    // Get encryption key (direct from env in test mode, from secrets provider otherwise)
+    let encryptionKey: string | undefined;
+
+    // In test environment, use TOKEN_ENCRYPTION_KEY directly to avoid circular dependency
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+      encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      // In production, load encryption key from secrets provider
+      const secrets = await getSecretsProvider();
+      encryptionKey = await secrets.getSecret<string>('TOKEN_ENCRYPTION_KEY');
+    }
+
+    if (!encryptionKey) {
+      throw new Error(
+        'Token encryption key not configured. ' +
+        'Set TOKEN_ENCRYPTION_KEY environment variable or configure in secrets provider. ' +
+        'Generate with: crypto.randomBytes(32).toString(\'base64\')'
+      );
+    }
+
+    // Create encryption service
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
+    return new RedisTokenStore(encryptionService);
   }
 
   /**
@@ -189,6 +256,6 @@ export class TokenStoreFactory {
 /**
  * Convenience function to create a token store with auto-detection
  */
-export function createTokenStore(options?: TokenStoreFactoryOptions): InitialAccessTokenStore {
+export function createTokenStore(options?: TokenStoreFactoryOptions): Promise<InitialAccessTokenStore> {
   return TokenStoreFactory.create(options);
 }

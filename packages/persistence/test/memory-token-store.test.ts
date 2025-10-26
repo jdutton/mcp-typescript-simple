@@ -1,14 +1,14 @@
 /**
- * Unit tests for InMemoryTokenStore
+ * Unit tests for InMemoryTestTokenStore
  */
 
-import { InMemoryTokenStore } from '../src/index.js';
-describe('InMemoryTokenStore', () => {
-  let store: InMemoryTokenStore;
-  const additionalStores: InMemoryTokenStore[] = [];
+import { InMemoryTestTokenStore } from './helpers/memory-test-token-store.js';
+describe('InMemoryTestTokenStore', () => {
+  let store: InMemoryTestTokenStore;
+  const additionalStores: InMemoryTestTokenStore[] = [];
 
   beforeEach(() => {
-    store = new InMemoryTokenStore();
+    store = new InMemoryTestTokenStore();
   });
 
   afterEach(async () => {
@@ -292,7 +292,7 @@ describe('InMemoryTokenStore', () => {
 
   describe('auto cleanup', () => {
     it('should run automatic cleanup when enabled', async () => {
-      const autoStore = new InMemoryTokenStore({
+      const autoStore = new InMemoryTestTokenStore({
         autoCleanup: true,
         cleanupIntervalMs: 100, // Use short interval for testing
       });
@@ -317,7 +317,7 @@ describe('InMemoryTokenStore', () => {
 
   describe('dispose', () => {
     it('should stop auto cleanup timer', async () => {
-      const autoStore = new InMemoryTokenStore({
+      const autoStore = new InMemoryTestTokenStore({
         autoCleanup: true,
         cleanupIntervalMs: 1000,
       });

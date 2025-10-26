@@ -5,6 +5,7 @@
 import { vi } from 'vitest';
 import { RedisClientStore } from '../../src/index.js';
 import { RedisOAuthTokenStore } from '../../src/index.js';
+import { createTestEncryptionService } from '../helpers/encryption-test-helper.js';
 
 // Hoist Redis mock to avoid initialization issues
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
@@ -228,7 +229,7 @@ describe('Redis Client and OAuth Token Stores', () => {
     let store: RedisOAuthTokenStore;
 
     beforeEach(() => {
-      store = new RedisOAuthTokenStore('redis://localhost:6379');
+      store = new RedisOAuthTokenStore('redis://localhost:6379', createTestEncryptionService());
     });
 
     afterEach(() => {
