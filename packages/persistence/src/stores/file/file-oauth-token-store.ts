@@ -36,7 +36,7 @@
 
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
+import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
@@ -93,25 +93,6 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
   }
 
   /**
-   * Serialize token data - encrypt before writing to disk
-   * SECURITY: Always encrypt, no plaintext fallback
-   */
-  private serializeTokenData(data: PersistedOAuthTokenData): string {
-    const json = JSON.stringify(data);
-    const encrypted = this.encryptionService.encrypt(json);
-    return encrypted;
-  }
-
-  /**
-   * Deserialize token data - decrypt after reading from disk
-   * SECURITY: Fail fast on decryption errors
-   */
-  private deserializeTokenData(encrypted: string): PersistedOAuthTokenData {
-    const json = this.encryptionService.decrypt(encrypted);
-    return JSON.parse(json);
-  }
-
-  /**
    * Enforce strict file permissions (0600 - owner read/write only)
    */
   private async enforceFilePermissions(): Promise<void> {
@@ -133,7 +114,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
   private loadSync(): void {
     try {
       const encrypted = readFileSync(this.filePath, 'utf8');
-      const parsed = this.deserializeTokenData(encrypted);
+      const parsed = deserializeOAuthToken<PersistedOAuthTokenData>(encrypted, this.encryptionService);
 
       if (parsed.version !== 1) {
         throw new Error(`Unsupported file version: ${parsed.version}`);
@@ -196,7 +177,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       };
 
       // Encrypt data before writing to disk
-      const encrypted = this.serializeTokenData(data);
+      const encrypted = serializeOAuthToken(data, this.encryptionService);
 
       // Atomic write: write to temp file, then rename
       const tempPath = `${this.filePath}.tmp`;

@@ -26,7 +26,7 @@
  */
 
 import Redis from 'ioredis';
-import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
+import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
@@ -78,26 +78,6 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
   }
 
   /**
-   * Serialize and encrypt token data before storing in Redis
-   * Enterprise security: AES-256-GCM encryption at rest (REQUIRED)
-   */
-  private async serializeTokenData(tokenInfo: StoredTokenInfo): Promise<string> {
-    const json = JSON.stringify(tokenInfo);
-    const encrypted = this.encryptionService.encrypt(json);
-    return encrypted;
-  }
-
-  /**
-   * Decrypt and deserialize token data from Redis
-   * Enterprise security: Fail fast on decryption errors - no graceful degradation
-   */
-  private async deserializeTokenData(encryptedData: string): Promise<StoredTokenInfo> {
-    // Decrypt data - fail fast if decryption fails
-    const decrypted = this.encryptionService.decrypt(encryptedData);
-    return JSON.parse(decrypted) as StoredTokenInfo;
-  }
-
-  /**
    * Get Redis key for access token (SHA-256 hashed)
    *
    * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
@@ -129,7 +109,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const ttlSeconds = Math.max(Math.floor(ttlMs / 1000), 1); // At least 1 second
 
     // Encrypt token data before storing
-    const encryptedData = await this.serializeTokenData(tokenInfo);
+    const encryptedData = serializeOAuthToken(tokenInfo, this.encryptionService);
 
     // Store encrypted token data and secondary index in parallel
     const storePromises = [
@@ -166,7 +146,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     }
 
     // Decrypt and deserialize token data - fail fast on decryption errors
-    const tokenInfo = await this.deserializeTokenData(data);
+    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
     // Double-check expiration (Redis should have already handled this)
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -215,7 +195,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     }
 
     // Decrypt and deserialize token data - fail fast on decryption errors
-    const tokenInfo = await this.deserializeTokenData(data);
+    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
     // Verify not expired
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -246,7 +226,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
 
     if (data) {
       // Decrypt and deserialize to get refresh token for index cleanup
-      const tokenInfo = await this.deserializeTokenData(data);
+      const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
       if (tokenInfo.refreshToken) {
         const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
         deletePromises.push(this.redis.del(refreshIndexKey));
