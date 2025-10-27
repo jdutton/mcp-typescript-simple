@@ -121,7 +121,7 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
    */
   private loadSecretsSync(): void {
     try {
-      const data = require('fs').readFileSync(this.filePath, 'utf8');
+      const data = require('node:fs').readFileSync(this.filePath, 'utf8');
       const parsed: EncryptedSecretsFile = JSON.parse(data);
 
       if (parsed.version !== 1) {

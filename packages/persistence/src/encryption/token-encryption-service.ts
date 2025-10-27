@@ -136,7 +136,8 @@ export class TokenEncryptionService {
 
       return plaintext.toString('utf8');
     } catch (error) {
-      // Don't leak information about why decryption failed
+      // Security: Intentionally don't log or include original error details
+      // Cryptographic failure details could leak information to attackers
       throw new Error(
         'Decryption failed: invalid key, corrupted data, or tampering detected'
       );
@@ -166,6 +167,7 @@ export class TokenEncryptionService {
     try {
       return JSON.parse(json) as T;
     } catch (error) {
+      // Decryption succeeded but data is not valid JSON - data corruption or format mismatch
       throw new Error('Decrypted data is not valid JSON');
     }
   }

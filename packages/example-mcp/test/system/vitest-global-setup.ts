@@ -210,7 +210,8 @@ export default async function globalSetup(): Promise<void> {
             resolve();
           }
         } catch (error) {
-          // Health check failed - server not ready yet
+          // Health check failed - server not ready yet, will retry
+          // Only fail after max attempts to allow server startup time
           if (healthCheckAttempts >= maxHealthCheckAttempts) {
             clearInterval(healthCheckInterval);
             console.error('Global server output:', startupOutput);

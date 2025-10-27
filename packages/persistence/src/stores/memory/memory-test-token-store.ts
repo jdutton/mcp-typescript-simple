@@ -42,11 +42,11 @@ export interface InMemoryTestTokenStoreOptions {
 }
 
 export class InMemoryTestTokenStore implements InitialAccessTokenStore {
-  private tokens = new Map<string, InitialAccessToken>();
-  private tokensByValue = new Map<string, InitialAccessToken>();
+  private readonly tokens = new Map<string, InitialAccessToken>();
+  private readonly tokensByValue = new Map<string, InitialAccessToken>();
   private cleanupTimer?: NodeJS.Timeout;
 
-  constructor(private options: InMemoryTestTokenStoreOptions = {}) {
+  constructor(private readonly options: InMemoryTestTokenStoreOptions = {}) {
     if (options.autoCleanup) {
       const intervalMs = options.cleanupIntervalMs || 60 * 60 * 1000; // 1 hour default
       this.cleanupTimer = setInterval(() => {

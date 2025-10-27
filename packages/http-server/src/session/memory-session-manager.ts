@@ -24,7 +24,7 @@ import type { AuthInfo } from '@mcp-typescript-simple/persistence';
 import type { SessionManager, SessionInfo, SessionStats } from './session-manager.js';
 
 export class MemorySessionManager implements SessionManager {
-  private sessions: Map<string, SessionInfo> = new Map();
+  private readonly sessions: Map<string, SessionInfo> = new Map();
   private readonly SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
   private cleanupInterval?: NodeJS.Timeout;
 

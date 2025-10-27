@@ -82,7 +82,8 @@ export class FileSecretsProvider implements SecretsProvider {
         this.envVars[key.trim()] = value.replaceAll(/(^["'])|(["']$)/g, '');
       }
     } catch (error) {
-      // .env.local doesn't exist, fall back to process.env
+      // .env.local doesn't exist (ENOENT) - fall back to process.env
+      // This is expected behavior for environments without local env files
       this.envVars = { ...process.env } as Record<string, string>;
     }
   }

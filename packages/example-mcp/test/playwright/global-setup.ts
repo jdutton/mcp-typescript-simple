@@ -13,8 +13,7 @@ import {
   MOCK_OAUTH_PORT
 } from '@mcp-typescript-simple/testing/mock-oauth-server';
 import { checkPortsAvailable } from '@mcp-typescript-simple/testing/port-utils';
-import { promises as fs } from 'node:fs';
-import { existsSync } from 'node:fs';
+import { promises as fs, existsSync } from 'node:fs';
 
 let mockOAuthServer: OAuth2Server | null = null;
 

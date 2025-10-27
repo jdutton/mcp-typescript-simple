@@ -85,7 +85,8 @@ describe('OAuthProviderFactory', () => {
     try {
       OAuthProviderFactory.resetInstance();
     } catch (error) {
-      // Ignore disposal errors in test setup - we're resetting anyway
+      // Intentionally ignore disposal errors in test setup - we're using mocked providers that may not have full disposal logic
+      // This is test-specific behavior and doesn't indicate a problem
     }
 
     // Clear OAuth credentials from environment

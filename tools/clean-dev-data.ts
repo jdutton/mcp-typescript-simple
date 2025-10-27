@@ -16,8 +16,7 @@
  *   npm run dev:clean -- --dry-run # Show what would be deleted
  */
 
-import { promises as fs } from 'node:fs';
-import { existsSync } from 'node:fs';
+import { promises as fs, existsSync } from 'node:fs';
 import * as path from 'node:path';
 
 // Define all data files

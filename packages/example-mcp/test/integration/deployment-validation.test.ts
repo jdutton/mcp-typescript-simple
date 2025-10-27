@@ -354,7 +354,8 @@ class CITestRunner {
               }
             }
           } catch (error) {
-            // Ignore parse errors - may be incomplete JSON, will try again on next data event
+            // Intentionally ignore JSON parse errors - server output may contain incomplete JSON fragments
+            // that will be completed in subsequent data events (streaming output)
           }
         }
       });
