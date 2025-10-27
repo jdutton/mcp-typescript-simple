@@ -33,9 +33,12 @@ import {
   CreateTokenOptions,
   TokenValidationResult,
   validateTokenCommon,
+  filterTokens,
+  shouldCleanupToken,
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { maskRedisUrl } from './redis-utils.js';
 
 /**
  * Redis key prefixes for namespacing
@@ -84,24 +87,9 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     this.encryptionService = encryptionService;
 
     logger.info('RedisTokenStore initialized', {
-      url: this.maskUrl(url),
+      url: maskRedisUrl(url),
       encryption: 'enabled (required)'
     });
-  }
-
-  /**
-   * Mask Redis URL for logging (hide credentials)
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'redis://***';
-    }
   }
 
   /**
@@ -292,21 +280,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     const tokenPromises = ids.map((id) => this.getToken(id));
     const tokens = (await Promise.all(tokenPromises)).filter((t): t is InitialAccessToken => t !== undefined);
 
-    const now = Math.floor(Date.now() / 1000);
-
-    return tokens.filter((token) => {
-      // Filter revoked tokens
-      if (token.revoked && !options?.includeRevoked) {
-        return false;
-      }
-
-      // Filter expired tokens
-      if (token.expires_at > 0 && token.expires_at < now && !options?.includeExpired) {
-        return false;
-      }
-
-      return true;
-    });
+    return filterTokens(tokens, options);
   }
 
   async revokeToken(id: string): Promise<boolean> {
@@ -353,24 +327,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     const tokens = await this.listTokens({ includeRevoked: true, includeExpired: true });
 
     for (const token of tokens) {
-      let shouldDelete = false;
-
-      // Remove expired tokens
-      if (token.expires_at > 0 && token.expires_at < now) {
-        shouldDelete = true;
-      }
-
-      // Remove revoked tokens
-      if (token.revoked) {
-        shouldDelete = true;
-      }
-
-      // Remove tokens that have exceeded max uses
-      if (token.max_uses && token.max_uses > 0 && token.usage_count >= token.max_uses) {
-        shouldDelete = true;
-      }
-
-      if (shouldDelete) {
+      if (shouldCleanupToken(token, now)) {
         await this.deleteToken(token.id);
         cleaned++;
       }

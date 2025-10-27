@@ -30,6 +30,7 @@ import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { maskRedisUrl } from './redis-utils.js';
 
 const KEY_PREFIX = 'oauth:token:';
 const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
@@ -73,22 +74,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       logger.error('Failed to connect to Redis', { error });
     });
 
-    logger.info('RedisOAuthTokenStore initialized', { url: this.maskUrl(url) });
-  }
-
-  /**
-   * Mask Redis URL for logging (hide credentials)
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'redis://***';
-    }
+    logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
   }
 
   /**

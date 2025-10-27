@@ -18,6 +18,7 @@ import Redis from 'ioredis';
 import { OAuthSessionStore } from '../../interfaces/session-store.js';
 import { OAuthSession } from '../../types.js';
 import { logger } from '../../logger.js';
+import { maskRedisUrl } from './redis-utils.js';
 
 /**
  * Redis key prefix for namespacing
@@ -56,22 +57,7 @@ export class RedisSessionStore implements OAuthSessionStore {
       logger.error('Failed to connect to Redis', { error });
     });
 
-    logger.info('RedisSessionStore initialized', { url: this.maskUrl(url) });
-  }
-
-  /**
-   * Mask Redis URL for logging (hide credentials)
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'redis://***';
-    }
+    logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url) });
   }
 
   /**

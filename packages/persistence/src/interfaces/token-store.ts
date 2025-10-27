@@ -211,3 +211,54 @@ export function validateTokenCommon(
     token,
   };
 }
+
+/**
+ * Filter tokens based on revoked/expired status
+ * Shared utility to eliminate code duplication in listTokens implementations
+ */
+export function filterTokens(
+  tokens: InitialAccessToken[],
+  options?: {
+    includeRevoked?: boolean;
+    includeExpired?: boolean;
+  }
+): InitialAccessToken[] {
+  const now = Math.floor(Date.now() / 1000);
+
+  return tokens.filter((token) => {
+    // Filter revoked tokens
+    if (token.revoked && !options?.includeRevoked) {
+      return false;
+    }
+
+    // Filter expired tokens
+    if (token.expires_at > 0 && token.expires_at < now && !options?.includeExpired) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Check if token should be cleaned up
+ * Shared utility to eliminate code duplication in cleanup implementations
+ */
+export function shouldCleanupToken(token: InitialAccessToken, now: number): boolean {
+  // Remove expired tokens
+  if (token.expires_at > 0 && token.expires_at < now) {
+    return true;
+  }
+
+  // Remove revoked tokens
+  if (token.revoked) {
+    return true;
+  }
+
+  // Remove tokens that have exceeded max uses
+  if (token.max_uses && token.max_uses > 0 && token.usage_count >= token.max_uses) {
+    return true;
+  }
+
+  return false;
+}

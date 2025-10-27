@@ -41,6 +41,8 @@ import {
   CreateTokenOptions,
   TokenValidationResult,
   validateTokenCommon,
+  filterTokens,
+  shouldCleanupToken,
 } from '../../interfaces/token-store.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 import { logger } from '../../logger.js';
@@ -287,22 +289,8 @@ export class FileTokenStore implements InitialAccessTokenStore {
     includeRevoked?: boolean;
     includeExpired?: boolean;
   }): Promise<InitialAccessToken[]> {
-    const now = Math.floor(Date.now() / 1000);
     const allTokens = Array.from(this.tokens.values());
-
-    return allTokens.filter((token) => {
-      // Filter revoked tokens
-      if (token.revoked && !options?.includeRevoked) {
-        return false;
-      }
-
-      // Filter expired tokens
-      if (token.expires_at > 0 && token.expires_at < now && !options?.includeExpired) {
-        return false;
-      }
-
-      return true;
-    });
+    return filterTokens(allTokens, options);
   }
 
   async revokeToken(id: string): Promise<boolean> {
@@ -337,24 +325,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
     let cleaned = 0;
 
     for (const [id, token] of this.tokens.entries()) {
-      // Remove expired tokens
-      if (token.expires_at > 0 && token.expires_at < now) {
-        this.tokens.delete(id);
-        this.tokensByValue.delete(token.token);
-        cleaned++;
-        continue;
-      }
-
-      // Remove revoked tokens
-      if (token.revoked) {
-        this.tokens.delete(id);
-        this.tokensByValue.delete(token.token);
-        cleaned++;
-        continue;
-      }
-
-      // Remove tokens that have exceeded max uses
-      if (token.max_uses && token.max_uses > 0 && token.usage_count >= token.max_uses) {
+      if (shouldCleanupToken(token, now)) {
         this.tokens.delete(id);
         this.tokensByValue.delete(token.token);
         cleaned++;

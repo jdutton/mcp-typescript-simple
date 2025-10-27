@@ -23,6 +23,7 @@ import {
 } from '../../interfaces/mcp-metadata-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { maskRedisUrl } from './redis-utils.js';
 
 export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private redis: Redis;
@@ -65,22 +66,7 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
       logger.error('Failed to connect to Redis', { error });
     });
 
-    logger.info('RedisMCPMetadataStore initialized with encryption', { url: this.maskUrl(url) });
-  }
-
-  /**
-   * Mask sensitive parts of Redis URL for logging
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'invalid-url';
-    }
+    logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url) });
   }
 
   /**
