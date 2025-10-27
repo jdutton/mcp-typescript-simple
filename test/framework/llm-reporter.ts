@@ -13,9 +13,14 @@
  * Only applies to Vitest-based tests (test:unit). Integration tests (ci-test.ts)
  * and Playwright tests (test:system:headless) use different test runners.
  *
+ * Note: Using deprecated Vitest 2.x Reporter API types (File, Reporter, Task, Vitest)
+ * Migration to Vitest 3.x API (onTestRunEnd, TestModule, TestCase) deferred until Phase 5
+ * These types still work correctly in Vitest 3.x, just deprecated in favor of new API
+ *
  * @extraction-target @agentic-workflow
  */
 
+/* eslint-disable sonarjs/deprecation -- Using Vitest 2.x API until Phase 5 migration */
 import type { File, Reporter, Task, Vitest } from 'vitest';
 
 export default class LLMReporter implements Reporter {
@@ -131,7 +136,10 @@ export default class LLMReporter implements Reporter {
         if (!error) continue;
 
         const testName = this.getFullTestName(task);
-        const location = error.stack?.match(/([^(]+):(\d+):(\d+)/)?.[0] || filepath;
+        // Match file path with line:column from error stack trace
+        // Safe: Parsing internal error stacks (not user input), bounded length
+        // eslint-disable-next-line sonarjs/slow-regex -- Safe: internal stack trace parsing
+        const location = error.stack?.match(/([\w/.-]+):(\d+):(\d+)/)?.[0] || filepath;
 
         // Extract expected/actual from error message
         const { expected, actual } = this.extractExpectedActual(error.message || '');
@@ -164,7 +172,9 @@ export default class LLMReporter implements Reporter {
 
   private extractExpectedActual(message: string): { expected?: string; actual?: string } {
     // Match patterns like: "expected 3000 to be 9999"
-    const match = message.match(/expected (.+?) to (?:be|equal) (.+)/i);
+    // Use RegExp.exec() instead of String.match() for better performance
+    const regex = /expected (.+?) to (?:be|equal) (.+)/i;
+    const match = regex.exec(message);
     if (match) {
       return {
         actual: match[1].trim(),
