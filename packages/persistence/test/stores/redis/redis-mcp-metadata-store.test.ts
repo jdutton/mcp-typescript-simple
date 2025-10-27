@@ -62,7 +62,8 @@ describe('RedisMCPMetadataStore - Encryption Validation', () => {
       // CRITICAL: Constructor should throw if encryption service not provided
       // Zero-tolerance security stance - no silent fallback to unencrypted storage
       expect(() => {
-        new RedisMCPMetadataStore('redis://localhost:6379', undefined as any);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _store = new RedisMCPMetadataStore('redis://localhost:6379', undefined as any);
       }).toThrow(/TokenEncryptionService is REQUIRED/);
     });
 

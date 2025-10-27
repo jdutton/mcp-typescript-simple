@@ -78,7 +78,8 @@ describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
       // CRITICAL: Constructor should throw if encryption service not provided
       // Zero-tolerance security stance - no silent fallback to unencrypted storage
       expect(() => {
-        new RedisOAuthTokenStore('redis://localhost:6379', undefined as any);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _store = new RedisOAuthTokenStore('redis://localhost:6379', undefined as any);
       }).toThrow(/TokenEncryptionService is REQUIRED/);
     });
 
