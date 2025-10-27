@@ -14,11 +14,11 @@
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import { OAuthSessionStore } from '../../interfaces/session-store.js';
 import { OAuthSession } from '../../types.js';
 import { logger } from '../../logger.js';
-import { maskRedisUrl } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 /**
  * Redis key prefix for namespacing
@@ -30,33 +30,9 @@ export class RedisSessionStore implements OAuthSessionStore {
   private redis: Redis;
 
   constructor(redisUrl?: string) {
-    const url = redisUrl || process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
-    }
+    this.redis = createRedisClient(redisUrl, 'OAuth sessions');
 
-    this.redis = new Redis(url, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: true,
-    });
-
-    this.redis.on('error', (error) => {
-      logger.error('Redis connection error', { error });
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('Redis connected successfully for OAuth sessions');
-    });
-
-    // Connect immediately
-    this.redis.connect().catch((error) => {
-      logger.error('Failed to connect to Redis', { error });
-    });
-
+    const url = redisUrl || process.env.REDIS_URL!;
     logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url) });
   }
 

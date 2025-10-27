@@ -38,7 +38,7 @@ import {
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 /**
  * Redis key prefixes for namespacing

@@ -25,7 +25,7 @@ import {
   ClientStoreOptions,
 } from '../../interfaces/client-store.js';
 import { logger } from '../../logger.js';
-import { maskRedisUrl } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 const KEY_PREFIX = 'oauth:client:';
 const INDEX_KEY = 'oauth:clients:index';

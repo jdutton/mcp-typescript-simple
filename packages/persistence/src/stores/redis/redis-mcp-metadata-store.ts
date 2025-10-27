@@ -16,14 +16,14 @@
  * - No plaintext session data in Redis
  */
 
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import {
   MCPSessionMetadataStore,
   MCPSessionMetadata,
 } from '../../interfaces/mcp-metadata-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private redis: Redis;
@@ -32,40 +32,15 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private readonly DEFAULT_TTL = 30 * 60; // 30 minutes in seconds
 
   constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
-    const url = redisUrl || process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('Redis URL not configured');
-    }
-
     // Enterprise security: encryption is MANDATORY
     if (!encryptionService) {
       throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
     }
 
     this.encryptionService = encryptionService;
+    this.redis = createRedisClient(redisUrl, 'MCP sessions');
 
-    this.redis = new Redis(url, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: true,
-    });
-
-    this.redis.on('error', (error) => {
-      logger.error('Redis connection error', { error });
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('Redis connected successfully for MCP sessions');
-    });
-
-    // Connect immediately
-    this.redis.connect().catch((error) => {
-      logger.error('Failed to connect to Redis', { error });
-    });
-
+    const url = redisUrl || process.env.REDIS_URL!;
     logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url) });
   }
 

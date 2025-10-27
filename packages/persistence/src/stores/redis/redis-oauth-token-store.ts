@@ -25,12 +25,12 @@
  * TokenEncryptionService MUST be provided to constructor
  */
 
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 const KEY_PREFIX = 'oauth:token:';
 const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
@@ -40,40 +40,15 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
   private readonly encryptionService: TokenEncryptionService;
 
   constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
-    const url = redisUrl || process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
-    }
-
     // Enterprise security: encryption is MANDATORY
     if (!encryptionService) {
       throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
     }
 
     this.encryptionService = encryptionService;
+    this.redis = createRedisClient(redisUrl, 'OAuth tokens');
 
-    this.redis = new Redis(url, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: true,
-    });
-
-    this.redis.on('error', (error) => {
-      logger.error('Redis connection error', { error });
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('Redis connected successfully for OAuth tokens');
-    });
-
-    // Connect immediately
-    this.redis.connect().catch((error) => {
-      logger.error('Failed to connect to Redis', { error });
-    });
-
+    const url = redisUrl || process.env.REDIS_URL!;
     logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
   }
 
