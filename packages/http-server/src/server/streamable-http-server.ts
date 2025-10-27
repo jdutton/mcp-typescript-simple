@@ -13,7 +13,8 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
 import { OAuthProvider, OAuthUserInfo } from '@mcp-typescript-simple/auth';
-import { SessionManager } from '../session/session-manager.js';
+import { generateSessionId } from '../session/session-utils.js';
+import { createSessionManager, type SessionManager } from '../session/index.js';
 import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
 import { ClientStoreFactory } from '@mcp-typescript-simple/persistence';
 import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
@@ -56,21 +57,14 @@ export class MCPStreamableHttpServer {
   private oauthProviders?: Map<OAuthProviderType, OAuthProvider>; // Multi-provider support
   private clientStore?: OAuthRegisteredClientsStore;
   private tokenStore?: InitialAccessTokenStore;
-  private sessionManager: SessionManager;
   private llmManager: LLMManager;
   private toolRegistry: ToolRegistry;
-  private instanceManager: MCPInstanceManager;
+  private instanceManager!: MCPInstanceManager; // Initialized in initialize() method
+  private sessionManager!: SessionManager; // Initialized in initialize() method
   private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
 
   constructor(private options: StreamableHttpServerOptions) {
     this.app = express();
-
-    // Create session manager with optional event store
-    const eventStore = options.enableResumability
-      ? EventStoreFactory.createEventStore('memory')
-      : undefined;
-
-    this.sessionManager = new SessionManager(eventStore);
 
     // Create LLM manager for tool support
     this.llmManager = new LLMManager();
@@ -79,13 +73,12 @@ export class MCPStreamableHttpServer {
     this.toolRegistry = new ToolRegistry();
     this.toolRegistry.merge(basicTools);
 
-    // Create MCP instance manager for horizontal scalability
-    this.instanceManager = new MCPInstanceManager(this.toolRegistry);
+    // MCP instance manager created in initialize() method (async factory needed for Redis auto-detection)
 
     this.setupMiddleware();
 
     // Setup health and utility routes
-    setupHealthRoutes(this.app, this.sessionManager, this.oauthProviders, {
+    setupHealthRoutes(this.app, this.oauthProviders, {
       enableResumability: this.options.enableResumability,
       enableJsonResponse: this.options.enableJsonResponse
     });
@@ -95,6 +88,17 @@ export class MCPStreamableHttpServer {
    * Initialize async components like OAuth and client store
    */
   async initialize(): Promise<void> {
+    // Create MCP instance manager with auto-detected metadata store (Redis if configured)
+    // CRITICAL: Must use createAsync() to enable Redis-backed session storage
+    this.instanceManager = await MCPInstanceManager.createAsync(this.toolRegistry);
+    logger.info('MCP instance manager initialized', {
+      storeType: (this.instanceManager as any).metadataStore?.constructor.name || 'Unknown'
+    });
+
+    // Create session manager (auto-detects Memory vs Redis based on instanceManager)
+    this.sessionManager = createSessionManager(this.instanceManager);
+    logger.info('Session manager initialized');
+
     // Initialize LLM manager (gracefully handle missing API keys)
     try {
       await this.llmManager.initialize();
@@ -110,7 +114,7 @@ export class MCPStreamableHttpServer {
     this.clientStore = ClientStoreFactory.create();
 
     // Initialize token store for protected DCR endpoints
-    this.tokenStore = TokenStoreFactory.create();
+    this.tokenStore = await TokenStoreFactory.create();
 
     // Initialize OAuth providers (always try, regardless of requireAuth)
     const multiProviders = await OAuthProviderFactory.createAllFromEnvironment();
@@ -470,7 +474,11 @@ export class MCPStreamableHttpServer {
    */
   private setupNonOAuthRoutes(): void {
     // Admin and session management routes
-    setupAdminRoutes(this.app, this.sessionManager);
+    const devMode = process.env.MCP_DEV_SKIP_AUTH === 'true';
+    if (!this.tokenStore) {
+      throw new Error('Token store not initialized - cannot setup admin routes');
+    }
+    setupAdminRoutes(this.app, this.tokenStore, { devMode });
 
     // Catch-all error handler with enhanced logging
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -756,9 +764,10 @@ export class MCPStreamableHttpServer {
 
     logger.info("Session cleanup requested", { requestId, sessionId });
 
-    // Check if session exists before attempting cleanup
-    const session = this.sessionManager.getSession(sessionId);
-    if (!session) {
+    // Check if session exists in metadata store (authoritative source)
+    const metadataStore = (this.instanceManager as any).metadataStore;
+    const metadata = await metadataStore.getSession(sessionId);
+    if (!metadata) {
       logger.warn("Session not found for cleanup", { requestId, sessionId });
       res.status(404).json({
         error: 'Session Not Found',
@@ -769,9 +778,6 @@ export class MCPStreamableHttpServer {
       });
       return;
     }
-
-    // Close the session in session manager
-    this.sessionManager.closeSession(sessionId);
 
     // Clean up instance manager cache and metadata store using public API
     // This prevents session reconstruction after deletion
@@ -907,7 +913,7 @@ export class MCPStreamableHttpServer {
   private createNewTransport(req: Request, requestId: string): StreamableHTTPServerTransport {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => {
-        const sessionId = this.sessionManager.generateSessionId();
+        const sessionId = generateSessionId();
         logger.debug("Generated session ID", { requestId, sessionId });
         return sessionId;
       },
@@ -950,14 +956,6 @@ export class MCPStreamableHttpServer {
     }
 
     try {
-      this.sessionManager.createSession(authInfo, undefined, sessionId);
-      const stats = this.sessionManager.getStats();
-      logger.info("Session stats", {
-        requestId,
-        totalSessions: stats.totalSessions,
-        activeSessions: stats.activeSessions
-      });
-
       // Store session metadata in instance manager for horizontal scalability
       await this.instanceManager.storeSessionMetadata(sessionId, authInfo ? {
         provider: authInfo.extra?.provider as string || 'unknown',
@@ -965,8 +963,9 @@ export class MCPStreamableHttpServer {
         email: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).email : undefined,
       } : undefined);
 
+      logger.debug("Session metadata stored", { requestId, sessionId });
     } catch (error) {
-      logger.error("Failed to create session", { requestId, error });
+      logger.error("Failed to store session metadata", { requestId, error });
     }
   }
 
@@ -975,18 +974,6 @@ export class MCPStreamableHttpServer {
    */
   private async handleSessionClosed(sessionId: string, requestId: string): Promise<void> {
     logger.info("Streamable HTTP session closed", { requestId, sessionId });
-
-    try {
-      this.sessionManager.closeSession(sessionId);
-      const stats = this.sessionManager.getStats();
-      logger.info("Session stats after close", {
-        requestId,
-        totalSessions: stats.totalSessions,
-        activeSessions: stats.activeSessions
-      });
-    } catch (error) {
-      logger.error("Failed to close session", { requestId, error });
-    }
 
     // Note: Instance manager's cleanup is automatic via cleanup timer
     // Metadata is deleted by MCPInstanceManager when session is closed
@@ -1152,6 +1139,8 @@ export class MCPStreamableHttpServer {
           host: this.options.host,
           port: this.options.port
         });
+        // Output plain text message for test scripts waiting for server ready signal
+        console.log(`Streamable HTTP server listening on ${this.options.host}:${this.options.port}`);
         resolve();
       });
     });
@@ -1172,10 +1161,16 @@ export class MCPStreamableHttpServer {
           reject(error);
         } else {
           logger.info("Streamable HTTP server stopped");
-          this.sessionManager.destroy();
+
+          // Destroy session manager resources
+          if (this.sessionManager) {
+            await this.sessionManager.destroy();
+          }
 
           // Dispose instance manager resources
-          this.instanceManager.dispose();
+          if (this.instanceManager) {
+            this.instanceManager.dispose();
+          }
 
           // Cleanup client store resources
           if (this.clientStore && 'dispose' in this.clientStore && typeof this.clientStore.dispose === 'function') {
@@ -1205,7 +1200,7 @@ export class MCPStreamableHttpServer {
   }
 
   /**
-   * Get session manager for external access
+   * Get the session manager for testing
    */
   getSessionManager(): SessionManager {
     return this.sessionManager;

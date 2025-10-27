@@ -53,10 +53,21 @@ export function setupAdminTokenRoutes(
         return;
       }
 
+      console.log('[admin-token-routes.createTokenHandler] About to call tokenStore.createToken', {
+        tokenStoreType: tokenStore.constructor.name,
+        description,
+        expires_in: expires_in || 2592000,
+        max_uses: max_uses || 0,
+      });
+
       const token = await tokenStore.createToken({
         description,
         expires_in: expires_in || 2592000, // 30 days default
         max_uses: max_uses || 0, // Unlimited default
+      });
+
+      console.log('[admin-token-routes.createTokenHandler] Token created successfully', {
+        tokenId: token.id,
       });
 
       logger.info('Initial access token created via admin endpoint', {
@@ -74,6 +85,11 @@ export function setupAdminTokenRoutes(
         max_uses: token.max_uses || null,
       });
     } catch (error) {
+      console.error('[admin-token-routes.createTokenHandler] ERROR caught', {
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined,
+      });
       logger.error('Failed to create token', error);
       res.status(500).json({
         error: 'server_error',
@@ -317,14 +333,14 @@ export function setupAdminTokenRoutes(
     router.delete('/admin/tokens/:id', deleteTokenHandler);
     router.post('/admin/tokens/cleanup', cleanupTokensHandler);
   } else {
-    // In production, these would require admin authentication
-    // For now, we'll just log a warning that they should be protected
-    logger.warn('Admin token routes should be protected with authentication in production');
-    router.post('/admin/tokens', createTokenHandler);
-    router.get('/admin/tokens', listTokensHandler);
-    router.get('/admin/tokens/:id', getTokenHandler);
-    router.delete('/admin/tokens/:id', deleteTokenHandler);
-    router.post('/admin/tokens/cleanup', cleanupTokensHandler);
+    // In production, protect all admin token routes with initial access token authentication
+    const authMiddleware = requireInitialAccessToken(tokenStore);
+    logger.info('Admin token routes protected with initial access token authentication');
+    router.post('/admin/tokens', authMiddleware, createTokenHandler);
+    router.get('/admin/tokens', authMiddleware, listTokensHandler);
+    router.get('/admin/tokens/:id', authMiddleware, getTokenHandler);
+    router.delete('/admin/tokens/:id', authMiddleware, deleteTokenHandler);
+    router.post('/admin/tokens/cleanup', authMiddleware, cleanupTokensHandler);
   }
 
   // Protected registration endpoint always requires initial access token

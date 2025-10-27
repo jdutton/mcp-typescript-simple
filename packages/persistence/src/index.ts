@@ -86,7 +86,7 @@ export * from './factories/mcp-metadata-store-factory.js';
 export * from './stores/memory/memory-session-store.js';
 export * from './stores/memory/memory-oauth-token-store.js';
 export * from './stores/memory/memory-client-store.js';
-export * from './stores/memory/memory-token-store.js';
+// Note: InMemoryTestTokenStore is in test/helpers/ - not exported from public API
 export * from './stores/memory/memory-pkce-store.js';
 export * from './stores/memory/memory-mcp-metadata-store.js';
 

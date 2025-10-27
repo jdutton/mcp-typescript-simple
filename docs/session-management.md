@@ -6,9 +6,25 @@ The MCP TypeScript Simple server uses StreamableHTTPServerTransport for HTTP-bas
 
 ## Session State Architecture
 
-### Hybrid Reconstruction Pattern (v1.1.0+)
+### Session Manager Interface (v1.2.0+)
 
-The server implements a **two-tier session management system** that enables horizontal scalability:
+The server provides a **unified SessionManager interface** with deployment-specific implementations:
+
+- **MemorySessionManager**: Single-node deployments (development, simple production)
+  - In-memory Map storage
+  - Auto-cleanup with configurable intervals
+  - No external dependencies
+
+- **RedisSessionManager**: Multi-node deployments (Vercel, Kubernetes, load-balanced)
+  - Redis-backed persistent storage
+  - Shared across all server instances
+  - Horizontal scalability with auto-detection
+
+**Auto-Detection**: The session manager automatically selects the appropriate implementation based on `REDIS_URL` configuration.
+
+### Metadata Reconstruction Pattern (v1.1.0+)
+
+The underlying system implements a **metadata-driven reconstruction approach** that enables horizontal scalability:
 
 #### 1. Metadata Layer (Persistent, Serializable)
 Session metadata is stored in external storage (Vercel KV/Redis):

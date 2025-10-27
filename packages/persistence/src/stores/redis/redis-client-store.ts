@@ -17,7 +17,7 @@
  */
 
 import Redis from 'ioredis';
-import { randomUUID, randomBytes } from 'crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
   OAuthRegisteredClientsStore,
@@ -25,6 +25,7 @@ import {
   ClientStoreOptions,
 } from '../../interfaces/client-store.js';
 import { logger } from '../../logger.js';
+import { maskRedisUrl } from './redis-utils.js';
 
 const KEY_PREFIX = 'oauth:client:';
 const INDEX_KEY = 'oauth:clients:index';
@@ -68,25 +69,10 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
     };
 
     logger.info('RedisClientStore initialized', {
-      url: this.maskUrl(url),
+      url: maskRedisUrl(url),
       defaultSecretExpiry: this.options.defaultSecretExpirySeconds,
       maxClients: this.options.maxClients,
     });
-  }
-
-  /**
-   * Mask Redis URL for logging (hide credentials)
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'redis://***';
-    }
   }
 
   async registerClient(

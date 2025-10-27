@@ -4,8 +4,8 @@
 
 import { Express, Request, Response } from 'express';
 import swaggerUi from 'swagger-ui-express';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import yaml from 'yaml';
 import { logger } from '@mcp-typescript-simple/observability';
 

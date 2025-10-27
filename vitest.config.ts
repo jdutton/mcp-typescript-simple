@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'path';
+import { resolve } from 'node:path';
 
 export default defineConfig({
   resolve: {
@@ -10,6 +10,11 @@ export default defineConfig({
   test: {
     // Test environment
     environment: 'node',
+
+    // Set NODE_ENV for test detection
+    env: {
+      NODE_ENV: 'test',
+    },
 
     // Test file patterns
     include: [

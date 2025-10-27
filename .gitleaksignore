@@ -1,0 +1,13 @@
+# Gitleaks Ignore File
+# False positives for test encryption keys
+
+# Test encryption key used consistently across test suite
+# This is NOT a production secret - it's a deterministic test fixture
+packages/auth/test/factory.test.ts:generic-api-key:73
+packages/example-mcp/test/integration/admin-token-endpoints.test.ts:generic-api-key:52
+packages/example-mcp/test/system/vitest-global-setup.ts:generic-api-key:154
+packages/http-server/test/server/streamable-http-server.test.ts:generic-api-key:17
+packages/persistence/test/oauth-token-store-factory.test.ts:generic-api-key:14
+packages/persistence/test/stores/file-oauth-token-store.test.ts:generic-api-key:25
+packages/persistence/test/stores/redis/redis-mcp-metadata-store.test.ts:generic-api-key:36
+packages/persistence/test/stores/redis/redis-oauth-token-store.test.ts:generic-api-key:43

@@ -18,9 +18,9 @@
  * - Performance degrades with many clients (full file read/write)
  */
 
-import { promises as fs, readFileSync } from 'fs';
-import { dirname, join } from 'path';
-import { randomUUID, randomBytes } from 'crypto';
+import { promises as fs, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
   OAuthRegisteredClientsStore,

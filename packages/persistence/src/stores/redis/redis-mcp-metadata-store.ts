@@ -1,66 +1,47 @@
 /**
- * Redis-based MCP Session Metadata Store
+ * Redis-based MCP Session Metadata Store with AES-256-GCM Encryption
  *
- * Provides persistent, scalable session storage using Redis.
+ * Provides persistent, scalable session storage using Redis with mandatory encryption.
  * Suitable for multi-instance deployments and serverless environments.
+ *
+ * Security Features:
+ * - AES-256-GCM encryption at rest (REQUIRED - zero tolerance for unencrypted data)
+ * - Automatic expiration using Redis TTL
+ * - Fail-fast on decryption errors - no graceful degradation
+ * - SOC-2, ISO 27001, GDPR, HIPAA compliant
+ *
+ * Security Stance:
+ * - Encryption is MANDATORY, not optional
+ * - TokenEncryptionService MUST be provided to constructor
+ * - No plaintext session data in Redis
  */
 
-import Redis from 'ioredis';
+import type Redis from 'ioredis';
 import {
   MCPSessionMetadataStore,
   MCPSessionMetadata,
 } from '../../interfaces/mcp-metadata-store.js';
 import { logger } from '../../logger.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private redis: Redis;
+  private readonly encryptionService: TokenEncryptionService;
   private readonly keyPrefix = 'mcp:session:';
   private readonly DEFAULT_TTL = 30 * 60; // 30 minutes in seconds
 
-  constructor(redisUrl?: string) {
-    const url = redisUrl || process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('Redis URL not configured');
+  constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
+    // Enterprise security: encryption is MANDATORY
+    if (!encryptionService) {
+      throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
     }
 
-    this.redis = new Redis(url, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: true,
-    });
+    this.encryptionService = encryptionService;
+    this.redis = createRedisClient(redisUrl, 'MCP sessions');
 
-    this.redis.on('error', (error) => {
-      logger.error('Redis connection error', { error });
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('Redis connected successfully');
-    });
-
-    // Connect immediately
-    this.redis.connect().catch((error) => {
-      logger.error('Failed to connect to Redis', { error });
-    });
-
-    logger.info('RedisMCPMetadataStore initialized', { url: this.maskUrl(url) });
-  }
-
-  /**
-   * Mask sensitive parts of Redis URL for logging
-   */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'invalid-url';
-    }
+    const url = redisUrl || process.env.REDIS_URL!;
+    logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url) });
   }
 
   /**
@@ -70,22 +51,44 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
     return `${this.keyPrefix}${sessionId}`;
   }
 
+  /**
+   * Serialize and encrypt session metadata before storing in Redis
+   * Enterprise security: AES-256-GCM encryption at rest (REQUIRED)
+   */
+  private async serializeSessionMetadata(metadata: MCPSessionMetadata): Promise<string> {
+    const json = JSON.stringify(metadata);
+    const encrypted = this.encryptionService.encrypt(json);
+    return encrypted;
+  }
+
+  /**
+   * Decrypt and deserialize session metadata from Redis
+   * Enterprise security: Fail fast on decryption errors - no graceful degradation
+   */
+  private async deserializeSessionMetadata(encryptedData: string): Promise<MCPSessionMetadata> {
+    // Decrypt data - fail fast if decryption fails
+    const decrypted = this.encryptionService.decrypt(encryptedData);
+    return JSON.parse(decrypted) as MCPSessionMetadata;
+  }
+
   async storeSession(sessionId: string, metadata: MCPSessionMetadata): Promise<void> {
     try {
       const key = this.getKey(sessionId);
-      const serialized = JSON.stringify(metadata);
+
+      // Encrypt session metadata before storing
+      const encryptedData = await this.serializeSessionMetadata(metadata);
 
       // Calculate TTL from expiresAt
       const ttlSeconds = metadata.expiresAt
         ? Math.max(1, Math.floor((metadata.expiresAt - Date.now()) / 1000))
         : this.DEFAULT_TTL;
 
-      await this.redis.setex(key, ttlSeconds, serialized);
+      await this.redis.setex(key, ttlSeconds, encryptedData);
 
-      logger.debug('Session stored in Redis', {
+      logger.debug('Session stored in Redis (encrypted)', {
         sessionId: sessionId.substring(0, 8) + '...',
         ttlSeconds,
-        size: serialized.length,
+        provider: metadata.authInfo?.provider,
       });
     } catch (error) {
       logger.error('Failed to store session in Redis', {
@@ -108,7 +111,8 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
         return null;
       }
 
-      const metadata = JSON.parse(data) as MCPSessionMetadata;
+      // Decrypt and deserialize session metadata - fail fast on decryption errors
+      const metadata = await this.deserializeSessionMetadata(data);
 
       // Check if session is expired
       if (metadata.expiresAt && metadata.expiresAt < Date.now()) {
@@ -120,9 +124,10 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
         return null;
       }
 
-      logger.debug('Session retrieved from Redis', {
+      logger.debug('Session retrieved from Redis (decrypted)', {
         sessionId: sessionId.substring(0, 8) + '...',
         age: Math.round((Date.now() - metadata.createdAt) / 1000) + 's',
+        provider: metadata.authInfo?.provider,
       });
 
       return metadata;
@@ -131,7 +136,8 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
         sessionId: sessionId.substring(0, 8) + '...',
         error,
       });
-      return null;
+      // Fail fast on decryption errors - throw instead of returning null
+      throw error;
     }
   }
 

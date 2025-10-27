@@ -58,22 +58,6 @@ export async function initializeObservability(): Promise<void> {
   }
 }
 
-/**
- * Shutdown observability
- */
-export async function shutdownObservability(): Promise<void> {
-  const runtime = detectRuntime();
-
-  if (runtime === 'nodejs') {
-    try {
-      const { shutdownInstrumentation } = await import('./instrumentation.js');
-      await shutdownInstrumentation();
-    } catch (error) {
-      console.error('[OTEL] Error shutting down observability:', error);
-    }
-  }
-}
-
 // Re-export all observability utilities
 export { getObservabilityConfig, detectRuntime, detectEnvironment } from './config.js';
 export { logger, getLogger, ObservabilityLogger } from './logger.js';

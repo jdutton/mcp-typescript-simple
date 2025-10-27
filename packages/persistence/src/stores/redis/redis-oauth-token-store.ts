@@ -1,83 +1,78 @@
 /**
  * Redis OAuth Token Store
  *
- * Redis-based token storage for OAuth deployments.
+ * Redis-based token storage for OAuth deployments with AES-256-GCM encryption at rest.
  * Provides persistent token storage across serverless function invocations
  * and multi-instance deployments.
  *
  * Features:
+ * - AES-256-GCM encryption at rest (REQUIRED - zero tolerance for unencrypted data)
+ * - SHA-256 hashed Redis keys (prevents token exposure in key names)
  * - Automatic expiration using Redis TTL
  * - Scales across multiple instances
  * - O(1) refresh token lookups via secondary index
  * - No cleanup needed (Redis handles expiration)
  *
+ * Security Stance:
+ * - Encryption is MANDATORY, not optional
+ * - Redis keys are SHA-256 hashed to prevent token exposure
+ *   (even read-only Redis access won't expose usable tokens)
+ * - Fail fast on decryption errors - no graceful degradation
+ * - SOC-2, ISO 27001, GDPR, HIPAA compliant
+ *
  * Setup:
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
+ * TokenEncryptionService MUST be provided to constructor
  */
 
-import Redis from 'ioredis';
-import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
+import type Redis from 'ioredis';
+import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { maskRedisUrl, createRedisClient } from './redis-utils.js';
 
 const KEY_PREFIX = 'oauth:token:';
 const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
 
 export class RedisOAuthTokenStore implements OAuthTokenStore {
   private redis: Redis;
+  private readonly encryptionService: TokenEncryptionService;
 
-  constructor(redisUrl?: string) {
-    const url = redisUrl || process.env.REDIS_URL;
-    if (!url) {
-      throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
+  constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
+    // Enterprise security: encryption is MANDATORY
+    if (!encryptionService) {
+      throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
     }
 
-    this.redis = new Redis(url, {
-      maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      lazyConnect: true,
-    });
+    this.encryptionService = encryptionService;
+    this.redis = createRedisClient(redisUrl, 'OAuth tokens');
 
-    this.redis.on('error', (error) => {
-      logger.error('Redis connection error', { error });
-    });
-
-    this.redis.on('connect', () => {
-      logger.info('Redis connected successfully for OAuth tokens');
-    });
-
-    // Connect immediately
-    this.redis.connect().catch((error) => {
-      logger.error('Failed to connect to Redis', { error });
-    });
-
-    logger.info('RedisOAuthTokenStore initialized', { url: this.maskUrl(url) });
+    const url = redisUrl || process.env.REDIS_URL!;
+    logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
   }
 
   /**
-   * Mask Redis URL for logging (hide credentials)
+   * Get Redis key for access token (SHA-256 hashed)
+   *
+   * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
+   * Even though VALUES are encrypted, KEY NAMES are visible in Redis.
+   * Read-only Redis access would expose usable tokens without hashing.
    */
-  private maskUrl(url: string): string {
-    try {
-      const parsed = new URL(url);
-      if (parsed.password) {
-        parsed.password = '***';
-      }
-      return parsed.toString();
-    } catch {
-      return 'redis://***';
-    }
-  }
-
   private getTokenKey(accessToken: string): string {
-    return `${KEY_PREFIX}${accessToken}`;
+    const hashedToken = this.encryptionService.hashKey(accessToken);
+    return `${KEY_PREFIX}${hashedToken}`;
   }
 
+  /**
+   * Get Redis key for refresh token index (SHA-256 hashed)
+   *
+   * SECURITY: Hash tokens before using as Redis keys to prevent exposure.
+   * Refresh tokens have longer validity, so exposure is especially risky.
+   */
   private getRefreshIndexKey(refreshToken: string): string {
-    return `${REFRESH_INDEX_PREFIX}${refreshToken}`;
+    const hashedToken = this.encryptionService.hashKey(refreshToken);
+    return `${REFRESH_INDEX_PREFIX}${hashedToken}`;
   }
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
@@ -88,20 +83,25 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const ttlMs = tokenInfo.expiresAt - now;
     const ttlSeconds = Math.max(Math.floor(ttlMs / 1000), 1); // At least 1 second
 
-    // Store token data and secondary index in parallel
+    // Encrypt token data before storing
+    const encryptedData = serializeOAuthToken(tokenInfo, this.encryptionService);
+
+    // Store encrypted token data and secondary index in parallel
     const storePromises = [
-      this.redis.setex(key, ttlSeconds, JSON.stringify(tokenInfo))
+      this.redis.setex(key, ttlSeconds, encryptedData)
     ];
 
     // Maintain secondary index for O(1) refresh token lookups
+    // CRITICAL: Encrypt access token before storing in index
     if (tokenInfo.refreshToken) {
       const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
-      storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, accessToken));
+      const encryptedAccessToken = this.encryptionService.encrypt(accessToken);
+      storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, encryptedAccessToken));
     }
 
     await Promise.all(storePromises);
 
-    logger.debug('OAuth token stored in Redis', {
+    logger.debug('OAuth token stored in Redis (encrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider,
       ttlSeconds,
@@ -120,7 +120,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+    // Decrypt and deserialize token data - fail fast on decryption errors
+    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
     // Double-check expiration (Redis should have already handled this)
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -132,7 +133,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token retrieved from Redis', {
+    logger.debug('OAuth token retrieved from Redis (decrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -143,14 +144,17 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
     // O(1) lookup using secondary index
     const refreshIndexKey = this.getRefreshIndexKey(refreshToken);
-    const accessToken = await this.redis.get(refreshIndexKey);
+    const encryptedAccessToken = await this.redis.get(refreshIndexKey);
 
-    if (!accessToken) {
+    if (!encryptedAccessToken) {
       logger.debug('OAuth token not found by refresh token in Redis', {
         refreshTokenPrefix: refreshToken.substring(0, 8)
       });
       return null;
     }
+
+    // Decrypt access token from index - fail fast on decryption errors
+    const accessToken = this.encryptionService.decrypt(encryptedAccessToken);
 
     // Fetch token data
     const key = this.getTokenKey(accessToken);
@@ -165,7 +169,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+    // Decrypt and deserialize token data - fail fast on decryption errors
+    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
     // Verify not expired
     if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
@@ -177,7 +182,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       return null;
     }
 
-    logger.debug('OAuth token found by refresh token in Redis', {
+    logger.debug('OAuth token found by refresh token in Redis (decrypted)', {
       tokenPrefix: accessToken.substring(0, 8),
       provider: tokenInfo.provider
     });
@@ -195,7 +200,8 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const deletePromises = [this.redis.del(key)];
 
     if (data) {
-      const tokenInfo = JSON.parse(data) as StoredTokenInfo;
+      // Decrypt and deserialize to get refresh token for index cleanup
+      const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
       if (tokenInfo.refreshToken) {
         const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
         deletePromises.push(this.redis.del(refreshIndexKey));

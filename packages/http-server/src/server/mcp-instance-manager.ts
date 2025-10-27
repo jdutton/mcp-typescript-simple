@@ -14,7 +14,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo } from '@mcp-typescript-simple/persistence';
+import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo, MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { createMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
 import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
@@ -47,17 +47,28 @@ export interface TransportCreationOptions {
 
 /**
  * Manages MCP server instances with metadata-based reconstruction
+ *
+ * IMPORTANT: Do not instantiate directly. Use MCPInstanceManager.createAsync()
+ * to ensure proper storage initialization (Redis auto-detection with encryption).
  */
 export class MCPInstanceManager {
-  private metadataStore: MCPSessionMetadataStore;
+  private readonly metadataStore: MCPSessionMetadataStore;
   private instanceCache: Map<string, MCPServerInstance> = new Map();
   private toolRegistry: ToolRegistry;
   private readonly INSTANCE_TTL = 10 * 60 * 1000; // 10 minutes
   private cleanupTimer?: NodeJS.Timeout;
 
-  constructor(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore) {
+  /**
+   * Private constructor - use MCPInstanceManager.createAsync() instead
+   *
+   * This is private to prevent accidental use of in-memory storage in production.
+   * The async factory method ensures Redis is used when REDIS_URL is configured.
+   *
+   * For testing, use createAsync() with an explicit metadataStore parameter.
+   */
+  private constructor(toolRegistry: ToolRegistry, metadataStore: MCPSessionMetadataStore) {
     this.toolRegistry = toolRegistry;
-    this.metadataStore = metadataStore || createMCPMetadataStore();
+    this.metadataStore = metadataStore;
 
     // Start cleanup timer for expired instances
     this.cleanupTimer = setInterval(() => {
@@ -67,6 +78,25 @@ export class MCPInstanceManager {
     logger.info('MCPInstanceManager initialized', {
       storeType: this.metadataStore.constructor.name,
     });
+  }
+
+  /**
+   * Create MCPInstanceManager with auto-detected metadata store
+   *
+   * This is the ONLY way to create an instance in production code.
+   *
+   * Storage Selection:
+   * - If REDIS_URL is set: Uses RedisMCPMetadataStore with encryption
+   * - Otherwise: Uses MemoryMCPMetadataStore (development only)
+   *
+   * For testing, you can override by passing an explicit metadataStore.
+   *
+   * @param toolRegistry - Tool registry for MCP server
+   * @param metadataStore - Optional override for testing (auto-detected if not provided)
+   */
+  static async createAsync(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore): Promise<MCPInstanceManager> {
+    const store = metadataStore || await createMCPMetadataStore();
+    return new MCPInstanceManager(toolRegistry, store);
   }
 
   /**

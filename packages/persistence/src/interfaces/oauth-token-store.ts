@@ -6,6 +6,7 @@
  */
 
 import { StoredTokenInfo } from '../types.js';
+import type { TokenEncryptionService } from '../encryption/token-encryption-service.js';
 
 /**
  * OAuth Token Store Interface
@@ -65,4 +66,30 @@ export interface OAuthTokenStore {
    * Dispose of store resources (close connections, timers, etc.)
    */
   dispose(): void;
+}
+
+/**
+ * Serialize and encrypt OAuth token data for storage
+ * Shared utility to eliminate duplication across OAuth token stores
+ *
+ * @param data The data to serialize and encrypt
+ * @param encryptionService The encryption service to use
+ * @returns Encrypted string
+ */
+export function serializeOAuthToken<T>(data: T, encryptionService: TokenEncryptionService): string {
+  const json = JSON.stringify(data);
+  return encryptionService.encrypt(json);
+}
+
+/**
+ * Decrypt and deserialize OAuth token data from storage
+ * Shared utility to eliminate duplication across OAuth token stores
+ *
+ * @param encrypted The encrypted data string
+ * @param encryptionService The encryption service to use
+ * @returns Deserialized data
+ */
+export function deserializeOAuthToken<T>(encrypted: string, encryptionService: TokenEncryptionService): T {
+  const json = encryptionService.decrypt(encrypted);
+  return JSON.parse(json) as T;
 }

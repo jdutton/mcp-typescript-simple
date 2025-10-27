@@ -15,7 +15,7 @@ import { OAuthSession } from '../../types.js';
 import { logger } from '../../logger.js';
 
 export class MemorySessionStore implements OAuthSessionStore {
-  private sessions = new Map<string, OAuthSession>();
+  private readonly sessions = new Map<string, OAuthSession>();
   private cleanupInterval?: NodeJS.Timeout;
   private readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes in milliseconds
 

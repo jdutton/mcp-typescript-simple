@@ -45,7 +45,7 @@ type GeminiResponse = GenerateContentResult;
 export class LLMManager {
   private configManager: LLMConfigManager;
   private clients: Partial<ProviderClientRegistry> = {};
-  private cache = new Map<string, { response: LLMResponse; expires: Date }>();
+  private readonly cache = new Map<string, { response: LLMResponse; expires: Date }>();
 
   constructor() {
     this.configManager = new LLMConfigManager();

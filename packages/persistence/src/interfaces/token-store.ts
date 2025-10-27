@@ -15,6 +15,7 @@
  * - Failed validation attempts should be logged for security monitoring
  */
 
+import { randomBytes, randomUUID } from 'node:crypto';
 import { logger } from '../logger.js';
 
 /**
@@ -81,9 +82,9 @@ export interface TokenValidationResult {
  * Initial Access Token Store Interface
  *
  * Implementations:
- * - InMemoryTokenStore: Development/testing (not persistent)
- * - FileTokenStore: Single-instance deployments with local filesystem
- * - RedisTokenStore: Vercel serverless deployments with Redis-compatible KV
+ * - InMemoryTestTokenStore: Testing/dev only (ephemeral, no encryption, process-isolated)
+ * - FileTokenStore: Single-instance deployments (persistent, encrypted, local filesystem)
+ * - RedisTokenStore: Multi-instance deployments (persistent, encrypted, Redis)
  */
 export interface InitialAccessTokenStore {
   /**
@@ -209,5 +210,77 @@ export function validateTokenCommon(
   return {
     valid: true,
     token,
+  };
+}
+
+/**
+ * Filter tokens based on revoked/expired status
+ * Shared utility to eliminate code duplication in listTokens implementations
+ */
+export function filterTokens(
+  tokens: InitialAccessToken[],
+  options?: {
+    includeRevoked?: boolean;
+    includeExpired?: boolean;
+  }
+): InitialAccessToken[] {
+  const now = Math.floor(Date.now() / 1000);
+
+  return tokens.filter((token) => {
+    // Filter revoked tokens
+    if (token.revoked && !options?.includeRevoked) {
+      return false;
+    }
+
+    // Filter expired tokens
+    if (token.expires_at > 0 && token.expires_at < now && !options?.includeExpired) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+/**
+ * Check if token should be cleaned up
+ * Shared utility to eliminate code duplication in cleanup implementations
+ */
+export function shouldCleanupToken(token: InitialAccessToken, now: number): boolean {
+  // Remove expired tokens
+  if (token.expires_at > 0 && token.expires_at < now) {
+    return true;
+  }
+
+  // Remove revoked tokens
+  if (token.revoked) {
+    return true;
+  }
+
+  // Remove tokens that have exceeded max uses
+  if (token.max_uses && token.max_uses > 0 && token.usage_count >= token.max_uses) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Create initial access token data structure
+ * Shared utility to eliminate token creation duplication across implementations
+ */
+export function createTokenData(options: CreateTokenOptions): InitialAccessToken {
+  const id = randomUUID();
+  const token = randomBytes(32).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+
+  return {
+    id,
+    token,
+    description: options.description,
+    created_at: now,
+    expires_at: options.expires_in ? now + options.expires_in : 0,
+    usage_count: 0,
+    max_uses: options.max_uses,
+    revoked: false,
   };
 }

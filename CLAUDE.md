@@ -264,6 +264,9 @@ The repository must have these secrets configured for automated Vercel deploymen
 - `VERCEL_TOKEN` - Vercel authentication token (get from: https://vercel.com/account/tokens)
 - `VERCEL_ORG_ID` - Vercel organization/team ID (found in project settings)
 - `VERCEL_PROJECT_ID` - Vercel project ID (found in project settings)
+- `TOKEN_ENCRYPTION_KEY` - 32-byte base64 encryption key for Redis (generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`)
+
+**Note**: `TOKEN_ENCRYPTION_KEY` must also be added as a Vercel environment variable. See docs/vercel-deployment.md for detailed instructions.
 
 To configure secrets: Repository Settings → Secrets and variables → Actions → New repository secret
 
@@ -364,7 +367,6 @@ The MCP server supports **managed OAuth flows** for agentic clients like Claude 
 4. **Verify Connection**:
    - Claude Code shows available tools: `hello`, `echo`, `current-time`, etc.
    - Server logs show successful OAuth session creation
-   - Check active sessions: `curl http://localhost:3000/admin/sessions`
 
 #### OAuth Client State Preservation
 
@@ -413,13 +415,14 @@ Google → MCP Server → Claude Code
 - Check OAuth discovery: `curl http://localhost:3000/.well-known/oauth-authorization-server`
 - Verify provider credentials in `.env` file
 
-## Session State Management Limitations
+## Horizontal Scalability and Session Management
 
-**CRITICAL for Claude Code Development**: The StreamableHTTPServerTransport has important limitations:
+**Session persistence with Redis**: MCP sessions are stored in Redis when `REDIS_URL` is configured, enabling horizontal scalability across multiple server instances.
 
-- **In-memory only**: Session transports cannot be serialized or persisted to external storage
-- **Single-instance**: Each server instance maintains its own session storage
-- **Development impact**: When testing/debugging, restarting the server loses all active sessions
+**How it works:**
+- Session metadata stored in Redis (persistent, shared across instances)
+- Server instances cached in memory (reconstructed on-demand from Redis)
+- Any server instance can handle any session (load-balanced deployments)
 
 **For comprehensive deployment architecture and scaling patterns, see [docs/session-management.md](docs/session-management.md)**
 

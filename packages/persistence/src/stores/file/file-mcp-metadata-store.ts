@@ -19,8 +19,8 @@
  * - Performance degrades with many sessions (full file read/write)
  */
 
-import { promises as fs, readFileSync } from 'fs';
-import { dirname } from 'path';
+import { promises as fs, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import {
   MCPSessionMetadataStore,
   MCPSessionMetadata,
@@ -43,7 +43,7 @@ export interface FileMCPMetadataStoreOptions {
 }
 
 export class FileMCPMetadataStore implements MCPSessionMetadataStore {
-  private sessions = new Map<string, MCPSessionMetadata>();
+  private readonly sessions = new Map<string, MCPSessionMetadata>();
   private readonly filePath: string;
   private readonly backupPath: string;
   private readonly ttl: number;

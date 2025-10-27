@@ -4,7 +4,7 @@
  * Vercel configuration and serverless function validation tests
  */
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 interface TestResult {
   name: string;

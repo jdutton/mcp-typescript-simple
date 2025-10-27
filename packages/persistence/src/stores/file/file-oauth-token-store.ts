@@ -1,29 +1,45 @@
 /**
- * File-Based OAuth Token Store
+ * File-Based OAuth Token Store (DEVELOPMENT ONLY)
  *
- * Persists OAuth access/refresh tokens to a JSON file on disk. Suitable for:
+ * Stores OAuth tokens in encrypted JSON files with strict file permissions.
+ *
+ * **SECURITY - HARD STANCE:**
+ * - AES-256-GCM encryption REQUIRED (no plaintext fallback)
+ * - File permissions: 0600 (owner read/write only)
+ * - Directory permissions: 0700 (owner only)
+ * - Zero tolerance for unencrypted data
+ * - Fail-fast on decryption errors
+ *
+ * **COMPLIANCE:**
+ * - SOC-2 CC6.1 (Logical access controls)
+ * - ISO 27001 A.10.1.1 (Cryptographic controls)
+ * - GDPR Article 32(1)(a) (Encryption at rest)
+ * - HIPAA §164.312(a)(2)(iv) (Encryption and decryption)
+ *
+ * **USE CASES:**
  * - Development with restart tolerance
- * - Single-instance deployments
- * - Self-hosted servers with local filesystem
+ * - Single-instance self-hosted servers
+ * - **NOT for production** - use RedisOAuthTokenStore with Upstash
  *
- * Features:
+ * **FEATURES:**
  * - Survives server restarts
- * - Atomic writes (write to temp file, then rename)
+ * - Atomic writes (temp file → rename)
  * - Automatic backup on write
- * - JSON format for easy inspection/debugging
  * - Secondary index for O(1) refresh token lookups
+ * - Strict file system permissions (0600/0700)
  *
- * Limitations:
+ * **LIMITATIONS:**
  * - Not suitable for multi-instance deployments (race conditions)
  * - Not suitable for serverless (ephemeral filesystem)
  * - Performance degrades with many tokens (full file read/write)
  */
 
-import { promises as fs, readFileSync } from 'fs';
-import { dirname } from 'path';
-import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
+import { promises as fs, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
+import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 
 interface PersistedOAuthTokenData {
   version: number;
@@ -35,11 +51,14 @@ interface PersistedOAuthTokenData {
 }
 
 export interface FileOAuthTokenStoreOptions {
-  /** Path to the JSON file (default: './data/oauth-tokens.json') */
+  /** Path to the encrypted JSON file (default: './data/oauth-tokens.json.enc') */
   filePath?: string;
 
   /** Debounce writes to avoid excessive disk I/O (milliseconds, default: 1000) */
   debounceMs?: number;
+
+  /** Token encryption service (REQUIRED - hard security stance, no plaintext fallback) */
+  encryptionService: TokenEncryptionService;
 }
 
 export class FileOAuthTokenStore implements OAuthTokenStore {
@@ -50,11 +69,18 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
   private writePromise: Promise<void> = Promise.resolve();
   private pendingWrite: NodeJS.Timeout | null = null;
   private readonly debounceMs: number;
+  private readonly encryptionService: TokenEncryptionService;
 
-  constructor(options: FileOAuthTokenStoreOptions = {}) {
-    this.filePath = options.filePath || './data/oauth-tokens.json';
+  constructor(options: FileOAuthTokenStoreOptions) {
+    // SECURITY: Fail fast if encryption service not provided
+    if (!options.encryptionService) {
+      throw new Error('TokenEncryptionService is REQUIRED - zero tolerance for unencrypted OAuth tokens');
+    }
+
+    this.filePath = options.filePath || './data/oauth-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
+    this.encryptionService = options.encryptionService;
 
     // Load existing tokens synchronously during construction
     this.loadSync();
@@ -67,12 +93,28 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
   }
 
   /**
+   * Enforce strict file permissions (0600 - owner read/write only)
+   */
+  private async enforceFilePermissions(): Promise<void> {
+    try {
+      await fs.chmod(this.filePath, 0o600);
+      const dir = dirname(this.filePath);
+      await fs.chmod(dir, 0o700);
+    } catch (error) {
+      logger.warn('Failed to enforce file permissions', {
+        error: (error as Error).message,
+        filePath: this.filePath,
+      });
+    }
+  }
+
+  /**
    * Load tokens from file (synchronous for constructor)
    */
   private loadSync(): void {
     try {
-      const data = readFileSync(this.filePath, 'utf8');
-      const parsed: PersistedOAuthTokenData = JSON.parse(data);
+      const encrypted = readFileSync(this.filePath, 'utf8');
+      const parsed = deserializeOAuthToken<PersistedOAuthTokenData>(encrypted, this.encryptionService);
 
       if (parsed.version !== 1) {
         throw new Error(`Unsupported file version: ${parsed.version}`);
@@ -117,11 +159,13 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
 
   /**
    * Actually write to file (atomic with backup)
+   * SECURITY: Always encrypt, enforce file permissions (0600)
    */
   private async saveToFile(): Promise<void> {
     try {
-      // Ensure directory exists
-      await fs.mkdir(dirname(this.filePath), { recursive: true });
+      // Ensure directory exists with secure permissions (0700)
+      const dir = dirname(this.filePath);
+      await fs.mkdir(dir, { recursive: true, mode: 0o700 });
 
       const data: PersistedOAuthTokenData = {
         version: 1,
@@ -132,11 +176,12 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
         })),
       };
 
-      const json = JSON.stringify(data, null, 2);
+      // Encrypt data before writing to disk
+      const encrypted = serializeOAuthToken(data, this.encryptionService);
 
       // Atomic write: write to temp file, then rename
       const tempPath = `${this.filePath}.tmp`;
-      await fs.writeFile(tempPath, json, 'utf8');
+      await fs.writeFile(tempPath, encrypted, { mode: 0o600 });
 
       // Backup existing file if it exists
       try {
@@ -151,7 +196,10 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       // Rename temp to actual (atomic on POSIX systems)
       await fs.rename(tempPath, this.filePath);
 
-      logger.info('OAuth tokens saved to file', {
+      // Enforce strict file permissions (0600 - owner read/write only)
+      await this.enforceFilePermissions();
+
+      logger.info('OAuth tokens saved to file (encrypted)', {
         tokenCount: this.tokens.size,
         filePath: this.filePath,
       });

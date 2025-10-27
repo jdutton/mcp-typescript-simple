@@ -331,9 +331,33 @@ class CITestRunner {
 
       let stdout = '';
       let _stderr = '';
+      let resolved = false;
 
+      // Parse response as soon as we receive it (don't wait for process to close)
       child.stdout.on('data', (data) => {
         stdout += data.toString();
+
+        // Try to parse response from accumulated stdout
+        if (!resolved) {
+          try {
+            const lines = stdout.trim().split('\n');
+            for (const line of lines) {
+              if (line.trim().startsWith('{')) {
+                const response = JSON.parse(line);
+                if (response.id === (request as any).id) {
+                  resolved = true;
+                  clearTimeout(timeout);
+                  child.kill(); // Kill process after getting response
+                  resolve(response);
+                  return;
+                }
+              }
+            }
+          } catch (error) {
+            // Intentionally ignore JSON parse errors - server output may contain incomplete JSON fragments
+            // that will be completed in subsequent data events (streaming output)
+          }
+        }
       });
 
       child.stderr.on('data', (data) => {
@@ -341,32 +365,17 @@ class CITestRunner {
       });
 
       const timeout = setTimeout(() => {
-        child.kill();
-        reject(new Error('MCP request timeout'));
-      }, 10000);
-
-      child.on('close', () => {
-        clearTimeout(timeout);
-        try {
-          const lines = stdout.trim().split('\n');
-          for (const line of lines) {
-            if (line.trim().startsWith('{')) {
-              const response = JSON.parse(line);
-              if (response.id === request.id) {
-                resolve(response);
-                return;
-              }
-            }
-          }
-          reject(new Error('No valid MCP response found'));
-        } catch (error) {
-          reject(new Error(`Failed to parse MCP response: ${error}`));
+        if (!resolved) {
+          child.kill();
+          reject(new Error('MCP request timeout'));
         }
-      });
+      }, 5000); // Reduced timeout from 10s to 5s
 
       child.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(error);
+        if (!resolved) {
+          clearTimeout(timeout);
+          reject(error);
+        }
       });
 
       child.stdin.write(JSON.stringify(request) + '\n');

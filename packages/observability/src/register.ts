@@ -130,6 +130,9 @@ if (environment === 'test') {
     });
 
     // Graceful shutdown
+    // IMPORTANT: Signal handling is done by the main application (index.ts)
+    // This prevents duplicate signal handlers and race conditions
+    // The SDK will auto-shutdown on beforeExit, or the app can call shutdown manually
     const shutdown = async () => {
       try {
         await sdk.shutdown();
@@ -139,8 +142,7 @@ if (environment === 'test') {
       }
     };
 
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
+    // Only register beforeExit (automatic cleanup) - let main app handle SIGINT/SIGTERM
     process.on('beforeExit', shutdown);
 
   } catch (error) {

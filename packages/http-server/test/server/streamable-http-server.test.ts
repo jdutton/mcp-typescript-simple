@@ -13,6 +13,9 @@ describe('MCPStreamableHttpServer', () => {
   const servers: MCPStreamableHttpServer[] = [];
 
   beforeEach(() => {
+    // Set encryption key for tests (required by token stores)
+    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
+
     // Clear EnvironmentConfig singleton cache to ensure clean test environment
     EnvironmentConfig.reset();
 
@@ -104,14 +107,6 @@ describe('MCPStreamableHttpServer', () => {
     await (server as any).streamableTransportHandler(transport);
     expect(handler).toHaveBeenCalledWith(transport);
   });
-
-  it('provides session manager access', () => {
-    const server = makeServer({ enableResumability: true });
-    const manager = server.getSessionManager();
-    expect(manager).toBeDefined();
-    expect(manager.getStats()).toHaveProperty('activeSessions');
-  });
-
   it('logs accept header when present', async () => {
     const server = makeServer();
     await server.initialize();
@@ -327,7 +322,7 @@ describe('MCPStreamableHttpServer', () => {
       ...originalEnv
     };
     delete process.env.npm_package_version;
-    delete process.env.NODE_ENV;
+    // Note: NOT deleting NODE_ENV - it's required for token store factory to detect test mode
 
     const server = makeServer();
     await server.initialize();
@@ -337,7 +332,7 @@ describe('MCPStreamableHttpServer', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.version).toBe('1.0.0'); // Default
-    expect(response.body.environment).toBe('development'); // Default
+    expect(response.body.environment).toBe('test'); // Test environment (NODE_ENV is kept for token store factory)
 
     process.env = originalEnv;
   });
@@ -466,15 +461,6 @@ describe('MCPStreamableHttpServer', () => {
     expect(typeof app.use).toBe('function');
   });
 
-  it('provides access to session manager', () => {
-    const server = makeServer();
-    const sessionManager = server.getSessionManager();
-
-    expect(sessionManager).toBeDefined();
-    expect(typeof sessionManager.getStats).toBe('function');
-    expect(sessionManager.getStats()).toHaveProperty('activeSessions');
-  });
-
   it('starts and stops server properly', async () => {
     const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
 
@@ -516,6 +502,5 @@ describe('MCPStreamableHttpServer', () => {
 
     // Test direct access to options through the app instance
     expect(server.getApp()).toBeDefined();
-    expect(server.getSessionManager()).toBeDefined();
   });
 });

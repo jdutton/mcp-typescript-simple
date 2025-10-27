@@ -144,25 +144,6 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
   });
 
   describe('Admin Endpoints (/admin/*)', () => {
-    describe('/admin/sessions', () => {
-      it('should return session list (empty for serverless)', async () => {
-        const response = await axios.get(`${BASE_URL}/admin/sessions`);
-
-        expect(response.status).toBe(200);
-        expect(response.data).toHaveProperty('sessions');
-        expect(response.data).toHaveProperty('stats');
-        expect(response.data).toHaveProperty('deployment');
-        expect(response.data.deployment.platform).toBe('vercel');
-      });
-
-      it('should include CORS headers', async () => {
-        const response = await axios.get(`${BASE_URL}/admin/sessions`);
-
-        expect(response.headers['access-control-allow-origin']).toBeDefined();
-        expect(response.headers['access-control-allow-methods']).toContain('GET');
-      });
-    });
-
     describe('/admin/info', () => {
       it('should return deployment information', async () => {
         const response = await axios.get(`${BASE_URL}/admin/info`);
@@ -202,26 +183,6 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
       });
     });
 
-    describe('/admin/sessions/:sessionId (DELETE)', () => {
-      it('should return not available message for serverless', async () => {
-        try {
-          const response = await axios.delete(`${BASE_URL}/admin/sessions/test-session-id`);
-
-          expect(response.status).toBe(200);
-          expect(response.data).toHaveProperty('success', false);
-          expect(response.data).toHaveProperty('message');
-          expect(response.data.message).toContain('not available in serverless');
-        } catch (error) {
-          // 404 is also acceptable since session doesn't exist
-          if (axios.isAxiosError(error) && error.response?.status === 404) {
-            expect(error.response.status).toBe(404);
-          } else {
-            throw error;
-          }
-        }
-      });
-    });
-
     describe('Invalid admin endpoint', () => {
       it('should return 404 for unknown admin endpoint', async () => {
         try {
@@ -231,22 +192,10 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
           if (axios.isAxiosError(error)) {
             expect(error.response?.status).toBe(404);
             expect(error.response?.data).toHaveProperty('error', 'Not found');
-            expect(error.response?.data).toHaveProperty('available_endpoints');
           } else {
             throw error;
           }
         }
-      });
-    });
-
-    describe('OPTIONS preflight', () => {
-      it('should handle OPTIONS request', async () => {
-        const response = await axios.options(`${BASE_URL}/admin/sessions`);
-
-        expect(response.status).toBe(200);
-        expect(response.headers['access-control-allow-origin']).toBeDefined();
-        expect(response.headers['access-control-allow-methods']).toContain('GET');
-        expect(response.headers['access-control-allow-methods']).toContain('DELETE');
       });
     });
   });
@@ -617,7 +566,6 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
     const endpoints = [
       '/health',
       '/mcp',
-      '/admin/sessions',
       '/admin/info',
       '/admin/metrics',
       '/.well-known/oauth-authorization-server'

@@ -298,8 +298,6 @@ In MCP Inspector, use these settings:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Server health and configuration status |
-| `/admin/sessions` | GET | List active OAuth sessions |
-| `/admin/sessions/:id` | DELETE | Revoke specific session |
 
 ### Example: Test Authorization Endpoint
 

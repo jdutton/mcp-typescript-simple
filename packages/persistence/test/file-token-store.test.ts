@@ -3,9 +3,10 @@
  */
 
 import { FileTokenStore } from '../src/index.js';
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join } from 'node:path';
+import { createTestEncryptionService } from './helpers/encryption-test-helper.js';
 
 describe('FileTokenStore', () => {
   let store: FileTokenStore;
@@ -21,6 +22,7 @@ describe('FileTokenStore', () => {
     store = new FileTokenStore({
       filePath: testFilePath,
       debounceMs: 0, // Disable debouncing for tests
+      encryptionService: createTestEncryptionService(),
     });
   });
 
@@ -48,11 +50,16 @@ describe('FileTokenStore', () => {
       // Verify file exists
       expect(existsSync(testFilePath)).toBe(true);
 
-      // Verify file content
-      const content = readFileSync(testFilePath, 'utf8');
-      const data = JSON.parse(content);
-      expect(data.tokens).toHaveLength(1);
-      expect(data.tokens[0].id).toBe(token.id);
+      // Verify file content by loading it with a new store instance (tests decryption works)
+      await store.dispose();
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
+      const tokens = await newStore.listTokens();
+      expect(tokens).toHaveLength(1);
+      expect(tokens[0].id).toBe(token.id);
+      await newStore.dispose();
     });
 
     it('should create multiple tokens', async () => {
@@ -76,7 +83,10 @@ describe('FileTokenStore', () => {
       await store.dispose();
 
       // Create new store instance
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const tokens = await newStore.listTokens();
       expect(tokens).toHaveLength(2);
@@ -92,7 +102,10 @@ describe('FileTokenStore', () => {
 
     it('should handle missing file gracefully', async () => {
       const nonExistentPath = join(testDir, 'non-existent.json');
-      const newStore = new FileTokenStore({ filePath: nonExistentPath });
+      const newStore = new FileTokenStore({
+        filePath: nonExistentPath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const tokens = await newStore.listTokens();
       expect(tokens).toHaveLength(0);
@@ -131,7 +144,10 @@ describe('FileTokenStore', () => {
 
       // Create new store and verify persistence
       await store.dispose();
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const retrieved = await newStore.getToken(created.id);
       expect(retrieved?.usage_count).toBe(1);
@@ -152,7 +168,10 @@ describe('FileTokenStore', () => {
 
       // Create new store and verify persistence
       await store.dispose();
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const retrieved = await newStore.getToken(token.id);
       expect(retrieved?.revoked).toBe(true);
@@ -172,7 +191,10 @@ describe('FileTokenStore', () => {
 
       // Create new store and verify persistence
       await store.dispose();
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const retrieved = await newStore.getToken(token.id);
       expect(retrieved).toBeUndefined();
@@ -197,7 +219,10 @@ describe('FileTokenStore', () => {
 
       // Create new store and verify persistence
       await store.dispose();
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       const tokens = await newStore.listTokens({ includeRevoked: true, includeExpired: true });
       expect(tokens).toHaveLength(1);
@@ -212,6 +237,7 @@ describe('FileTokenStore', () => {
       const debouncedStore = new FileTokenStore({
         filePath: testFilePath,
         debounceMs: 1000,
+        encryptionService: createTestEncryptionService(),
       });
 
       await debouncedStore.createToken({ description: 'Token 1' });
@@ -227,11 +253,15 @@ describe('FileTokenStore', () => {
       // File should exist now
       expect(existsSync(testFilePath)).toBe(true);
 
-      const content = readFileSync(testFilePath, 'utf8');
-      const data = JSON.parse(content);
-      expect(data.tokens).toHaveLength(3);
-
+      // Verify file content by loading it with a new store instance (tests decryption works)
       await debouncedStore.dispose();
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
+      const tokens = await newStore.listTokens();
+      expect(tokens).toHaveLength(3);
+      await newStore.dispose();
     });
   });
 
@@ -264,7 +294,10 @@ describe('FileTokenStore', () => {
       await fs.writeFile(testFilePath, 'invalid json {', 'utf8');
 
       // Create new store - should handle corrupt file
-      const newStore = new FileTokenStore({ filePath: testFilePath });
+      const newStore = new FileTokenStore({
+        filePath: testFilePath,
+        encryptionService: createTestEncryptionService(),
+      });
 
       // Should start with empty store
       const tokens = await newStore.listTokens();

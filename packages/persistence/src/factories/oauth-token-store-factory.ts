@@ -16,6 +16,8 @@ import { OAuthTokenStore } from '../interfaces/oauth-token-store.js';
 import { MemoryOAuthTokenStore } from '../stores/memory/memory-oauth-token-store.js';
 import { FileOAuthTokenStore, FileOAuthTokenStoreOptions } from '../stores/file/file-oauth-token-store.js';
 import { RedisOAuthTokenStore } from '../stores/redis/redis-oauth-token-store.js';
+import { TokenEncryptionService } from '../encryption/token-encryption-service.js';
+import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 
 export type OAuthTokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
@@ -40,7 +42,7 @@ export class OAuthTokenStoreFactory {
   /**
    * Create an OAuth token store based on configuration
    */
-  static create(options: OAuthTokenStoreFactoryOptions = {}): OAuthTokenStore {
+  static async create(options: OAuthTokenStoreFactoryOptions = {}): Promise<OAuthTokenStore> {
     const storeType = options.type || 'auto';
 
     if (storeType === 'auto') {
@@ -65,7 +67,7 @@ export class OAuthTokenStoreFactory {
   /**
    * Auto-detect the best store for current environment
    */
-  private static createAutoDetected(): OAuthTokenStore {
+  private static async createAutoDetected(): Promise<OAuthTokenStore> {
     // Check for Redis configured
     if (process.env.REDIS_URL) {
       logger.info('Creating Redis OAuth token store', { detected: true });
@@ -93,19 +95,68 @@ export class OAuthTokenStoreFactory {
   /**
    * Create file-based OAuth token store
    */
-  private static createFileStore(options?: FileOAuthTokenStoreOptions): FileOAuthTokenStore {
-    return new FileOAuthTokenStore(options);
+  private static async createFileStore(options?: FileOAuthTokenStoreOptions): Promise<FileOAuthTokenStore> {
+    // Get encryption key (direct from env in test mode, from secrets provider otherwise)
+    let encryptionKey: string | undefined;
+
+    // In test environment, use TOKEN_ENCRYPTION_KEY directly to avoid circular dependency
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+      encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      // In production, load encryption key from secrets provider
+      const secretsProvider = await getSecretsProvider();
+      encryptionKey = await secretsProvider.getSecret<string>('TOKEN_ENCRYPTION_KEY');
+    }
+
+    if (!encryptionKey) {
+      throw new Error(
+        'TOKEN_ENCRYPTION_KEY not configured. ' +
+        'Encryption is REQUIRED for all OAuth token storage - no plaintext fallback. ' +
+        'Set TOKEN_ENCRYPTION_KEY in your secrets provider.'
+      );
+    }
+
+    // Create encryption service with loaded key
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
+    return new FileOAuthTokenStore({
+      ...options,
+      encryptionService,
+    });
   }
 
   /**
    * Create Redis OAuth token store
    */
-  private static createRedisStore(): RedisOAuthTokenStore {
+  private static async createRedisStore(): Promise<RedisOAuthTokenStore> {
     if (!process.env.REDIS_URL) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
-    return new RedisOAuthTokenStore();
+    // Get encryption key (direct from env in test mode, from secrets provider otherwise)
+    let encryptionKey: string | undefined;
+
+    // In test environment, use TOKEN_ENCRYPTION_KEY directly to avoid circular dependency
+    if (process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST || process.env.VITEST_WORKER_ID) {
+      encryptionKey = process.env.TOKEN_ENCRYPTION_KEY;
+    } else {
+      // In production, load encryption key from secrets provider
+      const secretsProvider = await getSecretsProvider();
+      encryptionKey = await secretsProvider.getSecret<string>('TOKEN_ENCRYPTION_KEY');
+    }
+
+    if (!encryptionKey) {
+      throw new Error(
+        'TOKEN_ENCRYPTION_KEY not configured. ' +
+        'Encryption is REQUIRED for all token storage - no plaintext fallback. ' +
+        'Set TOKEN_ENCRYPTION_KEY in your secrets provider.'
+      );
+    }
+
+    // Create encryption service with loaded key
+    const encryptionService = new TokenEncryptionService({ encryptionKey });
+
+    return new RedisOAuthTokenStore(process.env.REDIS_URL, encryptionService);
   }
 
   /**
@@ -161,6 +212,6 @@ export class OAuthTokenStoreFactory {
 /**
  * Convenience function to create an OAuth token store with auto-detection
  */
-export function createOAuthTokenStore(options?: OAuthTokenStoreFactoryOptions): OAuthTokenStore {
+export function createOAuthTokenStore(options?: OAuthTokenStoreFactoryOptions): Promise<OAuthTokenStore> {
   return OAuthTokenStoreFactory.create(options);
 }
