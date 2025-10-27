@@ -79,7 +79,7 @@ export class FileSecretsProvider implements SecretsProvider {
 
         const value = valueParts.join('=').trim();
         // Remove quotes if present
-        this.envVars[key.trim()] = value.replace(/^["']|["']$/g, '');
+        this.envVars[key.trim()] = value.replaceAll(/(^["'])|(["']$)/g, '');
       }
     } catch (error) {
       // .env.local doesn't exist, fall back to process.env

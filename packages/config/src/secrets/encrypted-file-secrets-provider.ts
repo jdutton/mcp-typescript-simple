@@ -374,7 +374,7 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
         continue;
       }
 
-      const value = valueParts.join('=').trim().replace(/^["']|["']$/g, '');
+      const value = valueParts.join('=').trim().replaceAll(/(^["'])|(["']$)/g, '');
       await provider.setSecret(key.trim(), value);
       migrated++;
     }
