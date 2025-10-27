@@ -33,7 +33,7 @@ describe('MCPInstanceManager', () => {
       // Ignore - LLM tools will be unavailable but basic tools still work
     }
 
-    manager = new MCPInstanceManager(toolRegistry, metadataStore);
+    manager = await MCPInstanceManager.createAsync(toolRegistry, metadataStore);
   });
 
   afterEach(() => {

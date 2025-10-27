@@ -35,8 +35,8 @@ describe('Session Cleanup in Load-Balanced Environments', () => {
 
     // Create two instance managers sharing the same metadata store
     // This simulates two server instances in a load-balanced environment
-    instanceManager1 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
-    instanceManager2 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
+    instanceManager1 = await MCPInstanceManager.createAsync(toolRegistry, sharedMetadataStore);
+    instanceManager2 = await MCPInstanceManager.createAsync(toolRegistry, sharedMetadataStore);
   });
 
   afterEach(() => {

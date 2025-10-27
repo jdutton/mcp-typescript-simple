@@ -40,7 +40,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
     }
 
     // Create instance manager with explicit metadata store
-    instanceManager = new MCPInstanceManager(toolRegistry, metadataStore);
+    instanceManager = await MCPInstanceManager.createAsync(toolRegistry, metadataStore);
   });
 
   afterEach(() => {
@@ -212,7 +212,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
 
       // Use a shared metadata store (simulating Redis)
       const sharedMetadataStore = new MemoryMCPMetadataStore();
-      const manager1 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
+      const manager1 = await MCPInstanceManager.createAsync(toolRegistry, sharedMetadataStore);
 
       // Instance 1: Create session and store metadata
       await manager1.storeSessionMetadata(sessionId, authInfo);
@@ -223,7 +223,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
       manager1.dispose();
 
       // Instance 2: Create new manager (simulating different server with same Redis)
-      const manager2 = new MCPInstanceManager(toolRegistry, sharedMetadataStore);
+      const manager2 = await MCPInstanceManager.createAsync(toolRegistry, sharedMetadataStore);
 
       // Instance 2 should be able to reconstruct from metadata
       const instance2 = await manager2.getOrRecreateInstance(sessionId, {});
@@ -285,7 +285,7 @@ describe('MCP Horizontal Scaling Integration Tests', () => {
 
       // Use a separate metadata store that we control
       const separateMetadataStore = new MemoryMCPMetadataStore();
-      const separateManager = new MCPInstanceManager(toolRegistry, separateMetadataStore);
+      const separateManager = await MCPInstanceManager.createAsync(toolRegistry, separateMetadataStore);
 
       await separateManager.storeSessionMetadata(sessionId, authInfo);
 

@@ -47,6 +47,9 @@ export interface TransportCreationOptions {
 
 /**
  * Manages MCP server instances with metadata-based reconstruction
+ *
+ * IMPORTANT: Do not instantiate directly. Use MCPInstanceManager.createAsync()
+ * to ensure proper storage initialization (Redis auto-detection with encryption).
  */
 export class MCPInstanceManager {
   private metadataStore: MCPSessionMetadataStore;
@@ -55,10 +58,17 @@ export class MCPInstanceManager {
   private readonly INSTANCE_TTL = 10 * 60 * 1000; // 10 minutes
   private cleanupTimer?: NodeJS.Timeout;
 
-  constructor(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore) {
+  /**
+   * Private constructor - use MCPInstanceManager.createAsync() instead
+   *
+   * This is private to prevent accidental use of in-memory storage in production.
+   * The async factory method ensures Redis is used when REDIS_URL is configured.
+   *
+   * For testing, use createAsync() with an explicit metadataStore parameter.
+   */
+  private constructor(toolRegistry: ToolRegistry, metadataStore: MCPSessionMetadataStore) {
     this.toolRegistry = toolRegistry;
-    // Use memory store as default for backward compatibility (no Redis encryption key needed)
-    this.metadataStore = metadataStore || new MemoryMCPMetadataStore();
+    this.metadataStore = metadataStore;
 
     // Start cleanup timer for expired instances
     this.cleanupTimer = setInterval(() => {
@@ -71,8 +81,18 @@ export class MCPInstanceManager {
   }
 
   /**
-   * Static factory method for async creation with auto-detected metadata store
-   * Use this for production deployments to get Redis-backed storage with encryption
+   * Create MCPInstanceManager with auto-detected metadata store
+   *
+   * This is the ONLY way to create an instance in production code.
+   *
+   * Storage Selection:
+   * - If REDIS_URL is set: Uses RedisMCPMetadataStore with encryption
+   * - Otherwise: Uses MemoryMCPMetadataStore (development only)
+   *
+   * For testing, you can override by passing an explicit metadataStore.
+   *
+   * @param toolRegistry - Tool registry for MCP server
+   * @param metadataStore - Optional override for testing (auto-detected if not provided)
    */
   static async createAsync(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore): Promise<MCPInstanceManager> {
     const store = metadataStore || await createMCPMetadataStore();

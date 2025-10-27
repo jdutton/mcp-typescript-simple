@@ -128,8 +128,10 @@ async function getInstanceManager(): Promise<MCPInstanceManager> {
   logger.info("Initializing MCP instance manager for Vercel");
   const toolRegistry = await getToolRegistry();
 
-  // Instance manager auto-detects Redis when available
-  instanceManagerInstance = new MCPInstanceManager(toolRegistry);
+  // CRITICAL: Use createAsync() to enable Redis-backed session storage
+  // The synchronous constructor defaults to MemoryMCPMetadataStore,
+  // which breaks horizontal scalability in Vercel serverless
+  instanceManagerInstance = await MCPInstanceManager.createAsync(toolRegistry);
 
   logger.info("MCP instance manager initialized");
   return instanceManagerInstance;
