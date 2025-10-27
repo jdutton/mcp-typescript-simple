@@ -110,9 +110,7 @@ let singletonProvider: SecretsProvider | null = null;
 export async function getSecretsProvider(
   options: SecretsFactoryOptions = {}
 ): Promise<SecretsProvider> {
-  if (!singletonProvider) {
-    singletonProvider = await createSecretsProvider(options);
-  }
+  singletonProvider ??= await createSecretsProvider(options);
   return singletonProvider;
 }
 

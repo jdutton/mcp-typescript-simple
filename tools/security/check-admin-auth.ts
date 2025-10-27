@@ -44,7 +44,8 @@ function checkFile(filePath: string): Violation[] {
   const content = readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
-  lines.forEach((line, index) => {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     // Check each admin route pattern
     for (const pattern of adminRoutePatterns) {
       pattern.lastIndex = 0; // Reset regex state
@@ -88,7 +89,7 @@ function checkFile(filePath: string): Violation[] {
         }
       }
     }
-  });
+  }
 
   return violations;
 }

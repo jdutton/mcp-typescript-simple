@@ -96,7 +96,7 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
    */
   private async serializeSessionMetadata(metadata: MCPSessionMetadata): Promise<string> {
     const json = JSON.stringify(metadata);
-    const encrypted = await this.encryptionService.encrypt(json);
+    const encrypted = this.encryptionService.encrypt(json);
     return encrypted;
   }
 
@@ -106,7 +106,7 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
    */
   private async deserializeSessionMetadata(encryptedData: string): Promise<MCPSessionMetadata> {
     // Decrypt data - fail fast if decryption fails
-    const decrypted = await this.encryptionService.decrypt(encryptedData);
+    const decrypted = this.encryptionService.decrypt(encryptedData);
     return JSON.parse(decrypted) as MCPSessionMetadata;
   }
 

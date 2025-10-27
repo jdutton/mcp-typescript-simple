@@ -478,7 +478,7 @@ export class MCPStreamableHttpServer {
     if (!this.tokenStore) {
       throw new Error('Token store not initialized - cannot setup admin routes');
     }
-    setupAdminRoutes(this.app, this.tokenStore!, { devMode });
+    setupAdminRoutes(this.app, this.tokenStore, { devMode });
 
     // Catch-all error handler with enhanced logging
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

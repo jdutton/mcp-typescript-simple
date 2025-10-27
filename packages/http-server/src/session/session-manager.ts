@@ -13,8 +13,6 @@
  * Architecture:
  * - MemorySessionManager: Single-node deployment (STDIO, local dev)
  * - RedisSessionManager: Multi-node deployment (production, load-balanced, Vercel)
- *
- * Based on TODO.md Phase 2 specification (lines 119-131)
  */
 
 import type { AuthInfo } from '@mcp-typescript-simple/persistence';

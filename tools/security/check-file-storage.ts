@@ -65,12 +65,13 @@ function checkFile(filePath: string): Violation[] {
   const content = readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
-  lines.forEach((line, index) => {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     // Check if this line contains file writing
     const hasFileWrite = fileWritePatterns.some(pattern => pattern.test(line));
 
     if (!hasFileWrite) {
-      return;
+      continue;
     }
 
     // Get context (10 lines before and after)
@@ -83,7 +84,7 @@ function checkFile(filePath: string): Violation[] {
       pattern.test(filePath) || pattern.test(context)
     );
     if (isSafe) {
-      return;
+      continue;
     }
 
     // Check if context contains sensitive data indicators
@@ -101,7 +102,7 @@ function checkFile(filePath: string): Violation[] {
         reason: `File storage of ${dataType} detected`,
       });
     }
-  });
+  }
 
   return violations;
 }

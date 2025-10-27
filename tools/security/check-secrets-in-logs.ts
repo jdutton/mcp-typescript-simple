@@ -66,7 +66,8 @@ function checkFile(filePath: string): Finding[] {
   const content = readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
 
-  lines.forEach((line, index) => {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     // Get context (5 lines before and after)
     const contextStart = Math.max(0, index - 5);
     const contextEnd = Math.min(lines.length, index + 5);
@@ -74,7 +75,7 @@ function checkFile(filePath: string): Finding[] {
 
     // Skip if this looks like safe usage (redaction, masking, etc.)
     if (isSafeUsage(context)) {
-      return;
+      continue;
     }
 
     // Check high-risk patterns
@@ -118,7 +119,7 @@ function checkFile(filePath: string): Finding[] {
         });
       }
     }
-  });
+  }
 
   return findings;
 }

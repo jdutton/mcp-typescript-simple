@@ -97,7 +97,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
    */
   private async serializeTokenData(tokenInfo: StoredTokenInfo): Promise<string> {
     const json = JSON.stringify(tokenInfo);
-    const encrypted = await this.encryptionService.encrypt(json);
+    const encrypted = this.encryptionService.encrypt(json);
     return encrypted;
   }
 
@@ -107,7 +107,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
    */
   private async deserializeTokenData(encryptedData: string): Promise<StoredTokenInfo> {
     // Decrypt data - fail fast if decryption fails
-    const decrypted = await this.encryptionService.decrypt(encryptedData);
+    const decrypted = this.encryptionService.decrypt(encryptedData);
     return JSON.parse(decrypted) as StoredTokenInfo;
   }
 
@@ -154,7 +154,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     // CRITICAL: Encrypt access token before storing in index
     if (tokenInfo.refreshToken) {
       const refreshIndexKey = this.getRefreshIndexKey(tokenInfo.refreshToken);
-      const encryptedAccessToken = await this.encryptionService.encrypt(accessToken);
+      const encryptedAccessToken = this.encryptionService.encrypt(accessToken);
       storePromises.push(this.redis.setex(refreshIndexKey, ttlSeconds, encryptedAccessToken));
     }
 
@@ -213,7 +213,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     }
 
     // Decrypt access token from index - fail fast on decryption errors
-    const accessToken = await this.encryptionService.decrypt(encryptedAccessToken);
+    const accessToken = this.encryptionService.decrypt(encryptedAccessToken);
 
     // Fetch token data
     const key = this.getTokenKey(accessToken);

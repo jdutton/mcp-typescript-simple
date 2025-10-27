@@ -156,7 +156,7 @@ export class OAuthTokenStoreFactory {
     // Create encryption service with loaded key
     const encryptionService = new TokenEncryptionService({ encryptionKey });
 
-    return new RedisOAuthTokenStore(process.env.REDIS_URL!, encryptionService);
+    return new RedisOAuthTokenStore(process.env.REDIS_URL, encryptionService);
   }
 
   /**
