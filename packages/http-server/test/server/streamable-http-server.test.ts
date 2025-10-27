@@ -107,14 +107,6 @@ describe('MCPStreamableHttpServer', () => {
     await (server as any).streamableTransportHandler(transport);
     expect(handler).toHaveBeenCalledWith(transport);
   });
-
-  it('provides session manager access', () => {
-    const server = makeServer({ enableResumability: true });
-    const manager = server.getSessionManager();
-    expect(manager).toBeDefined();
-    expect(manager.getStats()).toHaveProperty('activeSessions');
-  });
-
   it('logs accept header when present', async () => {
     const server = makeServer();
     await server.initialize();
@@ -469,15 +461,6 @@ describe('MCPStreamableHttpServer', () => {
     expect(typeof app.use).toBe('function');
   });
 
-  it('provides access to session manager', () => {
-    const server = makeServer();
-    const sessionManager = server.getSessionManager();
-
-    expect(sessionManager).toBeDefined();
-    expect(typeof sessionManager.getStats).toBe('function');
-    expect(sessionManager.getStats()).toHaveProperty('activeSessions');
-  });
-
   it('starts and stops server properly', async () => {
     const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
 
@@ -519,6 +502,5 @@ describe('MCPStreamableHttpServer', () => {
 
     // Test direct access to options through the app instance
     expect(server.getApp()).toBeDefined();
-    expect(server.getSessionManager()).toBeDefined();
   });
 });

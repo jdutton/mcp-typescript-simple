@@ -5,7 +5,6 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { SessionManager } from '../../session/session-manager.js';
 import { OAuthProvider } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
 import { buildHealthResponse } from '../responses/health-response.js';
@@ -19,24 +18,24 @@ export interface HealthRoutesOptions {
  * Setup health and utility routes
  *
  * @param router - Express router to attach routes to
- * @param sessionManager - Session manager for stats
  * @param oauthProviders - OAuth providers (optional, for debug info)
  * @param options - Server configuration options
  */
 export function setupHealthRoutes(
   router: Router,
-  sessionManager: SessionManager,
   oauthProviders: Map<string, OAuthProvider> | undefined,
   options: HealthRoutesOptions
 ): void {
   // Health check endpoint
   const healthHandler = (req: Request, res: Response) => {
-    const sessionStats = sessionManager.getStats();
-
     const healthResponse = buildHealthResponse({
       deployment: 'local',
       mode: 'streamable_http',
-      sessionStats,
+      sessionStats: {
+        totalSessions: 0,      // Not tracked after sessionManager removal
+        activeSessions: 0,     // Session count available via metadataStore if needed
+        expiredSessions: 0,
+      },
       enableResumability: options.enableResumability,
       enableJsonResponse: options.enableJsonResponse,
     });
