@@ -20,12 +20,10 @@ Based on the comprehensive security audit scope, these are the highest-impact ga
 
 ### 1. **CRITICAL: Unprotected Admin Endpoints**
 **Current State:**
-- `/admin/sessions` (GET) - NO authentication
 - `/admin/info` (GET) - NO authentication
 - `/admin/metrics` (GET) - NO authentication
-- `/admin/sessions/:sessionId` (DELETE) - NO authentication
 
-**Risk:** Anyone can view sensitive session data, system information, and metrics without authentication.
+**Risk:** Anyone can view sensitive system information and metrics without authentication.
 
 **Automated Check:** Scan route files for admin endpoints without auth middleware.
 

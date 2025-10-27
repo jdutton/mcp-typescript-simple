@@ -11,6 +11,8 @@
   "scripts": {
     "build": "npm run docs:build:homepage && tsc",
     "build:vercel": "tsc && cp -r api build/",
+    "clean": "rm -rf packages/*/dist build/ packages/*/tsconfig.tsbuildinfo",
+    "clean-build": "npm run clean && npm install && npm run build",
     "dev:stdio": "NODE_ENV=development MCP_DEV_SKIP_AUTH=true tsx --env-file-if-exists=.env.local --import @mcp-typescript-simple/observability/register packages/example-mcp/src/index.ts",
     "dev:http": "NODE_ENV=development MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true tsx --import @mcp-typescript-simple/observability/register packages/example-mcp/src/index.ts",
     "dev:http:ci": "NODE_ENV=development MCP_MODE=streamable_http MCP_DEV_SKIP_AUTH=true HTTP_PORT=3001 tsx --import @mcp-typescript-simple/observability/register packages/example-mcp/src/index.ts",

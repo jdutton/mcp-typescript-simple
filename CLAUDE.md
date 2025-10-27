@@ -364,7 +364,6 @@ The MCP server supports **managed OAuth flows** for agentic clients like Claude 
 4. **Verify Connection**:
    - Claude Code shows available tools: `hello`, `echo`, `current-time`, etc.
    - Server logs show successful OAuth session creation
-   - Check active sessions: `curl http://localhost:3000/admin/sessions`
 
 #### OAuth Client State Preservation
 

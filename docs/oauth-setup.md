@@ -220,12 +220,6 @@ export OAUTH_SCOPES="openid,profile,email"
    - Follow the OAuth flow in your browser
    - You should be redirected back with an access token
 
-4. **Verify token** (if using Streamable HTTP):
-   ```bash
-   # Check active sessions
-   curl http://localhost:3000/admin/sessions
-   ```
-
 ### Method 2: Command Line Testing
 
 1. **Get authorization URL**:
@@ -376,7 +370,6 @@ npm start
 ### Health Check Endpoints
 
 - **Server health**: `GET /health`
-- **Active sessions**: `GET /admin/sessions` (Streamable HTTP only)
 - **Provider info**: Check the health endpoint for OAuth provider status
 
 ### Provider-Specific Notes
