@@ -15,6 +15,7 @@
  * - Failed validation attempts should be logged for security monitoring
  */
 
+import { randomBytes, randomUUID } from 'node:crypto';
 import { logger } from '../logger.js';
 
 /**
@@ -261,4 +262,25 @@ export function shouldCleanupToken(token: InitialAccessToken, now: number): bool
   }
 
   return false;
+}
+
+/**
+ * Create initial access token data structure
+ * Shared utility to eliminate token creation duplication across implementations
+ */
+export function createTokenData(options: CreateTokenOptions): InitialAccessToken {
+  const id = randomUUID();
+  const token = randomBytes(32).toString('base64url');
+  const now = Math.floor(Date.now() / 1000);
+
+  return {
+    id,
+    token,
+    description: options.description,
+    created_at: now,
+    expires_at: options.expires_in ? now + options.expires_in : 0,
+    usage_count: 0,
+    max_uses: options.max_uses,
+    revoked: false,
+  };
 }

@@ -34,7 +34,6 @@
 
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { randomBytes, randomUUID } from 'node:crypto';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,
@@ -43,6 +42,7 @@ import {
   validateTokenCommon,
   filterTokens,
   shouldCleanupToken,
+  createTokenData,
 } from '../../interfaces/token-store.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 import { logger } from '../../logger.js';
@@ -224,28 +224,15 @@ export class FileTokenStore implements InitialAccessTokenStore {
   }
 
   async createToken(options: CreateTokenOptions): Promise<InitialAccessToken> {
-    const id = randomUUID();
-    const token = randomBytes(32).toString('base64url');
-    const now = Math.floor(Date.now() / 1000);
+    const tokenData = createTokenData(options);
 
-    const tokenData: InitialAccessToken = {
-      id,
-      token,
-      description: options.description,
-      created_at: now,
-      expires_at: options.expires_in ? now + options.expires_in : 0,
-      usage_count: 0,
-      max_uses: options.max_uses,
-      revoked: false,
-    };
-
-    this.tokens.set(id, tokenData);
-    this.tokensByValue.set(token, tokenData);
+    this.tokens.set(tokenData.id, tokenData);
+    this.tokensByValue.set(tokenData.token, tokenData);
 
     this.scheduleSave();
 
     logger.info('Initial access token created', {
-      tokenId: id,
+      tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
       maxUses: options.max_uses || 'unlimited',

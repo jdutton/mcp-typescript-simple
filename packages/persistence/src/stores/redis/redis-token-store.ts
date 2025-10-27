@@ -26,7 +26,6 @@
  */
 
 import Redis from 'ioredis';
-import { randomBytes, randomUUID } from 'node:crypto';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,
@@ -35,6 +34,7 @@ import {
   validateTokenCommon,
   filterTokens,
   shouldCleanupToken,
+  createTokenData,
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
@@ -142,24 +142,12 @@ export class RedisTokenStore implements InitialAccessTokenStore {
   }
 
   async createToken(options: CreateTokenOptions): Promise<InitialAccessToken> {
-    const id = randomUUID();
-    const token = randomBytes(32).toString('base64url');
+    const tokenData = createTokenData(options);
     const now = Math.floor(Date.now() / 1000);
 
-    const tokenData: InitialAccessToken = {
-      id,
-      token,
-      description: options.description,
-      created_at: now,
-      expires_at: options.expires_in ? now + options.expires_in : 0,
-      usage_count: 0,
-      max_uses: options.max_uses,
-      revoked: false,
-    };
-
     // Store token data by ID
-    const tokenKey = this.getTokenKey(id);
-    const valueKey = this.getValueKey(token);
+    const tokenKey = this.getTokenKey(tokenData.id);
+    const valueKey = this.getValueKey(tokenData.token);
 
     // Calculate TTL (if expiration is set)
     const ttlSeconds = tokenData.expires_at > 0 ? tokenData.expires_at - now : undefined;
@@ -170,17 +158,17 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     // Store token metadata
     if (ttlSeconds) {
       await this.redis.setex(tokenKey, ttlSeconds, serializedData);
-      await this.redis.setex(valueKey, ttlSeconds, id);
+      await this.redis.setex(valueKey, ttlSeconds, tokenData.id);
     } else {
       await this.redis.set(tokenKey, serializedData);
-      await this.redis.set(valueKey, id);
+      await this.redis.set(valueKey, tokenData.id);
     }
 
     // Add to index (for listing)
-    await this.redis.sadd(INDEX_KEY, id);
+    await this.redis.sadd(INDEX_KEY, tokenData.id);
 
     logger.info('Initial access token created in Redis', {
-      tokenId: id,
+      tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
       maxUses: options.max_uses || 'unlimited',
