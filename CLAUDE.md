@@ -264,6 +264,9 @@ The repository must have these secrets configured for automated Vercel deploymen
 - `VERCEL_TOKEN` - Vercel authentication token (get from: https://vercel.com/account/tokens)
 - `VERCEL_ORG_ID` - Vercel organization/team ID (found in project settings)
 - `VERCEL_PROJECT_ID` - Vercel project ID (found in project settings)
+- `TOKEN_ENCRYPTION_KEY` - 32-byte base64 encryption key for Redis (generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`)
+
+**Note**: `TOKEN_ENCRYPTION_KEY` must also be added as a Vercel environment variable. See docs/vercel-deployment.md for detailed instructions.
 
 To configure secrets: Repository Settings → Secrets and variables → Actions → New repository secret
 

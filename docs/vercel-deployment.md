@@ -55,10 +55,13 @@ In your GitHub repository settings, add these secrets (Settings → Secrets and 
 #### Required Secrets
 
 ```bash
-VERCEL_TOKEN          # Generate at https://vercel.com/account/tokens
-VERCEL_ORG_ID         # From .vercel/project.json (orgId field)
-VERCEL_PROJECT_ID     # From .vercel/project.json (projectId field)
+VERCEL_TOKEN              # Generate at https://vercel.com/account/tokens
+VERCEL_ORG_ID             # From .vercel/project.json (orgId field)
+VERCEL_PROJECT_ID         # From .vercel/project.json (projectId field)
+TOKEN_ENCRYPTION_KEY      # 32-byte base64 key (see generation instructions above)
 ```
+
+**Note**: TOKEN_ENCRYPTION_KEY must also be added as a Vercel environment variable (not just GitHub secret). See "Required: Token Encryption Key" section above.
 
 #### Optional LLM Provider Secrets (for AI tools)
 
@@ -117,6 +120,43 @@ curl https://your-project.vercel.app/api/health
 ## Environment Variables
 
 Configure these in your Vercel dashboard or via CLI:
+
+### Required: Token Encryption Key (Security)
+
+**CRITICAL**: Required for Redis-backed session storage with AES-256-GCM encryption.
+
+```bash
+TOKEN_ENCRYPTION_KEY=<32-byte-base64-encoded-key>
+```
+
+**How to generate:**
+```bash
+# Generate a secure 32-byte encryption key
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+**How to add to Vercel:**
+```bash
+# Via Vercel CLI
+vercel env add TOKEN_ENCRYPTION_KEY
+
+# When prompted:
+# - Paste the generated key
+# - Select environments: Production, Preview, Development (all three)
+```
+
+**Or via Vercel Dashboard:**
+1. Go to your project settings → Environment Variables
+2. Add new variable: `TOKEN_ENCRYPTION_KEY`
+3. Paste the generated key
+4. Select all environments (Production, Preview, Development)
+5. Save
+
+**Security notes:**
+- Generate a unique key for each project
+- Never commit the key to version control
+- Never share the key publicly
+- Rotate the key if compromised (requires re-authentication for all users)
 
 ### Required: User Allowlist (Security)
 
