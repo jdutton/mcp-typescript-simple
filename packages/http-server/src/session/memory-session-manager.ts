@@ -18,7 +18,7 @@
  * Based on original SessionManager implementation with async API
  */
 
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { logger } from '@mcp-typescript-simple/observability';
 import type { AuthInfo } from '@mcp-typescript-simple/persistence';
 import type { SessionManager, SessionInfo, SessionStats } from './session-manager.js';

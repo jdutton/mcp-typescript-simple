@@ -33,9 +33,9 @@
  * - VaultSecretsProvider: Real Vault server (production-grade)
  */
 
-import { promises as fs } from 'fs';
-import { dirname } from 'path';
-import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+import { promises as fs } from 'node:fs';
+import { dirname } from 'node:path';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
 
 const ALGORITHM = 'aes-256-gcm';
@@ -78,7 +78,7 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
   private readonly cacheTtlMs: number;
   private readonly auditLog: boolean;
   private readonly logger?: SecretsProviderOptions['logger'];
-  private cache = new Map<string, CacheEntry<unknown>>();
+  private readonly cache = new Map<string, CacheEntry<unknown>>();
   private secrets: Record<string, string> = {}; // key -> encrypted value
 
   constructor(options: EncryptedFileSecretsProviderOptions = {}) {

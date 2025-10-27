@@ -21,7 +21,7 @@
  * - Provides SessionManager interface for consistency with MemorySessionManager
  */
 
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import { logger } from '@mcp-typescript-simple/observability';
 import type {
   AuthInfo,
@@ -33,7 +33,7 @@ import type { SessionManager, SessionInfo, SessionStats } from './session-manage
 export class RedisSessionManager implements SessionManager {
   private readonly SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
 
-  constructor(private metadataStore: MCPSessionMetadataStore) {
+  constructor(private readonly metadataStore: MCPSessionMetadataStore) {
     logger.info('RedisSessionManager initialized', {
       storeType: metadataStore.constructor.name,
     });

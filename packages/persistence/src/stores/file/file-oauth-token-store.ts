@@ -34,8 +34,8 @@
  * - Performance degrades with many tokens (full file read/write)
  */
 
-import { promises as fs, readFileSync } from 'fs';
-import { dirname } from 'path';
+import { promises as fs, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';

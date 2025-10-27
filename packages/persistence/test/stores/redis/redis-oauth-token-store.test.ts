@@ -85,7 +85,8 @@ describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
     it('should accept TokenEncryptionService in constructor', () => {
       // Valid constructor call with encryption service
       expect(() => {
-        new RedisOAuthTokenStore('redis://localhost:6379', encryptionService);
+        const store = new RedisOAuthTokenStore('redis://localhost:6379', encryptionService);
+        expect(store).toBeDefined();
       }).not.toThrow();
     });
   });

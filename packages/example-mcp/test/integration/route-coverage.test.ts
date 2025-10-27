@@ -5,8 +5,8 @@
  * Detects drift when routes are added to code but not documented.
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import yaml from 'yaml';
 import { MCPStreamableHttpServer } from '@mcp-typescript-simple/http-server';
 import type { Express } from 'express';

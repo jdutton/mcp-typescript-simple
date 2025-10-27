@@ -69,7 +69,8 @@ describe('RedisMCPMetadataStore - Encryption Validation', () => {
     it('should accept TokenEncryptionService in constructor', () => {
       // Valid constructor call with encryption service
       expect(() => {
-        new RedisMCPMetadataStore('redis://localhost:6379', encryptionService);
+        const store = new RedisMCPMetadataStore('redis://localhost:6379', encryptionService);
+        expect(store).toBeDefined();
       }).not.toThrow();
     });
   });

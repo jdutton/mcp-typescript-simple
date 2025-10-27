@@ -26,7 +26,7 @@
  */
 
 import Redis from 'ioredis';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,
@@ -46,7 +46,7 @@ const INDEX_KEY = 'dcr:tokens:all';
 
 export class RedisTokenStore implements InitialAccessTokenStore {
   private redis: Redis;
-  private encryptionService: TokenEncryptionService;
+  private readonly encryptionService: TokenEncryptionService;
 
   constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService) {
     const url = redisUrl || process.env.REDIS_URL;

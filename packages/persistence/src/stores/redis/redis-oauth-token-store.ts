@@ -36,7 +36,7 @@ const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
 
 export class RedisOAuthTokenStore implements OAuthTokenStore {
   private redis: Redis;
-  private encryptionService: TokenEncryptionService;
+  private readonly encryptionService: TokenEncryptionService;
 
   constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
     const url = redisUrl || process.env.REDIS_URL;

@@ -93,7 +93,7 @@ export class VaultSecretsProvider implements SecretsProvider {
   private readonly cacheTtlMs: number;
   private readonly auditLog: boolean;
   private readonly logger?: SecretsProviderOptions['logger'];
-  private cache = new Map<string, CacheEntry<unknown>>();
+  private readonly cache = new Map<string, CacheEntry<unknown>>();
 
   constructor(options: VaultSecretsProviderOptions = {}) {
     this.vaultAddr = options.vaultAddr || process.env.VAULT_ADDR || 'http://localhost:8200';

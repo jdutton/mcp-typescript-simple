@@ -21,8 +21,7 @@
  * **Production deployments should use RedisTokenStore or FileTokenStore with encryption.**
  */
 
-import { randomBytes } from 'crypto';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,

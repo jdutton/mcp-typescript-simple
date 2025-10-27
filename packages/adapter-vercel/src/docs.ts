@@ -4,8 +4,8 @@
  */
 
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import yaml from 'yaml';
 import { logger } from '@mcp-typescript-simple/observability/logger';
 

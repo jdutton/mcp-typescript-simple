@@ -30,7 +30,7 @@
  * - NIST SP 800-90A (Random Number Generation)
  */
 
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits (recommended for GCM)

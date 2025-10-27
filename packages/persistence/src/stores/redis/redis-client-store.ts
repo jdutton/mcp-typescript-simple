@@ -17,7 +17,7 @@
  */
 
 import Redis from 'ioredis';
-import { randomUUID, randomBytes } from 'crypto';
+import { randomUUID, randomBytes } from 'node:crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
   OAuthRegisteredClientsStore,

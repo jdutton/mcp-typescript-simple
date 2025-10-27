@@ -4,9 +4,9 @@
 
 import { FileOAuthTokenStore, StoredTokenInfo } from '../../src/index.js';
 import { TokenEncryptionService } from '../../src/encryption/token-encryption-service.js';
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join } from 'node:path';
 
 describe('FileOAuthTokenStore', () => {
   let store: FileOAuthTokenStore;

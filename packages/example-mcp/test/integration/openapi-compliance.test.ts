@@ -6,8 +6,8 @@
  */
 
 import request from 'supertest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import yaml from 'yaml';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';

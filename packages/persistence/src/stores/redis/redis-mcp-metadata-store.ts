@@ -26,7 +26,7 @@ import { TokenEncryptionService } from '../../encryption/token-encryption-servic
 
 export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private redis: Redis;
-  private encryptionService: TokenEncryptionService;
+  private readonly encryptionService: TokenEncryptionService;
   private readonly keyPrefix = 'mcp:session:';
   private readonly DEFAULT_TTL = 30 * 60; // 30 minutes in seconds
 

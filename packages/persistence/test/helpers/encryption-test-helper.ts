@@ -5,7 +5,7 @@
  * using a deterministic test key.
  */
 
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'node:crypto';
 import { TokenEncryptionService } from '../../src/encryption/index.js';
 
 /**

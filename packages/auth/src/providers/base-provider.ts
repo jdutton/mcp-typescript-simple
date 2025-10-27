@@ -2,7 +2,7 @@
  * Base OAuth provider implementation with common functionality
  */
 
-import { randomBytes, createHash } from 'crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import { Request, Response } from 'express';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';

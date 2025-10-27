@@ -52,7 +52,7 @@ export interface TransportCreationOptions {
  * to ensure proper storage initialization (Redis auto-detection with encryption).
  */
 export class MCPInstanceManager {
-  private metadataStore: MCPSessionMetadataStore;
+  private readonly metadataStore: MCPSessionMetadataStore;
   private instanceCache: Map<string, MCPServerInstance> = new Map();
   private toolRegistry: ToolRegistry;
   private readonly INSTANCE_TTL = 10 * 60 * 1000; // 10 minutes

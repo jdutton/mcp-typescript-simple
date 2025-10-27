@@ -3,9 +3,9 @@
  */
 
 import { FileTokenStore } from '../src/index.js';
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
+import { mkdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { join } from 'node:path';
 import { createTestEncryptionService } from './helpers/encryption-test-helper.js';
 
 describe('FileTokenStore', () => {

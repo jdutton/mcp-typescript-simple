@@ -20,8 +20,8 @@
  * - AWS/Azure/GCP providers (cloud deployments)
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
 
 interface CacheEntry<T> {
@@ -33,7 +33,7 @@ export class FileSecretsProvider implements SecretsProvider {
   readonly name = 'file';
   readonly readOnly = false;
 
-  private cache = new Map<string, CacheEntry<unknown>>();
+  private readonly cache = new Map<string, CacheEntry<unknown>>();
   private readonly cacheTtlMs: number;
   private readonly auditLog: boolean;
   private readonly logger?: SecretsProviderOptions['logger'];

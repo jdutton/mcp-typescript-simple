@@ -15,9 +15,9 @@
  *   npx tsx tools/security/check-file-storage.ts
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { globSync } from 'glob';
-import { relative } from 'path';
+import { relative } from 'node:path';
 
 interface Violation {
   file: string;

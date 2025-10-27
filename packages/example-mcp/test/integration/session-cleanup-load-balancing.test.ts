@@ -17,7 +17,6 @@ import { MCPInstanceManager } from '@mcp-typescript-simple/http-server';
 import { MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
-import { logger } from '@mcp-typescript-simple/observability';
 
 describe('Session Cleanup in Load-Balanced Environments', () => {
   let sharedMetadataStore: MemoryMCPMetadataStore;

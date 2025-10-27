@@ -2,7 +2,7 @@
  * Session utility functions
  */
 
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Generate a new session ID
