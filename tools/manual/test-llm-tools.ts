@@ -31,7 +31,7 @@ class LLMToolTester {
     try {
       await this.startServer();
       await this.runTests();
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Test failed:', error);
       process.exit(1);
     } finally {
@@ -82,7 +82,7 @@ class LLMToolTester {
         try {
           const response = JSON.parse(data.toString());
           resolve(response);
-        } catch (error) {
+        } catch (_error) {
           reject(new Error(`Invalid JSON response: ${data.toString()}`));
         }
       });

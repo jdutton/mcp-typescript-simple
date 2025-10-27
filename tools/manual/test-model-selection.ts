@@ -34,7 +34,7 @@ async function testModelSelection() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch (_e) {}
           }
         }
       };
@@ -124,7 +124,7 @@ async function testModelSelection() {
     console.log('✅ Invalid model validation working');
     console.log('✅ Type-safe provider/model system operational!');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Test failed:', error);
   } finally {
     child.kill();

@@ -49,7 +49,7 @@ class ComprehensiveToolTester {
                   resolve(response);
                   return;
                 }
-              } catch (e) {
+              } catch (_e) {
                 // Continue looking for valid response
               }
             }
@@ -90,7 +90,7 @@ class ComprehensiveToolTester {
       // Test 5: Edge Cases
       await this.testEdgeCases(sendRequest);
 
-    } catch (error) {
+    } catch (_error) {
       console.error('❌ Test suite failed:', error);
     } finally {
       child.kill();
@@ -129,7 +129,7 @@ class ComprehensiveToolTester {
         `Found all ${tools.length} expected tools: ${foundTools.join(', ')}`);
       console.log(`✅ Found all ${tools.length} tools: ${foundTools.join(', ')}\n`);
 
-    } catch (error) {
+    } catch (_error) {
       this.addResult('Tool Discovery', 'FAIL', Date.now() - startTime, '', (error as Error).message);
       console.log('❌ Tool discovery failed:', (error as Error).message, '\n');
     }
@@ -454,7 +454,7 @@ class ComprehensiveToolTester {
 
       this.addResult(testName, 'PASS', duration, details);
       console.log(`✅ ${testName}: ${details} (${duration}ms)`);
-    } catch (error) {
+    } catch (_error) {
       const duration = Date.now() - startTime;
       this.addResult(testName, 'FAIL', duration, '', (error as Error).message);
       console.log(`❌ ${testName}: ${(error as Error).message} (${duration}ms)`);

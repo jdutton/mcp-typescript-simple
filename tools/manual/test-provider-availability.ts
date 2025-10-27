@@ -35,7 +35,7 @@ async function testProviderAvailability() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch (_e) {}
           }
         }
       };
@@ -124,7 +124,7 @@ async function testProviderAvailability() {
     console.log('\n💡 RECOMMENDATION:');
     console.log('To get true Gemini functionality, set GOOGLE_API_KEY environment variable');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Test failed:', error);
   } finally {
     child.kill();

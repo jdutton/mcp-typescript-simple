@@ -34,7 +34,7 @@ async function finalVerification() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch (_e) {}
           }
         }
       };
@@ -117,7 +117,7 @@ async function finalVerification() {
       try {
         const result = await test();
         console.log(`✅ ${name}: ${result}`);
-      } catch (error) {
+      } catch (_error) {
         console.log(`❌ ${name}: ${(error as Error).message}`);
       }
     }
@@ -131,7 +131,7 @@ async function finalVerification() {
     console.log('✅ README.md updated with new capabilities');
     console.log('\n🚀 MCP TypeScript Simple is ready for deployment!');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Verification failed:', error);
   } finally {
     child.kill();

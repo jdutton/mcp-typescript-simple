@@ -37,7 +37,7 @@ async function testLLMTools() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch (_e) {
               // Ignore parsing errors, continue looking
             }
           }
@@ -148,7 +148,7 @@ async function testLLMTools() {
 
     console.log('🎉 LLM tool testing completed successfully!');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Test failed:', error);
   } finally {
     child.kill();

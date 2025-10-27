@@ -13,7 +13,7 @@ export default [
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
-        ecmaVersion: 2020,
+        ecmaVersion: 2022,
         sourceType: 'module',
         project: './tsconfig.json'
       }
@@ -44,7 +44,7 @@ export default [
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
-        ecmaVersion: 2020,
+        ecmaVersion: 2022,
         sourceType: 'module',
         project: './tsconfig.test.json'
       }
@@ -72,6 +72,46 @@ export default [
     }
   },
   {
-    ignores: ['build/**', 'node_modules/**', '*.js']
+    files: ['tools/**/*.ts'],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module'
+        // No project option - tools are standalone scripts
+      }
+    },
+    plugins: {
+      '@typescript-eslint': typescriptEslint,
+      'sonarjs': sonarjs
+    },
+    rules: {
+      ...typescriptEslint.configs['recommended'].rules,
+      ...sonarjs.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': ['error', {
+        'argsIgnorePattern': '^_',
+        'varsIgnorePattern': '^_',
+        'caughtErrorsIgnorePattern': '^_' // Allow unused catch parameters with _ prefix
+      }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off', // Tools can use console.log for output
+      // SonarJS shift-left rules (relaxed for utility scripts)
+      'sonarjs/cognitive-complexity': ['warn', 30], // More lenient for tools
+      'sonarjs/no-duplicate-string': 'off', // Don't enforce in tools
+      'sonarjs/no-identical-functions': 'warn', // Warn only in tools
+      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes (legitimate use)
+      'sonarjs/no-ignored-exceptions': 'off', // Tools have simple error handling
+      '@typescript-eslint/no-unsafe-function-type': 'off' // Tools can use Function type
+    }
+  },
+  {
+    ignores: [
+      'build/**',
+      'node_modules/**',
+      '*.js'
+    ]
   }
 ];

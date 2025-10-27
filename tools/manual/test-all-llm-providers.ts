@@ -37,7 +37,7 @@ async function testAllProviders() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch (_e) {
               // Ignore parsing errors, continue looking
             }
           }
@@ -154,7 +154,7 @@ async function testAllProviders() {
     console.log('✅ Google Gemini: Summarize tool working');
     console.log('✅ All 3 LLM providers successfully integrated!');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Test failed:', error);
   } finally {
     child.kill();

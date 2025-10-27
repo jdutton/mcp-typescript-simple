@@ -36,7 +36,7 @@ async function testGeminiSpecifically() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch (_e) {
               // Continue looking
             }
           }
@@ -86,7 +86,7 @@ async function testGeminiSpecifically() {
       console.log('3. Tool is not actually using Gemini as intended');
     }
 
-  } catch (error) {
+  } catch (_error) {
     console.error('\n❌ Test failed:', error);
   } finally {
     child.kill();

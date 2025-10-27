@@ -34,7 +34,7 @@ async function demonstrateModelSelection() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch (_e) {}
           }
         }
       };
@@ -141,7 +141,7 @@ async function demonstrateModelSelection() {
     console.log('// Override both provider and model');
     console.log('{ name: "chat", arguments: { message: "...", provider: "openai", model: "gpt-4o" } }');
 
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ Demo failed:', error);
   } finally {
     child.kill();
