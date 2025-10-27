@@ -14,6 +14,9 @@
 export type { SecretsProvider, SecretsProviderOptions, SecretsFactoryOptions } from './secrets-provider.js';
 export { SecretKey } from './secrets-provider.js'; // Enum exists at runtime
 
+// Export base class for extending
+export { BaseSecretsProvider } from './base-secrets-provider.js';
+
 // Export concrete implementations
 export { FileSecretsProvider } from './file-secrets-provider.js';
 export { EncryptedFileSecretsProvider } from './encrypted-file-secrets-provider.js';
