@@ -17,6 +17,7 @@
  * - Master key stored separately from secrets file
  * - Atomic writes (write to temp, then rename)
  * - Automatic backup on write
+ * - OCSF structured audit events via BaseSecretsProvider
  *
  * Setup:
  * ```bash
@@ -36,7 +37,8 @@
 import { promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
+import type { SecretsProviderOptions } from './secrets-provider.js';
+import { BaseSecretsProvider } from './base-secrets-provider.js';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;
@@ -47,11 +49,6 @@ interface EncryptedSecretsFile {
   version: number;
   updatedAt: string;
   secrets: Record<string, string>; // key -> encrypted value (base64url)
-}
-
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
 }
 
 export interface EncryptedFileSecretsProviderOptions extends SecretsProviderOptions {
@@ -68,25 +65,20 @@ export interface EncryptedFileSecretsProviderOptions extends SecretsProviderOpti
   masterKey?: string;
 }
 
-export class EncryptedFileSecretsProvider implements SecretsProvider {
+export class EncryptedFileSecretsProvider extends BaseSecretsProvider {
   readonly name = 'encrypted-file';
   readonly readOnly = false;
 
   private readonly filePath: string;
   private readonly backupPath: string;
   private readonly masterKey: Buffer;
-  private readonly cacheTtlMs: number;
-  private readonly auditLog: boolean;
-  private readonly logger?: SecretsProviderOptions['logger'];
-  private readonly cache = new Map<string, CacheEntry<unknown>>();
   private secrets: Record<string, string> = {}; // key -> encrypted value
 
   constructor(options: EncryptedFileSecretsProviderOptions = {}) {
+    super(options);
+
     this.filePath = options.filePath || '.secrets.encrypted';
     this.backupPath = `${this.filePath}.backup`;
-    this.cacheTtlMs = options.cacheTtlMs ?? 300000; // 5 minutes
-    this.auditLog = options.auditLog ?? process.env.NODE_ENV === 'production';
-    this.logger = options.logger;
 
     // Get master key
     const masterKeyB64 = options.masterKey || process.env.SECRETS_MASTER_KEY;
@@ -107,13 +99,11 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
     // Load encrypted secrets file (synchronous during construction)
     this.loadSecretsSync();
 
-    if (this.auditLog && this.logger) {
-      this.logger.info('EncryptedFileSecretsProvider initialized', {
-        filePath: this.filePath,
-        secretCount: Object.keys(this.secrets).length,
-        cacheTtlMs: this.cacheTtlMs,
-      });
-    }
+    this.emitInitializationEvent({
+      filePath: this.filePath,
+      secretCount: Object.keys(this.secrets).length,
+      cacheTtlMs: this.cacheTtlMs,
+    });
   }
 
   /**
@@ -129,19 +119,9 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
       }
 
       this.secrets = parsed.secrets;
-
-      if (this.logger) {
-        this.logger.info('Encrypted secrets loaded from file', {
-          count: Object.keys(this.secrets).length,
-          updatedAt: parsed.updatedAt,
-        });
-      }
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         // File doesn't exist yet, start fresh
-        if (this.logger) {
-          this.logger.info('No existing encrypted secrets file found, starting fresh');
-        }
       } else {
         throw error;
       }
@@ -180,73 +160,38 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
    * Save encrypted secrets to file (atomic with backup)
    */
   private async saveToFile(): Promise<void> {
+    // Ensure directory exists
+    await fs.mkdir(dirname(this.filePath), { recursive: true });
+
+    const data: EncryptedSecretsFile = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      secrets: this.secrets,
+    };
+
+    const json = JSON.stringify(data, null, 2);
+
+    // Atomic write: temp file → rename
+    const tempPath = `${this.filePath}.tmp`;
+    await fs.writeFile(tempPath, json, 'utf8');
+
+    // Backup existing file
     try {
-      // Ensure directory exists
-      await fs.mkdir(dirname(this.filePath), { recursive: true });
-
-      const data: EncryptedSecretsFile = {
-        version: 1,
-        updatedAt: new Date().toISOString(),
-        secrets: this.secrets,
-      };
-
-      const json = JSON.stringify(data, null, 2);
-
-      // Atomic write: temp file → rename
-      const tempPath = `${this.filePath}.tmp`;
-      await fs.writeFile(tempPath, json, 'utf8');
-
-      // Backup existing file
-      try {
-        await fs.copyFile(this.filePath, this.backupPath);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-          throw error;
-        }
-      }
-
-      // Atomic rename
-      await fs.rename(tempPath, this.filePath);
-
-      if (this.logger) {
-        this.logger.info('Encrypted secrets saved to file', {
-          secretCount: Object.keys(this.secrets).length,
-          filePath: this.filePath,
-        });
-      }
+      await fs.copyFile(this.filePath, this.backupPath);
     } catch (error) {
-      if (this.logger) {
-        this.logger.error('Failed to save encrypted secrets to file', error as Record<string, any>);
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
       }
-      throw error;
     }
+
+    // Atomic rename
+    await fs.rename(tempPath, this.filePath);
   }
 
-  async getSecret<T = string>(key: string): Promise<T | undefined> {
-    // Check cache first
-    if (this.cacheTtlMs > 0) {
-      const cached = this.cache.get(key);
-      if (cached && cached.expiresAt > Date.now()) {
-        if (this.auditLog && this.logger) {
-          this.logger.info('Secret retrieved from cache', {
-            provider: this.name,
-            key,
-            cached: true,
-          });
-        }
-        return cached.value as T;
-      }
-    }
-
+  protected async retrieveSecret<T = string>(key: string): Promise<T | undefined> {
     // Get encrypted value from file
     const encryptedValue = this.secrets[key];
     if (!encryptedValue) {
-      if (this.auditLog && this.logger) {
-        this.logger.warn('Secret not found', {
-          provider: this.name,
-          key,
-        });
-      }
       return undefined;
     }
 
@@ -264,36 +209,13 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
         }
       }
 
-      // Cache the decrypted value
-      if (this.cacheTtlMs > 0) {
-        this.cache.set(key, {
-          value: parsedValue,
-          expiresAt: Date.now() + this.cacheTtlMs,
-        });
-      }
-
-      if (this.auditLog && this.logger) {
-        this.logger.info('Secret retrieved and decrypted', {
-          provider: this.name,
-          key,
-          cached: false,
-        });
-      }
-
       return parsedValue as T;
     } catch (error) {
-      if (this.logger) {
-        this.logger.error('Failed to decrypt secret', {
-          provider: this.name,
-          key,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
       throw new Error('Failed to decrypt secret: invalid key or corrupted data');
     }
   }
 
-  async setSecret<T = string>(key: string, value: T): Promise<void> {
+  protected async storeSecret<T = string>(key: string, value: T): Promise<void> {
     // Convert to string for encryption
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
 
@@ -303,39 +225,16 @@ export class EncryptedFileSecretsProvider implements SecretsProvider {
     // Store encrypted value
     this.secrets[key] = encrypted;
 
-    // Update cache
-    if (this.cacheTtlMs > 0) {
-      this.cache.set(key, {
-        value,
-        expiresAt: Date.now() + this.cacheTtlMs,
-      });
-    }
-
     // Save to file
     await this.saveToFile();
-
-    if (this.auditLog && this.logger) {
-      this.logger.info('Secret encrypted and stored', {
-        provider: this.name,
-        key,
-        valueType: typeof value,
-      });
-    }
   }
 
   async hasSecret(key: string): Promise<boolean> {
     return this.secrets[key] !== undefined;
   }
 
-  async dispose(): Promise<void> {
-    this.cache.clear();
+  protected async disposeResources(): Promise<void> {
     this.secrets = {};
-
-    if (this.auditLog && this.logger) {
-      this.logger.info('EncryptedFileSecretsProvider disposed', {
-        provider: this.name,
-      });
-    }
   }
 
   /**
