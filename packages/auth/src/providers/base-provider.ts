@@ -27,7 +27,7 @@ import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
-import { logonEvent, logoffEvent, emitOCSFEvent, ActivityId, StatusId } from '@mcp-typescript-simple/observability/ocsf';
+import { logonEvent, logoffEvent, emitOCSFEvent, AuthenticationActivityId, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -1244,9 +1244,16 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    */
   async handleLogout(req: Request, res: Response): Promise<void> {
     try {
+      let userInfo: OAuthUserInfo | undefined;
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
+
+        // Retrieve user info before removing token (for audit event)
+        const tokenInfo = await this.getToken(token);
+        if (tokenInfo) {
+          userInfo = tokenInfo.userInfo;
+        }
 
         // Optional provider-specific revocation
         try {
@@ -1260,7 +1267,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       // Emit OCSF logoff success event
       this.emitLogoffEvent({
-        status: StatusId.Success
+        status: StatusId.Success,
+        userInfo
       });
 
       this.setAntiCachingHeaders(res);
@@ -1329,23 +1337,30 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     errorMessage?: string;
   }): void {
     const event = logonEvent()
-      .withActivityId(ActivityId.Logon)
-      .withStatusId(params.status)
-      .withMessage(params.status === StatusId.Success
+      .status(params.status, undefined, params.errorMessage)
+      .message(params.status === StatusId.Success
         ? `OAuth ${this.getProviderName()} logon successful`
         : `OAuth ${this.getProviderName()} logon failed: ${params.errorMessage || 'Unknown error'}`)
-      .withAuthProtocol('OAuth 2.0')
-      .withAuthProtocolId(4); // OAuth 2.0
+      .authProtocol(4); // OAuth 2.0
 
+    // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder
     if (params.userInfo) {
-      event
-        .withUserId(params.userInfo.id)
-        .withUserName(params.userInfo.name)
-        .withUserEmail(params.userInfo.email);
+      event.user({
+        uid: params.userInfo.sub,
+        name: params.userInfo.name,
+        email_addr: params.userInfo.email,
+      });
+    } else {
+      // Provide anonymous user placeholder when actual user info is not available
+      event.user({
+        uid: 'anonymous',
+        name: 'Anonymous',
+      });
     }
 
-    if (params.errorMessage) {
-      event.withStatusDetails(params.errorMessage);
+    // Set severity based on status
+    if (params.status === StatusId.Failure) {
+      event.severity(3, 'Medium'); // Medium severity for failures
     }
 
     emitOCSFEvent(event.build());
@@ -1356,19 +1371,34 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    */
   protected emitLogoffEvent(params: {
     status: StatusId;
+    userInfo?: OAuthUserInfo;
     errorMessage?: string;
   }): void {
     const event = logoffEvent()
-      .withActivityId(ActivityId.Logoff)
-      .withStatusId(params.status)
-      .withMessage(params.status === StatusId.Success
+      .status(params.status, undefined, params.errorMessage)
+      .message(params.status === StatusId.Success
         ? `OAuth ${this.getProviderName()} logoff successful`
         : `OAuth ${this.getProviderName()} logoff failed: ${params.errorMessage || 'Unknown error'}`)
-      .withAuthProtocol('OAuth 2.0')
-      .withAuthProtocolId(4); // OAuth 2.0
+      .authProtocol(4); // OAuth 2.0
 
-    if (params.errorMessage) {
-      event.withStatusDetails(params.errorMessage);
+    // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder
+    if (params.userInfo) {
+      event.user({
+        uid: params.userInfo.sub,
+        name: params.userInfo.name,
+        email_addr: params.userInfo.email,
+      });
+    } else {
+      // Provide anonymous user placeholder when actual user info is not available
+      event.user({
+        uid: 'anonymous',
+        name: 'Anonymous',
+      });
+    }
+
+    // Set severity based on status
+    if (params.status === StatusId.Failure) {
+      event.severity(3, 'Medium'); // Medium severity for failures
     }
 
     emitOCSFEvent(event.build());

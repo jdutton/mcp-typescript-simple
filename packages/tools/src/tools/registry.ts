@@ -3,7 +3,7 @@
  */
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { emitOCSFEvent, apiActivityEvent, StatusId } from '@mcp-typescript-simple/observability/ocsf';
+import { emitOCSFEvent, apiActivityEvent, StatusId, APIActivityId } from '@mcp-typescript-simple/observability/ocsf';
 import { ToolDefinition, toMCPTool } from './types.js';
 
 /**
@@ -72,7 +72,7 @@ export class ToolRegistry {
     if (!tool) {
       // Emit API Activity event for unknown tool (failure)
       emitOCSFEvent(
-        apiActivityEvent()
+        apiActivityEvent(APIActivityId.Other)
           .actor({ user: { name: 'system', uid: 'system' } })
           .api({
             operation: 'invoke',
@@ -98,7 +98,7 @@ export class ToolRegistry {
 
       // Emit API Activity event for validation failure
       emitOCSFEvent(
-        apiActivityEvent()
+        apiActivityEvent(APIActivityId.Other)
           .actor({ user: { name: 'system', uid: 'system' } })
           .api({
             operation: 'invoke',
@@ -120,7 +120,7 @@ export class ToolRegistry {
 
       // Emit API Activity event for successful tool invocation
       emitOCSFEvent(
-        apiActivityEvent()
+        apiActivityEvent(APIActivityId.Other)
           .actor({ user: { name: 'system', uid: 'system' } })
           .api({
             operation: 'invoke',
@@ -139,7 +139,7 @@ export class ToolRegistry {
       // Emit API Activity event for tool execution failure
       const errorMessage = error instanceof Error ? error.message : String(error);
       emitOCSFEvent(
-        apiActivityEvent()
+        apiActivityEvent(APIActivityId.Other)
           .actor({ user: { name: 'system', uid: 'system' } })
           .api({
             operation: 'invoke',

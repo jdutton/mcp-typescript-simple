@@ -43,3 +43,9 @@ export {
   deleteAPIEvent,
   apiActivityEvent,
 } from './builders/index.js';
+
+export {
+  // OCSF-OTEL bridge
+  getOCSFOTELBridge,
+  emitOCSFEvent,
+} from './ocsf-otel-bridge.js';

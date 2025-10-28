@@ -27,6 +27,7 @@
     "validate": "npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
+    "@mcp-typescript-simple/observability": "*",
     "zod": "^3.24.1"
   },
   "devDependencies": {
