@@ -89,6 +89,7 @@ describe('VercelSecretsProvider', () => {
     it('should throw error when not on Vercel platform', () => {
       delete process.env.VERCEL;
 
+      // Intentional: Testing constructor throws error (required for toThrow() validation)
       expect(() => {
         new VercelSecretsProvider();
       }).toThrow('VercelSecretsProvider requires VERCEL=1 environment variable');

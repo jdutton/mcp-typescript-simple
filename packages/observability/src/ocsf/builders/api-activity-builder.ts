@@ -12,8 +12,6 @@ import type {
 } from '../types/api-activity.js';
 import type {
   SeverityId,
-  StatusId,
-  Metadata,
   Actor,
   NetworkEndpoint,
   Cloud,
@@ -24,14 +22,16 @@ import {
   getAPIActivityTypeUid,
   getAPIActivityName,
 } from '../types/api-activity.js';
+import { BaseOCSFEventBuilder } from './base-event-builder.js';
 
 /**
  * Builder for constructing OCSF API Activity events
  */
-export class APIActivityEventBuilder {
-  private readonly event: Partial<APIActivityEvent>;
+export class APIActivityEventBuilder extends BaseOCSFEventBuilder<APIActivityEvent, APIActivityEventBuilder> {
+  protected readonly event: Partial<APIActivityEvent>;
 
   constructor(activityId: APIActivityId) {
+    super();
     const typeUid = getAPIActivityTypeUid(activityId);
     const activityName = getAPIActivityName(activityId);
 
@@ -66,39 +66,6 @@ export class APIActivityEventBuilder {
    */
   api(api: API): this {
     this.event.api = api;
-    return this;
-  }
-
-  /**
-   * Set severity level
-   */
-  severity(severityId: SeverityId, severity?: string): this {
-    this.event.severity_id = severityId;
-    if (severity) {
-      this.event.severity = severity;
-    }
-    return this;
-  }
-
-  /**
-   * Set event status
-   */
-  status(statusId: StatusId, statusCode?: string, statusDetail?: string): this {
-    this.event.status_id = statusId;
-    if (statusCode) {
-      this.event.status_code = statusCode;
-    }
-    if (statusDetail) {
-      this.event.status_detail = statusDetail;
-    }
-    return this;
-  }
-
-  /**
-   * Set event message
-   */
-  message(message: string): this {
-    this.event.message = message;
     return this;
   }
 
@@ -192,54 +159,6 @@ export class APIActivityEventBuilder {
       hostname,
       ip,
       port,
-    };
-    return this;
-  }
-
-  /**
-   * Add metadata
-   */
-  withMetadata(metadata: Partial<Metadata>): this {
-    this.event.metadata = {
-      ...this.event.metadata!,
-      ...metadata,
-    };
-    return this;
-  }
-
-  /**
-   * Set duration
-   */
-  duration(ms: number): this {
-    this.event.duration = ms;
-    return this;
-  }
-
-  /**
-   * Set start and end times
-   */
-  timeRange(startTime: number, endTime: number): this {
-    this.event.start_time = startTime;
-    this.event.end_time = endTime;
-    this.event.duration = endTime - startTime;
-    return this;
-  }
-
-  /**
-   * Set timezone offset
-   */
-  timezoneOffset(offset: number): this {
-    this.event.timezone_offset = offset;
-    return this;
-  }
-
-  /**
-   * Add unmapped custom attributes
-   */
-  unmapped(data: Record<string, unknown>): this {
-    this.event.unmapped = {
-      ...this.event.unmapped,
-      ...data,
     };
     return this;
   }

@@ -15,8 +15,6 @@ import type {
 } from '../types/authentication.js';
 import type {
   SeverityId,
-  StatusId,
-  Metadata,
   User,
   Session,
   NetworkEndpoint,
@@ -32,14 +30,16 @@ import {
   getAuthenticationActivityName,
   getAuthProtocolName,
 } from '../types/authentication.js';
+import { BaseOCSFEventBuilder } from './base-event-builder.js';
 
 /**
  * Builder for constructing OCSF Authentication events
  */
-export class AuthenticationEventBuilder {
-  private readonly event: Partial<AuthenticationEvent>;
+export class AuthenticationEventBuilder extends BaseOCSFEventBuilder<AuthenticationEvent, AuthenticationEventBuilder> {
+  protected readonly event: Partial<AuthenticationEvent>;
 
   constructor(activityId: AuthenticationActivityId) {
+    super();
     const typeUid = getAuthenticationTypeUid(activityId);
     const activityName = getAuthenticationActivityName(activityId);
 
@@ -66,39 +66,6 @@ export class AuthenticationEventBuilder {
    */
   user(user: User): this {
     this.event.user = user;
-    return this;
-  }
-
-  /**
-   * Set severity level
-   */
-  severity(severityId: SeverityId, severity?: string): this {
-    this.event.severity_id = severityId;
-    if (severity) {
-      this.event.severity = severity;
-    }
-    return this;
-  }
-
-  /**
-   * Set event status
-   */
-  status(statusId: StatusId, statusCode?: string, statusDetail?: string): this {
-    this.event.status_id = statusId;
-    if (statusCode) {
-      this.event.status_code = statusCode;
-    }
-    if (statusDetail) {
-      this.event.status_detail = statusDetail;
-    }
-    return this;
-  }
-
-  /**
-   * Set event message
-   */
-  message(message: string): this {
-    this.event.message = message;
     return this;
   }
 
@@ -251,54 +218,6 @@ export class AuthenticationEventBuilder {
    */
   failureReason(reason: string): this {
     this.event.failure_reason = reason;
-    return this;
-  }
-
-  /**
-   * Add metadata
-   */
-  withMetadata(metadata: Partial<Metadata>): this {
-    this.event.metadata = {
-      ...this.event.metadata!,
-      ...metadata,
-    };
-    return this;
-  }
-
-  /**
-   * Set duration
-   */
-  duration(ms: number): this {
-    this.event.duration = ms;
-    return this;
-  }
-
-  /**
-   * Set start and end times
-   */
-  timeRange(startTime: number, endTime: number): this {
-    this.event.start_time = startTime;
-    this.event.end_time = endTime;
-    this.event.duration = endTime - startTime;
-    return this;
-  }
-
-  /**
-   * Set timezone offset
-   */
-  timezoneOffset(offset: number): this {
-    this.event.timezone_offset = offset;
-    return this;
-  }
-
-  /**
-   * Add unmapped custom attributes
-   */
-  unmapped(data: Record<string, unknown>): this {
-    this.event.unmapped = {
-      ...this.event.unmapped,
-      ...data,
-    };
     return this;
   }
 

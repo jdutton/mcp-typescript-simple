@@ -124,6 +124,7 @@ describe('VaultSecretsProvider', () => {
     it('should throw error when vault token is missing', () => {
       delete process.env.VAULT_TOKEN;
 
+      // Intentional: Testing constructor throws error (required for toThrow() validation)
       expect(() => {
         new VaultSecretsProvider();
       }).toThrow('Vault token not configured');
