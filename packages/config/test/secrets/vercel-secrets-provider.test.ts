@@ -90,9 +90,7 @@ describe('VercelSecretsProvider', () => {
       delete process.env.VERCEL;
 
       // Intentional: Testing constructor throws error (required for toThrow() validation)
-      expect(() => {
-        new VercelSecretsProvider();
-      }).toThrow('VercelSecretsProvider requires VERCEL=1 environment variable');
+      expect(() => new VercelSecretsProvider()).toThrow('VercelSecretsProvider requires VERCEL=1 environment variable');
     });
 
     it('should emit initialization event with Vercel metadata', () => {
