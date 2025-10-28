@@ -27,6 +27,7 @@ import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { logonEvent, logoffEvent, emitOCSFEvent, ActivityId, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -1062,6 +1063,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
           email: userInfo.email,
           provider: this.getProviderType()
         });
+
+        // Emit OCSF logon failure event (allowlist denial)
+        this.emitLogonEvent({
+          status: StatusId.Failure,
+          userInfo,
+          errorMessage: `Access denied: ${allowlistError}`
+        });
+
         this.setAntiCachingHeaders(res);
         res.status(403).json({
           error: 'access_denied',
@@ -1083,6 +1092,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       await this.storeToken(tokenData.access_token, tokenInfo);
 
+      // Emit OCSF logon success event
+      this.emitLogonEvent({
+        status: StatusId.Success,
+        userInfo
+      });
+
       // Clean up session
       this.removeSession(state);
 
@@ -1102,6 +1117,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     } catch (error) {
       logger.oauthError(`${this.getProviderName()} OAuth callback error`, error);
+
+      // Emit OCSF logon failure event
+      this.emitLogonEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'Authorization failed',
@@ -1174,6 +1196,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       await this.storeToken(tokenData.access_token, tokenInfo);
 
+      // Emit OCSF logon success event
+      this.emitLogonEvent({
+        status: StatusId.Success,
+        userInfo
+      });
+
       // Cleanup
       await this.cleanupAfterTokenExchange(code!);
 
@@ -1196,6 +1224,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     } catch (error) {
       logger.oauthError('Token exchange error', error);
+
+      // Emit OCSF logon failure event
+      this.emitLogonEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
@@ -1223,10 +1258,22 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         await this.removeToken(token);
       }
 
+      // Emit OCSF logoff success event
+      this.emitLogoffEvent({
+        status: StatusId.Success
+      });
+
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
       logger.oauthError(`${this.getProviderName()} logout error`, error);
+
+      // Emit OCSF logoff failure event
+      this.emitLogoffEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -1271,6 +1318,60 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       logger.oauthError(`${this.getProviderName()} getUserInfo error`, error);
       throw new OAuthProviderError('Failed to get user information', this.getProviderType());
     }
+  }
+
+  /**
+   * Emit OCSF logon event
+   */
+  protected emitLogonEvent(params: {
+    status: StatusId;
+    userInfo?: OAuthUserInfo;
+    errorMessage?: string;
+  }): void {
+    const event = logonEvent()
+      .withActivityId(ActivityId.Logon)
+      .withStatusId(params.status)
+      .withMessage(params.status === StatusId.Success
+        ? `OAuth ${this.getProviderName()} logon successful`
+        : `OAuth ${this.getProviderName()} logon failed: ${params.errorMessage || 'Unknown error'}`)
+      .withAuthProtocol('OAuth 2.0')
+      .withAuthProtocolId(4); // OAuth 2.0
+
+    if (params.userInfo) {
+      event
+        .withUserId(params.userInfo.id)
+        .withUserName(params.userInfo.name)
+        .withUserEmail(params.userInfo.email);
+    }
+
+    if (params.errorMessage) {
+      event.withStatusDetails(params.errorMessage);
+    }
+
+    emitOCSFEvent(event.build());
+  }
+
+  /**
+   * Emit OCSF logoff event
+   */
+  protected emitLogoffEvent(params: {
+    status: StatusId;
+    errorMessage?: string;
+  }): void {
+    const event = logoffEvent()
+      .withActivityId(ActivityId.Logoff)
+      .withStatusId(params.status)
+      .withMessage(params.status === StatusId.Success
+        ? `OAuth ${this.getProviderName()} logoff successful`
+        : `OAuth ${this.getProviderName()} logoff failed: ${params.errorMessage || 'Unknown error'}`)
+      .withAuthProtocol('OAuth 2.0')
+      .withAuthProtocolId(4); // OAuth 2.0
+
+    if (params.errorMessage) {
+      event.withStatusDetails(params.errorMessage);
+    }
+
+    emitOCSFEvent(event.build());
   }
 
   /**
