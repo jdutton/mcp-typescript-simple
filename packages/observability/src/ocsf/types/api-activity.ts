@@ -80,6 +80,9 @@ export interface API {
 
     /** Response flags */
     flags?: string[];
+
+    /** Response body length in bytes */
+    length?: number;
   };
 }
 
