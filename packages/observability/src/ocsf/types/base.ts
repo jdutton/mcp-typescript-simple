@@ -590,5 +590,7 @@ export interface APIDetails {
     data?: Record<string, unknown>;
     error?: string;
     error_message?: string;
+    /** Response body length in bytes */
+    length?: number;
   };
 }
