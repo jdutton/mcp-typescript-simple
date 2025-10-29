@@ -68,6 +68,11 @@ export function emitAPIActivityEvent(
         response: {
           code: statusCode,
           message: res.statusMessage || (statusCode >= 200 && statusCode < 300 ? 'OK' : 'Error'),
+          // Response body size from Content-Length header (bytes sent)
+          // Note: Express auto-sets Content-Length for res.json() and res.send()
+          length: res.getHeader('content-length')
+            ? parseInt(res.getHeader('content-length') as string, 10)
+            : undefined,
         },
       })
       .httpRequest({
@@ -81,6 +86,8 @@ export function emitAPIActivityEvent(
           query_string: req.url.includes('?') ? req.url.split('?')[1] : undefined,
         },
         user_agent: req.get('user-agent') || 'unknown',
+        // Request body size from Content-Length header (bytes received)
+        length: req.get('content-length') ? parseInt(req.get('content-length')!, 10) : undefined,
       })
       .srcEndpoint({
         ip: sanitizeIP(req.ip || req.socket?.remoteAddress),
@@ -102,29 +109,25 @@ export function emitAPIActivityEvent(
  *
  * Usage:
  * ```typescript
- * router.use(ocsf Middleware());
+ * router.use(ocsfMiddleware());
  * ```
+ *
+ * Uses Express 'finish' event to capture all response methods (json, send, end, etc.)
  */
 export function ocsfMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
   return (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
 
-    // Capture the original res.json method
-    const originalJson = res.json.bind(res);
-
-    // Override res.json to emit OCSF event after response
-    res.json = function (body: any) {
-      const result = originalJson(body);
-
+    // Listen for response finish event (works with all response methods)
+    // This captures res.json(), res.send(), res.status().send(), res.end(), etc.
+    res.on('finish', () => {
       // Emit OCSF event asynchronously after response completes
       // setImmediate schedules callback for next event loop iteration (after I/O)
       // This ensures event emission doesn't delay HTTP response to client
       setImmediate(() => {
         emitAPIActivityEvent(req, res, { startTime });
       });
-
-      return result;
-    };
+    });
 
     next();
   };

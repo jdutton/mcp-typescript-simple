@@ -55,12 +55,27 @@ export class OCSFOTELBridge {
   /**
    * Create a new OCSF-OTEL bridge
    * @param serviceName - Service name for log attribution (default: 'mcp-server')
+   * @throws Error if OTEL logger provider is not initialized
    */
   constructor(serviceName = 'mcp-server') {
     this.serviceName = serviceName;
-    // Get OTEL logger provider and create logger
+
+    // Get OTEL logger provider and validate initialization (M4/M7)
     const loggerProvider = logs.getLoggerProvider();
+    if (!loggerProvider) {
+      const error =
+        'OTEL logger provider not initialized. Ensure OpenTelemetry SDK is configured before creating OCSF bridge.';
+      // Use console.error since we're in observability package (avoid circular dependency)
+      console.error(`[OCSF-OTEL Bridge] ERROR: ${error}`);
+      throw new Error(error);
+    }
+
     this.logger = loggerProvider.getLogger(serviceName, '1.0.0');
+    if (!this.logger) {
+      const error = `Failed to create OTEL logger for service: ${serviceName}`;
+      console.error(`[OCSF-OTEL Bridge] ERROR: ${error}`);
+      throw new Error(error);
+    }
   }
 
   /**
