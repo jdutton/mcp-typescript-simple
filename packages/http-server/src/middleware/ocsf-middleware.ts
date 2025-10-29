@@ -5,7 +5,23 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { emitOCSFEvent, apiActivityEvent } from '@mcp-typescript-simple/observability';
+import { emitOCSFEvent, apiActivityEvent, logger } from '@mcp-typescript-simple/observability';
+
+/**
+ * Sanitize IP address for OCSF events
+ *
+ * Handles malformed inputs and normalizes IPv6 addresses:
+ * - Undefined/empty → 127.0.0.1
+ * - IPv6 localhost (::1) → 127.0.0.1
+ * - IPv4-mapped IPv6 (::ffff:192.168.1.1) → 192.168.1.1
+ *
+ * @param ip - IP address from req.ip or req.socket.remoteAddress
+ * @returns Sanitized IP address
+ */
+function sanitizeIP(ip: string | undefined): string {
+  if (!ip || ip === '::1') return '127.0.0.1';
+  return ip.replace(/^::ffff:/, ''); // Strip IPv6 prefix
+}
 
 /**
  * Emit an OCSF API Activity event for an HTTP request
@@ -67,7 +83,7 @@ export function emitAPIActivityEvent(
         user_agent: req.get('user-agent') || 'unknown',
       })
       .srcEndpoint({
-        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1', // Fallback for test environments
+        ip: sanitizeIP(req.ip || req.socket?.remoteAddress),
         port: req.socket?.remotePort,
       })
       .duration(duration)
@@ -76,8 +92,8 @@ export function emitAPIActivityEvent(
 
     emitOCSFEvent(event);
   } catch (error) {
-    // Log errors during OCSF event emission (security audit failures should be visible)
-    console.error('Failed to emit OCSF API Activity event:', error);
+    // Never throw from audit logging - use structured logger
+    logger.error('Failed to emit OCSF API Activity event', { error });
   }
 }
 

@@ -8,6 +8,14 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { BaseSecretsProvider } from '../../src/secrets/base-secrets-provider.js';
 import type { SecretsProviderOptions } from '../../src/secrets/secrets-provider.js';
 import * as ocsfModule from '@mcp-typescript-simple/observability/ocsf';
+import * as loggerModule from '@mcp-typescript-simple/observability';
+
+// Mock the logger module
+vi.mock('@mcp-typescript-simple/observability', () => ({
+  logger: {
+    error: vi.fn(),
+  },
+}));
 
 // Mock the OCSF module
 vi.mock('@mcp-typescript-simple/observability/ocsf', () => ({
@@ -355,8 +363,7 @@ describe('BaseSecretsProvider', () => {
       await expect(provider.getSecret('KEY')).resolves.toBe('value');
     });
 
-    it('should handle console.error calls gracefully', async () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it('should handle logger.error calls gracefully', async () => {
       mockBridge.emitAPIActivityEvent.mockImplementation(() => {
         throw new Error('OCSF failure');
       });
@@ -366,8 +373,8 @@ describe('BaseSecretsProvider', () => {
 
       await provider.setSecret('KEY', 'value');
 
-      expect(consoleErrorSpy).toHaveBeenCalled();
-      consoleErrorSpy.mockRestore();
+      // Verify logger.error was called with error details
+      expect(loggerModule.logger.error).toHaveBeenCalled();
     });
   });
 });

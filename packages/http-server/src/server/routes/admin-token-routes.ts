@@ -74,11 +74,6 @@ export function setupAdminTokenRoutes(
         max_uses: token.max_uses || null,
       });
     } catch (error) {
-      console.error('[admin-token-routes.createTokenHandler] ERROR caught', {
-        errorName: error instanceof Error ? error.name : typeof error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-      });
       logger.error('Failed to create token', error);
       res.status(500).json({
         error: 'server_error',

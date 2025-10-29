@@ -13,6 +13,7 @@
 
 import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
 import { getOCSFOTELBridge } from '@mcp-typescript-simple/observability/ocsf';
+import { logger } from '@mcp-typescript-simple/observability';
 import {
   readAPIEvent,
   createAPIEvent,
@@ -230,8 +231,8 @@ export abstract class BaseSecretsProvider implements SecretsProvider {
 
       this.ocsfBridge.emitAPIActivityEvent(event);
     } catch (error) {
-      // Never throw from audit logging
-      console.error('Failed to emit OCSF initialization event:', error);
+      // Never throw from audit logging - use structured logger
+      logger.error('Failed to emit OCSF initialization event', { error, provider: this.name });
     }
   }
 
@@ -306,8 +307,8 @@ export abstract class BaseSecretsProvider implements SecretsProvider {
 
       this.ocsfBridge.emitAPIActivityEvent(event);
     } catch (error) {
-      // Never throw from audit logging
-      console.error('Failed to emit OCSF access event:', error);
+      // Never throw from audit logging - use structured logger
+      logger.error('Failed to emit OCSF access event', { error, key: params.key, operation: params.operation });
     }
   }
 
@@ -341,8 +342,8 @@ export abstract class BaseSecretsProvider implements SecretsProvider {
 
       this.ocsfBridge.emitAPIActivityEvent(event);
     } catch (error) {
-      // Never throw from audit logging
-      console.error('Failed to emit OCSF lifecycle event:', error);
+      // Never throw from audit logging - use structured logger
+      logger.error('Failed to emit OCSF lifecycle event', { error, operation, provider: this.name });
     }
   }
 }
