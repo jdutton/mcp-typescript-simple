@@ -33,6 +33,7 @@ import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
+import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -283,6 +284,10 @@ export class MCPStreamableHttpServer {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // OCSF security audit logging middleware
+    // Automatically emits OCSF API Activity events for all HTTP requests
+    this.app.use(ocsfMiddleware());
 
     // OpenAPI request/response validation (DISABLED)
     // The validator is disabled because:

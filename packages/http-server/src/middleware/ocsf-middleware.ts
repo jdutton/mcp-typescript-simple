@@ -37,7 +37,7 @@ export function emitAPIActivityEvent(
     const urlString = `${protocol}://${host}${req.url}`;
 
     // Build OCSF API Activity event using builder pattern
-    const event = apiActivityEvent(1) // 1 = Access
+    const event = apiActivityEvent(1) // 1 = Create (API Activity default)
       .actor({
         user: {
           name: req.get('x-user-name') || 'anonymous',
@@ -67,11 +67,11 @@ export function emitAPIActivityEvent(
         user_agent: req.get('user-agent') || 'unknown',
       })
       .srcEndpoint({
-        ip: req.ip || req.socket?.remoteAddress,
+        ip: req.ip || req.socket?.remoteAddress || '127.0.0.1', // Fallback for test environments
         port: req.socket?.remotePort,
       })
       .duration(duration)
-      .status(statusId)
+      .status(statusId, statusCode.toString()) // status is auto-generated from statusId
       .build();
 
     emitOCSFEvent(event);

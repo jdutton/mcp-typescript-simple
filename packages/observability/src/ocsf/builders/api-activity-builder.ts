@@ -23,6 +23,7 @@ import {
   getAPIActivityName,
 } from '../types/api-activity.js';
 import { BaseOCSFEventBuilder } from './base-event-builder.js';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Builder for constructing OCSF API Activity events
@@ -49,6 +50,7 @@ export class APIActivityEventBuilder extends BaseOCSFEventBuilder<APIActivityEve
       severity: 'Informational',
       metadata: {
         version: '1.3.0',
+        uid: randomUUID(), // Unique event ID for correlation
       },
     };
   }

@@ -18,6 +18,7 @@ export interface BaseOCSFEvent {
   severity_id?: SeverityId;
   severity?: string;
   status_id?: StatusId;
+  status?: string;
   status_code?: string;
   status_detail?: string;
   message?: string;
@@ -48,6 +49,9 @@ export abstract class BaseOCSFEventBuilder<TEvent extends BaseOCSFEvent, TBuilde
 
   /**
    * Set event status
+   * @param statusId - Status ID (1 = Success, 2 = Failure)
+   * @param statusCode - Status code from source (e.g., HTTP status code)
+   * @param statusDetail - Additional details about the status (e.g., error message)
    */
   status(statusId: StatusId, statusCode?: string, statusDetail?: string): TBuilder {
     this.event.status_id = statusId;
@@ -57,6 +61,8 @@ export abstract class BaseOCSFEventBuilder<TEvent extends BaseOCSFEvent, TBuilde
     if (statusDetail) {
       this.event.status_detail = statusDetail;
     }
+    // Auto-generate human-readable status from statusId
+    this.event.status = statusId === 1 ? 'Success' : statusId === 2 ? 'Failure' : 'Unknown';
     return this as unknown as TBuilder;
   }
 

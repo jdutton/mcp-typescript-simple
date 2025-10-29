@@ -8,7 +8,6 @@ import { Router, Request, Response } from 'express';
 import { OAuthProvider } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
 import { buildHealthResponse } from '../responses/health-response.js';
-import { emitAPIActivityEvent } from '../../middleware/ocsf-middleware.js';
 
 export interface HealthRoutesOptions {
   enableResumability?: boolean;
@@ -29,8 +28,6 @@ export function setupHealthRoutes(
 ): void {
   // Health check endpoint
   const healthHandler = (req: Request, res: Response) => {
-    const startTime = Date.now();
-
     const healthResponse = buildHealthResponse({
       deployment: 'local',
       mode: 'streamable_http',
@@ -44,11 +41,7 @@ export function setupHealthRoutes(
     });
 
     res.json(healthResponse);
-
-    // Emit OCSF API Activity event using DRY helper (after response sent)
-    setImmediate(() => {
-      emitAPIActivityEvent(req, res, { startTime });
-    });
+    // OCSF events now automatically emitted by ocsfMiddleware()
   };
 
   // Register health endpoints for both standalone and Vercel deployments
