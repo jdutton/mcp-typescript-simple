@@ -46,11 +46,15 @@ export default defineConfig({
         'packages/**/*.test.ts',
         'packages/**/*.test.js',
       ],
+      // Coverage gates (L5 audit recommendation)
+      // Prevents regression below current levels while allowing incremental improvement
+      // Current coverage: ~38.6% lines/statements, 50% branches, 40% functions
+      // Long-term goal: 70%+ across all metrics
       thresholds: {
-        statements: 30,
-        branches: 50,
-        functions: 40,
-        lines: 30,
+        statements: 38,  // Set to current coverage (38.6%) to prevent regression
+        branches: 55,    // Increase from 50% to improve branch coverage
+        functions: 45,   // Increase from 40% to improve function coverage
+        lines: 38,       // Set to current coverage (38.6%) to prevent regression
       },
     },
 
