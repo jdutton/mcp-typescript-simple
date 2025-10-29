@@ -60,7 +60,7 @@ export function setupHealthRoutes(
         return;
       }
 
-      logger.debug("Testing GitHub API access", { tokenPreview: token.substring(0, 10) + '...' });
+      logger.debug("Testing GitHub API access", { tokenPreview: `${token.substring(0, 10)}...` });
 
       // Test GitHub user API
       const userResponse = await fetch('https://api.github.com/user', {
@@ -87,7 +87,7 @@ export function setupHealthRoutes(
       res.json({
         debug_info: {
           timestamp: new Date().toISOString(),
-          token_preview: token.substring(0, 10) + '...',
+          token_preview: `${token.substring(0, 10)}...`,
         },
         github_user_api: {
           status: userResponse.status,
