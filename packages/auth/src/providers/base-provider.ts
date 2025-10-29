@@ -39,9 +39,21 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   protected readonly DEFAULT_TOKEN_EXPIRATION_SECONDS = 60 * 60; // 1 hour default when provider doesn't supply expiration
-  protected readonly PKCE_TTL_SECONDS = 600; // 10 minutes - PKCE data expires after this duration
+  // PKCE TTL: 10 minutes - balances security (short-lived codes) with UX (user has time to complete OAuth flow)
+  // Matches OAuth 2.0 recommendation for authorization code lifetime (RFC 6749 §4.1.2)
+  protected readonly PKCE_TTL_SECONDS = 600;
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
+
+  /**
+   * Get a safe prefix from a sensitive value for logging
+   * @param value The sensitive value (code, verifier, etc.)
+   * @param length Number of characters to include (default: 10)
+   * @returns Safe prefix for logging (e.g., "abc123defg...")
+   */
+  private getSafePrefix(value: string, length: number = 10): string {
+    return value.substring(0, length);
+  }
 
   /**
    * Get stored code_verifier for an authorization code (OAuth proxy PKCE)
@@ -52,8 +64,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     if (data) {
       logger.oauthDebug('Retrieved stored code_verifier', {
         provider: this.getProviderName(),
-        codePrefix: code.substring(0, 10),
-        verifierPrefix: data.codeVerifier.substring(0, 10)
+        codePrefix: this.getSafePrefix(code),
+        verifierPrefix: this.getSafePrefix(data.codeVerifier)
       });
       return data.codeVerifier;
     }
@@ -61,7 +73,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     // Warning: PKCE lookup failed - could indicate multi-instance issue or code reuse
     logger.oauthWarn('PKCE lookup failed - code_verifier not found', {
       provider: this.getProviderName(),
-      codePrefix: code.substring(0, 10)
+      codePrefix: this.getSafePrefix(code)
     });
 
     return undefined;
@@ -92,9 +104,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       if (clientCodeVerifier) {
         logger.oauthWarn('OAuth Proxy Flow: Client attempted to provide code_verifier when server already stored one', {
           provider: this.getProviderType(),
-          codePrefix: code.substring(0, 10),
-          storedVerifierPrefix: storedCodeVerifier.substring(0, 10),
-          clientVerifierPrefix: clientCodeVerifier.substring(0, 10),
+          codePrefix: this.getSafePrefix(code),
+          storedVerifierPrefix: this.getSafePrefix(storedCodeVerifier),
+          clientVerifierPrefix: this.getSafePrefix(clientCodeVerifier),
           message: 'Ignoring client code_verifier for security (using server-stored)'
         });
       }
@@ -106,8 +118,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     if (clientCodeVerifier) {
       logger.oauthDebug('Direct OAuth Flow: Using client-provided code_verifier', {
         provider: this.getProviderType(),
-        codePrefix: code.substring(0, 10),
-        verifierPrefix: clientCodeVerifier.substring(0, 10)
+        codePrefix: this.getSafePrefix(code),
+        verifierPrefix: this.getSafePrefix(clientCodeVerifier)
       });
       return clientCodeVerifier;
     }
@@ -115,7 +127,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     // Invalid: No code_verifier available from either source
     logger.oauthError('Token exchange failed: No code_verifier available', {
       provider: this.getProviderType(),
-      codePrefix: code.substring(0, 10),
+      codePrefix: this.getSafePrefix(code),
       hasStored: !!storedCodeVerifier,
       hasClient: !!clientCodeVerifier,
       message: 'Authorization code may have expired or been used already'
