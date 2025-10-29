@@ -1060,17 +1060,7 @@ export class MCPStreamableHttpServer {
   private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
     const mcpMethod = req.body?.method || 'unknown';
 
-    logger.info("Before transport.handleRequest", {
-      requestId,
-      headersSent: res.headersSent,
-      responseFinished: res.finished,
-      transportSessionId: transport.sessionId || 'no-session-id',
-      mcpMethod,
-      hasBody: !!req.body
-    });
-
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
-    logger.info("Transport.handleRequest called, waiting for completion", { requestId, mcpMethod });
 
     // Create timeout with cleanup to prevent memory leak
     let timeoutId: NodeJS.Timeout | undefined;

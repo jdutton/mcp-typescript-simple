@@ -88,3 +88,6 @@ export {
 
 // Vercel-specific exports
 export { createEdgeSpan } from './instrumentation-edge.js';
+
+// OCSF event exports
+export { emitOCSFEvent, getOCSFOTELBridge, apiActivityEvent } from './ocsf/index.js';

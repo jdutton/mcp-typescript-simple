@@ -53,21 +53,10 @@ export function setupAdminTokenRoutes(
         return;
       }
 
-      console.log('[admin-token-routes.createTokenHandler] About to call tokenStore.createToken', {
-        tokenStoreType: tokenStore.constructor.name,
-        description,
-        expires_in: expires_in || 2592000,
-        max_uses: max_uses || 0,
-      });
-
       const token = await tokenStore.createToken({
         description,
         expires_in: expires_in || 2592000, // 30 days default
         max_uses: max_uses || 0, // Unlimited default
-      });
-
-      console.log('[admin-token-routes.createTokenHandler] Token created successfully', {
-        tokenId: token.id,
       });
 
       logger.info('Initial access token created via admin endpoint', {
