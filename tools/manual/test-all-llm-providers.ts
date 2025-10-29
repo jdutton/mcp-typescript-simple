@@ -4,7 +4,7 @@
  * Comprehensive test of all LLM providers
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testAllProviders() {
   console.log('🚀 Comprehensive LLM Provider Testing');
@@ -37,7 +37,7 @@ async function testAllProviders() {
                 resolve(response);
                 return;
               }
-            } catch (_e) {
+            } catch {
               // Ignore parsing errors, continue looking
             }
           }
@@ -154,11 +154,15 @@ async function testAllProviders() {
     console.log('✅ Google Gemini: Summarize tool working');
     console.log('✅ All 3 LLM providers successfully integrated!');
 
-  } catch (_error) {
+  } catch (error) {
     console.error('❌ Test failed:', error);
   } finally {
     child.kill();
   }
 }
 
-testAllProviders().catch(console.error);
+try {
+  await testAllProviders();
+} catch (error) {
+  console.error(error);
+}

@@ -4,7 +4,7 @@
  * Demonstration of the new type-safe provider and model selection
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function demonstrateModelSelection() {
   console.log('🚀 Type-Safe Provider & Model Selection Demo');
@@ -34,7 +34,9 @@ async function demonstrateModelSelection() {
                 resolve(response);
                 return;
               }
-            } catch (_e) {}
+            } catch {
+              // Continue parsing lines for valid JSON response
+            }
           }
         }
       };
@@ -51,14 +53,14 @@ async function demonstrateModelSelection() {
     console.log('💬 CHAT TOOL DEMONSTRATIONS:');
     console.log('=============================');
 
-    console.log('\\n1️⃣ Default Chat (Claude Haiku - Fast):');
+    console.log(String.raw`\n1️⃣ Default Chat (Claude Haiku - Fast):`);
     const defaultChat = await sendRequest({
       jsonrpc: '2.0', id: 1, method: 'tools/call',
       params: { name: 'chat', arguments: { message: 'Explain quantum computing in one sentence.' }}
     });
     console.log(`   Response: "${defaultChat.result?.content?.[0]?.text}"`);
 
-    console.log('\\n2️⃣ OpenAI GPT-4o Mini Chat (Different Provider):');
+    console.log(String.raw`\n2️⃣ OpenAI GPT-4o Mini Chat (Different Provider):`);
     const openaiChat = await sendRequest({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
       params: { name: 'chat', arguments: {
@@ -69,10 +71,10 @@ async function demonstrateModelSelection() {
     });
     console.log(`   Response: "${openaiChat.result?.content?.[0]?.text}"`);
 
-    console.log('\\n\\n🔍 ANALYSIS TOOL DEMONSTRATIONS:');
+    console.log(String.raw`\n\n🔍 ANALYSIS TOOL DEMONSTRATIONS:`);
     console.log('===================================');
 
-    console.log('\\n3️⃣ Default Analysis (OpenAI GPT-4):');
+    console.log(String.raw`\n3️⃣ Default Analysis (OpenAI GPT-4):`);
     const defaultAnalysis = await sendRequest({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
       params: { name: 'analyze', arguments: {
@@ -82,7 +84,7 @@ async function demonstrateModelSelection() {
     });
     console.log(`   Analysis: "${defaultAnalysis.result?.content?.[0]?.text?.substring(0, 120)}..."`);
 
-    console.log('\\n4️⃣ Claude Analysis (Different Provider):');
+    console.log(String.raw`\n4️⃣ Claude Analysis (Different Provider):`);
     const claudeAnalysis = await sendRequest({
       jsonrpc: '2.0', id: 4, method: 'tools/call',
       params: { name: 'analyze', arguments: {
@@ -94,12 +96,12 @@ async function demonstrateModelSelection() {
     });
     console.log(`   Analysis: "${claudeAnalysis.result?.content?.[0]?.text?.substring(0, 120)}..."`);
 
-    console.log('\\n\\n📝 SUMMARIZATION DEMONSTRATIONS:');
+    console.log(String.raw`\n\n📝 SUMMARIZATION DEMONSTRATIONS:`);
     console.log('==================================');
 
     const longText = 'Machine learning is a subset of artificial intelligence that focuses on algorithms and statistical models that enable computer systems to improve their performance on a specific task through experience. Instead of being explicitly programmed for every scenario, machine learning systems learn from data to make predictions or decisions. This approach has revolutionized many fields including computer vision, natural language processing, and robotics.';
 
-    console.log('\\n5️⃣ Default Summarization (Gemini Flash - Cost Effective):');
+    console.log(String.raw`\n5️⃣ Default Summarization (Gemini Flash - Cost Effective):`);
     const defaultSummary = await sendRequest({
       jsonrpc: '2.0', id: 5, method: 'tools/call',
       params: { name: 'summarize', arguments: {
@@ -109,7 +111,7 @@ async function demonstrateModelSelection() {
     });
     console.log(`   Summary: "${defaultSummary.result?.content?.[0]?.text}"`);
 
-    console.log('\\n6️⃣ Claude Summarization (Different Provider):');
+    console.log(String.raw`\n6️⃣ Claude Summarization (Different Provider):`);
     const claudeSummary = await sendRequest({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
       params: { name: 'summarize', arguments: {
@@ -121,7 +123,7 @@ async function demonstrateModelSelection() {
     });
     console.log(`   Summary: "${claudeSummary.result?.content?.[0]?.text}"`);
 
-    console.log('\\n\\n🎯 KEY FEATURES DEMONSTRATED:');
+    console.log(String.raw`\n\n🎯 KEY FEATURES DEMONSTRATED:`);
     console.log('==============================');
     console.log('✅ Type-Safe Provider Selection: Choose claude, openai, or gemini');
     console.log('✅ Type-Safe Model Selection: Specific models for each provider');
@@ -130,7 +132,7 @@ async function demonstrateModelSelection() {
     console.log('✅ Backward Compatibility: Existing code continues to work');
     console.log('✅ Compile-Time Validation: Invalid combinations caught at build time');
 
-    console.log('\\n💡 EXAMPLE USAGE PATTERNS:');
+    console.log(String.raw`\n💡 EXAMPLE USAGE PATTERNS:`);
     console.log('===========================');
     console.log('// Use tool defaults (optimized for each use case)');
     console.log('{ name: "chat", arguments: { message: "Hello" } }');
@@ -141,11 +143,15 @@ async function demonstrateModelSelection() {
     console.log('// Override both provider and model');
     console.log('{ name: "chat", arguments: { message: "...", provider: "openai", model: "gpt-4o" } }');
 
-  } catch (_error) {
+  } catch (error) {
     console.error('❌ Demo failed:', error);
   } finally {
     child.kill();
   }
 }
 
-demonstrateModelSelection().catch(console.error);
+try {
+  await demonstrateModelSelection();
+} catch (error) {
+  console.error(error);
+}

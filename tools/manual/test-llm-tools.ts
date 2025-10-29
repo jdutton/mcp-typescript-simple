@@ -4,7 +4,7 @@
  * Test script for LLM-powered MCP tools
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 interface MCPRequest {
   jsonrpc: string;
@@ -31,7 +31,7 @@ class LLMToolTester {
     try {
       await this.startServer();
       await this.runTests();
-    } catch (_error) {
+    } catch {
       console.error('❌ Test failed:', error);
       process.exit(1);
     } finally {
@@ -58,7 +58,7 @@ class LLMToolTester {
 
         if (output.includes('MCP TypeScript Simple server running')) {
           clearTimeout(timeout);
-          resolve(undefined);
+          resolve();
         }
       });
 
@@ -82,7 +82,7 @@ class LLMToolTester {
         try {
           const response = JSON.parse(data.toString());
           resolve(response);
-        } catch (_error) {
+        } catch {
           reject(new Error(`Invalid JSON response: ${data.toString()}`));
         }
       });
@@ -210,7 +210,9 @@ class LLMToolTester {
 
 // Run the tests
 const tester = new LLMToolTester();
-tester.start().catch((error) => {
+try {
+  await tester.start();
+} catch (error) {
   console.error('❌ Test suite failed:', error);
   process.exit(1);
-});
+}

@@ -20,7 +20,7 @@
  * @extraction-target @agentic-workflow
  */
 
-/* eslint-disable sonarjs/deprecation -- Using Vitest 2.x API until Phase 5 migration */
+ 
 import type { File, Reporter, Task, Vitest } from 'vitest';
 
 export default class LLMReporter implements Reporter {
@@ -79,7 +79,7 @@ export default class LLMReporter implements Reporter {
     }
 
     // Output failures in concise format
-    this.failures.forEach((failure, idx) => {
+    for (const [idx, failure] of this.failures.entries()) {
       console.log(`[Test ${idx + 1}/${this.failures.length}] ${failure.location}`);
       console.log('');
       console.log(`Test: ${failure.testName}`);
@@ -93,7 +93,7 @@ export default class LLMReporter implements Reporter {
       if (idx < this.failures.length - 1) {
         console.log(''); // Blank line between failures
       }
-    });
+    }
 
     console.log('');
     console.log('='.repeat(60));
@@ -106,7 +106,7 @@ export default class LLMReporter implements Reporter {
     console.log('❌ Test Failures (LLM-Optimized Format)');
     console.log('='.repeat(60) + '\n');
 
-    this.failures.forEach((failure, idx) => {
+    for (const [idx, failure] of this.failures.entries()) {
       console.log(`[Test ${idx + 1}/${this.failures.length}] ${failure.location}`);
       console.log('');
       console.log(`Test: ${failure.testName}`);
@@ -118,7 +118,7 @@ export default class LLMReporter implements Reporter {
       }
 
       console.log('');
-    });
+    }
 
     console.log('='.repeat(60));
     console.log(`💡 ${this.failures.length} test(s) failed.`);
@@ -138,7 +138,7 @@ export default class LLMReporter implements Reporter {
         const testName = this.getFullTestName(task);
         // Match file path with line:column from error stack trace
         // Safe: Parsing internal error stacks (not user input), bounded length
-        // eslint-disable-next-line sonarjs/slow-regex -- Safe: internal stack trace parsing
+         
         const location = error.stack?.match(/([\w/.-]+):(\d+):(\d+)/)?.[0] || filepath;
 
         // Extract expected/actual from error message

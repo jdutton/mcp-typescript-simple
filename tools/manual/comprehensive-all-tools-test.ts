@@ -4,7 +4,7 @@
  * Comprehensive test suite exercising ALL MCP tools
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 interface TestResult {
   name: string;
@@ -49,8 +49,8 @@ class ComprehensiveToolTester {
                   resolve(response);
                   return;
                 }
-              } catch (_e) {
-                // Continue looking for valid response
+              } catch {
+                // Continue looking for valid response (expected - parsing each line for JSON)
               }
             }
           }
@@ -90,7 +90,7 @@ class ComprehensiveToolTester {
       // Test 5: Edge Cases
       await this.testEdgeCases(sendRequest);
 
-    } catch (_error) {
+    } catch (error) {
       console.error('❌ Test suite failed:', error);
     } finally {
       child.kill();
@@ -129,7 +129,7 @@ class ComprehensiveToolTester {
         `Found all ${tools.length} expected tools: ${foundTools.join(', ')}`);
       console.log(`✅ Found all ${tools.length} tools: ${foundTools.join(', ')}\n`);
 
-    } catch (_error) {
+    } catch (error) {
       this.addResult('Tool Discovery', 'FAIL', Date.now() - startTime, '', (error as Error).message);
       console.log('❌ Tool discovery failed:', (error as Error).message, '\n');
     }
@@ -427,7 +427,7 @@ class ComprehensiveToolTester {
       params: {
         name: 'chat',
         arguments: {
-          message: 'Test with émojis 🚀🎯✅ and symbols @#$%^&*()[]{}|\\:";\'<>?,./'
+          message: String.raw`Test with émojis 🚀🎯✅ and symbols @#$%^&*()[]{}|\:";'<>?,./`
         }
       }
     }, (response) => {
@@ -444,7 +444,7 @@ class ComprehensiveToolTester {
     testName: string,
     sendRequest: Function,
     request: any,
-    validator: (response: any) => string
+    validator: (_response: any) => string
   ): Promise<void> {
     const startTime = Date.now();
     try {
@@ -454,7 +454,7 @@ class ComprehensiveToolTester {
 
       this.addResult(testName, 'PASS', duration, details);
       console.log(`✅ ${testName}: ${details} (${duration}ms)`);
-    } catch (_error) {
+    } catch (error) {
       const duration = Date.now() - startTime;
       this.addResult(testName, 'FAIL', duration, '', (error as Error).message);
       console.log(`❌ ${testName}: ${(error as Error).message} (${duration}ms)`);
@@ -480,15 +480,13 @@ class ComprehensiveToolTester {
 
     if (failed > 0) {
       console.log('\n❌ FAILED TESTS:');
-      this.testResults
-        .filter(r => r.status === 'FAIL')
-        .forEach(r => console.log(`   - ${r.name}: ${r.error}`));
+      for (const r of this.testResults
+        .filter(r => r.status === 'FAIL')) console.log(`   - ${r.name}: ${r.error}`);
     }
 
     console.log('\n✅ PASSED TESTS:');
-    this.testResults
-      .filter(r => r.status === 'PASS')
-      .forEach(r => console.log(`   - ${r.name} (${r.duration}ms)`));
+    for (const r of this.testResults
+      .filter(r => r.status === 'PASS')) console.log(`   - ${r.name} (${r.duration}ms)`);
 
     console.log('\n' + '='.repeat(60));
     if (failed === 0) {
@@ -502,4 +500,8 @@ class ComprehensiveToolTester {
 
 // Run comprehensive tests
 const tester = new ComprehensiveToolTester();
-tester.runAllTests().catch(console.error);
+try {
+  await tester.runAllTests();
+} catch (error) {
+  console.error(error);
+}
