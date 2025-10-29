@@ -74,8 +74,7 @@ export default defineConfig({
     retry: 0,
 
     // Reporters
-    // Use both default (for human-readable output) and LLM reporter (for agent-friendly format)
-    reporters: ['default', './test/framework/llm-reporter.ts'],
+    reporters: ['default'],
 
     // Pool options for better performance
     pool: 'threads',
