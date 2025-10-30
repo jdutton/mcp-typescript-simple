@@ -563,7 +563,7 @@ describe('RedisPKCEStore', () => {
       await store.storeCodeVerifier(code, data1);
 
       // Mix of operations happening concurrently
-      const results = await Promise.all([
+      await Promise.all([
         store.getAndDeleteCodeVerifier(code),
         store.getCodeVerifier(code),
         store.hasCodeVerifier(code),

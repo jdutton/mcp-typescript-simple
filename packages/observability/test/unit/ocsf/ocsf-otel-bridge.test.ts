@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OCSFOTELBridge, emitOCSFEvent } from '../../../src/ocsf/ocsf-otel-bridge.js';
 import { logonEvent, createAPIEvent, SeverityId, StatusId } from '../../../src/ocsf/index.js';
 import { logs, SeverityNumber } from '@opentelemetry/api-logs';
-import { trace, context, type Span } from '@opentelemetry/api';
+import { trace, type Span } from '@opentelemetry/api';
 
 describe('OCSFOTELBridge', () => {
   let bridge: OCSFOTELBridge;

@@ -18,7 +18,6 @@ import { OAuthSessionStore } from '@mcp-typescript-simple/auth';
 import { OAuthTokenStore } from '@mcp-typescript-simple/auth';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
-import { StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 type MockResponse = Response & {
   statusCode?: number;

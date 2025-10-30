@@ -224,9 +224,7 @@ let bridgeInstance: OCSFOTELBridge | null = null;
  * Get the singleton OCSF-OTEL bridge instance
  */
 export function getOCSFOTELBridge(serviceName = 'mcp-server'): OCSFOTELBridge {
-  if (!bridgeInstance) {
-    bridgeInstance = new OCSFOTELBridge(serviceName);
-  }
+  bridgeInstance ??= new OCSFOTELBridge(serviceName);
   return bridgeInstance;
 }
 

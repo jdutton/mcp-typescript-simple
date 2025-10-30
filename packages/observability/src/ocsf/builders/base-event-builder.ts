@@ -62,7 +62,13 @@ export abstract class BaseOCSFEventBuilder<TEvent extends BaseOCSFEvent, TBuilde
       this.event.status_detail = statusDetail;
     }
     // Auto-generate human-readable status from statusId
-    this.event.status = statusId === 1 ? 'Success' : statusId === 2 ? 'Failure' : 'Unknown';
+    if (statusId === 1) {
+      this.event.status = 'Success';
+    } else if (statusId === 2) {
+      this.event.status = 'Failure';
+    } else {
+      this.event.status = 'Unknown';
+    }
     return this as unknown as TBuilder;
   }
 

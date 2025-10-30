@@ -11,7 +11,7 @@ import * as ocsfModule from '@mcp-typescript-simple/observability/ocsf';
 
 // Mock fetch globally
 const mockFetch = vi.fn();
-global.fetch = mockFetch as unknown as typeof fetch;
+globalThis.fetch = mockFetch as unknown as typeof fetch;
 
 // Mock the OCSF module
 vi.mock('@mcp-typescript-simple/observability/ocsf', () => ({

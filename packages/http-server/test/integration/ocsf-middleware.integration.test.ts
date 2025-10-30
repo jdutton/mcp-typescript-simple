@@ -191,11 +191,11 @@ describe('OCSF Middleware Integration', () => {
     expect(emitSpy).toHaveBeenCalledTimes(3);
 
     // Verify all events are valid
-    emitSpy.mock.calls.forEach((call) => {
+    for (const call of emitSpy.mock.calls) {
       const event = call[0];
       expect(event.class_name).toBe('API Activity');
       expect(event.http_request).toBeDefined();
       expect(event.status_code).toBeDefined();
-    });
+    }
   });
 });

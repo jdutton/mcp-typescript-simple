@@ -123,9 +123,7 @@ export class APIActivityEventBuilder extends BaseOCSFEventBuilder<APIActivityEve
    * Add a single resource
    */
   resource(resource: ResourceDetails): this {
-    if (!this.event.resources) {
-      this.event.resources = [];
-    }
+    this.event.resources ??= [];
     this.event.resources.push(resource);
     return this;
   }

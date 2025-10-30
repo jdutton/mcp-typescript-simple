@@ -1063,8 +1063,6 @@ export class MCPStreamableHttpServer {
    * Process the request using the transport
    */
   private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
-    const mcpMethod = req.body?.method || 'unknown';
-
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
 
     // Create timeout with cleanup to prevent memory leak

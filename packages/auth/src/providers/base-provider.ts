@@ -27,7 +27,7 @@ import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
-import { logonEvent, logoffEvent, emitOCSFEvent, AuthenticationActivityId, StatusId } from '@mcp-typescript-simple/observability/ocsf';
+import { logonEvent, logoffEvent, emitOCSFEvent, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
  * Abstract base class providing common OAuth functionality

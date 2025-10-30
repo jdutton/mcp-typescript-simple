@@ -28,7 +28,6 @@ import type {
 import {
   getAuthenticationTypeUid,
   getAuthenticationActivityName,
-  getAuthProtocolName,
 } from '../types/authentication.js';
 import { BaseOCSFEventBuilder } from './base-event-builder.js';
 
