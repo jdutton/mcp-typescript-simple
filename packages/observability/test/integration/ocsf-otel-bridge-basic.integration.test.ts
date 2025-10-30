@@ -18,6 +18,39 @@ import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic
 import { OCSFOTELBridge, getOCSFOTELBridge, emitOCSFEvent } from '../../src/ocsf/ocsf-otel-bridge.js';
 import { logonEvent, logoffEvent, createAPIEvent, SeverityId, StatusId } from '../../src/ocsf/index.js';
 
+/**
+ * Helper: Emit event within trace context
+ */
+function emitEventWithTraceContext(
+  bridge: OCSFOTELBridge,
+  span: ReturnType<Tracer['startSpan']>
+): void {
+  context.with(trace.setSpan(context.active(), span), () => {
+    const event = logonEvent()
+      .user({ name: 'testuser', uid: 'user-123' })
+      .message('User logged in')
+      .build();
+
+    bridge.emitAuthenticationEvent(event);
+  });
+}
+
+/**
+ * Helper: Emit event with trace context disabled
+ */
+function emitEventWithoutTraceContext(
+  bridge: OCSFOTELBridge,
+  span: ReturnType<Tracer['startSpan']>
+): void {
+  context.with(trace.setSpan(context.active(), span), () => {
+    const event = logonEvent()
+      .user({ name: 'testuser', uid: 'user-123' })
+      .build();
+
+    bridge.emitEvent(event, { addTraceContext: false });
+  });
+}
+
 describe('OCSF-OTEL Bridge Basic Integration', () => {
   let loggerProvider: LoggerProvider;
   let tracerProvider: NodeTracerProvider;

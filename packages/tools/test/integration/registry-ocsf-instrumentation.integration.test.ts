@@ -22,6 +22,16 @@ import {
 import { logs } from '@opentelemetry/api-logs';
 import { getOCSFOTELBridge } from '@mcp-typescript-simple/observability/ocsf';
 
+/**
+ * Helper: Generate multiple content items
+ */
+function generateContentItems(count: number): Array<{ type: 'text'; text: string }> {
+  return Array.from({ length: count }, (_, i) => ({
+    type: 'text' as const,
+    text: `Item ${i + 1}`,
+  }));
+}
+
 describe('ToolRegistry OCSF Instrumentation (Integration)', () => {
   let loggerProvider: LoggerProvider;
 
@@ -222,10 +232,7 @@ describe('ToolRegistry OCSF Instrumentation (Integration)', () => {
           count: z.number(),
         }),
         handler: async ({ count }) => ({
-          content: Array.from({ length: count }, (_, i) => ({
-            type: 'text' as const,
-            text: `Item ${i + 1}`,
-          })),
+          content: generateContentItems(count),
         }),
       });
 

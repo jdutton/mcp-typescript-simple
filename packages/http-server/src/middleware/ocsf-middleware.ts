@@ -87,7 +87,7 @@ export function emitAPIActivityEvent(
         },
         user_agent: req.get('user-agent') || 'unknown',
         // Request body size from Content-Length header (bytes received)
-        length: req.get('content-length') ? Number.parseInt(req.get('content-length')!, 10) : undefined,
+        length: req.get('content-length') ? Number.parseInt(req.get('content-length'), 10) : undefined,
       })
       .srcEndpoint({
         ip: sanitizeIP(req.ip || req.socket?.remoteAddress),
