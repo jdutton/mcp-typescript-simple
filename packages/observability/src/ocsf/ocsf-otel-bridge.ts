@@ -79,6 +79,135 @@ export class OCSFOTELBridge {
   }
 
   /**
+   * Build base OCSF attributes
+   */
+  private buildBaseAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      'ocsf.class_uid': event.class_uid,
+      'ocsf.class_name': event.class_name,
+      'ocsf.category_uid': event.category_uid,
+      'ocsf.category_name': event.category_name,
+      'ocsf.activity_id': event.activity_id,
+      'ocsf.activity_name': event.activity_name,
+      'ocsf.type_uid': event.type_uid,
+      'ocsf.type_name': event.type_name,
+      'ocsf.severity_id': event.severity_id,
+      'ocsf.severity': event.severity,
+      'ocsf.time': event.time,
+    };
+  }
+
+  /**
+   * Build optional status attributes
+   */
+  private buildStatusAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      ...(event.status_id !== undefined && { 'ocsf.status_id': event.status_id }),
+      ...(event.status && { 'ocsf.status': event.status }),
+      ...(event.status_code && { 'ocsf.status_code': event.status_code }),
+      ...(event.status_detail && { 'ocsf.status_detail': event.status_detail }),
+    };
+  }
+
+  /**
+   * Build metadata attributes
+   */
+  private buildMetadataAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      'ocsf.metadata.version': event.metadata.version,
+      ...(event.metadata.product && {
+        'ocsf.metadata.product.name': event.metadata.product.name,
+        'ocsf.metadata.product.version': event.metadata.product.version,
+        'ocsf.metadata.product.vendor_name': event.metadata.product.vendor_name,
+      }),
+      ...(event.metadata.uid && { 'ocsf.metadata.uid': event.metadata.uid }),
+      ...(event.metadata.correlation_uid && { 'ocsf.metadata.correlation_uid': event.metadata.correlation_uid }),
+    };
+  }
+
+  /**
+   * Build actor attributes
+   */
+  private buildActorAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      ...(event.actor?.user && {
+        'ocsf.actor.user.name': event.actor.user.name,
+        'ocsf.actor.user.uid': event.actor.user.uid,
+        'ocsf.actor.user.email_addr': event.actor.user.email_addr,
+      }),
+      ...(event.actor?.session && {
+        'ocsf.actor.session.uid': event.actor.session.uid,
+        'ocsf.actor.session.issuer': event.actor.session.issuer,
+      }),
+    };
+  }
+
+  /**
+   * Build network endpoint attributes
+   */
+  private buildEndpointAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      ...(event.src_endpoint && {
+        'ocsf.src_endpoint.ip': event.src_endpoint.ip,
+        'ocsf.src_endpoint.port': event.src_endpoint.port,
+        'ocsf.src_endpoint.hostname': event.src_endpoint.hostname,
+      }),
+      ...(event.dst_endpoint && {
+        'ocsf.dst_endpoint.ip': event.dst_endpoint.ip,
+        'ocsf.dst_endpoint.port': event.dst_endpoint.port,
+        'ocsf.dst_endpoint.hostname': event.dst_endpoint.hostname,
+      }),
+    };
+  }
+
+  /**
+   * Build context attributes (cloud, device, performance)
+   */
+  private buildContextAttributes(event: BaseEvent): Record<string, AnyValue> {
+    return {
+      ...(event.cloud && {
+        'ocsf.cloud.provider': event.cloud.provider,
+        'ocsf.cloud.region': event.cloud.region,
+      }),
+      ...(event.device && {
+        'ocsf.device.name': event.device.name,
+        'ocsf.device.type': event.device.type,
+        'ocsf.device.hostname': event.device.hostname,
+      }),
+      ...(event.duration !== undefined && { 'ocsf.duration': event.duration }),
+      ...(event.count !== undefined && { 'ocsf.count': event.count }),
+    };
+  }
+
+  /**
+   * Add trace context to attributes if available
+   */
+  private addTraceContext(
+    attributes: Record<string, AnyValue>,
+    event: BaseEvent,
+    addTraceContext: boolean
+  ): void {
+    if (!addTraceContext) {
+      return;
+    }
+
+    const activeSpan = trace.getActiveSpan();
+    if (!activeSpan) {
+      return;
+    }
+
+    const spanContext = activeSpan.spanContext();
+    attributes['trace_id'] = spanContext.traceId;
+    attributes['span_id'] = spanContext.spanId;
+    attributes['trace_flags'] = spanContext.traceFlags;
+
+    // Also add to OCSF metadata for consistency
+    if (!event.metadata.correlation_uid) {
+      attributes['ocsf.metadata.correlation_uid'] = spanContext.traceId;
+    }
+  }
+
+  /**
    * Emit an OCSF event as an OpenTelemetry log
    *
    * @param event - OCSF event to emit
@@ -100,94 +229,17 @@ export class OCSFOTELBridge {
 
     // Build log attributes from OCSF event
     const attributes: Record<string, AnyValue> = {
-      // OCSF base fields
-      'ocsf.class_uid': event.class_uid,
-      'ocsf.class_name': event.class_name,
-      'ocsf.category_uid': event.category_uid,
-      'ocsf.category_name': event.category_name,
-      'ocsf.activity_id': event.activity_id,
-      'ocsf.activity_name': event.activity_name,
-      'ocsf.type_uid': event.type_uid,
-      'ocsf.type_name': event.type_name,
-      'ocsf.severity_id': event.severity_id,
-      'ocsf.severity': event.severity,
-      'ocsf.time': event.time,
-
-      // Optional base fields
-      ...(event.status_id !== undefined && { 'ocsf.status_id': event.status_id }),
-      ...(event.status && { 'ocsf.status': event.status }),
-      ...(event.status_code && { 'ocsf.status_code': event.status_code }),
-      ...(event.status_detail && { 'ocsf.status_detail': event.status_detail }),
-
-      // Metadata
-      'ocsf.metadata.version': event.metadata.version,
-      ...(event.metadata.product && {
-        'ocsf.metadata.product.name': event.metadata.product.name,
-        'ocsf.metadata.product.version': event.metadata.product.version,
-        'ocsf.metadata.product.vendor_name': event.metadata.product.vendor_name,
-      }),
-      ...(event.metadata.uid && { 'ocsf.metadata.uid': event.metadata.uid }),
-      ...(event.metadata.correlation_uid && { 'ocsf.metadata.correlation_uid': event.metadata.correlation_uid }),
-
-      // Actor information
-      ...(event.actor?.user && {
-        'ocsf.actor.user.name': event.actor.user.name,
-        'ocsf.actor.user.uid': event.actor.user.uid,
-        'ocsf.actor.user.email_addr': event.actor.user.email_addr,
-      }),
-      ...(event.actor?.session && {
-        'ocsf.actor.session.uid': event.actor.session.uid,
-        'ocsf.actor.session.issuer': event.actor.session.issuer,
-      }),
-
-      // Network endpoints
-      ...(event.src_endpoint && {
-        'ocsf.src_endpoint.ip': event.src_endpoint.ip,
-        'ocsf.src_endpoint.port': event.src_endpoint.port,
-        'ocsf.src_endpoint.hostname': event.src_endpoint.hostname,
-      }),
-      ...(event.dst_endpoint && {
-        'ocsf.dst_endpoint.ip': event.dst_endpoint.ip,
-        'ocsf.dst_endpoint.port': event.dst_endpoint.port,
-        'ocsf.dst_endpoint.hostname': event.dst_endpoint.hostname,
-      }),
-
-      // Cloud context
-      ...(event.cloud && {
-        'ocsf.cloud.provider': event.cloud.provider,
-        'ocsf.cloud.region': event.cloud.region,
-      }),
-
-      // Device information
-      ...(event.device && {
-        'ocsf.device.name': event.device.name,
-        'ocsf.device.type': event.device.type,
-        'ocsf.device.hostname': event.device.hostname,
-      }),
-
-      // Performance metrics
-      ...(event.duration !== undefined && { 'ocsf.duration': event.duration }),
-      ...(event.count !== undefined && { 'ocsf.count': event.count }),
-
-      // Full event as JSON for SIEM systems
+      ...this.buildBaseAttributes(event),
+      ...this.buildStatusAttributes(event),
+      ...this.buildMetadataAttributes(event),
+      ...this.buildActorAttributes(event),
+      ...this.buildEndpointAttributes(event),
+      ...this.buildContextAttributes(event),
       'ocsf.event': JSON.stringify(event),
     };
 
     // Add trace context if requested and available
-    if (addTraceContext) {
-      const activeSpan = trace.getActiveSpan();
-      if (activeSpan) {
-        const spanContext = activeSpan.spanContext();
-        attributes['trace_id'] = spanContext.traceId;
-        attributes['span_id'] = spanContext.spanId;
-        attributes['trace_flags'] = spanContext.traceFlags;
-
-        // Also add to OCSF metadata for consistency
-        if (!event.metadata.correlation_uid) {
-          attributes['ocsf.metadata.correlation_uid'] = spanContext.traceId;
-        }
-      }
-    }
+    this.addTraceContext(attributes, event, addTraceContext);
 
     // Emit log via OTEL
     this.logger.emit({

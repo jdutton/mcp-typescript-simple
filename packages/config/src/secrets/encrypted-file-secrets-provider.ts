@@ -211,7 +211,12 @@ export class EncryptedFileSecretsProvider extends BaseSecretsProvider {
 
       return parsedValue as T;
     } catch (error) {
-      throw new Error('Failed to decrypt secret: invalid key or corrupted data');
+      // Log original error for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Failed to decrypt secret '${key}': ${errorMessage}`);
+
+      // Provide actionable error message
+      throw new Error(`Failed to decrypt secret '${key}': invalid key or corrupted data`);
     }
   }
 
