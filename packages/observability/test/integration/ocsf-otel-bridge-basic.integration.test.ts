@@ -174,38 +174,11 @@ describe('OCSF-OTEL Bridge Basic Integration', () => {
   });
 
   describe('Trace Correlation', () => {
-    /**
-     * Helper: Emit event within trace context
-     */
-    function emitEventWithTraceContext(span: ReturnType<Tracer['startSpan']>): void {
-      context.with(trace.setSpan(context.active(), span), () => {
-        const event = logonEvent()
-          .user({ name: 'testuser', uid: 'user-123' })
-          .message('User logged in')
-          .build();
-
-        bridge.emitAuthenticationEvent(event);
-      });
-    }
-
-    /**
-     * Helper: Emit event with trace context disabled
-     */
-    function emitEventWithoutTraceContext(span: ReturnType<Tracer['startSpan']>): void {
-      context.with(trace.setSpan(context.active(), span), () => {
-        const event = logonEvent()
-          .user({ name: 'testuser', uid: 'user-123' })
-          .build();
-
-        bridge.emitEvent(event, { addTraceContext: false });
-      });
-    }
-
     it('should emit events within active span context without errors', () => {
       const span = tracer.startSpan('test-operation');
 
       // Should not throw
-      expect(() => emitEventWithTraceContext(span)).not.toThrow();
+      expect(() => emitEventWithTraceContext(bridge, span)).not.toThrow();
 
       span.end();
     });
@@ -214,7 +187,7 @@ describe('OCSF-OTEL Bridge Basic Integration', () => {
       const span = tracer.startSpan('test-operation');
 
       // Should not throw
-      expect(() => emitEventWithoutTraceContext(span)).not.toThrow();
+      expect(() => emitEventWithoutTraceContext(bridge, span)).not.toThrow();
 
       span.end();
     });
