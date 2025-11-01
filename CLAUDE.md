@@ -24,9 +24,26 @@ npm run build
 
 # Development modes
 npm run dev:stdio        # STDIO mode (recommended for MCP development)
-npm run dev:http         # Streamable HTTP mode (no auth)
-npm run dev:oauth        # Streamable HTTP mode (with OAuth)
+npm run dev:http         # Streamable HTTP mode (no auth) - auto-recompile
+npm run dev:oauth        # Streamable HTTP mode (with OAuth) - auto-recompile
+npm run dev:otel         # Streamable HTTP mode (with OTEL) - auto-recompile
 npm run dev:vercel       # Vercel local development server
+
+### Development Mode Auto-Recompile Behavior
+
+The following development modes automatically recompile workspace packages when source files change:
+
+- **dev:http** - Auto-recompiles packages + restarts server (~2s rebuild, ~2s restart)
+- **dev:oauth** - Auto-recompiles packages + restarts server (~2s rebuild, ~2s restart)
+- **dev:otel** - Auto-recompiles packages + restarts server (~2s rebuild, ~2s restart)
+
+These modes use `concurrently` to run both `tsc --build --watch` (package compilation) and `tsx watch` (server restart) in parallel. Changes to any `packages/*/src/*.ts` file will automatically:
+1. Trigger TypeScript compilation to `packages/*/dist`
+2. Trigger tsx server restart to load new compiled JavaScript
+
+**No manual builds needed** - just edit TypeScript source files and the server will reflect changes automatically.
+
+**Note:** Other dev modes (`dev:stdio`, `dev:http:ci`, `dev:vercel`) do NOT have auto-recompile and may require manual `npm run build` for package changes.
 
 # Testing (Vitest-powered - fast, native TypeScript support)
 npm test                 # Vitest unit tests (test/unit/)

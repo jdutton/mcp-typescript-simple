@@ -5,6 +5,16 @@
 
 import pino from 'pino';
 import { trace } from '@opentelemetry/api';
+import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { logs } from '@opentelemetry/api-logs';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import {
+  ATTR_SERVICE_NAME,
+  ATTR_SERVICE_VERSION,
+  SEMRESATTRS_SERVICE_NAMESPACE,
+  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT
+} from '@opentelemetry/semantic-conventions';
 import { getObservabilityConfig, type ObservabilityConfig } from './config.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -277,3 +287,87 @@ export function getLogger(): ObservabilityLogger {
 
 // Export singleton instance with same interface as existing logger
 export const logger = getLogger();
+
+/**
+ * OpenTelemetry LoggerProvider initialization
+ *
+ * This function provides explicit LoggerProvider initialization to avoid
+ * timing issues with Node.js --import flag and ES modules.
+ *
+ * CRITICAL: Must be called early in application entry point (index.ts)
+ * BEFORE any OCSF events are emitted.
+ */
+
+// Detect environment
+function detectEnvironment(): 'development' | 'production' | 'test' {
+  if (process.env.NODE_ENV === 'test') {
+    return 'test';
+  }
+  if (process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production') {
+    return 'production';
+  }
+  return 'development';
+}
+
+/**
+ * Initialize OpenTelemetry LoggerProvider
+ *
+ * Call this function ONCE at application startup, BEFORE any OCSF events
+ * are emitted. This avoids ProxyLoggerProvider (no-op) issues caused by
+ * --import timing with ES modules.
+ */
+export function initializeLoggerProvider(): void {
+  const environment = detectEnvironment();
+
+  // Skip OTEL in test environment
+  if (environment === 'test') {
+    console.debug('[LoggerProvider] Skipping initialization in test environment');
+    return;
+  }
+
+  try {
+    const serviceName = process.env.OTEL_SERVICE_NAME || 'mcp-typescript-simple';
+    const serviceVersion = process.env.npm_package_version || '1.0.0';
+    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+
+    console.debug('[LoggerProvider] Initializing', {
+      service: serviceName,
+      environment,
+      endpoint: otlpEndpoint
+    });
+
+    // Create resource with service information
+    const resource = resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: serviceName,
+      [ATTR_SERVICE_VERSION]: serviceVersion,
+      [SEMRESATTRS_SERVICE_NAMESPACE]: environment === 'production' ? 'prod' : 'dev',
+      [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment
+    });
+
+    // Configure log exporter
+    const logExporter = new OTLPLogExporter({
+      url: `${otlpEndpoint}/v1/logs`,
+      headers: {}
+    });
+
+    // Create and register LoggerProvider explicitly
+    // CRITICAL: NodeSDK does NOT automatically set global LoggerProvider
+    // We must set it explicitly for OCSF events to be captured
+    const loggerProvider = new LoggerProvider({
+      resource,
+      processors: [new BatchLogRecordProcessor(logExporter)]
+    });
+
+    // Register as global LoggerProvider
+    logs.setGlobalLoggerProvider(loggerProvider);
+
+    console.debug('[LoggerProvider] Initialization complete', {
+      service: serviceName,
+      environment,
+      logs: 'enabled'
+    });
+  } catch (error) {
+    console.error('[LoggerProvider] Failed to initialize:', error);
+    // Don't crash the application if OTEL fails
+  }
+}

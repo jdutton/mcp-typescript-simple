@@ -37,6 +37,18 @@
     "./instrumentation-edge": {
       "types": "./dist/instrumentation-edge.d.ts",
       "import": "./dist/instrumentation-edge.js"
+    },
+    "./ocsf": {
+      "types": "./dist/ocsf/index.d.ts",
+      "import": "./dist/ocsf/index.js"
+    },
+    "./ocsf/types": {
+      "types": "./dist/ocsf/types/index.d.ts",
+      "import": "./dist/ocsf/types/index.js"
+    },
+    "./ocsf/builders": {
+      "types": "./dist/ocsf/builders/index.d.ts",
+      "import": "./dist/ocsf/builders/index.js"
     }
   },
   "files": [
@@ -52,6 +64,7 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.56.0",
     "@opentelemetry/auto-instrumentations-node": "^0.64.1",
     "@opentelemetry/exporter-logs-otlp-http": "^0.205.0",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.205.0",
@@ -65,6 +78,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "eslint-plugin-sonarjs": "^3.0.5",
     "typescript": "^5.7.3",
     "vitest": "^3.0.0"
   },
@@ -76,7 +90,11 @@
     "telemetry",
     "logging",
     "tracing",
-    "metrics"
+    "metrics",
+    "ocsf",
+    "audit",
+    "security",
+    "compliance"
   ],
   "author": "Jeff Dutton",
   "license": "MIT"

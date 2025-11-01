@@ -27,6 +27,7 @@ import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
 import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { logonEvent, logoffEvent, emitOCSFEvent, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
  * Abstract base class providing common OAuth functionality
@@ -38,9 +39,21 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected readonly SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
   protected readonly TOKEN_BUFFER = 60 * 1000; // 1 minute buffer for token expiry
   protected readonly DEFAULT_TOKEN_EXPIRATION_SECONDS = 60 * 60; // 1 hour default when provider doesn't supply expiration
-  protected readonly PKCE_TTL_SECONDS = 600; // 10 minutes - PKCE data expires after this duration
+  // PKCE TTL: 10 minutes - balances security (short-lived codes) with UX (user has time to complete OAuth flow)
+  // Matches OAuth 2.0 recommendation for authorization code lifetime (RFC 6749 §4.1.2)
+  protected readonly PKCE_TTL_SECONDS = 600;
   private readonly cleanupTimer: NodeJS.Timeout;
   protected readonly allowlistConfig: AllowlistConfig;
+
+  /**
+   * Get a safe prefix from a sensitive value for logging
+   * @param value The sensitive value (code, verifier, etc.)
+   * @param length Number of characters to include (default: 10)
+   * @returns Safe prefix for logging (e.g., "abc123defg...")
+   */
+  private getSafePrefix(value: string, length: number = 10): string {
+    return value.substring(0, length);
+  }
 
   /**
    * Get stored code_verifier for an authorization code (OAuth proxy PKCE)
@@ -51,8 +64,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     if (data) {
       logger.oauthDebug('Retrieved stored code_verifier', {
         provider: this.getProviderName(),
-        codePrefix: code.substring(0, 10),
-        verifierPrefix: data.codeVerifier.substring(0, 10)
+        codePrefix: this.getSafePrefix(code),
+        verifierPrefix: this.getSafePrefix(data.codeVerifier)
       });
       return data.codeVerifier;
     }
@@ -60,7 +73,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     // Warning: PKCE lookup failed - could indicate multi-instance issue or code reuse
     logger.oauthWarn('PKCE lookup failed - code_verifier not found', {
       provider: this.getProviderName(),
-      codePrefix: code.substring(0, 10)
+      codePrefix: this.getSafePrefix(code)
     });
 
     return undefined;
@@ -91,9 +104,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       if (clientCodeVerifier) {
         logger.oauthWarn('OAuth Proxy Flow: Client attempted to provide code_verifier when server already stored one', {
           provider: this.getProviderType(),
-          codePrefix: code.substring(0, 10),
-          storedVerifierPrefix: storedCodeVerifier.substring(0, 10),
-          clientVerifierPrefix: clientCodeVerifier.substring(0, 10),
+          codePrefix: this.getSafePrefix(code),
+          storedVerifierPrefix: this.getSafePrefix(storedCodeVerifier),
+          clientVerifierPrefix: this.getSafePrefix(clientCodeVerifier),
           message: 'Ignoring client code_verifier for security (using server-stored)'
         });
       }
@@ -105,8 +118,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     if (clientCodeVerifier) {
       logger.oauthDebug('Direct OAuth Flow: Using client-provided code_verifier', {
         provider: this.getProviderType(),
-        codePrefix: code.substring(0, 10),
-        verifierPrefix: clientCodeVerifier.substring(0, 10)
+        codePrefix: this.getSafePrefix(code),
+        verifierPrefix: this.getSafePrefix(clientCodeVerifier)
       });
       return clientCodeVerifier;
     }
@@ -114,7 +127,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     // Invalid: No code_verifier available from either source
     logger.oauthError('Token exchange failed: No code_verifier available', {
       provider: this.getProviderType(),
-      codePrefix: code.substring(0, 10),
+      codePrefix: this.getSafePrefix(code),
       hasStored: !!storedCodeVerifier,
       hasClient: !!clientCodeVerifier,
       message: 'Authorization code may have expired or been used already'
@@ -1062,6 +1075,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
           email: userInfo.email,
           provider: this.getProviderType()
         });
+
+        // Emit OCSF logon failure event (allowlist denial)
+        this.emitLogonEvent({
+          status: StatusId.Failure,
+          userInfo,
+          errorMessage: `Access denied: ${allowlistError}`
+        });
+
         this.setAntiCachingHeaders(res);
         res.status(403).json({
           error: 'access_denied',
@@ -1083,6 +1104,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       await this.storeToken(tokenData.access_token, tokenInfo);
 
+      // Emit OCSF logon success event
+      this.emitLogonEvent({
+        status: StatusId.Success,
+        userInfo
+      });
+
       // Clean up session
       this.removeSession(state);
 
@@ -1102,6 +1129,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     } catch (error) {
       logger.oauthError(`${this.getProviderName()} OAuth callback error`, error);
+
+      // Emit OCSF logon failure event
+      this.emitLogonEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'Authorization failed',
@@ -1174,6 +1208,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       await this.storeToken(tokenData.access_token, tokenInfo);
 
+      // Emit OCSF logon success event
+      this.emitLogonEvent({
+        status: StatusId.Success,
+        userInfo
+      });
+
       // Cleanup
       await this.cleanupAfterTokenExchange(code!);
 
@@ -1196,6 +1236,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     } catch (error) {
       logger.oauthError('Token exchange error', error);
+
+      // Emit OCSF logon failure event
+      this.emitLogonEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({
         error: 'server_error',
@@ -1209,9 +1256,16 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    */
   async handleLogout(req: Request, res: Response): Promise<void> {
     try {
+      let userInfo: OAuthUserInfo | undefined;
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
+
+        // Retrieve user info before removing token (for audit event)
+        const tokenInfo = await this.getToken(token);
+        if (tokenInfo) {
+          userInfo = tokenInfo.userInfo;
+        }
 
         // Optional provider-specific revocation
         try {
@@ -1223,10 +1277,23 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         await this.removeToken(token);
       }
 
+      // Emit OCSF logoff success event
+      this.emitLogoffEvent({
+        status: StatusId.Success,
+        userInfo
+      });
+
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
       logger.oauthError(`${this.getProviderName()} logout error`, error);
+
+      // Emit OCSF logoff failure event
+      this.emitLogoffEvent({
+        status: StatusId.Failure,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      });
+
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
@@ -1271,6 +1338,82 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       logger.oauthError(`${this.getProviderName()} getUserInfo error`, error);
       throw new OAuthProviderError('Failed to get user information', this.getProviderType());
     }
+  }
+
+  /**
+   * Emit OCSF logon event
+   */
+  protected emitLogonEvent(params: {
+    status: StatusId;
+    userInfo?: OAuthUserInfo;
+    errorMessage?: string;
+  }): void {
+    const event = logonEvent()
+      .status(params.status, undefined, params.errorMessage)
+      .message(params.status === StatusId.Success
+        ? `OAuth ${this.getProviderName()} logon successful`
+        : `OAuth ${this.getProviderName()} logon failed: ${params.errorMessage || 'Unknown error'}`)
+      .authProtocol(4); // OAuth 2.0
+
+    // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder
+    if (params.userInfo) {
+      event.user({
+        uid: params.userInfo.sub,
+        name: params.userInfo.name,
+        email_addr: params.userInfo.email,
+      });
+    } else {
+      // Provide anonymous user placeholder when actual user info is not available
+      event.user({
+        uid: 'anonymous',
+        name: 'Anonymous',
+      });
+    }
+
+    // Set severity based on status
+    if (params.status === StatusId.Failure) {
+      event.severity(3, 'Medium'); // Medium severity for failures
+    }
+
+    emitOCSFEvent(event.build());
+  }
+
+  /**
+   * Emit OCSF logoff event
+   */
+  protected emitLogoffEvent(params: {
+    status: StatusId;
+    userInfo?: OAuthUserInfo;
+    errorMessage?: string;
+  }): void {
+    const event = logoffEvent()
+      .status(params.status, undefined, params.errorMessage)
+      .message(params.status === StatusId.Success
+        ? `OAuth ${this.getProviderName()} logoff successful`
+        : `OAuth ${this.getProviderName()} logoff failed: ${params.errorMessage || 'Unknown error'}`)
+      .authProtocol(4); // OAuth 2.0
+
+    // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder
+    if (params.userInfo) {
+      event.user({
+        uid: params.userInfo.sub,
+        name: params.userInfo.name,
+        email_addr: params.userInfo.email,
+      });
+    } else {
+      // Provide anonymous user placeholder when actual user info is not available
+      event.user({
+        uid: 'anonymous',
+        name: 'Anonymous',
+      });
+    }
+
+    // Set severity based on status
+    if (params.status === StatusId.Failure) {
+      event.severity(3, 'Medium'); // Medium severity for failures
+    }
+
+    emitOCSFEvent(event.build());
   }
 
   /**

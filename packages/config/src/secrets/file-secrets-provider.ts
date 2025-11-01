@@ -22,38 +22,27 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
+import type { SecretsProviderOptions } from './secrets-provider.js';
+import { BaseSecretsProvider } from './base-secrets-provider.js';
 
-interface CacheEntry<T> {
-  value: T;
-  expiresAt: number;
-}
-
-export class FileSecretsProvider implements SecretsProvider {
+export class FileSecretsProvider extends BaseSecretsProvider {
   readonly name = 'file';
   readonly readOnly = false;
 
-  private readonly cache = new Map<string, CacheEntry<unknown>>();
-  private readonly cacheTtlMs: number;
-  private readonly auditLog: boolean;
-  private readonly logger?: SecretsProviderOptions['logger'];
   private envVars: Record<string, string> = {};
 
   constructor(options: SecretsProviderOptions = {}) {
-    this.cacheTtlMs = options.cacheTtlMs ?? 300000; // 5 minutes default
-    this.auditLog = options.auditLog ?? process.env.NODE_ENV === 'production';
-    this.logger = options.logger;
+    super(options);
 
     // Load .env.local if it exists (fallback to process.env)
     this.loadEnvFile();
 
-    if (this.auditLog && this.logger) {
-      this.logger.info('FileSecretsProvider initialized', {
-        source: Object.keys(this.envVars).length > 0 ? '.env.local' : 'process.env',
-        secretCount: this.countSecrets(),
-        cacheTtlMs: this.cacheTtlMs,
-      });
-    }
+    // Emit OCSF initialization event
+    this.emitInitializationEvent({
+      source: Object.keys(this.envVars).length > 0 ? '.env.local' : 'process.env',
+      secretCount: this.countSecrets(),
+      cacheTtlMs: this.cacheTtlMs,
+    });
   }
 
   /**
@@ -100,32 +89,13 @@ export class FileSecretsProvider implements SecretsProvider {
     ).length;
   }
 
-  async getSecret<T = string>(key: string): Promise<T | undefined> {
-    // Check cache first
-    if (this.cacheTtlMs > 0) {
-      const cached = this.cache.get(key);
-      if (cached && cached.expiresAt > Date.now()) {
-        if (this.auditLog && this.logger) {
-          this.logger.info('Secret retrieved from cache', {
-            provider: this.name,
-            key,
-            cached: true,
-          });
-        }
-        return cached.value as T;
-      }
-    }
-
-    // Get from env vars
+  /**
+   * Retrieve secret from env vars (called by base class)
+   */
+  protected async retrieveSecret<T = string>(key: string): Promise<T | undefined> {
     const value = this.envVars[key];
 
     if (value === undefined) {
-      if (this.auditLog && this.logger) {
-        this.logger.warn('Secret not found', {
-          provider: this.name,
-          key,
-        });
-      }
       return undefined;
     }
 
@@ -140,60 +110,29 @@ export class FileSecretsProvider implements SecretsProvider {
       }
     }
 
-    // Cache the value
-    if (this.cacheTtlMs > 0) {
-      this.cache.set(key, {
-        value: parsedValue,
-        expiresAt: Date.now() + this.cacheTtlMs,
-      });
-    }
-
-    if (this.auditLog && this.logger) {
-      this.logger.info('Secret retrieved', {
-        provider: this.name,
-        key,
-        cached: false,
-        valueType: typeof parsedValue,
-      });
-    }
-
     return parsedValue as T;
   }
 
-  async setSecret<T = string>(key: string, value: T): Promise<void> {
+  /**
+   * Store secret in env vars (called by base class)
+   */
+  protected async storeSecret<T = string>(key: string, value: T): Promise<void> {
     // Store in memory only (not persisted to .env.local)
     const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
     this.envVars[key] = stringValue;
-
-    // Update cache
-    if (this.cacheTtlMs > 0) {
-      this.cache.set(key, {
-        value,
-        expiresAt: Date.now() + this.cacheTtlMs,
-      });
-    }
-
-    if (this.auditLog && this.logger) {
-      this.logger.info('Secret stored', {
-        provider: this.name,
-        key,
-        valueType: typeof value,
-      });
-    }
   }
 
+  /**
+   * Check if secret exists
+   */
   async hasSecret(key: string): Promise<boolean> {
     return this.envVars[key] !== undefined;
   }
 
-  async dispose(): Promise<void> {
-    this.cache.clear();
+  /**
+   * Dispose provider-specific resources (called by base class)
+   */
+  protected async disposeResources(): Promise<void> {
     this.envVars = {};
-
-    if (this.auditLog && this.logger) {
-      this.logger.info('FileSecretsProvider disposed', {
-        provider: this.name,
-      });
-    }
   }
 }

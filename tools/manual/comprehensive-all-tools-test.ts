@@ -4,7 +4,7 @@
  * Comprehensive test suite exercising ALL MCP tools
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 interface TestResult {
   name: string;
@@ -49,8 +49,8 @@ class ComprehensiveToolTester {
                   resolve(response);
                   return;
                 }
-              } catch (e) {
-                // Continue looking for valid response
+              } catch {
+                // Continue looking for valid response (expected - parsing each line for JSON)
               }
             }
           }
@@ -427,7 +427,7 @@ class ComprehensiveToolTester {
       params: {
         name: 'chat',
         arguments: {
-          message: 'Test with émojis 🚀🎯✅ and symbols @#$%^&*()[]{}|\\:";\'<>?,./'
+          message: String.raw`Test with émojis 🚀🎯✅ and symbols @#$%^&*()[]{}|\:";'<>?,./`
         }
       }
     }, (response) => {
@@ -444,7 +444,7 @@ class ComprehensiveToolTester {
     testName: string,
     sendRequest: Function,
     request: any,
-    validator: (response: any) => string
+    validator: (_response: any) => string
   ): Promise<void> {
     const startTime = Date.now();
     try {
@@ -480,15 +480,13 @@ class ComprehensiveToolTester {
 
     if (failed > 0) {
       console.log('\n❌ FAILED TESTS:');
-      this.testResults
-        .filter(r => r.status === 'FAIL')
-        .forEach(r => console.log(`   - ${r.name}: ${r.error}`));
+      for (const r of this.testResults
+        .filter(r => r.status === 'FAIL')) console.log(`   - ${r.name}: ${r.error}`);
     }
 
     console.log('\n✅ PASSED TESTS:');
-    this.testResults
-      .filter(r => r.status === 'PASS')
-      .forEach(r => console.log(`   - ${r.name} (${r.duration}ms)`));
+    for (const r of this.testResults
+      .filter(r => r.status === 'PASS')) console.log(`   - ${r.name} (${r.duration}ms)`);
 
     console.log('\n' + '='.repeat(60));
     if (failed === 0) {
@@ -502,4 +500,8 @@ class ComprehensiveToolTester {
 
 // Run comprehensive tests
 const tester = new ComprehensiveToolTester();
-tester.runAllTests().catch(console.error);
+try {
+  await tester.runAllTests();
+} catch (error) {
+  console.error(error);
+}

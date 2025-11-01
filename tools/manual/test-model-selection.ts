@@ -4,7 +4,7 @@
  * Test the new provider and model selection functionality
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testModelSelection() {
   console.log('🧪 Testing Type-Safe Provider & Model Selection');
@@ -34,7 +34,9 @@ async function testModelSelection() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch {
+              // Continue parsing lines for valid JSON response
+            }
           }
         }
       };
@@ -55,7 +57,7 @@ async function testModelSelection() {
     });
     console.log('✅ Default chat:', defaultChatResponse.result?.content?.[0]?.text?.substring(0, 50) + '...');
 
-    console.log('\\n🔹 Test 2: Chat tool with explicit provider');
+    console.log(String.raw`\n🔹 Test 2: Chat tool with explicit provider`);
     const claudeChatResponse = await sendRequest({
       jsonrpc: '2.0', id: 2, method: 'tools/call',
       params: { name: 'chat', arguments: {
@@ -65,7 +67,7 @@ async function testModelSelection() {
     });
     console.log('✅ Claude chat:', claudeChatResponse.result?.content?.[0]?.text?.substring(0, 50) + '...');
 
-    console.log('\\n🔹 Test 3: Chat tool with explicit model');
+    console.log(String.raw`\n🔹 Test 3: Chat tool with explicit model`);
     const sonetChatResponse = await sendRequest({
       jsonrpc: '2.0', id: 3, method: 'tools/call',
       params: { name: 'chat', arguments: {
@@ -76,7 +78,7 @@ async function testModelSelection() {
     });
     console.log('✅ Sonnet chat:', sonetChatResponse.result?.content?.[0]?.text?.substring(0, 50) + '...');
 
-    console.log('\\n🔹 Test 4: Analyze tool with OpenAI GPT-4');
+    console.log(String.raw`\n🔹 Test 4: Analyze tool with OpenAI GPT-4`);
     const gpt4AnalyzeResponse = await sendRequest({
       jsonrpc: '2.0', id: 4, method: 'tools/call',
       params: { name: 'analyze', arguments: {
@@ -88,7 +90,7 @@ async function testModelSelection() {
     });
     console.log('✅ GPT-4 analysis:', gpt4AnalyzeResponse.result?.content?.[0]?.text?.substring(0, 60) + '...');
 
-    console.log('\\n🔹 Test 5: Testing invalid model (should fail gracefully)');
+    console.log(String.raw`\n🔹 Test 5: Testing invalid model (should fail gracefully)`);
     const invalidModelResponse = await sendRequest({
       jsonrpc: '2.0', id: 5, method: 'tools/call',
       params: { name: 'chat', arguments: {
@@ -104,7 +106,7 @@ async function testModelSelection() {
       console.log('⚠️  Invalid model was not rejected (unexpected)');
     }
 
-    console.log('\\n🔹 Test 6: Cross-provider model flexibility');
+    console.log(String.raw`\n🔹 Test 6: Cross-provider model flexibility`);
     const openAIChatResponse = await sendRequest({
       jsonrpc: '2.0', id: 6, method: 'tools/call',
       params: { name: 'chat', arguments: {
@@ -115,7 +117,7 @@ async function testModelSelection() {
     });
     console.log('✅ OpenAI chat:', openAIChatResponse.result?.content?.[0]?.text?.substring(0, 50) + '...');
 
-    console.log('\\n🎯 MODEL SELECTION TEST SUMMARY:');
+    console.log(String.raw`\n🎯 MODEL SELECTION TEST SUMMARY:`);
     console.log('==================================');
     console.log('✅ Default provider/model selection working');
     console.log('✅ Explicit provider selection working');
@@ -131,4 +133,8 @@ async function testModelSelection() {
   }
 }
 
-testModelSelection().catch(console.error);
+try {
+  await testModelSelection();
+} catch (error) {
+  console.error(error);
+}

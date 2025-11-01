@@ -4,7 +4,7 @@
  * Final verification that type-safe provider and model selection is working
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function finalVerification() {
   console.log('🔍 Final Verification: Type-Safe Provider & Model Selection');
@@ -34,7 +34,9 @@ async function finalVerification() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch {
+              // Continue parsing lines for valid JSON response
+            }
           }
         }
       };
@@ -138,4 +140,8 @@ async function finalVerification() {
   }
 }
 
-finalVerification().catch(console.error);
+try {
+  await finalVerification();
+} catch (error) {
+  console.error(error);
+}

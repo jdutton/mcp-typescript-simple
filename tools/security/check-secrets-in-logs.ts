@@ -29,7 +29,9 @@ interface Finding {
 const highRiskPatterns = [
   { pattern: /logger\.(info|debug|warn|error|trace)\([^)]*\bpassword\b[^)]*\)/gi, reason: 'Direct password logging' },
   { pattern: /console\.(log|debug|info|warn|error)\([^)]*\bpassword\b[^)]*\)/gi, reason: 'Direct password logging' },
+  // eslint-disable-next-line sonarjs/slow-regex -- Safe: scans trusted source code, bounded file size
   { pattern: /logger\.(info|debug|warn|error|trace)\([^)]*['"`].*\$\{.*\.password.*\}.*['"`]/gi, reason: 'Template literal with password' },
+  // eslint-disable-next-line sonarjs/slow-regex -- Safe: scans trusted source code, bounded file size
   { pattern: /logger\.(info|debug|warn|error|trace)\([^)]*['"`].*\$\{.*\.secret.*\}.*['"`]/gi, reason: 'Template literal with secret' },
 ];
 
@@ -43,7 +45,9 @@ const mediumRiskPatterns = [
 
 // Low-risk patterns - field names only (less concerning)
 const lowRiskPatterns = [
+  // eslint-disable-next-line sonarjs/slow-regex -- Safe: scans trusted source code, bounded file size
   { pattern: /logger\.(info|debug|warn|error|trace)\([^)]*['"`].*secret.*['"`][^)]*\)/gi, reason: 'String contains "secret"' },
+  // eslint-disable-next-line sonarjs/slow-regex -- Safe: scans trusted source code, bounded file size
   { pattern: /logger\.(info|debug|warn|error|trace)\([^)]*['"`].*key.*['"`][^)]*\)/gi, reason: 'String contains "key"' },
 ];
 

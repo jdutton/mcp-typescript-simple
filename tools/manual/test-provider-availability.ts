@@ -4,7 +4,7 @@
  * Test which LLM providers are actually available vs. configured
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testProviderAvailability() {
   console.log('🔍 PROVIDER AVAILABILITY TEST');
@@ -35,7 +35,9 @@ async function testProviderAvailability() {
                 resolve(response);
                 return;
               }
-            } catch (e) {}
+            } catch {
+              // Continue parsing lines for valid JSON response
+            }
           }
         }
       };
@@ -131,4 +133,8 @@ async function testProviderAvailability() {
   }
 }
 
-testProviderAvailability().catch(console.error);
+try {
+  await testProviderAvailability();
+} catch (error) {
+  console.error(error);
+}

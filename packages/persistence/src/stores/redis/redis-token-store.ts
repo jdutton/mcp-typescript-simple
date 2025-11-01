@@ -184,7 +184,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     const id = await this.redis.get(valueKey);
 
     if (!id) {
-      logger.warn('Token validation failed: token not found', { token: token.substring(0, 8) + '...' });
+      logger.warn('Token validation failed: token not found', { token: `${token.substring(0, 8)}...` });
       return {
         valid: false,
         reason: 'Token not found',

@@ -4,7 +4,7 @@
  * Test specifically what happens with Gemini when API key is missing
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testGeminiSpecifically() {
   console.log('🔍 Testing Gemini API Key Configuration');
@@ -36,7 +36,7 @@ async function testGeminiSpecifically() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch {
               // Continue looking
             }
           }
@@ -93,4 +93,8 @@ async function testGeminiSpecifically() {
   }
 }
 
-testGeminiSpecifically().catch(console.error);
+try {
+  await testGeminiSpecifically();
+} catch (error) {
+  console.error(error);
+}

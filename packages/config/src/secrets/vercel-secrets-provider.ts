@@ -10,6 +10,7 @@
  * - No API calls needed (direct process.env access)
  * - Zero additional latency
  * - Scales to millions of requests
+ * - OCSF structured audit events via BaseSecretsProvider
  *
  * Environment Variable Configuration:
  * Set environment variables in Vercel dashboard or via vercel env command:
@@ -23,18 +24,15 @@
  * - https://vercel.com/docs/security/encryption
  */
 
-import type { SecretsProvider, SecretsProviderOptions } from './secrets-provider.js';
+import type { SecretsProviderOptions } from './secrets-provider.js';
+import { BaseSecretsProvider } from './base-secrets-provider.js';
 
-export class VercelSecretsProvider implements SecretsProvider {
+export class VercelSecretsProvider extends BaseSecretsProvider {
   readonly name = 'vercel';
   readonly readOnly = true; // Cannot set environment variables at runtime on Vercel
 
-  private readonly auditLog: boolean;
-  private readonly logger?: SecretsProviderOptions['logger'];
-
   constructor(options: SecretsProviderOptions = {}) {
-    this.auditLog = options.auditLog ?? process.env.NODE_ENV === 'production';
-    this.logger = options.logger;
+    super(options);
 
     // Verify we're running on Vercel
     if (!process.env.VERCEL) {
@@ -44,25 +42,16 @@ export class VercelSecretsProvider implements SecretsProvider {
       );
     }
 
-    if (this.auditLog && this.logger) {
-      this.logger.info('VercelSecretsProvider initialized', {
-        region: process.env.VERCEL_REGION,
-        environment: process.env.VERCEL_ENV,
-      });
-    }
+    this.emitInitializationEvent({
+      region: process.env.VERCEL_REGION,
+      environment: process.env.VERCEL_ENV,
+    });
   }
 
-  async getSecret<T = string>(key: string): Promise<T | undefined> {
+  protected async retrieveSecret<T = string>(key: string): Promise<T | undefined> {
     const value = process.env[key];
 
     if (value === undefined) {
-      if (this.auditLog && this.logger) {
-        this.logger.warn('Secret not found in Vercel environment', {
-          provider: this.name,
-          key,
-          region: process.env.VERCEL_REGION,
-        });
-      }
       return undefined;
     }
 
@@ -77,19 +66,10 @@ export class VercelSecretsProvider implements SecretsProvider {
       }
     }
 
-    if (this.auditLog && this.logger) {
-      this.logger.info('Secret retrieved from Vercel environment', {
-        provider: this.name,
-        key,
-        valueType: typeof parsedValue,
-        region: process.env.VERCEL_REGION,
-      });
-    }
-
     return parsedValue as T;
   }
 
-  async setSecret<T = string>(_key: string, _value: T): Promise<void> {
+  protected async storeSecret<T = string>(_key: string, _value: T): Promise<void> {
     throw new Error(
       'VercelSecretsProvider is read-only. ' +
       'Update environment variables via Vercel dashboard or CLI: ' +
@@ -101,12 +81,7 @@ export class VercelSecretsProvider implements SecretsProvider {
     return process.env[key] !== undefined;
   }
 
-  async dispose(): Promise<void> {
+  protected async disposeResources(): Promise<void> {
     // Nothing to clean up (no connections or caches)
-    if (this.auditLog && this.logger) {
-      this.logger.info('VercelSecretsProvider disposed', {
-        provider: this.name,
-      });
-    }
   }
 }

@@ -4,7 +4,7 @@
  * Comprehensive test of all LLM providers
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testAllProviders() {
   console.log('🚀 Comprehensive LLM Provider Testing');
@@ -37,7 +37,7 @@ async function testAllProviders() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch {
               // Ignore parsing errors, continue looking
             }
           }
@@ -161,4 +161,8 @@ async function testAllProviders() {
   }
 }
 
-testAllProviders().catch(console.error);
+try {
+  await testAllProviders();
+} catch (error) {
+  console.error(error);
+}

@@ -3,6 +3,7 @@
  */
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { emitOCSFEvent, apiActivityEvent, StatusId, APIActivityId } from '@mcp-typescript-simple/observability/ocsf';
 import { ToolDefinition, toMCPTool } from './types.js';
 
 /**
@@ -65,9 +66,25 @@ export class ToolRegistry {
    * @throws Error if tool not found or validation fails
    */
   async call(name: string, args: unknown): Promise<CallToolResult> {
+    const startTime = Date.now();
     const tool = this.tools.get(name);
 
     if (!tool) {
+      // Emit API Activity event for unknown tool (failure)
+      emitOCSFEvent(
+        apiActivityEvent(APIActivityId.Other)
+          .actor({ user: { name: 'system', uid: 'system' } })
+          .api({
+            operation: 'invoke',
+            service: { name: 'mcp.tool' },
+            version: '1.0',
+          })
+          .status(StatusId.Failure)
+          .message(`Unknown tool: ${name}`)
+          .resource({ name, type: 'tool' })
+          .duration(Date.now() - startTime)
+          .build()
+      );
       throw new Error(`Unknown tool: ${name}`);
     }
 
@@ -79,11 +96,64 @@ export class ToolRegistry {
         .map(err => `${err.path.join('.')}: ${err.message}`)
         .join(', ');
 
+      // Emit API Activity event for validation failure
+      emitOCSFEvent(
+        apiActivityEvent(APIActivityId.Other)
+          .actor({ user: { name: 'system', uid: 'system' } })
+          .api({
+            operation: 'invoke',
+            service: { name: 'mcp.tool' },
+            version: '1.0',
+          })
+          .status(StatusId.Failure)
+          .message(`Invalid input for tool '${name}': ${errors}`)
+          .resource({ name, type: 'tool' })
+          .duration(Date.now() - startTime)
+          .build()
+      );
       throw new Error(`Invalid input for tool '${name}': ${errors}`);
     }
 
-    // Invoke tool handler with validated input
-    return await tool.handler(parseResult.data);
+    try {
+      // Invoke tool handler with validated input
+      const result = await tool.handler(parseResult.data);
+
+      // Emit API Activity event for successful tool invocation
+      emitOCSFEvent(
+        apiActivityEvent(APIActivityId.Other)
+          .actor({ user: { name: 'system', uid: 'system' } })
+          .api({
+            operation: 'invoke',
+            service: { name: 'mcp.tool' },
+            version: '1.0',
+          })
+          .status(StatusId.Success)
+          .message(`Tool '${name}' executed successfully`)
+          .resource({ name, type: 'tool' })
+          .duration(Date.now() - startTime)
+          .build()
+      );
+
+      return result;
+    } catch (error) {
+      // Emit API Activity event for tool execution failure
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      emitOCSFEvent(
+        apiActivityEvent(APIActivityId.Other)
+          .actor({ user: { name: 'system', uid: 'system' } })
+          .api({
+            operation: 'invoke',
+            service: { name: 'mcp.tool' },
+            version: '1.0',
+          })
+          .status(StatusId.Failure)
+          .message(`Tool '${name}' execution failed: ${errorMessage}`)
+          .resource({ name, type: 'tool' })
+          .duration(Date.now() - startTime)
+          .build()
+      );
+      throw error;
+    }
   }
 
   /**

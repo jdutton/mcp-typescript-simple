@@ -56,7 +56,7 @@ export default defineConfig({
     clearMocks: true,
     restoreMocks: true,
 
-    // Reporters - use LLM reporter for concise output
-    reporters: [['./test/framework/llm-reporter.ts', {}]],
+    // Reporters
+    reporters: ['default'],
   },
 });

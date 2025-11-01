@@ -35,7 +35,6 @@ test/framework/
 ├── README.md           # This file
 ├── docs/               # Documentation tests (OpenAPI validation, etc.)
 ├── helpers/            # Framework test utilities
-├── llm-reporter.ts     # LLM model validation test reporter
 └── vitest-setup.ts     # Framework test setup
 ```
 

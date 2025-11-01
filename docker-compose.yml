@@ -36,7 +36,7 @@ services:
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
       OTEL_SERVICE_NAME: "mcp-server-1"
     env_file:
       - path: .env.oauth.docker
@@ -44,8 +44,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      grafana-otel:
-        condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - mcp-network
 
@@ -60,7 +60,7 @@ services:
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
       OTEL_SERVICE_NAME: "mcp-server-2"
     env_file:
       - path: .env.oauth.docker
@@ -68,8 +68,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      grafana-otel:
-        condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - mcp-network
 
@@ -84,7 +84,7 @@ services:
       MCP_MODE: streamable_http
       HTTP_PORT: 3000
       HTTP_HOST: "0.0.0.0"
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://grafana-otel:4318"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
       OTEL_SERVICE_NAME: "mcp-server-3"
     env_file:
       - path: .env.oauth.docker
@@ -92,8 +92,8 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      grafana-otel:
-        condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - mcp-network
 
@@ -112,22 +112,86 @@ services:
     networks:
       - mcp-network
 
-  # Grafana OTEL LGTM Stack - Observability (Logs, Traces, Metrics)
-  # Provides production-like observability pipeline for all MCP server instances
-  grafana-otel:
-    image: grafana/otel-lgtm:latest
-    container_name: mcp-grafana-otel
+  # OpenTelemetry Collector - Receives OTLP logs/traces/metrics
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: mcp-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
-      - "3200:3000"   # Grafana UI
       - "4317:4317"   # OTLP gRPC
       - "4318:4318"   # OTLP HTTP (used by MCP servers)
+      - "8889:8889"   # Prometheus exporter
     volumes:
-      - grafana-otel-data:/data  # Persist Grafana, Loki, Tempo, Prometheus data
+      - ./grafana/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    environment:
+      DEPLOYMENT_ENVIRONMENT: "development"
     networks:
       - mcp-network
-    restart: unless-stopped
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # Loki - Log aggregation system
+  loki:
+    image: grafana/loki:latest
+    container_name: mcp-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./grafana/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - mcp-network
     healthcheck:
-      test: ["CMD", "test", "-f", "/tmp/ready"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Grafana - Visualization and dashboarding
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mcp-grafana
+    ports:
+      - "3200:3000"   # Grafana UI
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - mcp-network
+    depends_on:
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Prometheus - Metrics storage
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mcp-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -136,7 +200,9 @@ services:
 volumes:
   redis-data:
     driver: local
-  grafana-otel-data:
+  loki-data:
+    driver: local
+  grafana-data:
     driver: local
 
 networks:

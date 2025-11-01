@@ -4,7 +4,7 @@
  * Simple LLM tool test using MCP Inspector approach
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 async function testLLMTools() {
   console.log('🧪 Testing LLM Tools with Real API Keys');
@@ -37,7 +37,7 @@ async function testLLMTools() {
                 resolve(response);
                 return;
               }
-            } catch (e) {
+            } catch {
               // Ignore parsing errors, continue looking
             }
           }
@@ -155,4 +155,8 @@ async function testLLMTools() {
   }
 }
 
-testLLMTools().catch(console.error);
+try {
+  await testLLMTools();
+} catch (error) {
+  console.error(error);
+}

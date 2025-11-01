@@ -53,21 +53,10 @@ export function setupAdminTokenRoutes(
         return;
       }
 
-      console.log('[admin-token-routes.createTokenHandler] About to call tokenStore.createToken', {
-        tokenStoreType: tokenStore.constructor.name,
-        description,
-        expires_in: expires_in || 2592000,
-        max_uses: max_uses || 0,
-      });
-
       const token = await tokenStore.createToken({
         description,
         expires_in: expires_in || 2592000, // 30 days default
         max_uses: max_uses || 0, // Unlimited default
-      });
-
-      console.log('[admin-token-routes.createTokenHandler] Token created successfully', {
-        tokenId: token.id,
       });
 
       logger.info('Initial access token created via admin endpoint', {
@@ -85,11 +74,6 @@ export function setupAdminTokenRoutes(
         max_uses: token.max_uses || null,
       });
     } catch (error) {
-      console.error('[admin-token-routes.createTokenHandler] ERROR caught', {
-        errorName: error instanceof Error ? error.name : typeof error,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined,
-      });
       logger.error('Failed to create token', error);
       res.status(500).json({
         error: 'server_error',

@@ -33,6 +33,7 @@ import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
+import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -283,6 +284,10 @@ export class MCPStreamableHttpServer {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true }));
+
+    // OCSF security audit logging middleware
+    // Automatically emits OCSF API Activity events for all HTTP requests
+    this.app.use(ocsfMiddleware());
 
     // OpenAPI request/response validation (DISABLED)
     // The validator is disabled because:
@@ -1058,19 +1063,7 @@ export class MCPStreamableHttpServer {
    * Process the request using the transport
    */
   private async processTransportRequest(transport: StreamableHTTPServerTransport, req: Request, res: Response, requestId: string): Promise<void> {
-    const mcpMethod = req.body?.method || 'unknown';
-
-    logger.info("Before transport.handleRequest", {
-      requestId,
-      headersSent: res.headersSent,
-      responseFinished: res.finished,
-      transportSessionId: transport.sessionId || 'no-session-id',
-      mcpMethod,
-      hasBody: !!req.body
-    });
-
     const transportPromise = transport.handleRequest(req, res, req.method === 'POST' ? req.body : undefined);
-    logger.info("Transport.handleRequest called, waiting for completion", { requestId, mcpMethod });
 
     // Create timeout with cleanup to prevent memory leak
     let timeoutId: NodeJS.Timeout | undefined;
