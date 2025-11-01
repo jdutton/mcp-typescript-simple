@@ -100,6 +100,7 @@ export function emitAPIActivityEvent(
     emitOCSFEvent(event);
   } catch (error) {
     // Never throw from audit logging - use structured logger
+    console.error('[OCSF Middleware] ERROR in emitAPIActivityEvent:', error);
     logger.error('Failed to emit OCSF API Activity event', { error });
   }
 }
@@ -118,9 +119,29 @@ export function ocsfMiddleware(): (req: Request, res: Response, next: NextFuncti
   return (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
 
+    // Identify streaming endpoints (SSE/MCP protocol endpoints)
+    const isStreamingEndpoint = req.path === '/mcp' || req.path.startsWith('/sse');
+
+    // DIAGNOSTIC: Log middleware invocation (Phase 2 - always visible)
+    console.log('[OCSF Middleware] Request received:', {
+      method: req.method,
+      path: req.path,
+      isStreamingEndpoint,
+      timestamp: startTime,
+    });
+
     // Listen for response finish event (works with all response methods)
     // This captures res.json(), res.send(), res.status().send(), res.end(), etc.
     res.on('finish', () => {
+      // DIAGNOSTIC: Log finish event (Phase 2 - always visible)
+      console.log('[OCSF Middleware] Response finished:', {
+        method: req.method,
+        path: req.path,
+        statusCode: res.statusCode,
+        isStreamingEndpoint,
+        duration: Date.now() - startTime,
+      });
+
       // Emit OCSF event asynchronously after response completes
       // setImmediate schedules callback for next event loop iteration (after I/O)
       // This ensures event emission doesn't delay HTTP response to client

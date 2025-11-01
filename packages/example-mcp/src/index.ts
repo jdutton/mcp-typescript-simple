@@ -2,6 +2,7 @@
 
 // NOTE: Observability is initialized via --import flag in package.json (see dev:http script)
 // This ensures auto-instrumentation hooks are registered before any modules load
+// IMPORTANT: LoggerProvider is initialized explicitly in main() to avoid --import timing issues
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
@@ -16,8 +17,10 @@ import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 import { EnvironmentConfig } from "@mcp-typescript-simple/config";
 import { TransportFactory } from "@mcp-typescript-simple/http-server";
 
-// Import structured logger
+// Import structured logger and OTEL LoggerProvider initialization
 import { logger } from "@mcp-typescript-simple/observability";
+import { initializeLoggerProvider } from "@mcp-typescript-simple/observability/logger";
+import { logs } from '@opentelemetry/api-logs';
 
 // Initialize LLM manager
 const llmManager = new LLMManager();
@@ -36,6 +39,23 @@ const server = new Server(
 
 async function main() {
   try {
+    // CRITICAL: Initialize LoggerProvider first to avoid --import timing issues
+    // This must happen before ANY OCSF events are emitted
+    // SKIP if already initialized via --import (Docker/production)
+    // Check if LoggerProvider is already initialized (from register.ts via --import)
+    const loggerProvider = logs.getLoggerProvider();
+    const isProxyProvider = loggerProvider.constructor.name === 'ProxyLoggerProvider';
+
+    if (isProxyProvider) {
+      // No LoggerProvider yet - initialize it now
+      // This happens when running without --import (e.g., npm run dev:oauth)
+      console.debug('[index.ts] No LoggerProvider detected, initializing...');
+      initializeLoggerProvider();
+    } else {
+      // LoggerProvider already initialized (e.g., via --import in Docker)
+      console.debug('[index.ts] LoggerProvider already initialized (via --import), skipping initialization');
+    }
+
     // Load environment configuration
     const config = EnvironmentConfig.get();
     const mode = EnvironmentConfig.getTransportMode();

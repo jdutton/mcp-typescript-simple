@@ -18,7 +18,8 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-node';
-import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { LoggerProvider, BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { logs } from '@opentelemetry/api-logs';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 
@@ -75,6 +76,15 @@ if (environment === 'test') {
       headers: {}
     });
 
+    // Create and register LoggerProvider explicitly
+    // CRITICAL: NodeSDK does NOT automatically set global LoggerProvider
+    // We must set it explicitly for OCSF events to be captured
+    const loggerProvider = new LoggerProvider({
+      resource,
+      processors: [new BatchLogRecordProcessor(logExporter)]
+    });
+    logs.setGlobalLoggerProvider(loggerProvider);
+
     // Initialize SDK with all exporters
     const sdk = new NodeSDK({
       resource,
@@ -83,7 +93,6 @@ if (environment === 'test') {
         maxExportBatchSize: 512,
         scheduledDelayMillis: 5000 // Export every 5 seconds in dev
       }),
-      logRecordProcessor: new BatchLogRecordProcessor(logExporter),
       metricReader: new PeriodicExportingMetricReader({
         exporter: metricExporter,
         exportIntervalMillis: 10000 // Export metrics every 10 seconds
