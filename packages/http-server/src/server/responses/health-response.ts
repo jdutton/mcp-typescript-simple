@@ -5,6 +5,7 @@
  */
 
 import { getConfiguredOAuthProviders, getConfiguredLLMProviders, SessionStats } from './provider-utils.js';
+import { getStorageBackendStatus } from '../production-storage-validator.js';
 
 export interface HealthResponseOptions {
   deployment: 'local' | 'vercel';
@@ -51,6 +52,12 @@ export interface HealthResponse {
     health_endpoint: string;
     admin_endpoint: string;
   };
+  storage: {
+    environment: 'production' | 'development' | 'test';
+    backend: 'redis' | 'file' | 'memory';
+    redisConfigured: boolean;
+    valid: boolean;
+  };
 }
 
 /**
@@ -62,6 +69,7 @@ export interface HealthResponse {
 export function buildHealthResponse(options: HealthResponseOptions): HealthResponse {
   const oauthProviders = getConfiguredOAuthProviders();
   const llmProviders = getConfiguredLLMProviders();
+  const storageStatus = getStorageBackendStatus();
 
   const response: HealthResponse = {
     status: 'healthy',
@@ -78,6 +86,7 @@ export function buildHealthResponse(options: HealthResponseOptions): HealthRespo
       uptime_seconds: process.uptime(),
       memory_usage: process.memoryUsage(),
     },
+    storage: storageStatus,
   };
 
   // Add session stats if provided (Express deployment)
