@@ -194,11 +194,6 @@ function generateHTML(markdownContent: string): string {
         font-size: 1.2rem;
       }
     }
-
-    /* Syntax highlighting hint colors */
-    .language-bash { border-left: 3px solid #28a745; }
-    .language-typescript { border-left: 3px solid #3178c6; }
-    .language-json { border-left: 3px solid #f39c12; }
   </style>
 </head>
 <body>

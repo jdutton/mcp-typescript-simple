@@ -34,6 +34,8 @@ import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
 import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
+import { createSecurityValidationMiddleware } from '../middleware/security-validation.js';
+import { validateProductionStorage, getStorageBackendStatus } from './production-storage-validator.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -89,6 +91,10 @@ export class MCPStreamableHttpServer {
    * Initialize async components like OAuth and client store
    */
   async initialize(): Promise<void> {
+    // CRITICAL: Validate production storage FIRST - fail fast if misconfigured
+    // Production requires Redis. File/memory stores don't work in serverless.
+    validateProductionStorage();
+
     // Create MCP instance manager with auto-detected metadata store (Redis if configured)
     // CRITICAL: Must use createAsync() to enable Redis-backed session storage
     this.instanceManager = await MCPInstanceManager.createAsync(this.toolRegistry);
@@ -206,6 +212,10 @@ export class MCPStreamableHttpServer {
       crossOriginResourcePolicy: false, // Required for Safari to fetch docs
       strictTransportSecurity: false, // Disable HSTS for localhost development
     }));
+
+    // Defense-in-depth security validations (applied BEFORE routing logic)
+    // Input validation - protects against ReDoS via path-to-regexp and path traversal
+    this.app.use(createSecurityValidationMiddleware());
 
     // CORS configuration with configurable origins
     // Unified configuration for both test and production environments

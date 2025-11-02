@@ -41,8 +41,9 @@ Add this to your Claude Desktop `claude_desktop_config.json` configuration file:
 Test the hosted example server:
 ```bash
 npx @modelcontextprotocol/inspector
-# In the UI, add: https://mcp-typescript-simple.vercel.app/mcp
 ```
+
+Then in the UI, add: `https://mcp-typescript-simple.vercel.app/mcp`
 
 Or test stdio mode:
 ```bash
