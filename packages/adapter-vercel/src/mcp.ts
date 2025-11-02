@@ -2,6 +2,10 @@
  * Vercel serverless function for MCP Streamable HTTP transport
  */
 
+// CRITICAL: Must be first import to initialize OTEL before any other code
+// This enables OCSF audit events via ConsoleLogRecordExporter → Vercel logs
+import '@mcp-typescript-simple/observability/register';
+
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
