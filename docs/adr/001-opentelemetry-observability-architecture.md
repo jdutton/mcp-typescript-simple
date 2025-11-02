@@ -150,7 +150,8 @@ src/observability/
 #### Vercel Serverless
 - **Runtime detection** (`process.env.NEXT_RUNTIME === 'nodejs'`)
 - **Conditional instrumentation** to avoid edge runtime conflicts
-- **OTLP export** to external services
+- **Console log fallback** when OTLP endpoint not configured (OCSF events → Vercel logs dashboard)
+- **OTLP export** to external services (optional, for dedicated observability platforms)
 - **Minimal overhead** optimizations for cold starts
 
 ### Port Allocation Strategy

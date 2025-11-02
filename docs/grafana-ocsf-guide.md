@@ -4,6 +4,13 @@
 
 This guide shows you how to view OCSF audit events in Grafana when running the Docker Compose production-like environment. The system includes two pre-configured dashboards that automatically visualize all OCSF events from the MCP servers.
 
+**Note for Non-Docker Deployments**: If running without Docker Compose or without `OTEL_EXPORTER_OTLP_ENDPOINT` configured, OCSF events are automatically emitted to console (stdout) and visible in:
+- **Vercel**: Logs dashboard (search for `class_name` or `category_name`)
+- **Local dev**: Terminal output (structured JSON)
+- **Standalone Docker**: `docker logs <container-name>`
+
+This guide focuses on the Docker Compose + Grafana setup with full OTLP integration.
+
 ## Architecture
 
 The observability stack uses a production-grade setup with separate services:

@@ -220,13 +220,36 @@ packages/
 ### Configuration
 
 **Environment Variables**:
-- `OTEL_EXPORTER_OTLP_ENDPOINT`: OTEL collector endpoint (default: http://localhost:4318)
+- `OTEL_EXPORTER_OTLP_ENDPOINT`: Optional OTLP collector endpoint
+  - **If set**: OCSF events exported via OTLP (logs, traces, metrics) → Grafana/external collectors
+  - **If not set**: OCSF events emitted to console (stdout) → Vercel logs, Docker logs, terminal output
+  - **Auto-detection**: System automatically adapts to environment without additional configuration
 - `NODE_ENV`: Controls PII hashing and verbosity (development vs production)
 
-**No Additional Config Required**:
-- Works out-of-the-box with existing OTEL setup
-- Automatic trace context injection
-- Zero-config Grafana dashboard
+**Deployment Behavior Matrix**:
+
+| Environment | OTLP Configured? | OCSF Events Go To | Visible Where |
+|---|---|---|---|
+| Local dev (`npm run dev:http`) | No | stdout (console) | Terminal |
+| Local dev (`npm run dev:otel`) | Yes (localhost:4318) | OTLP → Grafana | Grafana UI (port 3200) |
+| **Vercel production** | No | stdout (console) | **Vercel logs dashboard** ✅ |
+| Vercel with OTLP | Yes (external URL) | OTLP → Collector | External service |
+| Docker Compose | Yes (otel-collector:4318) | OTLP → Loki | Grafana dashboards |
+| Standalone Docker | No | stdout (console) | `docker logs` |
+| Kubernetes | Yes (cluster collector) | OTLP → Collector | Cluster observability |
+
+**Viewing OCSF Events**:
+- **Grafana** (with OTLP): Pre-built dashboards at http://localhost:3200 (see docs/grafana-ocsf-guide.md)
+- **Vercel**: Logs dashboard → Filter for `class_name` or `category_name` fields
+- **Docker**: `docker logs <container>` → OCSF events appear as structured JSON
+- **Local terminal**: Console output with ConsoleLogRecordExporter formatting
+- **SIEM integration**: Configure OTLP export to Splunk, Sumo Logic, Datadog, etc.
+
+**Zero-Config Design**:
+- Automatic OTLP endpoint detection (no hardcoded defaults)
+- Console fallback ensures OCSF events always visible
+- Works universally: local dev, Docker, Vercel, Kubernetes, bare metal
+- No breaking changes to existing deployments
 
 ## Consequences
 
