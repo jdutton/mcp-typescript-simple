@@ -47,24 +47,25 @@
     "lint": "eslint src/ test/"
   },
   "dependencies": {
-    "@vercel/node": "^3.0.0",
-    "@modelcontextprotocol/sdk": "^1.18.0",
-    "@mcp-typescript-simple/tools": "*",
-    "@mcp-typescript-simple/tools-llm": "*",
+    "@mcp-typescript-simple/auth": "*",
+    "@mcp-typescript-simple/config": "*",
     "@mcp-typescript-simple/example-tools-basic": "*",
     "@mcp-typescript-simple/example-tools-llm": "*",
-    "@mcp-typescript-simple/server": "*",
     "@mcp-typescript-simple/http-server": "*",
-    "@mcp-typescript-simple/config": "*",
-    "@mcp-typescript-simple/auth": "*",
     "@mcp-typescript-simple/observability": "*",
+    "@mcp-typescript-simple/server": "*",
+    "@mcp-typescript-simple/tools": "*",
+    "@mcp-typescript-simple/tools-llm": "*",
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@vercel/node": "^4.0.0",
+    "vercel": "41.0.2",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.8",
-    "eslint": "^9.0.0"
+    "vitest": "^4.0.6"
   },
   "keywords": [
     "mcp",

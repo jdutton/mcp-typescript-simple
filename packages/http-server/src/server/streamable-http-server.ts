@@ -34,6 +34,7 @@ import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
 import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
 import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
+import { createSecurityValidationMiddleware } from '../middleware/security-validation.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -206,6 +207,10 @@ export class MCPStreamableHttpServer {
       crossOriginResourcePolicy: false, // Required for Safari to fetch docs
       strictTransportSecurity: false, // Disable HSTS for localhost development
     }));
+
+    // Defense-in-depth security validations (applied BEFORE routing logic)
+    // Input validation - protects against ReDoS via path-to-regexp and path traversal
+    this.app.use(createSecurityValidationMiddleware());
 
     // CORS configuration with configurable origins
     // Unified configuration for both test and production environments
