@@ -1106,3 +1106,348 @@ For vibe-validate development and contribution:
 
 **Q**: Validation fails but old tooling passed
 **A**: vibe-validate runs steps in parallel phases - may expose race conditions or timing issues. Check test isolation.
+
+## npm Publication Workflow
+
+**CRITICAL**: This project is publishable to npm as `@mcp-typescript-simple/*` packages. The following workflow MUST be followed for all releases.
+
+### Version Management
+
+This project uses a custom `bump-version.js` tool for consistent versioning across all workspace packages.
+
+#### Setting a Specific Version
+
+```bash
+# Set all packages to a specific version
+npm run bump-version 0.9.0
+
+# This updates:
+# - Root package.json
+# - All 13 workspace package.json files
+# - Preserves formatting and structure
+```
+
+#### Incrementing Versions
+
+```bash
+# Patch version (0.9.0 → 0.9.1)
+npm run version:patch
+
+# Minor version (0.9.0 → 0.10.0)
+npm run version:minor
+
+# Major version (0.9.0 → 1.0.0)
+npm run version:major
+```
+
+**Version Management Guidelines:**
+- **ALWAYS use bump-version script** - never manually edit package.json versions
+- **Keep all packages synchronized** - all workspace packages share the same version number
+- **Version 0.9.x = Release Candidates** - use for pre-1.0.0 releases
+- **Version 1.0.0+ = Stable Releases** - only after community feedback and API stability
+
+### Pre-Publish Checklist
+
+**MANDATORY**: Run the pre-publish check before every release:
+
+```bash
+npm run pre-publish
+```
+
+This verifies:
+1. ✅ Version consistency across all workspace packages
+2. ✅ CHANGELOG.md exists and is updated for current version
+3. ✅ No uncommitted changes in git
+4. ✅ Current branch is `main`
+5. ✅ Branch is up to date with `origin/main`
+6. ✅ All packages have required metadata (name, version, description, license, repository)
+7. ✅ Build succeeds without errors
+
+**If pre-publish check fails, you MUST fix all issues before proceeding with publication.**
+
+### CHANGELOG.md Requirements
+
+**MANDATORY**: CHANGELOG.md MUST be updated before every release.
+
+#### User-Focused Writing
+
+Write for users (developers using the framework), not internal developers:
+
+**❌ BAD** (internal details):
+- "Updated `init.ts` to use `generateYamlConfig()` function"
+- "Added 11 new tests for schema validation"
+- "Refactored `packages/auth/src/factory.ts` exports"
+
+**✅ GOOD** (user impact):
+- "`mcp init` now correctly generates YAML config files"
+- "Fixed IDE autocomplete for YAML configs"
+- "OAuth authentication now works with all major providers"
+
+#### Structure: Problem → Solution → Impact
+
+```markdown
+### Bug Fixes
+- **Fixed broken OAuth redirect** (Issue #45)
+  - **Problem**: OAuth callback URLs were incorrectly constructed in production
+  - **Solution**: Redirect URIs now respect VERCEL_URL environment variable
+  - **Impact**: OAuth flows work correctly in Vercel deployments
+```
+
+#### CHANGELOG Categories
+
+- **Added**: New features users can use
+- **Changed**: Changes to existing functionality
+- **Deprecated**: Features being phased out
+- **Removed**: Features removed
+- **Fixed**: Bug fixes users will notice
+- **Security**: Security improvements
+
+#### Release Process for CHANGELOG
+
+1. **During development**: Add changes to **[Unreleased]** section
+2. **Before release**: Move **[Unreleased]** changes to versioned section (e.g., **[0.9.0] - 2025-11-14**)
+3. **After release**: Create new empty **[Unreleased]** section for next cycle
+
+### Publishing Workflow
+
+**IMPORTANT**: All packages MUST be published in dependency order to ensure consumers can install packages successfully.
+
+#### Manual Publishing (Current Approach)
+
+```bash
+# Step 1: Pre-publish validation (MANDATORY)
+npm run pre-publish
+
+# Step 2: Build all packages
+npm run build
+
+# Step 3: Test dry-run (RECOMMENDED)
+npm run publish:dry-run
+
+# Step 4: Publish packages in dependency order (CRITICAL)
+npm run publish:all
+```
+
+**Publish order (DO NOT CHANGE):**
+1. `@mcp-typescript-simple/config` (base configuration)
+2. `@mcp-typescript-simple/observability` (logging/metrics)
+3. `@mcp-typescript-simple/testing` (test utilities)
+4. `@mcp-typescript-simple/persistence` (data storage)
+5. `@mcp-typescript-simple/tools` (base tools)
+6. `@mcp-typescript-simple/tools-llm` (LLM-powered tools)
+7. `@mcp-typescript-simple/auth` (authentication)
+8. `@mcp-typescript-simple/server` (MCP server core)
+9. `@mcp-typescript-simple/http-server` (HTTP transport)
+10. `@mcp-typescript-simple/example-tools-basic` (example basic tools)
+11. `@mcp-typescript-simple/example-tools-llm` (example LLM tools)
+12. `@mcp-typescript-simple/example-mcp` (example server)
+13. `@mcp-typescript-simple/adapter-vercel` (Vercel serverless adapter)
+
+**Why dependency order matters:**
+- Packages early in the chain have zero dependencies on other workspace packages
+- Packages later in the chain depend on earlier packages
+- Publishing out of order causes installation failures for consumers
+
+#### Individual Package Publishing
+
+If you need to republish a single package:
+
+```bash
+# Example: Republish the auth package
+npm run publish:auth
+
+# Available commands for each package:
+npm run publish:config
+npm run publish:observability
+npm run publish:testing
+npm run publish:persistence
+npm run publish:tools
+npm run publish:tools-llm
+npm run publish:auth
+npm run publish:server
+npm run publish:http-server
+npm run publish:example-tools-basic
+npm run publish:example-tools-llm
+npm run publish:example-mcp
+npm run publish:adapter-vercel
+```
+
+### Release Process
+
+#### Release Candidate (Pre-1.0.0)
+
+```bash
+# Step 1: Update CHANGELOG.md with release notes
+# Step 2: Run release candidate script
+npm run release:rc
+
+# This will:
+# 1. Build all packages
+# 2. Stage all changes
+# 3. Commit with "chore: Release candidate" message
+# 4. Create git tag (e.g., v0.9.0-rc.1)
+```
+
+#### Patch Release
+
+```bash
+# Increments patch version (0.9.0 → 0.9.1)
+npm run release:patch
+
+# This will:
+# 1. Bump version (patch)
+# 2. Build all packages
+# 3. Stage all changes
+# 4. Commit with "chore: Release patch version" message
+# 5. Create git tag (e.g., v0.9.1)
+```
+
+#### Minor Release
+
+```bash
+# Increments minor version (0.9.0 → 0.10.0)
+npm run release:minor
+
+# This will:
+# 1. Bump version (minor)
+# 2. Build all packages
+# 3. Stage all changes
+# 4. Commit with "chore: Release minor version" message
+# 5. Create git tag (e.g., v0.10.0)
+```
+
+#### Major Release
+
+```bash
+# Increments major version (0.9.0 → 1.0.0)
+npm run release:major
+
+# This will:
+# 1. Bump version (major)
+# 2. Build all packages
+# 3. Stage all changes
+# 4. Commit with "chore: Release major version" message
+# 5. Create git tag (e.g., v1.0.0)
+```
+
+#### Post-Release Steps
+
+```bash
+# Step 1: Push tags to GitHub
+git push origin main --tags
+
+# Step 2: Publish to npm
+npm run publish:all
+
+# Step 3: Verify publication
+npm run verify-npm-packages
+```
+
+### Post-Publication Verification
+
+After publishing, verify all packages are available on npm:
+
+```bash
+npm run verify-npm-packages
+```
+
+**This checks:**
+- ✅ All packages exist on npm registry
+- ✅ Published versions match expected version
+- ✅ Package contents are correct (files published)
+- ✅ Installation test guidance provided
+
+**If verification fails:**
+1. Check npm registry status: `npm view @mcp-typescript-simple/<package-name>`
+2. Verify npm authentication: `npm whoami`
+3. Check package.json `publishConfig` settings
+4. Re-publish failed packages individually
+
+### npm Organization
+
+**CRITICAL**: This project publishes to the `@mcp-typescript-simple` npm organization.
+
+**Organization setup requirements:**
+- npm organization already reserved: `@mcp-typescript-simple`
+- All packages use scoped names: `@mcp-typescript-simple/<package-name>`
+- `publishConfig.access` set to `public` in all package.json files
+- npm authentication token required for publishing
+
+**To publish, you must:**
+1. Be logged into npm: `npm whoami` (should return your npm username)
+2. Have publish access to `@mcp-typescript-simple` organization
+3. Use `npm login` if not authenticated
+
+### Security Considerations for npm Publication
+
+**Pre-publication security checklist:**
+- ✅ No secrets in git history (verified via security audit)
+- ✅ No hardcoded credentials in source code
+- ✅ Proper .gitignore for environment files
+- ✅ No PII in logs or documentation
+- ✅ Dependencies audited for vulnerabilities
+- ✅ npm provenance enabled (supply chain security)
+
+**See comprehensive security documentation:**
+- `docs/security/npm-publication-security-audit-2025-11-14.md` - Security audit results
+- `docs/npm-publication-strategy.md` - Publication strategy and best practices
+
+### Troubleshooting Publication Issues
+
+**"Package already exists" error:**
+```bash
+# Check current published version
+npm view @mcp-typescript-simple/<package-name> version
+
+# Bump version if needed
+npm run version:patch
+```
+
+**"Not authorized" error:**
+```bash
+# Verify npm authentication
+npm whoami
+
+# Login if needed
+npm login
+```
+
+**"Version already published" error:**
+```bash
+# npm does not allow re-publishing the same version
+# Bump version and try again
+npm run version:patch
+npm run publish:all
+```
+
+**Build failures:**
+```bash
+# Clean and rebuild
+npm run build:clean
+npm run build
+
+# Verify TypeScript compilation
+npm run typecheck
+```
+
+### Best Practices
+
+1. **Always update CHANGELOG.md first** - before bumping version or publishing
+2. **Use bump-version script** - never manually edit versions
+3. **Run pre-publish check** - catches issues before publication
+4. **Test dry-run** - verify package contents before publishing
+5. **Publish in dependency order** - use `npm run publish:all`
+6. **Verify after publishing** - run `npm run verify-npm-packages`
+7. **Create GitHub release** - after successful npm publication
+8. **Announce in discussions** - share release notes with community
+
+### Future Automation
+
+**Planned improvements:**
+- Automated publishing via GitHub Actions on git tag push
+- Automated CHANGELOG generation from conventional commits
+- Automated release notes generation
+- npm provenance with GitHub Actions
+- Automated post-publication verification
+
+See `docs/npm-publication-strategy.md` for detailed roadmap.

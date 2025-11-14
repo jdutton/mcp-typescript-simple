@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/persistence",
-  "version": "0.1.0",
+  "version": "0.9.0-rc.1",
   "description": "Pluggable persistence layer for MCP servers with memory, file, and Redis support",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,5 +27,21 @@
     "typescript": "^5.7.2",
     "vitest": "^3.0.4"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdutton/mcp-typescript-simple.git",
+    "directory": "packages/persistence"
+  },
+  "keywords": [
+    "mcp",
+    "persistence",
+    "storage",
+    "redis",
+    "session",
+    "data"
+  ]
 }
