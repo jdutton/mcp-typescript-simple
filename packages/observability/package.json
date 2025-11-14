@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/observability",
-  "version": "0.1.0",
+  "version": "0.9.0-rc.1",
   "description": "Production-ready OpenTelemetry observability for MCP servers",
   "type": "module",
   "main": "./dist/index.js",
@@ -97,5 +97,13 @@
     "compliance"
   ],
   "author": "Jeff Dutton",
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdutton/mcp-typescript-simple.git",
+    "directory": "packages/observability"
+  }
 }

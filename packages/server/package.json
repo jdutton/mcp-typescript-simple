@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/server",
-  "version": "1.0.0",
+  "version": "0.9.0-rc.1",
   "description": "High-level MCP server creation and management",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,5 +26,13 @@
   },
   "devDependencies": {
     "typescript": "^5.9.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdutton/mcp-typescript-simple.git",
+    "directory": "packages/server"
   }
 }
