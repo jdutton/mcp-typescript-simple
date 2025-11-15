@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/testing",
-  "version": "0.9.0-rc.1",
+  "version": "0.9.0-rc.2",
   "description": "Reusable MCP testing framework with port management, process utilities, and Playwright helpers",
   "type": "module",
   "main": "./dist/index.js",
@@ -45,7 +45,7 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.json",

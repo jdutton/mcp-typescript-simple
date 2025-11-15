@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/observability",
-  "version": "0.9.0-rc.1",
+  "version": "0.9.0-rc.2",
   "description": "Production-ready OpenTelemetry observability for MCP servers",
   "type": "module",
   "main": "./dist/index.js",
@@ -53,7 +53,7 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc --project tsconfig.json",

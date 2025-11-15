@@ -50,8 +50,7 @@ export type LLMProvider = 'claude' | 'openai' | 'gemini';
 export type ClaudeModel =
   | 'claude-3-5-haiku-20241022'      // Latest Haiku (Oct 2024)
   | 'claude-3-haiku-20240307'         // Previous Haiku (Mar 2024) - still supported
-  | 'claude-sonnet-4-5-20250929'     // Latest Sonnet (Sep 2025)
-  | 'claude-3-7-sonnet-20250219';    // Previous Sonnet (Feb 2025) - still supported
+  | 'claude-sonnet-4-5-20250929';    // Latest Sonnet (Sep 2025)
 
 export type OpenAIModel = 'gpt-3.5-turbo' | 'gpt-4' | 'gpt-4-turbo' | 'gpt-4o' | 'gpt-4o-mini';
 // Gemini model names - October 2025 current models
@@ -185,8 +184,7 @@ export function isValidModelForProvider<T extends LLMProvider>(
     claude: [
       'claude-3-5-haiku-20241022',
       'claude-3-haiku-20240307',
-      'claude-sonnet-4-5-20250929',
-      'claude-3-7-sonnet-20250219'
+      'claude-sonnet-4-5-20250929'
     ],
     openai: ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini'],
     gemini: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/config",
-  "version": "0.9.0-rc.1",
+  "version": "0.9.0-rc.2",
   "description": "Extensible configuration management for MCP servers",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,6 +19,11 @@
       "import": "./dist/secrets/index.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
