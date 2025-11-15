@@ -1,0 +1,220 @@
+# {{mcpServerName}}
+
+{{description}}
+
+Built with [`@mcp-typescript-simple`](https://github.com/jdutton/mcp-typescript-simple) - a production-ready MCP server framework.
+
+## Features
+
+- ✅ **Basic MCP Tools** - Hello, echo, current-time
+{{#if includeLLM}}
+- ✅ **LLM-Powered Tools** - Chat, analyze, summarize, explain ({{llmProviders}})
+{{/if}}
+{{#if includeAuth}}
+- ✅ **OAuth Authentication** - {{oauthProviders}}
+{{/if}}
+- ✅ **Docker Deployment** - nginx + Redis + multi-replica
+{{#if includeVercel}}
+- ✅ **Vercel Serverless** - Serverless functions deployment
+{{/if}}
+- 🔐 **Secure by Default** - Unique encryption key generated
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment
+
+```bash
+cp .env.example .env
+# Edit .env and add your API keys
+```
+
+{{#if includeLLM}}
+**Required API keys:**
+{{#if hasAnthropic}}
+- `ANTHROPIC_API_KEY` - Get from https://console.anthropic.com/
+{{/if}}
+{{#if hasOpenAI}}
+- `OPENAI_API_KEY` - Get from https://platform.openai.com/api-keys
+{{/if}}
+{{#if hasGemini}}
+- `GOOGLE_API_KEY` - Get from https://makersuite.google.com/app/apikey
+{{/if}}
+
+{{/if}}
+### 3. Start Development Server
+
+```bash
+# STDIO mode (recommended for MCP Inspector)
+npm run dev:stdio
+
+# HTTP mode (skip auth - dev only)
+npm run dev:http
+
+{{#if includeAuth}}
+# HTTP mode with OAuth (production-like)
+npm run dev:oauth
+{{/if}}
+```
+
+### 4. Test with MCP Inspector
+
+```bash
+# In a separate terminal
+npm install -g @modelcontextprotocol/inspector
+mcp-inspector
+```
+
+Then connect to `http://localhost:3000` (or use STDIO mode).
+
+## Available Tools
+
+### Basic Tools
+
+- **hello** - Greet users by name
+  ```json
+  {
+    "name": "hello",
+    "arguments": { "name": "World" }
+  }
+  ```
+
+- **echo** - Echo back messages
+  ```json
+  {
+    "name": "echo",
+    "arguments": { "message": "Hello!" }
+  }
+  ```
+
+- **current-time** - Get current timestamp
+  ```json
+  {
+    "name": "current-time",
+    "arguments": {}
+  }
+  ```
+
+{{#if includeLLM}}
+### LLM-Powered Tools
+
+- **chat** - Interactive AI assistant
+- **analyze** - Deep text analysis
+- **summarize** - Text summarization
+- **explain** - Educational explanations
+
+{{/if}}
+## Development
+
+### Available Scripts
+
+```bash
+npm run dev:stdio        # STDIO mode
+npm run dev:http         # HTTP mode (no auth)
+{{#if includeAuth}}
+npm run dev:oauth        # HTTP mode with OAuth
+{{/if}}
+npm run build            # Build project
+npm test                 # Run tests
+npm run validate         # Full validation (required before commit)
+npm run typecheck        # TypeScript type checking
+npm run lint             # Code linting
+```
+
+### Adding New Tools
+
+1. Create tool file: `src/tools/my-tool.ts`
+2. Register tool: Add to `src/tools/index.ts`
+3. Add test: `test/tools/my-tool.test.ts`
+4. Run validation: `npm run validate`
+
+See `CLAUDE.md` for detailed guidance on adding tools.
+
+## Deployment
+
+### Docker Deployment
+
+```bash
+# Build and start
+docker-compose up
+
+# Access server
+curl http://localhost:8080/health
+```
+
+{{#if includeVercel}}
+### Vercel Deployment
+
+```bash
+# Test locally
+npm run dev:vercel
+
+# Deploy to Vercel
+vercel
+
+# Deploy to production
+vercel --prod
+```
+
+{{/if}}
+## Project Structure
+
+```
+{{name}}/
+├── src/
+│   ├── index.ts              # Main entry point
+│   ├── config.ts             # Configuration
+│   └── tools/                # Tool implementations
+│       ├── index.ts          # Tool registry
+│       └── hello.ts          # Example tool
+├── test/
+│   └── tools/                # Tool tests
+│       └── hello.test.ts
+├── docker/                   # Docker deployment
+│   ├── docker-compose.yml
+│   ├── nginx.conf
+│   └── Dockerfile
+{{#if includeVercel}}
+├── api/                      # Vercel serverless functions
+│   ├── mcp.ts
+│   ├── auth.ts
+│   └── health.ts
+{{/if}}
+├── .env.example              # Environment template
+├── package.json
+├── tsconfig.json
+└── vibe-validate.config.yaml # Validation configuration
+```
+
+## Documentation
+
+- **CLAUDE.md** - Claude Code integration guide (HIGHLY RECOMMENDED)
+- [Framework Documentation](https://github.com/jdutton/mcp-typescript-simple/docs)
+- [HTTP Session Management](https://github.com/jdutton/mcp-typescript-simple/docs/getting-started/02-http-session-management.md)
+- [Tool Registry for HTTP Mode](https://github.com/jdutton/mcp-typescript-simple/docs/getting-started/03-tool-registry-http-mode.md)
+
+## Security
+
+- ✅ Unique `TOKEN_ENCRYPTION_KEY` generated for this server
+- ✅ `.env` files in `.gitignore` (never committed)
+{{#if includeAuth}}
+- ✅ OAuth with Dynamic Client Registration (DCR)
+{{/if}}
+- ✅ Redis session storage with encryption
+
+**Never commit `.env` files to git!**
+
+## License
+
+MIT
+
+## Support
+
+- 📚 [Framework Documentation](https://github.com/jdutton/mcp-typescript-simple/docs)
+- 🐛 [Report Issues](https://github.com/jdutton/mcp-typescript-simple/issues)
+- 💬 [Discussions](https://github.com/jdutton/mcp-typescript-simple/discussions)

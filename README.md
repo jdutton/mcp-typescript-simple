@@ -2,6 +2,35 @@
 
 A production-ready MCP (Model Context Protocol) server built with TypeScript featuring both basic tools and advanced LLM-powered capabilities with **type-safe provider and model selection** and **dual-mode operation** (STDIO + Streamable HTTP with OAuth).
 
+## Quick Start
+
+Create a production-ready MCP server in under 2 minutes:
+
+```bash
+npm create @mcp-typescript-simple@latest my-mcp-server
+cd my-mcp-server
+cp .env.example .env
+npm run dev:stdio
+```
+
+**What you get:**
+- ✅ Full-featured MCP server (OAuth, LLM, Docker)
+- ✅ Graceful degradation (works without API keys)
+- ✅ Production-ready testing (unit + system tests)
+- ✅ Docker deployment (nginx + Redis + multi-replica)
+- ✅ Validation pipeline (vibe-validate)
+
+**Adding API keys:**
+Edit `.env` to add your provider keys (all optional):
+- `ANTHROPIC_API_KEY` - Claude LLM tools
+- `OPENAI_API_KEY` - GPT LLM tools
+- `GOOGLE_API_KEY` - Gemini LLM tools
+- `GOOGLE_CLIENT_ID/SECRET` - Google OAuth
+- `GITHUB_CLIENT_ID/SECRET` - GitHub OAuth
+- `MICROSOFT_CLIENT_ID/SECRET` - Microsoft OAuth
+
+See [Getting Started Guide](./docs/getting-started/) for full documentation.
+
 ## Key Features
 
 ### 🔒 **Type-Safe LLM Integration**

@@ -13,6 +13,53 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Environment Configuration**: Never use dotenv - use Node.js --env-file or --env-file-if-exists flags instead
 - **Redis Storage**: NEVER use Vercel KV (@vercel/kv package) - use standard Redis with ioredis + REDIS_URL environment variable
 
+## Creating New MCP Servers
+
+Use the scaffolding tool to create production-ready MCP servers:
+
+```bash
+npm create @mcp-typescript-simple@latest my-server
+```
+
+**Features included:**
+- Full-featured by default (OAuth, LLM, Docker)
+- Graceful degradation (works without API keys)
+- Configurable ports (BASE_PORT for dev, BASE_PORT+1/+2 for tests)
+- Complete test suite (unit + system tests)
+- Docker deployment ready (nginx + Redis + multi-replica)
+- Validation pipeline (vibe-validate)
+
+**Key architectural patterns included:**
+- **Tool Registry Pattern**: HTTP mode session reconstruction support
+- **Session Management**: Redis-based persistence for horizontal scaling
+- **Graceful Degradation**: LLM and OAuth work without API keys
+- **Port Isolation**: Configurable BASE_PORT prevents conflicts
+
+**Generated project structure:**
+```
+my-server/
+├── src/
+│   └── index.ts           # Main server (copied from example-mcp)
+├── test/
+│   └── system/            # System tests with BASE_PORT templating
+├── .env.example           # Environment template with unique encryption key
+├── .env.oauth.example     # OAuth configuration template
+├── docker-compose.yml     # Multi-replica Docker deployment
+├── Dockerfile             # Production container
+├── package.json           # Full dependency set (no conditionals)
+├── vibe-validate.config.yaml  # Validation pipeline
+└── CLAUDE.md              # Generated guidance including HTTP session management
+
+```
+
+**Deployment options included:**
+1. **Local Development**: `npm run dev:stdio` / `npm run dev:http`
+2. **OAuth Development**: `npm run dev:oauth` (with provider configuration)
+3. **Docker Deployment**: `docker-compose up` (nginx load balancer + Redis)
+4. **Validation**: `npm run validate` (comprehensive CI/CD pipeline)
+
+See `packages/create-mcp-typescript-simple/README.md` for detailed scaffolding documentation.
+
 ## Development Commands
 
 ```bash

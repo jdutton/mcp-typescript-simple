@@ -1,0 +1,210 @@
+services:
+  # Redis service for session storage (shared across all MCP server instances)
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis-compose
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data  # Persist Redis session data
+    command: redis-server --save 60 1 --loglevel warning  # Save every 60s if 1+ keys changed
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Load-balanced multi-instance setup
+  # Docker is EXCLUSIVELY for multi-node load-balanced testing via nginx on port 8080
+  #
+  # OAuth Configuration:
+  # - Uses .env.oauth.docker (optional) with redirect URIs for localhost:8080
+  # - If .env.oauth.docker exists with MCP_DEV_SKIP_AUTH=false, OAuth is enabled
+  # - If .env.oauth.docker doesn't exist, runs without OAuth for simple multi-node testing
+  # - Redis shared across all instances for session persistence
+
+  # MCP server instance 1
+  mcp-server-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      OTEL_SERVICE_NAME: "mcp-server-1"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - mcp-network
+
+  # MCP server instance 2
+  mcp-server-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      OTEL_SERVICE_NAME: "mcp-server-2"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - mcp-network
+
+  # MCP server instance 3
+  mcp-server-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+      MCP_MODE: streamable_http
+      HTTP_PORT: 3000
+      HTTP_HOST: "0.0.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+      OTEL_SERVICE_NAME: "mcp-server-3"
+    env_file:
+      - path: .env.oauth.docker
+        required: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    networks:
+      - mcp-network
+
+  # Nginx load balancer
+  nginx:
+    image: nginx:alpine
+    container_name: mcp-nginx
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - mcp-server-1
+      - mcp-server-2
+      - mcp-server-3
+    networks:
+      - mcp-network
+
+  # OpenTelemetry Collector - Receives OTLP logs/traces/metrics
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: mcp-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP (used by MCP servers)
+      - "8889:8889"   # Prometheus exporter
+    volumes:
+      - ./grafana/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    environment:
+      DEPLOYMENT_ENVIRONMENT: "development"
+    networks:
+      - mcp-network
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # Loki - Log aggregation system
+  loki:
+    image: grafana/loki:latest
+    container_name: mcp-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./grafana/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Grafana - Visualization and dashboarding
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mcp-grafana
+    ports:
+      - "3200:3000"   # Grafana UI
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - mcp-network
+    depends_on:
+      loki:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  # Prometheus - Metrics storage
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mcp-prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  redis-data:
+    driver: local
+  loki-data:
+    driver: local
+  grafana-data:
+    driver: local
+
+networks:
+  mcp-network:
+    driver: bridge

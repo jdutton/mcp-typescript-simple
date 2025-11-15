@@ -37,6 +37,7 @@
     { "path": "./packages/example-tools-llm" },
     { "path": "./packages/http-server" },
     { "path": "./packages/example-mcp" },
-    { "path": "./packages/adapter-vercel" }
+    { "path": "./packages/adapter-vercel" },
+    { "path": "./packages/create-mcp-typescript-simple" }
   ]
 }

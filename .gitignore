@@ -64,3 +64,8 @@ SUMMARY.md
 test-results/
 playwright-results/
 playwright-report/
+
+# Scaffolding tool test outputs (never commit - used for local testing only)
+test-adoption-project/
+test-port-custom/
+test-*-project/

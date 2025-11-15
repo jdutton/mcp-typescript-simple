@@ -1,0 +1,56 @@
+{
+  "name": "{{name}}",
+  "version": "0.1.0",
+  "description": "{{description}}",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "{{name}}": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev:stdio": "NODE_ENV=development MCP_DEV_SKIP_AUTH=true tsx src/index.ts",
+    "dev:http": "NODE_ENV=development MCP_MODE=streamable_http HTTP_PORT={{basePort}} MCP_DEV_SKIP_AUTH=true tsx src/index.ts",
+    "dev:oauth": "NODE_ENV=development MCP_MODE=streamable_http HTTP_PORT={{basePort}} tsx --env-file=.env.oauth src/index.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:system": "HTTP_PORT={{basePort}} HTTP_TEST_PORT={{add basePort 1}} vitest run test/system",
+    "test:ci": "vitest run --coverage",
+    "validate": "npx vibe-validate validate",
+    "pre-commit": "npx vibe-validate pre-commit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/**/*.ts"
+  },
+  "keywords": [
+    "mcp",
+    "typescript",
+    "server"
+  ],
+  "author": "{{author}}",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@mcp-typescript-simple/config": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/observability": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/persistence": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/server": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/tools": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/tools-llm": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/auth": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/http-server": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/example-tools-basic": "^{{frameworkVersion}}",
+    "@mcp-typescript-simple/example-tools-llm": "^{{frameworkVersion}}",
+    "@anthropic-ai/sdk": "^0.63.0",
+    "openai": "^5.21.0",
+    "@google/generative-ai": "^0.24.1",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.5.2",
+    "@vibe-validate/cli": "^0.16.0",
+    "eslint": "^9.21.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

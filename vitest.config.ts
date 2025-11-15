@@ -28,6 +28,7 @@ export default defineConfig({
       '**/packages/example-mcp/test/system/**',        // System tests (run separately)
       '**/packages/example-mcp/test/contract/**',      // Contract tests (run separately against live servers)
       '**/packages/example-mcp/test/playwright/**',    // Playwright tests (run separately)
+      '**/packages/create-mcp-typescript-simple/templates/**',  // Template files (not real tests)
       '**/build/**',
       '**/coverage/**',
       '**/packages/example-mcp/test/integration/deployment-validation.test.ts', // Custom test runner, not a Vitest test
