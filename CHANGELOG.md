@@ -14,6 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0-rc.2] - 2025-11-14
+
+### Fixed
+- **Fixed broken npm packages in 0.9.0-rc.1** (Critical bug)
+  - **Problem**: Published packages were missing their compiled `dist/` directories, making them completely unusable
+  - **Root Cause**: Missing `files` field in 9 out of 13 packages caused npm to respect `.gitignore` which excludes `dist/`
+  - **Solution**: Added `files: ["dist", "LICENSE"]` to all package.json files
+  - **Impact**: Packages now include compiled JavaScript and TypeScript definitions for proper installation
+
+- **Fixed npm publish failure for prerelease versions**
+  - **Problem**: `npm publish` failed with "You must specify a tag using --tag when publishing a prerelease version"
+  - **Solution**: Added `--tag next` to all publish scripts for proper npm dist-tag management
+  - **Impact**: Prerelease versions now publish successfully to npm registry under `next` tag
+
+### Changed
+- **Standardized LICENSE distribution**: All packages now include LICENSE file for proper licensing transparency
+- **Consistent package metadata**: Removed non-existent README.md references from packages that don't have them
+
 ## [0.9.0-rc.1] - 2025-11-14
 
 ### Added - Core Framework
