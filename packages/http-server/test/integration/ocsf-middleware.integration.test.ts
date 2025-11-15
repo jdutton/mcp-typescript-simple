@@ -9,12 +9,41 @@ import express, { type Express } from 'express';
 import request from 'supertest';
 import { ocsfMiddleware } from '../../src/middleware/ocsf-middleware.js';
 import * as ocsfModule from '@mcp-typescript-simple/observability/ocsf';
+import { resetOCSFOTELBridge } from '@mcp-typescript-simple/observability/ocsf';
+import { logs } from '@opentelemetry/api-logs';
+
+/**
+ * Wait for async event emission (setImmediate callback)
+ * The middleware uses setImmediate() to emit events asynchronously
+ */
+function waitForEvent(): Promise<void> {
+  return new Promise(resolve => setImmediate(resolve));
+}
 
 describe('OCSF Middleware Integration', () => {
   let app: Express;
   let emitSpy: ReturnType<typeof vi.spyOn>;
+  let mockLogger: any;
+  let mockEmit: ReturnType<typeof vi.fn>;
+  let mockLoggerProvider: any;
 
-  beforeAll(() => {
+  beforeEach(() => {
+    // Reset OCSF bridge singleton to ensure clean state before each test
+    resetOCSFOTELBridge();
+
+    // Mock OTEL logger (required for OCSF event emission)
+    mockEmit = vi.fn();
+    mockLogger = {
+      emit: mockEmit,
+    };
+
+    // Mock the logger provider to return our mock logger
+    mockLoggerProvider = {
+      getLogger: vi.fn().mockReturnValue(mockLogger),
+    };
+
+    vi.spyOn(logs, 'getLoggerProvider').mockReturnValue(mockLoggerProvider);
+
     // Spy on emitOCSFEvent to verify it's called
     emitSpy = vi.spyOn(ocsfModule, 'emitOCSFEvent');
 
@@ -40,21 +69,23 @@ describe('OCSF Middleware Integration', () => {
     });
   });
 
-  afterAll(() => {
-    emitSpy.mockRestore();
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // Reset OCSF bridge singleton to ensure clean state for other tests
+    resetOCSFOTELBridge();
   });
 
   it('should emit OCSF event for successful GET request', async () => {
     emitSpy.mockClear();
 
     await request(app).get('/health').expect(200);
+    await waitForEvent(); // Wait for setImmediate callback
 
     // Verify emitOCSFEvent was called
     expect(emitSpy).toHaveBeenCalledTimes(1);
 
     // Verify event structure
     const event = emitSpy.mock.calls[0][0];
-    console.log('[TEST DEBUG] Event received:', JSON.stringify(event, null, 2));
     expect(event).toMatchObject({
       class_name: 'API Activity',
       class_uid: 6003,
@@ -84,6 +115,7 @@ describe('OCSF Middleware Integration', () => {
     emitSpy.mockClear();
 
     await request(app).post('/api/create').expect(201);
+    await waitForEvent(); // Wait for setImmediate callback
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
 
@@ -105,6 +137,7 @@ describe('OCSF Middleware Integration', () => {
     await request(app).get('/health').expect(200);
     await request(app).get('/api/test').expect(200);
     await request(app).post('/api/create').expect(201);
+    await waitForEvent(); // Wait for all setImmediate callbacks
 
     // Verify 3 events were emitted
     expect(emitSpy).toHaveBeenCalledTimes(3);
@@ -119,6 +152,7 @@ describe('OCSF Middleware Integration', () => {
 
     await request(app).get('/api/test').expect(200);
     await request(app).post('/api/create').expect(201);
+    await waitForEvent(); // Wait for setImmediate callbacks
 
     expect(emitSpy).toHaveBeenCalledTimes(2);
 
@@ -131,6 +165,7 @@ describe('OCSF Middleware Integration', () => {
     emitSpy.mockClear();
 
     await request(app).get('/health').expect(200);
+    await waitForEvent(); // Wait for setImmediate callback
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
 
@@ -143,6 +178,7 @@ describe('OCSF Middleware Integration', () => {
     emitSpy.mockClear();
 
     await request(app).get('/health').expect(200);
+    await waitForEvent(); // Wait for setImmediate callback
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
 
@@ -157,6 +193,7 @@ describe('OCSF Middleware Integration', () => {
 
     await request(app).get('/health').expect(200);
     await request(app).get('/api/test').expect(200);
+    await waitForEvent(); // Wait for setImmediate callbacks
 
     expect(emitSpy).toHaveBeenCalledTimes(2);
 
@@ -168,6 +205,7 @@ describe('OCSF Middleware Integration', () => {
     emitSpy.mockClear();
 
     await request(app).get('/health').expect(200);
+    await waitForEvent(); // Wait for setImmediate callback
 
     expect(emitSpy).toHaveBeenCalledTimes(1);
 
@@ -186,6 +224,7 @@ describe('OCSF Middleware Integration', () => {
       request(app).get('/api/test'),
       request(app).post('/api/create'),
     ]);
+    await waitForEvent(); // Wait for setImmediate callbacks
 
     // Verify all events were emitted
     expect(emitSpy).toHaveBeenCalledTimes(3);

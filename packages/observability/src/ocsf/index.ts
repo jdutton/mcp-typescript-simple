@@ -48,4 +48,5 @@ export {
   // OCSF-OTEL bridge
   getOCSFOTELBridge,
   emitOCSFEvent,
+  resetOCSFOTELBridge,
 } from './ocsf-otel-bridge.js';

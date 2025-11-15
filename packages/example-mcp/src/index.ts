@@ -93,8 +93,9 @@ async function main() {
     // Create and start transport
     const transportManager = TransportFactory.createFromEnvironment();
 
-    // Initialize transport with server (tools are now in registry, no need for llmManager)
-    await transportManager.initialize(server);
+    // Initialize transport with server and tool registry
+    // The tool registry will be used for HTTP transport connections
+    await transportManager.initialize(server, toolRegistry);
 
     // Start the transport
     await transportManager.start();
