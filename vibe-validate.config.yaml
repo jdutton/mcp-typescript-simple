@@ -29,16 +29,12 @@ hooks:
 # Optimized for maximum parallelization: fast-fail static checks first, then all tests in parallel
 validation:
   phases:
-    # Phase 1: Fast-fail static checks (sequential in single runner - too fast for parallel overhead)
+    # Phase 1: Fast-fail static checks (combined into single step to save CI runners)
     - name: 'Static Analysis'
-      parallel: false  # Sequential - saves runner overhead (total ~5s)
+      parallel: false  # Single step for both local and CI efficiency
       steps:
-        - name: TypeScript Type Check
-          command: npm run typecheck
-        - name: ESLint
-          command: npm run lint
-        - name: OpenAPI Validation
-          command: npm run test:openapi
+        - name: TypeScript & Lint & OpenAPI
+          command: npm run typecheck && npm run lint && npm run test:openapi
 
     # Phase 2: Build (depends on typecheck passing)
     - name: 'Build'
