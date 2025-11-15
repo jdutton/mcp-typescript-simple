@@ -17,8 +17,6 @@ import {
 import { MCPStreamableHttpServer } from "../server/streamable-http-server.js";
 import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { ToolRegistry } from "@mcp-typescript-simple/tools";
-import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
-import { createLLMTools } from "@mcp-typescript-simple/example-tools-llm";
 import { setupMCPServerWithRegistry } from "@mcp-typescript-simple/server";
 import { logger } from '@mcp-typescript-simple/observability';
 
@@ -69,16 +67,18 @@ export class StreamableHTTPTransportManager implements TransportManager {
   private httpServer?: MCPStreamableHttpServer;
   private streamableTransports: Map<string, StreamableHTTPServerTransport> = new Map();
   private llmManager?: LLMManager;
+  private toolRegistry?: ToolRegistry;
 
   constructor(private options: StreamableHTTPTransportOptions) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async initialize(server: Server, toolRegistry?: ToolRegistry): Promise<void> {
-    // Note: server and toolRegistry parameters unused - HTTPServer creates its own instances
-    // The HTTPServer creates its own registry and server instances internally
+    // Note: server parameter unused - HTTPServer creates its own instances internally
+    // Store toolRegistry to use when creating new transport connections
+    this.toolRegistry = toolRegistry || new ToolRegistry();
     this.llmManager = undefined; // Will be recreated by the HTTPServer
 
     // Create HTTP server with OAuth support and Streamable HTTP transport
+    // CRITICAL: Pass toolRegistry to constructor so MCPInstanceManager gets configured tools
     this.httpServer = new MCPStreamableHttpServer({
       port: this.options.port,
       host: this.options.host,
@@ -89,6 +89,7 @@ export class StreamableHTTPTransportManager implements TransportManager {
       sessionSecret: this.options.sessionSecret,
       enableResumability: this.options.enableResumability,
       enableJsonResponse: this.options.enableJsonResponse,
+      toolRegistry: this.toolRegistry, // Pass the tool registry for session reconstruction
     });
 
     // Initialize async components (OAuth)
@@ -129,19 +130,9 @@ export class StreamableHTTPTransportManager implements TransportManager {
           }
         );
 
-        // Set up the server with tool registry (new package-based architecture)
-        const toolRegistry = new ToolRegistry();
-        toolRegistry.merge(basicTools);
-
-        // Add LLM tools if available
-        if (this.llmManager) {
-          try {
-            const llmTools = createLLMTools(this.llmManager);
-            toolRegistry.merge(llmTools);
-          } catch {
-            logger.debug("LLM tools not available for this connection", { sessionId });
-          }
-        }
+        // Set up the server with the shared tool registry
+        // Users should register their own tools before starting the server
+        const toolRegistry = this.toolRegistry || new ToolRegistry();
 
         await setupMCPServerWithRegistry(transportServer, toolRegistry);
 

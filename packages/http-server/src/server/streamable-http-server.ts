@@ -23,8 +23,6 @@ import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
 import { MCPInstanceManager } from './mcp-instance-manager.js';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
-import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
-import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
 import { OAuthProviderType } from '@mcp-typescript-simple/auth';
@@ -47,6 +45,7 @@ export interface StreamableHttpServerOptions {
   sessionSecret: string;
   enableResumability?: boolean;
   enableJsonResponse?: boolean;
+  toolRegistry?: ToolRegistry;
 }
 
 type AuthenticatedRequest = Request & { auth?: AuthInfo };
@@ -72,9 +71,10 @@ export class MCPStreamableHttpServer {
     // Create LLM manager for tool support
     this.llmManager = new LLMManager();
 
-    // Create tool registry with basic tools (LLM tools added after initialization)
-    this.toolRegistry = new ToolRegistry();
-    this.toolRegistry.merge(basicTools);
+    // Use provided tool registry or create empty one
+    // Users should register tools before creating server (via options.toolRegistry)
+    // or via the toolRegistry property after creation
+    this.toolRegistry = options.toolRegistry || new ToolRegistry();
 
     // MCP instance manager created in initialize() method (async factory needed for Redis auto-detection)
 
@@ -106,16 +106,9 @@ export class MCPStreamableHttpServer {
     this.sessionManager = createSessionManager(this.instanceManager);
     logger.info('Session manager initialized');
 
-    // Initialize LLM manager (gracefully handle missing API keys)
-    try {
-      await this.llmManager.initialize();
-      // Add LLM tools to registry after successful initialization
-      this.toolRegistry.merge(createLLMTools(this.llmManager));
-      logger.info('LLM tools registered successfully');
-    } catch (error) {
-      logger.warn('LLM manager initialization failed, LLM tools will be unavailable', { error });
-      // Continue - basic tools still work without LLM providers
-    }
+    // Note: Tool registration is now user-controlled
+    // Users should register tools before creating the server or via the toolRegistry
+    // LLM tools can be added by users if needed: toolRegistry.merge(createLLMTools(llmManager))
 
     // Initialize client store for OAuth Dynamic Client Registration
     this.clientStore = ClientStoreFactory.create();

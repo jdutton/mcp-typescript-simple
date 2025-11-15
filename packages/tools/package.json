@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/tools",
-  "version": "0.9.0-rc.2",
+  "version": "0.9.0-rc.3",
   "description": "Core tool system for building MCP tools in TypeScript",
   "type": "module",
   "main": "./dist/index.js",

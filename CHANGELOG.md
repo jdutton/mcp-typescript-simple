@@ -14,6 +14,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0-rc.3] - 2025-11-15
+
+### Fixed
+- **Removed hardcoded example tool dependencies from framework packages** (Critical architectural flaw)
+  - **Problem**: Framework packages (`http-server`, `server`) imported example tools directly, forcing users to install unnecessary dependencies
+  - **Root Cause**: `http-server` hardcoded imports of `@mcp-typescript-simple/example-tools-basic` and `@mcp-typescript-simple/example-tools-llm`
+  - **Solution**: Removed example imports; tool registration now user-controlled via `ToolRegistry` parameter
+  - **Impact**: Users can now use framework packages without installing example tools; cleaner dependency tree
+
+- **Fixed missing peer dependencies in framework packages**
+  - **Problem**: `http-server` package used libraries (helmet, cors, express-openapi-validator, etc.) without declaring them as dependencies
+  - **Solution**: Added proper dependencies to `http-server` and `auth` packages
+  - **Impact**: Consumers no longer need to manually install peer dependencies
+  - **Added dependencies**:
+    - `@mcp-typescript-simple/http-server`: helmet, cors, express-openapi-validator, swagger-ui-express, yaml, ajv, ajv-formats
+    - `@mcp-typescript-simple/auth`: google-auth-library
+
+### Changed
+- **Tool registration is now user-controlled**: Framework no longer auto-registers tools; users pass `ToolRegistry` to `transport.initialize()`
+- **Updated example-mcp**: Demonstrates correct pattern for registering tools before starting server
+- **Integration test coverage expanded**: Now running 15 test files (185 tests) via wildcard patterns, up from only 2 files previously
+  - Created `vitest.integration.config.ts` for wildcard pattern matching
+  - Discovered 14 hidden test files that weren't being run in rc2
+  - All discovered tests now passing (except pre-existing OCSF middleware failures - see Known Issues)
+
+### Fixed (Testing)
+- **Fixed toolRegistry not passed to MCPStreamableHttpServer** (Critical bug discovered during test expansion)
+  - **Problem**: System tests spawned HTTP server without toolRegistry, causing tools.list() to return empty array
+  - **Root Cause**: `StreamableHTTPTransportManager.initialize()` created `MCPStreamableHttpServer` without passing `toolRegistry` parameter
+  - **Solution**: Added `toolRegistry: this.toolRegistry` to MCPStreamableHttpServer constructor options
+  - **Impact**: HTTP transport now correctly initializes with configured tools; all 161 system tests passing
+
+- **Fixed brittle integration test assertions**
+  - **Problem**: Tests used exact tool count (`=== 3`) but LLM tools dynamically added when API keys present
+  - **Solution**: Changed assertions to minimum count (`>= 3`) to handle optional LLM tools gracefully
+  - **Impact**: Tests now pass regardless of LLM tool availability (3 basic tools + 4 optional LLM tools)
+
+- **Fixed OCSF middleware integration tests** (9 tests - pre-existing failures from rc2)
+  - **Problem**: `emitOCSFEvent()` called 0 times in tests when running full integration suite (tests passed in isolation)
+  - **Root Cause**: OCSF-OTEL bridge singleton created by other tests before OCSF middleware tests ran, preventing mocks from being applied
+  - **Solution**:
+    - Added `resetOCSFOTELBridge()` function to reset singleton state
+    - Changed from `beforeAll`/`afterAll` to `beforeEach`/`afterEach` for proper test isolation
+    - Mock OpenTelemetry LoggerProvider before each test to ensure clean state
+  - **Impact**: All 9 OCSF middleware tests now pass in both isolation and full integration suite
+  - **Files changed**:
+    - `packages/observability/src/ocsf/ocsf-otel-bridge.ts`: Added `resetOCSFOTELBridge()` function
+    - `packages/observability/src/ocsf/index.ts`: Export `resetOCSFOTELBridge` for test use
+    - `packages/observability/src/index.ts`: Export `resetOCSFOTELBridge` from main observability package
+    - `packages/http-server/test/integration/ocsf-middleware.integration.test.ts`: Use `beforeEach`/`afterEach` with singleton reset
+
+---
+
 ## [0.9.0-rc.2] - 2025-11-14
 
 ### Fixed

@@ -86,8 +86,8 @@ describe('MCP server bootstrap', () => {
     // New architecture: setupMCPServerWithRegistry is called with server, ToolRegistry, and logger
     expect(setupMCPServerSpy).toHaveBeenCalledWith(serverInstance, expect.anything(), expect.anything());
     expect(createTransportSpy).toHaveBeenCalledTimes(1);
-    // New architecture: transport.initialize no longer receives llmManager
-    expect(transportInitialize).toHaveBeenCalledWith(serverInstance);
+    // New architecture: transport.initialize receives server and toolRegistry
+    expect(transportInitialize).toHaveBeenCalledWith(serverInstance, expect.anything());
     expect(transportStart).toHaveBeenCalledTimes(1);
     expect(transportGetInfo).toHaveBeenCalledTimes(1);
     expect(exitSpy).not.toHaveBeenCalled();

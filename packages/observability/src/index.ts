@@ -90,4 +90,4 @@ export {
 export { createEdgeSpan } from './instrumentation-edge.js';
 
 // OCSF event exports
-export { emitOCSFEvent, getOCSFOTELBridge, apiActivityEvent } from './ocsf/index.js';
+export { emitOCSFEvent, getOCSFOTELBridge, resetOCSFOTELBridge, apiActivityEvent } from './ocsf/index.js';

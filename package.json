@@ -1,6 +1,6 @@
 {
   "name": "mcp-typescript-simple",
-  "version": "0.9.0-rc.2",
+  "version": "0.9.0-rc.3",
   "description": "A framework for building TypeScript MCP servers",
   "main": "packages/example-mcp/dist/index.js",
   "type": "module",
@@ -28,7 +28,7 @@
     "deploy:vercel": "vercel --prod",
     "test": "npm run test:unit",
     "test:unit": "vitest run --coverage",
-    "test:integration": "npx tsx packages/example-mcp/test/integration/deployment-validation.test.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:ci": "npm run test:integration",
     "test:mcp": "npx tsx tools/manual/test-mcp.ts",
     "test:interactive": "npx tsx tools/interactive-client.ts",

@@ -287,3 +287,11 @@ export function emitOCSFEvent(event: BaseEvent): void {
   const bridge = getOCSFOTELBridge();
   bridge.emitEvent(event);
 }
+
+/**
+ * Reset the OCSF-OTEL bridge singleton (for testing only)
+ * @internal
+ */
+export function resetOCSFOTELBridge(): void {
+  bridgeInstance = null;
+}

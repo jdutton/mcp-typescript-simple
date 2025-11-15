@@ -42,7 +42,7 @@ describe('Session Reconstruction Integration Tests', () => {
       logger.debug('LLM initialization failed in test', { error });
     }
 
-    // Create MCP server with proper options
+    // Create MCP server with proper options and tool registry
     mcpServer = new MCPStreamableHttpServer({
       port: 3000,
       host: 'localhost',
@@ -51,12 +51,14 @@ describe('Session Reconstruction Integration Tests', () => {
       sessionSecret: 'test-secret',
       enableResumability: true, // REQUIRED for session reconstruction tests
       enableJsonResponse: true,
+      toolRegistry: toolRegistry, // Pass pre-populated tool registry for session reconstruction
     });
 
     // Initialize the server (sets up routes)
     await mcpServer.initialize();
 
-    // Set up MCP transport handler (required for requests to work)
+    // Set up MCP transport handler (required for new sessions)
+    // NOTE: This is still needed for new sessions. Reconstructed sessions use MCPInstanceManager.toolRegistry
     mcpServer.onStreamableHTTPTransport(async (transport) => {
       // Create a fresh MCP Server instance for this transport
       const mcpServerInstance = new Server(
