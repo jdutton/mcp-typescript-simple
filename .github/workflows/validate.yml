@@ -12,8 +12,8 @@ on:
     branches:
       - main
 jobs:
-  typescript-lint-openapi:
-    name: TypeScript & Lint & OpenAPI
+  fast-checks-build:
+    name: Fast Checks & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,55 +24,29 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run typecheck && npm run lint && npm run test:openapi
-  build-packages:
-    name: Build Packages
-    runs-on: ubuntu-latest
-    needs:
-      - typescript-lint-openapi
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-  security-contract-tests:
-    name: Security & Contract Tests
-    runs-on: ubuntu-latest
-    needs: &a1
-      - build-packages
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run security:check && npm run test:contract:local
-  unit-integration-tests:
-    name: Unit & Integration Tests
-    runs-on: ubuntu-latest
-    needs: *a1
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:unit && npm run test:integration
+      - name: Build packages
+        run: npm run build
+      - name: TypeScript Type Check
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: OpenAPI Validation
+        run: npm run test:openapi
+      - name: Security Check
+        run: npm run security:check
+      - name: Contract Tests
+        run: npm run test:contract:local
+      - name: Build Packages
+        run: npm run build
+      - name: Unit Tests
+        run: npm run test:unit
+      - name: Integration Tests
+        run: npm run test:integration
   system-tests-stdio:
     name: System Tests (STDIO)
     runs-on: ubuntu-latest
-    needs: *a1
+    needs: &a1
+      - fast-checks-build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,10 +89,7 @@ jobs:
     name: All Validation Passed
     runs-on: ubuntu-latest
     needs:
-      - typescript-lint-openapi
-      - build-packages
-      - security-contract-tests
-      - unit-integration-tests
+      - fast-checks-build
       - system-tests-stdio
       - system-tests-http
       - headless-browser-tests
@@ -126,10 +97,7 @@ jobs:
     steps:
       - name: Check all validation jobs
         run: >-
-          if [ "${{ needs.typescript-lint-openapi.result }}" != "success" ] || \
-                       [ "${{ needs.build-packages.result }}" != "success" ] || \
-                       [ "${{ needs.security-contract-tests.result }}" != "success" ] || \
-                       [ "${{ needs.unit-integration-tests.result }}" != "success" ] || \
+          if [ "${{ needs.fast-checks-build.result }}" != "success" ] || \
                        [ "${{ needs.system-tests-stdio.result }}" != "success" ] || \
                        [ "${{ needs.system-tests-http.result }}" != "success" ] || \
                        [ "${{ needs.headless-browser-tests.result }}" != "success" ]; then
