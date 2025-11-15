@@ -26,45 +26,40 @@ hooks:
       scanCommand: "gitleaks protect --staged --verbose"
 
 # Validation configuration
+# Optimized for CI efficiency: fast checks on single runner, parallelize only slow tests
+# Reduces GitHub Actions runners from 7 to 4 (50% cost savings)
 validation:
   phases:
-    - name: 'Code Quality & Build'
-      parallel: false  # Sequential - saves 3 runners (was 4 parallel jobs)
+    # Phase 1: Fast Checks & Build (single runner, ~2-3 min)
+    # Group all fast-running checks together to minimize runner overhead
+    - name: 'Fast Checks & Build'
+      parallel: false  # Run in series on one runner for efficiency
       steps:
-        - name: TypeScript & Lint & OpenAPI & Build
-          command: npm run typecheck && npm run lint && npm run test:openapi && npm run build
+        - name: TypeScript Type Check
+          command: npm run typecheck
+        - name: ESLint
+          command: npm run lint
+        - name: OpenAPI Validation
+          command: npm run test:openapi
+        - name: Security Check
+          command: npm run security:check
+        - name: Contract Tests
+          command: npm run test:contract:local
+        - name: Build Packages
+          command: npm run build
+        - name: Unit Tests
+          command: npm run test:unit
+        - name: Integration Tests
+          command: npm run test:integration
 
-    # Security Validation - all checks pass (Issue #89 Phase 2 complete)
-    - name: 'Security Validation'
-      parallel: false  # Sequential - security checks run in order
-      steps:
-        - name: Admin Endpoint Protection
-          command: npm run security:check:admin
-        - name: Secrets in Logs Detection
-          command: npm run security:check:logs
-        - name: Production File Storage Check
-          command: npm run security:check:files
-
-    - name: 'Fast Tests'
-      parallel: false  # Sequential - saves 1 runner (was 2 parallel jobs)
-      steps:
-        - name: Unit & Integration Tests
-          command: npm run test:unit && npm run test:integration
-
+    # Phase 2: System Tests (3 parallel runners, ~3-5 min each)
+    # Only parallelize long-running tests where it provides real benefit
     - name: 'System Tests'
-      parallel: false  # Sequential - all tests run one after another to avoid port conflicts
+      parallel: true  # Parallel execution for slow tests
       steps:
-        - name: STDIO & HTTP System Tests
-          command: npm run test:system:stdio && npm run test:system:ci
-
-    - name: 'Headless Browser Tests'
-      parallel: false
-      steps:
+        - name: System Tests (STDIO)
+          command: npm run test:system:stdio
+        - name: System Tests (HTTP)
+          command: npm run test:system:ci
         - name: Headless Browser Tests
           command: npx playwright install --with-deps chromium && npm run test:system:headless
-
-    - name: 'Contract Tests (Local)'
-      parallel: false
-      steps:
-        - name: Contract Tests (Local)
-          command: npm run test:contract:local

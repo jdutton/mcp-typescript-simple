@@ -12,8 +12,8 @@ on:
     branches:
       - main
 jobs:
-  typescript-lint-openapi-build:
-    name: TypeScript & Lint & OpenAPI & Build
+  fast-checks-build:
+    name: Fast Checks & Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,12 +24,29 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run typecheck && npm run lint && npm run test:openapi && npm run build
-  admin-endpoint-protection:
-    name: Admin Endpoint Protection
+      - name: Build packages
+        run: npm run build
+      - name: TypeScript Type Check
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: OpenAPI Validation
+        run: npm run test:openapi
+      - name: Security Check
+        run: npm run security:check
+      - name: Contract Tests
+        run: npm run test:contract:local
+      - name: Build Packages
+        run: npm run build
+      - name: Unit Tests
+        run: npm run test:unit
+      - name: Integration Tests
+        run: npm run test:integration
+  system-tests-stdio:
+    name: System Tests (STDIO)
     runs-on: ubuntu-latest
     needs: &a1
-      - typescript-lint-openapi-build
+      - fast-checks-build
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,9 +56,9 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run security:check:admin
-  secrets-in-logs-detection:
-    name: Secrets in Logs Detection
+      - run: npm run test:system:stdio
+  system-tests-http:
+    name: System Tests (HTTP)
     runs-on: ubuntu-latest
     needs: *a1
     steps:
@@ -53,58 +70,11 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
-      - run: npm run security:check:logs
-  production-file-storage-check:
-    name: Production File Storage Check
-    runs-on: ubuntu-latest
-    needs: *a1
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run security:check:files
-  unit-integration-tests:
-    name: Unit & Integration Tests
-    runs-on: ubuntu-latest
-    needs:
-      - admin-endpoint-protection
-      - secrets-in-logs-detection
-      - production-file-storage-check
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:unit && npm run test:integration
-  stdio-http-system-tests:
-    name: STDIO & HTTP System Tests
-    runs-on: ubuntu-latest
-    needs:
-      - unit-integration-tests
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:system:stdio && npm run test:system:ci
+      - run: npm run test:system:ci
   headless-browser-tests:
     name: Headless Browser Tests
     runs-on: ubuntu-latest
-    needs:
-      - stdio-http-system-tests
+    needs: *a1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,46 +85,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium && npm run test:system:headless
-  contract-tests-local:
-    name: Contract Tests (Local)
-    runs-on: ubuntu-latest
-    needs:
-      - headless-browser-tests
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-      - run: npm ci
-      - run: npm run test:contract:local
   all-validation-passed:
     name: All Validation Passed
     runs-on: ubuntu-latest
     needs:
-      - typescript-lint-openapi-build
-      - admin-endpoint-protection
-      - secrets-in-logs-detection
-      - production-file-storage-check
-      - unit-integration-tests
-      - stdio-http-system-tests
+      - fast-checks-build
+      - system-tests-stdio
+      - system-tests-http
       - headless-browser-tests
-      - contract-tests-local
     if: always()
     steps:
       - name: Check all validation jobs
         run: >-
-          if [ "${{ needs.typescript-lint-openapi-build.result }}" != "success"
-          ] || \
-                       [ "${{ needs.admin-endpoint-protection.result }}" != "success" ] || \
-                       [ "${{ needs.secrets-in-logs-detection.result }}" != "success" ] || \
-                       [ "${{ needs.production-file-storage-check.result }}" != "success" ] || \
-                       [ "${{ needs.unit-integration-tests.result }}" != "success" ] || \
-                       [ "${{ needs.stdio-http-system-tests.result }}" != "success" ] || \
-                       [ "${{ needs.headless-browser-tests.result }}" != "success" ] || \
-                       [ "${{ needs.contract-tests-local.result }}" != "success" ]; then
+          if [ "${{ needs.fast-checks-build.result }}" != "success" ] || \
+                       [ "${{ needs.system-tests-stdio.result }}" != "success" ] || \
+                       [ "${{ needs.system-tests-http.result }}" != "success" ] || \
+                       [ "${{ needs.headless-browser-tests.result }}" != "success" ]; then
                       echo "❌ Some validation checks failed"
                       exit 1
                     fi
