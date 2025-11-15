@@ -42,8 +42,7 @@ export class LLMConfigManager {
             models: {
               'claude-3-5-haiku-20241022': { maxTokens: 8192, available: true },      // Latest Haiku
               'claude-3-haiku-20240307': { maxTokens: 4096, available: true },        // Previous Haiku
-              'claude-sonnet-4-5-20250929': { maxTokens: 8192, available: true },    // Latest Sonnet
-              'claude-3-7-sonnet-20250219': { maxTokens: 8192, available: true }     // Previous Sonnet
+              'claude-sonnet-4-5-20250929': { maxTokens: 8192, available: true }     // Latest Sonnet
             }
           },
           openai: {
