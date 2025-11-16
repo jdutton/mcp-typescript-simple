@@ -21,7 +21,7 @@ This scaffolding tool generates a **production-ready** MCP server with:
 - ✅ **OAuth Authentication** - Optional Google, GitHub, Microsoft OAuth
 - ✅ **Docker Deployment** - nginx + Redis + multi-replica setup
 - ✅ **Vercel Serverless** - Optional Vercel deployment with serverless functions
-- ✅ **Unique Encryption Key** - Auto-generated TOKEN_ENCRYPTION_KEY for security
+- ✅ **Secure Encryption** - TOKEN_ENCRYPTION_KEY setup with generation instructions
 - ✅ **Validation Pipeline** - Pre-configured vibe-validate with 2-phase validation
 - ✅ **Testing Setup** - Vitest configuration and example tests
 - ✅ **CI/CD Ready** - GitHub Actions workflows (optional)
@@ -66,7 +66,7 @@ npm create @mcp-typescript-simple@latest my-server -- \\
 my-mcp-server/
 ├── package.json              # With conditional dependencies
 ├── tsconfig.json             # TypeScript configuration
-├── .env.example              # With unique TOKEN_ENCRYPTION_KEY
+├── .env.oauth.example        # OAuth configuration template
 ├── .gitignore               # Comprehensive ignore patterns
 ├── README.md                # Getting started guide
 ├── CLAUDE.md                # Claude Code integration guide
@@ -88,17 +88,6 @@ my-mcp-server/
 ```
 
 ## Key Features
-
-### Unique Encryption Key
-
-Every scaffolded project gets a unique `TOKEN_ENCRYPTION_KEY` generated automatically:
-
-```bash
-# .env.example (generated)
-TOKEN_ENCRYPTION_KEY="zJ8kL2mN4pQ6rS8tU0vW1xY3zA5bC7dE9fG1hI3jK5mL7nO9pQ=="
-```
-
-This key is used for secure token encryption in Redis-backed sessions. **Never commit this key to git!**
 
 ### Production-Ready by Default
 
@@ -128,13 +117,13 @@ After scaffolding your project:
 ```bash
 cd my-mcp-server
 
-# 1. Configure environment (CRITICAL)
-cp .env.example .env
-# Edit .env and add your API keys
-
-# 2. Start development
+# 1. Start development
 npm run dev:stdio        # STDIO mode (recommended for development)
 npm run dev:http         # HTTP mode (skip auth - dev only)
+
+# 2. Configure OAuth (optional - for dev:oauth mode)
+cp .env.oauth.example .env.oauth
+# Edit .env.oauth and add OAuth provider credentials
 npm run dev:oauth        # HTTP mode with OAuth (production-like)
 
 # 3. Add your tools
@@ -239,13 +228,15 @@ npm create @mcp-typescript-simple@latest MyMcpServer
 
 ### "TOKEN_ENCRYPTION_KEY not set"
 
-After scaffolding, you must create `.env` from `.env.example`:
+The TOKEN_ENCRYPTION_KEY is only required for OAuth mode with Redis sessions. For basic development (`dev:stdio` or `dev:http`), this error should not occur.
 
+For OAuth mode, set the key as an environment variable:
 ```bash
-cp .env.example .env
+export TOKEN_ENCRYPTION_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")"
+npm run dev:oauth
 ```
 
-The `.env.example` file already contains a unique encryption key for your project.
+Or add it to `.env.oauth` file.
 
 ### "Tools vanish on session reconnection"
 

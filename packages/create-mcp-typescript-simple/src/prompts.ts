@@ -2,7 +2,6 @@ import { input } from '@inquirer/prompts';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { ProjectConfig } from './types.js';
-import { generateEncryptionKey } from './utils/encryption.js';
 
 const execAsync = promisify(exec);
 
@@ -112,7 +111,6 @@ export async function promptForConfig(projectName?: string): Promise<ProjectConf
     author,
     mcpServerName: toDisplayName(name),
     basePort,
-    tokenEncryptionKey: generateEncryptionKey(),
   };
 }
 
@@ -128,6 +126,5 @@ export async function getDefaultConfig(projectName: string): Promise<ProjectConf
     author: gitUserName || 'Your Name',
     mcpServerName: toDisplayName(projectName),
     basePort: 3000,
-    tokenEncryptionKey: generateEncryptionKey(),
   };
 }

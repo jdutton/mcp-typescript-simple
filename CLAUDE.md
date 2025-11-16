@@ -1193,6 +1193,48 @@ npm run version:major
 - **Version 0.9.x = Release Candidates** - use for pre-1.0.0 releases
 - **Version 1.0.0+ = Stable Releases** - only after community feedback and API stability
 
+### Dependency Version Management
+
+Internal dependencies use `"*"` wildcards during development (for workspace linking), but are automatically converted to exact versions during publishing.
+
+#### How it works:
+
+**Development:**
+```json
+{
+  "dependencies": {
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/tools": "*"
+  }
+}
+```
+- `"*"` allows npm workspaces to link local packages
+- Fast, efficient development workflow
+
+**Publishing:**
+- `npm run prepare-publish` converts `"*"` → exact version (e.g., `"0.9.0-rc.3"`)
+- Packages publish with exact versions
+- `git checkout` reverts package.json files back to `"*"`
+- Git never tracks the temporary changes
+
+**Result:**
+- ✅ Published packages have exact version dependencies
+- ✅ Consumers get matching versions (no mismatches)
+- ✅ Development keeps simple `"*"` wildcards
+- ✅ No manual version updates needed
+
+#### Why this matters:
+
+**Problem:**
+- Publishing with `"*"` dependencies causes npm to resolve random versions
+- Consumers get mismatched versions (e.g., server@rc.3 with config@rc.1)
+- Runtime failures due to incompatible APIs
+
+**Solution:**
+- `prepare-publish` script converts all `"*"` to current package version
+- Published packages guaranteed to have matching versions
+- Zero manual maintenance required
+
 ### Pre-Publish Checklist
 
 **MANDATORY**: Run the pre-publish check before every release:
@@ -1274,6 +1316,13 @@ npm run publish:dry-run
 # Step 4: Publish packages in dependency order (CRITICAL)
 npm run publish:all
 ```
+
+**What happens during `publish:all`:**
+1. Runs `prepare-publish` - converts `"*"` → exact versions in all package.json
+2. Publishes packages in dependency order with npm
+3. Reverts package.json files with `git checkout` (keeps `"*"` in development)
+
+**Result:** Published packages have exact versions, development keeps `"*"` wildcards.
 
 **Publish order (DO NOT CHANGE):**
 1. `@mcp-typescript-simple/config` (base configuration)
@@ -1481,12 +1530,13 @@ npm run typecheck
 
 1. **Always update CHANGELOG.md first** - before bumping version or publishing
 2. **Use bump-version script** - never manually edit versions
-3. **Run pre-publish check** - catches issues before publication
-4. **Test dry-run** - verify package contents before publishing
-5. **Publish in dependency order** - use `npm run publish:all`
-6. **Verify after publishing** - run `npm run verify-npm-packages`
-7. **Create GitHub release** - after successful npm publication
-8. **Announce in discussions** - share release notes with community
+3. **Keep "*" wildcards** - for internal dependencies (prepare-publish handles conversion)
+4. **Run pre-publish check** - catches issues before publication
+5. **Test dry-run** - verify package contents before publishing
+6. **Publish in dependency order** - use `npm run publish:all`
+7. **Verify after publishing** - run `npm run verify-npm-packages`
+8. **Create GitHub release** - after successful npm publication
+9. **Announce in discussions** - share release notes with community
 
 ### Future Automation
 

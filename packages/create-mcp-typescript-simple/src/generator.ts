@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import type { ProjectConfig, TemplateData, TemplateFile } from './types.js';
 import { ensureDir, isDirNonEmpty, processTemplateFiles } from './utils/files.js';
 import { getDependencies, getDevDependencies, getScripts, FRAMEWORK_VERSION } from './utils/dependencies.js';
+import { generateEncryptionKey } from './utils/encryption.js';
 import fs from 'fs-extra';
 
 /**
@@ -16,20 +17,26 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
     { source: 'package.json.hbs', destination: 'package.json', isTemplate: true },
     { source: 'tsconfig.json', destination: 'tsconfig.json', isTemplate: false },
     { source: '.gitignore', destination: '.gitignore', isTemplate: false },
-    { source: '.eslintrc.json', destination: '.eslintrc.json', isTemplate: false },
+    { source: 'eslint.config.js', destination: 'eslint.config.js', isTemplate: false },
     { source: 'README.md.hbs', destination: 'README.md', isTemplate: true },
     { source: 'CLAUDE.md.hbs', destination: 'CLAUDE.md', isTemplate: true },
-    { source: 'vibe-validate.config.yaml', destination: 'vibe-validate.config.yaml', isTemplate: false },
+    { source: 'vibe-validate.config.yaml.hbs', destination: 'vibe-validate.config.yaml', isTemplate: true },
 
-    // Environment files (templates for basePort and encryption key)
+    // Environment files
+    // Example files (with placeholder keys - for reference only)
     { source: '.env.example.hbs', destination: '.env.example', isTemplate: true },
     { source: '.env.oauth.example.hbs', destination: '.env.oauth.example', isTemplate: true },
     { source: '.env.local.example', destination: '.env.local.example', isTemplate: false },
+
+    // Actual files (with real encryption keys - ready to use)
+    { source: '.env.oauth.hbs', destination: '.env.oauth', isTemplate: true },
+    { source: '.env.local.hbs', destination: '.env.local', isTemplate: true },
 
     // Source files (copy from example-mcp, no templating)
     { source: 'src/index.ts', destination: 'src/index.ts', isTemplate: false },
 
     // Test files (copy from example-mcp)
+    { source: 'test/unit/example.test.ts', destination: 'test/unit/example.test.ts', isTemplate: false },
     { source: 'test/system/mcp.system.test.ts', destination: 'test/system/mcp.system.test.ts', isTemplate: false },
     { source: 'test/system/utils.ts.hbs', destination: 'test/system/utils.ts', isTemplate: true }, // needs basePort
     { source: 'vitest.config.ts', destination: 'vitest.config.ts', isTemplate: false },
@@ -44,10 +51,15 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
  * Generate template data from project configuration
  *
  * No conditional flags needed - all projects are full-featured
+ * Generates a unique encryption key for this project instance
  */
 function generateTemplateData(config: ProjectConfig): TemplateData {
+  // Generate unique encryption key for .env.oauth and .env.local
+  const tokenEncryptionKey = generateEncryptionKey();
+
   return {
     ...config,
+    tokenEncryptionKey,
     currentDate: new Date().toISOString().split('T')[0]!,
     frameworkVersion: FRAMEWORK_VERSION,
   };
@@ -113,6 +125,5 @@ export async function generateProject(config: ProjectConfig, targetDir: string):
   console.log(`  ✅ OAuth authentication (Google, GitHub, Microsoft)`);
   console.log(`  ✅ Docker deployment (nginx + Redis + multi-replica)`);
   console.log(`  ✅ Validation pipeline (vibe-validate)`);
-  console.log(`  🔐 Unique encryption key generated`);
   console.log(chalk.dim(`\n  Note: LLM and OAuth features work without API keys (graceful degradation)\n`));
 }

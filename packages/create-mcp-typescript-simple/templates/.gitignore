@@ -46,8 +46,8 @@ temp/
 # Redis dumps
 dump.rdb
 
-# vibe-validate state
-.vibe-validate/
+# OAuth client registration data (test/development)
+data/
 
 # Vercel
 .vercel

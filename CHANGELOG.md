@@ -14,6 +14,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0-rc.4] - 2025-11-16
+
+### Added
+- **Production-ready scaffolding tool** (`create-mcp-typescript-simple`)
+  - Generate MCP servers with `npm create @mcp-typescript-simple@latest my-server`
+  - Full-featured by default: OAuth, LLM tools, Docker deployment, comprehensive testing
+  - Graceful degradation: works without API keys or OAuth credentials
+  - Validation pipeline with [vibe-validate](https://github.com/jdutton/vibe-validate) (312x faster with caching)
+  - Port isolation prevents test conflicts (configurable BASE_PORT)
+  - Unique encryption keys generated per project
+
+### Changed
+- **Scaffolding templates updated** for production readiness
+  - vibe-validate integration with schema validation, secret scanning, and pre-commit hooks
+  - ESLint v9 flat config format (replaces deprecated .eslintrc.json)
+  - Comprehensive test infrastructure (unit + system tests with parallel execution)
+  - Environment configuration with 5 .env files for different deployment modes
+
+---
+
 ## [0.9.0-rc.3] - 2025-11-15
 
 ### Fixed

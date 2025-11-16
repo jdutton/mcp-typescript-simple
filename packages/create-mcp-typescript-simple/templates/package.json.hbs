@@ -15,11 +15,13 @@
     "test": "vitest run",
     "test:unit": "vitest run test/unit",
     "test:system": "HTTP_PORT={{basePort}} HTTP_TEST_PORT={{add basePort 1}} vitest run test/system",
-    "test:ci": "vitest run --coverage",
+    "test:system:stdio": "TEST_ENV=stdio npm run test:system",
+    "test:system:http": "TEST_ENV=http npm run test:system",
+    "test:ci": "npm run test:unit && npm run test:system",
     "validate": "npx vibe-validate validate",
     "pre-commit": "npx vibe-validate pre-commit",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src/**/*.ts"
+    "lint": "eslint src/**/*.ts test/**/*.ts"
   },
   "keywords": [
     "mcp",

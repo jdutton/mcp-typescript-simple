@@ -16,9 +16,6 @@ export interface ProjectConfig {
 
   /** Base HTTP port (tests will use basePort+1, basePort+2) */
   basePort: number;
-
-  /** Generated encryption key */
-  tokenEncryptionKey: string;
 }
 
 /**
@@ -33,6 +30,9 @@ export interface CliOptions {
  * Template data for Handlebars rendering
  */
 export interface TemplateData extends ProjectConfig {
+  /** Generated encryption key for .env files */
+  tokenEncryptionKey: string;
+
   /** Current date (for generated files) */
   currentDate: string;
 

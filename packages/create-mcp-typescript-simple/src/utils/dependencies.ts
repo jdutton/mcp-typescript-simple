@@ -50,6 +50,12 @@ export function getDevDependencies(): Record<string, string> {
     'typescript': '^5.9.2',
     'vitest': '^3.2.4',
     'axios': '^1.7.9', // For system tests
+
+    // ESLint dependencies
+    'eslint': '^9.35.0',
+    '@eslint/js': '^9.35.0',
+    '@typescript-eslint/eslint-plugin': '^8.44.0',
+    '@typescript-eslint/parser': '^8.44.0',
   };
 }
 
@@ -72,6 +78,8 @@ export function getScripts(config: ProjectConfig): Record<string, string> {
     'test': 'vitest run',
     'test:unit': 'vitest run test/unit',
     'test:system': `HTTP_PORT=${basePort} HTTP_TEST_PORT=${testPort1} vitest run test/system`,
+    'test:system:stdio': 'TEST_ENV=stdio npm run test:system',
+    'test:system:http': 'TEST_ENV=express npm run test:system',
     'test:ci': 'npm run test:unit && npm run test:system',
 
     // Validation

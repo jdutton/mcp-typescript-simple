@@ -1,6 +1,6 @@
 {
   "name": "mcp-typescript-simple",
-  "version": "0.9.0-rc.3",
+  "version": "0.9.0-rc.4",
   "description": "A framework for building TypeScript MCP servers",
   "main": "packages/example-mcp/dist/index.js",
   "type": "module",
@@ -93,6 +93,7 @@
     "version:patch": "node tools/bump-version.js patch",
     "version:minor": "node tools/bump-version.js minor",
     "version:major": "node tools/bump-version.js major",
+    "prepare-publish": "node tools/prepare-packages-for-publish.js",
     "pre-publish": "node tools/pre-publish-check.js",
     "verify-npm-packages": "node tools/verify-npm-packages.js",
     "publish:dry-run": "npm -ws --if-present exec npm publish --dry-run --tag next",
@@ -110,7 +111,7 @@
     "publish:example-mcp": "cd packages/example-mcp && npm publish --no-git-checks --tag next",
     "publish:adapter-vercel": "cd packages/adapter-vercel && npm publish --no-git-checks --tag next",
     "publish:create": "cd packages/create-mcp-typescript-simple && npm publish --no-git-checks --tag next",
-    "publish:all": "npm run pre-publish && npm run publish:config && npm run publish:observability && npm run publish:testing && npm run publish:persistence && npm run publish:tools && npm run publish:tools-llm && npm run publish:auth && npm run publish:server && npm run publish:http-server && npm run publish:example-tools-basic && npm run publish:example-tools-llm && npm run publish:example-mcp && npm run publish:adapter-vercel && npm run publish:create",
+    "publish:all": "npm run pre-publish && npm run prepare-publish && npm run publish:config && npm run publish:observability && npm run publish:testing && npm run publish:persistence && npm run publish:tools && npm run publish:tools-llm && npm run publish:auth && npm run publish:server && npm run publish:http-server && npm run publish:example-tools-basic && npm run publish:example-tools-llm && npm run publish:example-mcp && npm run publish:adapter-vercel && npm run publish:create && git checkout -- packages/*/package.json",
     "release:rc": "npm run build && git add -A && git commit -m 'chore: Release candidate' && npm run tag:create",
     "release:patch": "npm run version:patch && npm run build && git add -A && git commit -m 'chore: Release patch version' && npm run tag:create",
     "release:minor": "npm run version:minor && npm run build && git add -A && git commit -m 'chore: Release minor version' && npm run tag:create",
@@ -198,7 +199,7 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vercel": "^48.1.0",
-    "vibe-validate": "^0.16.0-rc1",
+    "vibe-validate": "^0.16.0",
     "vitest": "^3.2.4"
   }
 }
