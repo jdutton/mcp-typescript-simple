@@ -65,3 +65,5 @@ validation:
           command: npm run test:system:ci
         - name: Headless Browser Tests
           command: npx playwright install --with-deps chromium && npm run test:system:headless
+        - name: Scaffolding Regression Test
+          command: npm run test:regression --workspace=create-mcp-typescript-simple
