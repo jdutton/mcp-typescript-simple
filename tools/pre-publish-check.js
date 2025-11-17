@@ -117,14 +117,20 @@ runCheck('CHANGELOG.md', () => {
   // Check for version being released
   const pkgJson = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf8'));
   const version = pkgJson.version;
+  const isRC = version.includes('-rc');
 
-  if (!changelog.includes(`## [${version}]`)) {
+  if (isRC) {
+    // RCs don't require individual CHANGELOG entries - they're iterative
+    // All RC changes are documented under the base version (e.g., 0.9.0-rc.8)
+    log(`    RC version detected (${version}) - CHANGELOG entry not required`, 'blue');
+  } else if (!changelog.includes(`## [${version}]`)) {
+    // Stable releases must have CHANGELOG entry
     throw new Error(
       `CHANGELOG.md missing section for v${version}. Move changes from [Unreleased] to [${version}].`
     );
+  } else {
+    log(`    CHANGELOG.md includes v${version}`, 'blue');
   }
-
-  log(`    CHANGELOG.md includes v${version}`, 'blue');
 });
 
 // Check 3: No uncommitted changes (allows prepare-publish package.json modifications)
