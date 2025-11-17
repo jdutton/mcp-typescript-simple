@@ -5,7 +5,8 @@
  * Converts all internal @mcp-typescript-simple/* dependencies from "*" to exact versions
  * before publishing. Run this before `npm run publish:all`.
  *
- * After publishing, run `git checkout -- packages/*/package.json` to revert changes.
+ * After publishing, run `git checkout -- packages/STAR/package.json` to revert changes.
+ * (Replace STAR with asterisk)
  *
  * How it works:
  * 1. Reads all workspace package.json files

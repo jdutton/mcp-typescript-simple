@@ -5,11 +5,21 @@ import chalk from 'chalk';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { promptForConfig, getDefaultConfig } from './prompts.js';
 import { generateProject } from './generator.js';
 import type { CliOptions, ProjectConfig } from './types.js';
 
 const execAsync = promisify(exec);
+
+// Get package version dynamically
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const packageJsonPath = join(__dirname, '..', 'package.json');
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+const VERSION = packageJson.version;
 
 const program = new Command();
 
@@ -85,7 +95,7 @@ async function main() {
   program
     .name('create-mcp-typescript-simple')
     .description('Scaffolding tool for creating production-ready MCP TypeScript Simple servers')
-    .version('0.9.0-rc.3')
+    .version(VERSION)
     .argument('[project-name]', 'Name of the project to create')
     .option('-y, --yes', 'Skip prompts and use defaults')
     .action(async (projectName: string | undefined, options: CliOptions) => {

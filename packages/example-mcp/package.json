@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/example-mcp",
-  "version": "0.9.0-rc.4",
+  "version": "0.9.0-rc.8",
   "description": "Example MCP server demonstrating framework usage",
   "type": "module",
   "main": "dist/index.js",

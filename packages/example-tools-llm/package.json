@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/example-tools-llm",
-  "version": "0.9.0-rc.4",
+  "version": "0.9.0-rc.8",
   "description": "Example: LLM-powered MCP tools for demonstration and testing",
   "type": "module",
   "main": "./dist/index.js",

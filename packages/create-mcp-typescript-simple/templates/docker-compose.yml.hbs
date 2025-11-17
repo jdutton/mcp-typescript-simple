@@ -17,10 +17,10 @@ services:
       retries: 5
 
   # Load-balanced multi-instance setup
-  # Docker is EXCLUSIVELY for multi-node load-balanced testing via nginx on port 8080
+  # Docker is EXCLUSIVELY for multi-node load-balanced testing via nginx on port {{nginxPort}}
   #
   # OAuth Configuration:
-  # - Uses .env.oauth.docker (optional) with redirect URIs for localhost:8080
+  # - Uses .env.oauth.docker (optional) with redirect URIs for localhost:{{nginxPort}}
   # - If .env.oauth.docker exists with MCP_DEV_SKIP_AUTH=false, OAuth is enabled
   # - If .env.oauth.docker doesn't exist, runs without OAuth for simple multi-node testing
   # - Redis shared across all instances for session persistence
@@ -102,7 +102,7 @@ services:
     image: nginx:alpine
     container_name: mcp-nginx
     ports:
-      - "8080:8080"
+      - "{{nginxPort}}:{{nginxPort}}"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:

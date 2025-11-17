@@ -1,6 +1,6 @@
 {
   "name": "mcp-typescript-simple",
-  "version": "0.9.0-rc.4",
+  "version": "0.9.0-rc.8",
   "description": "A framework for building TypeScript MCP servers",
   "main": "packages/example-mcp/dist/index.js",
   "type": "module",
@@ -96,6 +96,10 @@
     "prepare-publish": "node tools/prepare-packages-for-publish.js",
     "pre-publish": "node tools/pre-publish-check.js",
     "verify-npm-packages": "node tools/verify-npm-packages.js",
+    "validate:wildcards": "node tools/validate-wildcards.js",
+    "validate:wildcards:fix": "node tools/validate-wildcards.js --fix",
+    "publish:automated": "node tools/publish-with-cleanup.js",
+    "publish:automated:dry-run": "node tools/publish-with-cleanup.js --dry-run",
     "publish:dry-run": "npm -ws --if-present exec npm publish --dry-run --tag next",
     "publish:config": "cd packages/config && npm publish --no-git-checks --tag next",
     "publish:observability": "cd packages/observability && npm publish --no-git-checks --tag next",

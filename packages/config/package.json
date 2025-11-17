@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/config",
-  "version": "0.9.0-rc.4",
+  "version": "0.9.0-rc.8",
   "description": "Extensible configuration management for MCP servers",
   "type": "module",
   "main": "./dist/index.js",

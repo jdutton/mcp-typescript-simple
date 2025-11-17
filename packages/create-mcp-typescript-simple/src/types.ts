@@ -38,6 +38,9 @@ export interface TemplateData extends ProjectConfig {
 
   /** Framework version */
   frameworkVersion: string;
+
+  /** Nginx port (derived from basePort to avoid conflicts) */
+  nginxPort: number;
 }
 
 /**

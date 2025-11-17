@@ -3,7 +3,7 @@ import type { ProjectConfig } from '../types.js';
 /**
  * Current framework version (updated by bump-version tool)
  */
-export const FRAMEWORK_VERSION = '0.9.0-rc.3';
+export const FRAMEWORK_VERSION = '0.9.0-rc.8';
 
 /**
  * Get package dependencies (full-featured, always includes everything)
