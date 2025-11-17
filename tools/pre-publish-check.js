@@ -127,13 +127,26 @@ runCheck('CHANGELOG.md', () => {
   log(`    CHANGELOG.md includes v${version}`, 'blue');
 });
 
-// Check 3: No uncommitted changes
+// Check 3: No uncommitted changes (allows prepare-publish package.json modifications)
 runCheck('Git working directory clean', () => {
   try {
     const status = execSync('git status --porcelain', { encoding: 'utf8', cwd: PROJECT_ROOT });
 
-    if (status.trim().length > 0) {
-      throw new Error(`Uncommitted changes detected:\n      ${status.trim().split('\n').join('\n      ')}`);
+    // Filter out expected prepare-publish changes (package.json with exact versions)
+    const changes = status
+      .trim()
+      .split('\n')
+      .filter(line => line.trim())
+      .filter(line => !line.match(/^\s*M\s+packages\/.*\/package\.json$/));
+
+    if (changes.length > 0) {
+      throw new Error(`Uncommitted changes detected:\n      ${changes.join('\n      ')}`);
+    }
+
+    // If only package.json changes, note that these are from prepare-publish
+    const pkgJsonChanges = status.trim().split('\n').filter(line => line.match(/package\.json$/));
+    if (pkgJsonChanges.length > 0) {
+      log(`    Allowing package.json changes from prepare-publish`, 'blue');
     }
   } catch (error) {
     if (error.message.includes('Uncommitted changes')) {
