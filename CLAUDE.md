@@ -1247,12 +1247,36 @@ This verifies:
 1. ✅ Version consistency across all workspace packages
 2. ✅ CHANGELOG.md exists and is updated for current version
 3. ✅ No uncommitted changes in git
-4. ✅ Current branch is `main`
+4. ✅ Current branch is `main` (for stable releases) OR feature branch (for RCs)
 5. ✅ Branch is up to date with `origin/main`
 6. ✅ All packages have required metadata (name, version, description, license, repository)
 7. ✅ Build succeeds without errors
 
 **If pre-publish check fails, you MUST fix all issues before proceeding with publication.**
+
+### Branch Requirements for Publishing
+
+**Release Candidates (RCs):**
+- ✅ **CAN be published from feature/PR branches**
+- ✅ **SHOULD be published from feature branches** (best practice)
+- **Rationale**: Keeps buggy/experimental RCs isolated from main branch
+- **Workflow**: Publish RC → Test → Fix issues → Republish RC → Merge to main when stable
+
+**Stable Releases (1.0.0+):**
+- ❌ **MUST be published from main branch only**
+- **Rationale**: Ensures stable releases come from tested, merged code
+- **Workflow**: Merge PR → Publish from main → Tag release
+
+**Example RC Publishing Workflow:**
+```bash
+# On feature branch (e.g., feature/improve-framework-adoption-experience)
+git add -A && git commit -m "feat: Add new feature"
+npm run bump-version 0.9.0-rc.8
+npm run publish:automated -- --tag next  # Publishes from feature branch
+npm create @mcp-typescript-simple@next test-project  # Test the RC
+# Fix any issues, republish as rc.9, rc.10, etc.
+# When stable: Create PR and merge to main
+```
 
 ### CHANGELOG.md Requirements
 

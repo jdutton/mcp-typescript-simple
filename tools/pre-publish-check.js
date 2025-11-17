@@ -10,7 +10,7 @@
  * 2. All validation checks pass (npm run validate)
  * 3. CHANGELOG.md exists and is updated
  * 4. No uncommitted changes in git
- * 5. Current branch is main
+ * 5. Current branch is main (RCs can be published from feature branches)
  * 6. Up to date with origin/main
  * 7. All packages have proper npm metadata
  * 8. No TODO/FIXME comments in published code
@@ -143,19 +143,28 @@ runCheck('Git working directory clean', () => {
   }
 });
 
-// Check 4: Current branch is main
+// Check 4: Current branch is main (RCs can be published from feature branches)
 runCheck('Current branch is main', () => {
   try {
+    // Get current version to check if it's an RC
+    const rootPkg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf8'));
+    const version = rootPkg.version;
+    const isRC = version.includes('-rc');
+
     const branch = execSync('git rev-parse --abbrev-ref HEAD', {
       encoding: 'utf8',
       cwd: PROJECT_ROOT,
     }).trim();
 
-    if (branch !== 'main') {
-      throw new Error(`Current branch is '${branch}', expected 'main'`);
+    if (isRC) {
+      // RCs can be published from any branch (best practice: feature branches)
+      log(`    RC version detected (${version}) - allowing ${branch} branch`, 'blue');
+    } else if (branch !== 'main') {
+      // Stable releases must be from main
+      throw new Error(`Stable release must be from 'main' branch, currently on '${branch}'`);
     }
   } catch (error) {
-    if (error.message.includes('Current branch')) {
+    if (error.message.includes('branch')) {
       throw error;
     }
     throw new Error('Failed to determine current branch');
