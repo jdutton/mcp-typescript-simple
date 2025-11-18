@@ -100,7 +100,7 @@ export async function promptForConfig(projectName?: string): Promise<ProjectConf
   // BASE_PORT (for dev server and tests)
   const basePortInput = await input({
     message: 'HTTP Port (BASE_PORT - tests will use +1, +2):',
-    default: '3000',
+    default: '3020',
     validate: validatePort,
   });
   const basePort = parseInt(basePortInput, 10);
@@ -125,6 +125,6 @@ export async function getDefaultConfig(projectName: string): Promise<ProjectConf
     description: 'Production-ready MCP server with OAuth, LLM, and Docker',
     author: gitUserName || 'Your Name',
     mcpServerName: toDisplayName(projectName),
-    basePort: 3000,
+    basePort: 3020,
   };
 }

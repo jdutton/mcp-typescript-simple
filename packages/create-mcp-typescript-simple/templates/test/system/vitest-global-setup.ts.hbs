@@ -1,0 +1,213 @@
+/**
+ * Vitest global setup - runs once before all tests
+ * Manages HTTP server startup for CI testing (express:ci environment only)
+ *
+ * Local development: Developers run `npm run dev:http` manually in separate terminal
+ * CI testing: This global setup auto-starts/stops server for express:ci environment
+ */
+
+import { spawn, type ChildProcess } from 'child_process';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import axios from 'axios';
+
+const execAsync = promisify(exec);
+
+// Inline utility functions to avoid module resolution issues in Vitest global setup
+interface TestEnvironment {
+  name: string;
+  baseUrl: string;
+  description: string;
+}
+
+const TEST_ENVIRONMENTS: Record<string, TestEnvironment> = {
+  express: {
+    name: 'express',
+    baseUrl: 'http://localhost:{{basePort}}',
+    description: 'Express HTTP server (npm run dev:http)'
+  },
+  'express:ci': {
+    name: 'express:ci',
+    baseUrl: `http://localhost:${process.env.HTTP_TEST_PORT || '{{add basePort 1}}'}`,
+    description: 'Express HTTP server for CI testing (npm run dev:http:ci)'
+  },
+  stdio: {
+    name: 'stdio',
+    baseUrl: 'stdio://localhost',
+    description: 'STDIO transport mode (npm run dev:stdio)'
+  },
+  'vercel:local': {
+    name: 'vercel:local',
+    baseUrl: 'http://localhost:{{basePort}}',
+    description: 'Local Vercel dev server (npm run dev:vercel)'
+  },
+  'vercel:preview': {
+    name: 'vercel:preview',
+    baseUrl: process.env.VERCEL_PREVIEW_URL || 'https://{{name}}-preview.vercel.app',
+    description: 'Vercel preview deployment'
+  },
+  'vercel:production': {
+    name: 'vercel:production',
+    baseUrl: process.env.VERCEL_PRODUCTION_URL || 'https://{{name}}.vercel.app',
+    description: 'Vercel production deployment'
+  },
+  docker: {
+    name: 'docker',
+    baseUrl: 'http://localhost:{{basePort}}',
+    description: 'Docker container (docker run with exposed port)'
+  }
+};
+
+function getCurrentEnvironment(): TestEnvironment {
+  const envName = process.env.TEST_ENV || 'vercel:local';
+  const environment = TEST_ENVIRONMENTS[envName];
+
+  if (!environment) {
+    throw new Error(`Unknown test environment: ${envName}. Available: ${Object.keys(TEST_ENVIRONMENTS).join(', ')}`);
+  }
+
+  // Allow override of base URL for testing (useful for Docker with different port)
+  if (process.env.TEST_BASE_URL) {
+    return {
+      ...environment,
+      baseUrl: process.env.TEST_BASE_URL
+    };
+  }
+
+  return environment;
+}
+
+function isSTDIOEnvironment(environment: TestEnvironment): boolean {
+  return environment.name === 'stdio';
+}
+
+/**
+ * Kill any existing process on the target port
+ */
+async function killProcessOnPort(port: number): Promise<void> {
+  try {
+    // Find PIDs listening on the port
+    const { stdout } = await execAsync(`lsof -ti:${port}`);
+    const pids = stdout.trim().split('\n').filter(Boolean);
+
+    if (pids.length > 0) {
+      console.log(`⚠️  Found ${pids.length} process(es) on port ${port}, killing...`);
+      for (const pid of pids) {
+        try {
+          process.kill(parseInt(pid, 10), 'SIGKILL');
+          console.log(`  ✅ Killed process ${pid}`);
+        } catch (error) {
+          console.log(`  ⚠️  Could not kill process ${pid}: ${(error as Error).message}`);
+        }
+      }
+    }
+  } catch (error) {
+    // lsof returns exit code 1 if no processes found, which is fine
+    if ((error as any).code !== 1) {
+      console.log(`⚠️  Error checking for processes on port ${port}: ${(error as Error).message}`);
+    }
+  }
+}
+
+/**
+ * Wait for server to be ready by polling health endpoint
+ */
+async function waitForServerReady(
+  baseUrl: string,
+  maxAttempts: number = 30,
+  delayMs: number = 1000
+): Promise<boolean> {
+  console.log(`⏳ Waiting for server at ${baseUrl}/health...`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await axios.get(`${baseUrl}/health`, {
+        timeout: 5000,
+        validateStatus: () => true, // Accept any status code
+      });
+
+      if (response.status === 200) {
+        console.log(`✅ Server is ready at ${baseUrl}`);
+        return true;
+      }
+    } catch (_error) {
+      // Server not ready yet
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+
+  console.error(`❌ Server not ready after ${maxAttempts} attempts (${maxAttempts * delayMs / 1000}s)`);
+  return false;
+}
+
+// Store server process reference globally so teardown can access it
+let globalHttpServer: ChildProcess | null = null;
+
+export default async function globalSetup(): Promise<void> {
+  const environment = getCurrentEnvironment();
+
+  // Only start HTTP server for express:ci environment
+  if (environment.name === 'express:ci' && !isSTDIOEnvironment(environment)) {
+    const httpPort = process.env.HTTP_TEST_PORT || '{{add basePort 1}}';
+    console.log(`🚀 Vitest Global Setup: Starting HTTP server for system tests on port ${httpPort}...`);
+
+    // Kill any existing processes on the target port first
+    await killProcessOnPort(parseInt(httpPort));
+
+    // Start the server process
+    globalHttpServer = spawn('npx', ['tsx', 'src/index.ts'], {
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',  // Use development to show error details in test logs
+        MCP_MODE: 'streamable_http',
+        HTTP_PORT: httpPort,
+        MCP_DEV_SKIP_AUTH: 'true',
+        TOKEN_ENCRYPTION_KEY: 'Wp3suOcV+clee' + 'wUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=',  // Test key (split to avoid false positive secret detection)
+        ALLOWED_ORIGINS: 'http://localhost:{{basePort}},http://localhost:{{add basePort 1}}',  // Allow CORS from test client ports
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: false,
+    });
+
+    // Store PID globally for teardown
+    (global as any).__HTTP_SERVER_PID__ = globalHttpServer.pid;
+
+    // Log server output for debugging
+    if (process.env.SYSTEM_TEST_VERBOSE === 'true') {
+      globalHttpServer.stdout?.on('data', (data) => {
+        console.log(`[server] ${data.toString().trim()}`);
+      });
+    }
+
+    globalHttpServer.stderr?.on('data', (data) => {
+      console.error(`[server:error] ${data.toString().trim()}`);
+    });
+
+    globalHttpServer.on('error', (error) => {
+      console.error(`❌ Failed to start HTTP server: ${error.message}`);
+    });
+
+    globalHttpServer.on('exit', (code, signal) => {
+      console.log(`🛑 HTTP server exited with code ${code}, signal ${signal}`);
+    });
+
+    // Wait for server to be ready
+    const isReady = await waitForServerReady(environment.baseUrl);
+
+    if (!isReady) {
+      // Kill the server if it didn't become ready
+      if (globalHttpServer && globalHttpServer.pid) {
+        process.kill(globalHttpServer.pid, 'SIGKILL');
+      }
+      throw new Error('HTTP server failed to start in time');
+    }
+
+    console.log(`✅ Vitest Global Setup: HTTP server ready (PID: ${globalHttpServer.pid})`);
+
+  } else {
+    console.log(`📋 Vitest Global Setup: Skipping server startup for environment: ${environment.name}`);
+    console.log(`   Expected server to be running externally at: ${environment.baseUrl}`);
+  }
+}

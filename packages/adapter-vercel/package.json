@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/adapter-vercel",
-  "version": "0.9.0-rc.9",
+  "version": "0.9.0-rc.12",
   "description": "Vercel serverless adapter for MCP TypeScript Simple server",
   "type": "module",
   "main": "./dist/index.js",

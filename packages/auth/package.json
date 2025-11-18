@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/auth",
-  "version": "0.9.0-rc.9",
+  "version": "0.9.0-rc.12",
   "description": "OAuth 2.0/2.1 + Dynamic Client Registration (DCR) implementation for MCP servers",
   "type": "module",
   "main": "./dist/index.js",

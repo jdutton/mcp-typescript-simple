@@ -39,8 +39,26 @@ export interface TemplateData extends ProjectConfig {
   /** Framework version */
   frameworkVersion: string;
 
-  /** Nginx port (derived from basePort to avoid conflicts) */
+  /** Nginx load balancer port (derived from basePort to avoid conflicts) */
   nginxPort: number;
+
+  /** Redis port (derived from basePort to avoid conflicts) */
+  redisPort: number;
+
+  /** Grafana UI port (derived from basePort to avoid conflicts) */
+  grafanaPort: number;
+
+  /** Loki log aggregation port (derived from basePort to avoid conflicts) */
+  lokiPort: number;
+
+  /** OTLP gRPC port (derived from basePort to avoid conflicts) */
+  otlpGrpcPort: number;
+
+  /** OTLP HTTP port (derived from basePort to avoid conflicts) */
+  otlpHttpPort: number;
+
+  /** Prometheus metrics port (derived from basePort to avoid conflicts) */
+  prometheusPort: number;
 }
 
 /**

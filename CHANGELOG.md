@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.0-rc.8] - 2025-11-16
+## [0.9.0-rc.12] - 2025-11-18
 
 ### Initial npm Release
 
@@ -101,6 +101,17 @@ npm run dev:oauth        # HTTP mode with OAuth
 - **Pre-commit hooks**: Automated validation with gitleaks secret scanning
 - **Hot reloading**: Auto-recompile and restart in development mode
 
+### Fixed
+
+- **System test reliability for scaffolded projects** - Fixed system tests failing with 500 errors
+  - **Problem**: System tests in scaffolded projects with custom ports failed with CORS errors and generic 500 errors
+  - **Root causes**:
+    1. Missing `TOKEN_ENCRYPTION_KEY` environment variable caused server startup crash
+    2. `NODE_ENV=test` hid actual error messages, showing only "Something went wrong"
+    3. HTTP server hardcoded CORS allowed origins (ports 3000/3001), rejecting custom port configurations
+  - **Solution**: Updated Vitest global setup to set `NODE_ENV=development`, `TOKEN_ENCRYPTION_KEY`, and `ALLOWED_ORIGINS` with templated ports
+  - **Impact**: All scaffolded projects now have working system tests regardless of port configuration
+
 ### Security Highlights
 
 - **Production-ready security score**: 93/100 (from comprehensive red team audit)
@@ -126,7 +137,7 @@ npm run dev:oauth        # HTTP mode with OAuth
 
 ## Release Candidate Notes
 
-**This is a release candidate (0.9.0-rc.8)** for the first public npm release. We're seeking early adopter feedback before the 1.0.0 stable release.
+**This is a release candidate (0.9.0-rc.12)** for the first public npm release. We're seeking early adopter feedback before the 1.0.0 stable release.
 
 **Target Audience**: Developers building production MCP servers requiring enterprise security, observability, and multi-LLM support.
 

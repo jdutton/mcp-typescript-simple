@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# vibe-validate pre-commit check
+npx vibe-validate pre-commit

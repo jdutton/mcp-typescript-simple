@@ -21,6 +21,9 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
     { source: 'README.md.hbs', destination: 'README.md', isTemplate: true },
     { source: 'CLAUDE.md.hbs', destination: 'CLAUDE.md', isTemplate: true },
     { source: 'vibe-validate.config.yaml.hbs', destination: 'vibe-validate.config.yaml', isTemplate: true },
+    { source: 'openapi.yaml.hbs', destination: 'openapi.yaml', isTemplate: true },
+    { source: '.claude/settings.json', destination: '.claude/settings.json', isTemplate: false },
+    { source: '.husky/pre-commit', destination: '.husky/pre-commit', isTemplate: false },
 
     // Environment files
     // Example files (with placeholder keys - for reference only)
@@ -31,6 +34,7 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
     // Actual files (with real encryption keys - ready to use)
     { source: 'env.oauth.hbs', destination: '.env.oauth', isTemplate: true },
     { source: 'env.local.hbs', destination: '.env.local', isTemplate: true },
+    { source: 'env.oauth.docker.hbs', destination: '.env.oauth.docker', isTemplate: true },
 
     // Source files (copy from example-mcp, no templating)
     { source: 'src/index.ts', destination: 'src/index.ts', isTemplate: false },
@@ -39,10 +43,13 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
     { source: 'test/unit/example.test.ts', destination: 'test/unit/example.test.ts', isTemplate: false },
     { source: 'test/system/mcp.system.test.ts', destination: 'test/system/mcp.system.test.ts', isTemplate: false },
     { source: 'test/system/utils.ts.hbs', destination: 'test/system/utils.ts', isTemplate: true }, // needs basePort
+    { source: 'test/system/vitest-global-setup.ts.hbs', destination: 'test/system/vitest-global-setup.ts', isTemplate: true },
+    { source: 'test/system/vitest-global-teardown.ts.hbs', destination: 'test/system/vitest-global-teardown.ts', isTemplate: true },
     { source: 'vitest.config.ts', destination: 'vitest.config.ts', isTemplate: false },
+    { source: 'vitest.system.config.ts', destination: 'vitest.system.config.ts', isTemplate: false },
 
     // Docker files (templates for basePort and nginxPort)
-    { source: 'Dockerfile', destination: 'Dockerfile', isTemplate: false },
+    { source: 'Dockerfile.hbs', destination: 'Dockerfile', isTemplate: true },
     { source: 'docker-compose.yml.hbs', destination: 'docker-compose.yml', isTemplate: true },
     { source: 'nginx.conf.hbs', destination: 'nginx.conf', isTemplate: true },
 
@@ -61,20 +68,44 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
  *
  * No conditional flags needed - all projects are full-featured
  * Generates a unique encryption key for this project instance
- * Calculates nginxPort to avoid conflicts (basePort + 5180)
+ * Calculates unique ports for all Docker services to avoid conflicts
+ *
+ * Port allocation strategy (basePort = 3000 example):
+ * - nginxPort: basePort + 5180 = 8180
+ * - redisPort: basePort + 3380 = 6380
+ * - grafanaPort: basePort + 200 = 3200
+ * - lokiPort: basePort + 100 = 3100
+ * - otlpGrpcPort: basePort + 1317 = 4317
+ * - otlpHttpPort: basePort + 1318 = 4318
+ * - prometheusPort: basePort + 6090 = 9090
+ *
+ * For basePort=3010 (ODCH example):
+ * - nginxPort: 8190, redisPort: 6390, grafanaPort: 3210, lokiPort: 3110
+ * - otlpGrpcPort: 4327, otlpHttpPort: 4328, prometheusPort: 9100
  */
 function generateTemplateData(config: ProjectConfig): TemplateData {
   // Generate unique encryption key for .env.oauth and .env.local
   const tokenEncryptionKey = generateEncryptionKey();
 
-  // Calculate nginx port from basePort to avoid conflicts
-  // Example: basePort=3000 → nginxPort=8180, basePort=3001 → nginxPort=8181
-  const nginxPort = config.basePort + 5180;
+  // Calculate unique ports from basePort to avoid conflicts
+  const nginxPort = config.basePort + 5180;       // 3000 → 8180, 3010 → 8190
+  const redisPort = config.basePort + 3380;       // 3000 → 6380, 3010 → 6390
+  const grafanaPort = config.basePort + 200;      // 3000 → 3200, 3010 → 3210
+  const lokiPort = config.basePort + 100;         // 3000 → 3100, 3010 → 3110
+  const otlpGrpcPort = config.basePort + 1317;    // 3000 → 4317, 3010 → 4327
+  const otlpHttpPort = config.basePort + 1318;    // 3000 → 4318, 3010 → 4328
+  const prometheusPort = config.basePort + 6090;  // 3000 → 9090, 3010 → 9100
 
   return {
     ...config,
     tokenEncryptionKey,
     nginxPort,
+    redisPort,
+    grafanaPort,
+    lokiPort,
+    otlpGrpcPort,
+    otlpHttpPort,
+    prometheusPort,
     currentDate: new Date().toISOString().split('T')[0]!,
     frameworkVersion: FRAMEWORK_VERSION,
   };

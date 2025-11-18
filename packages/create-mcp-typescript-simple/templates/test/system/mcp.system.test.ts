@@ -58,8 +58,9 @@ describeSystemTest('MCP Protocol System', () => {
   beforeAll(async () => {
     client = createHttpClient();
 
-    if (isLocalEnvironment(environment)) {
-      // For other local environments, wait for external server to be ready
+    // For local environments, wait for external server to be ready
+    // Note: express:ci server is started by global setup and already healthy
+    if (isLocalEnvironment(environment) && environment.name !== 'express:ci') {
       const isReady = await waitForServer(client);
       if (!isReady) {
         throw new Error(`Server not ready at ${environment.baseUrl}`);
@@ -98,10 +99,6 @@ describeSystemTest('MCP Protocol System', () => {
     } catch (error) {
       console.log('❌ MCP session initialization error:', error);
     }
-  });
-
-  afterAll(async () => {
-    // Server cleanup handled at suite level
   });
 
   async function sendMCPRequest(request: MCPRequest): Promise<MCPResponse | null> {

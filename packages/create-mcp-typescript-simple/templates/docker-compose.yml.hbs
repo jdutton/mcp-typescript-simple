@@ -2,9 +2,9 @@ services:
   # Redis service for session storage (shared across all MCP server instances)
   redis:
     image: redis:7-alpine
-    container_name: mcp-redis-compose
+    container_name: {{name}}-redis
     ports:
-      - "6380:6379"
+      - "{{redisPort}}:6379"
     volumes:
       - redis-data:/data  # Persist Redis session data
     command: redis-server --save 60 1 --loglevel warning  # Save every 60s if 1+ keys changed
@@ -100,7 +100,7 @@ services:
   # Nginx load balancer
   nginx:
     image: nginx:alpine
-    container_name: mcp-nginx
+    container_name: {{name}}-nginx
     ports:
       - "{{nginxPort}}:{{nginxPort}}"
     volumes:
@@ -115,12 +115,12 @@ services:
   # OpenTelemetry Collector - Receives OTLP logs/traces/metrics
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    container_name: mcp-otel-collector
+    container_name: {{name}}-otel-collector
     command: ["--config=/etc/otel-collector-config.yaml"]
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP (used by MCP servers)
-      - "8889:8889"   # Prometheus exporter
+      - "{{otlpGrpcPort}}:4317"   # OTLP gRPC
+      - "{{otlpHttpPort}}:4318"   # OTLP HTTP (used by MCP servers)
+      - "8889:8889"   # Prometheus exporter (internal only, no conflict)
     volumes:
       - ./grafana/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     environment:
@@ -134,9 +134,9 @@ services:
   # Loki - Log aggregation system
   loki:
     image: grafana/loki:latest
-    container_name: mcp-loki
+    container_name: {{name}}-loki
     ports:
-      - "3100:3100"
+      - "{{lokiPort}}:3100"
     volumes:
       - ./grafana/loki-config.yaml:/etc/loki/local-config.yaml:ro
       - loki-data:/loki
@@ -153,9 +153,9 @@ services:
   # Grafana - Visualization and dashboarding
   grafana:
     image: grafana/grafana:latest
-    container_name: mcp-grafana
+    container_name: {{name}}-grafana
     ports:
-      - "3200:3000"   # Grafana UI
+      - "{{grafanaPort}}:3000"   # Grafana UI
     volumes:
       - grafana-data:/var/lib/grafana
       - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
@@ -180,9 +180,9 @@ services:
   # Prometheus - Metrics storage
   prometheus:
     image: prom/prometheus:latest
-    container_name: mcp-prometheus
+    container_name: {{name}}-prometheus
     ports:
-      - "9090:9090"
+      - "{{prometheusPort}}:9090"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -199,12 +199,16 @@ services:
 
 volumes:
   redis-data:
+    name: {{name}}-redis-data
     driver: local
   loki-data:
+    name: {{name}}-loki-data
     driver: local
   grafana-data:
+    name: {{name}}-grafana-data
     driver: local
 
 networks:
   mcp-network:
+    name: {{name}}-network
     driver: bridge

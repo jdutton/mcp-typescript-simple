@@ -7,6 +7,15 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 // Re-export types for use in other test files
 export type { AxiosInstance, AxiosResponse };
 
+/**
+ * Port configuration for system tests
+ * Matches the configuration in package.json scripts
+ */
+export const BASE_PORT = {{basePort}};
+export const TEST_PORT_1 = {{add basePort 1}};
+export const TEST_PORT_2 = {{add basePort 2}};
+export const TEST_PORTS = [BASE_PORT, TEST_PORT_1, TEST_PORT_2];
+
 export interface TestEnvironment {
   name: string;
   baseUrl: string;

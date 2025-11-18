@@ -3,7 +3,7 @@ import type { ProjectConfig } from '../types.js';
 /**
  * Current framework version (updated by bump-version tool)
  */
-export const FRAMEWORK_VERSION = '0.9.0-rc.8';
+export const FRAMEWORK_VERSION = '0.9.0-rc.9';
 
 /**
  * Get package dependencies (full-featured, always includes everything)
@@ -35,6 +35,10 @@ export function getDependencies(_config: ProjectConfig): Record<string, string> 
     // OpenTelemetry (observability)
     '@opentelemetry/api': '^1.9.0',
     '@opentelemetry/api-logs': '^0.56.0',
+
+    // Pino logging (production dependencies - required by observability package)
+    'pino-pretty': '^13.1.1',
+    'pino-opentelemetry-transport': '^1.1.0',
   };
 }
 
@@ -45,11 +49,15 @@ export function getDevDependencies(): Record<string, string> {
   return {
     '@types/node': '^24.5.2',
     '@mcp-typescript-simple/testing': `^${FRAMEWORK_VERSION}`,
-    '@vibe-validate/cli': '^0.15.0',
+    '@vibe-validate/cli': '^0.16.0',
     'tsx': '^4.20.5',
     'typescript': '^5.9.2',
     'vitest': '^3.2.4',
     'axios': '^1.7.9', // For system tests
+    'oauth2-mock-server': '^8.1.0', // For OAuth testing (used by @mcp-typescript-simple/testing)
+
+    // Git hooks
+    'husky': '^9.1.7',
 
     // ESLint dependencies
     'eslint': '^9.35.0',
@@ -68,6 +76,9 @@ export function getScripts(config: ProjectConfig): Record<string, string> {
   const testPort2 = basePort + 2;
 
   return {
+    // Setup
+    'prepare': 'husky install',
+
     // Build and development
     'build': 'tsc',
     'dev:stdio': 'NODE_ENV=development MCP_DEV_SKIP_AUTH=true tsx src/index.ts',
@@ -77,10 +88,11 @@ export function getScripts(config: ProjectConfig): Record<string, string> {
     // Testing
     'test': 'vitest run',
     'test:unit': 'vitest run test/unit',
-    'test:system': `HTTP_PORT=${basePort} HTTP_TEST_PORT=${testPort1} vitest run test/system`,
+    'test:system': `HTTP_PORT=${basePort} HTTP_TEST_PORT=${testPort1} vitest run --config vitest.system.config.ts`,
     'test:system:stdio': 'TEST_ENV=stdio npm run test:system',
     'test:system:http': 'TEST_ENV=express npm run test:system',
-    'test:ci': 'npm run test:unit && npm run test:system',
+    'test:system:ci': `TEST_ENV=express:ci HTTP_PORT=${basePort} HTTP_TEST_PORT=${testPort1} npm run test:system`,
+    'test:ci': 'npm run test:unit && npm run test:system:ci',
 
     // Validation
     'validate': 'npx vibe-validate validate',
