@@ -30,6 +30,7 @@ export default defineConfig({
       '**/packages/example-mcp/test/playwright/**',    // Playwright tests (run separately)
       '**/packages/create-mcp-typescript-simple/templates/**',  // Template files (not real tests)
       '**/packages/create-mcp-typescript-simple/test/scaffolding-validation.test.ts', // Scaffolding regression (run separately via workspace command)
+      '**/test-adoption-project/**',                   // Test scaffolding project (not part of unit tests)
       '**/build/**',
       '**/coverage/**',
       '**/packages/example-mcp/test/integration/deployment-validation.test.ts', // Custom test runner, not a Vitest test

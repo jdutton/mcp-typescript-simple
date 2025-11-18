@@ -9,8 +9,8 @@ export default [
   eslint.configs.recommended,
   sonarjs.configs.recommended,
   {
-    // Test files - relaxed linting
-    files: ['**/*.test.ts', '**/test/**/*.ts'],
+    // Test files - disable type-aware linting (test files excluded from tsconfig)
+    files: ['**/*.test.ts', '**/test/**/*.ts', '**/test-*.ts', '**/tests/**/*.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -45,9 +45,13 @@ export default [
       'no-undef': 'off',
 
       // SonarJS rules - relaxed for tests
-      'sonarjs/no-ignored-exceptions': 'error',
-      'sonarjs/no-nested-functions': 'off',
-      'sonarjs/cognitive-complexity': ['warn', 20],
+      'sonarjs/no-ignored-exceptions': 'error', // Still enforce (use // NOSONAR with explanation)
+      'sonarjs/os-command': 'off',
+      'sonarjs/no-os-command-from-path': 'off',
+      'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks
+      'sonarjs/no-nested-template-literals': 'off',
+      'sonarjs/slow-regex': 'off',
+      'sonarjs/cognitive-complexity': ['warn', 20], // Higher threshold for tests
 
       // Strict on code quality
       '@typescript-eslint/no-unused-vars': ['error', {
@@ -85,7 +89,7 @@ export default [
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
-        project: true,
+        project: true, // Enable type-aware linting
       },
       globals: {
         NodeJS: 'readonly',
@@ -115,13 +119,13 @@ export default [
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
 
-      // Modern JavaScript patterns
+      // Modern JavaScript patterns (catches SonarQube nullish coalescing issues)
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
       '@typescript-eslint/prefer-optional-chain': 'error',
 
       // General rules
-      'no-console': 'off',
-      'no-undef': 'off',
+      'no-console': 'off', // Allow console in production code (used by tools)
+      'no-undef': 'off', // TypeScript handles this
       'no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
@@ -131,7 +135,7 @@ export default [
       // Import rules - catch duplicate imports
       'import/no-duplicates': 'error',
 
-      // SonarJS rules - active enforcement
+      // SonarJS rules - active enforcement (catches majority of SonarQube issues)
       'sonarjs/no-ignored-exceptions': 'error',
       'sonarjs/no-control-regex': 'error',
       'sonarjs/no-redundant-jump': 'error',
@@ -158,12 +162,116 @@ export default [
     },
   },
   {
+    // Tools scripts - relaxed linting (MUST disable type-aware rules)
+    files: ['tools/**/*.ts'],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: 'module',
+        project: false, // No type-aware linting for tools
+      },
+      globals: {
+        NodeJS: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescriptEslint,
+      unicorn,
+      import: importPlugin,
+    },
+    rules: {
+      // Disable type-aware rules inherited from sonarjs.configs.recommended
+      '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/await-thenable': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
+      '@typescript-eslint/prefer-optional-chain': 'off',
+
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/explicit-module-boundary-types': 'off',
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off', // Tools use console for output
+
+      // Import rules - catch duplicate imports
+      'import/no-duplicates': 'error',
+
+      // SonarJS rules - more lenient for tools
+      'sonarjs/cognitive-complexity': ['warn', 30],
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
+      'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling
+      '@typescript-eslint/no-unsafe-function-type': 'off',
+
+      // Unicorn rules for tools
+      'unicorn/prefer-node-protocol': 'error',
+      'unicorn/prefer-number-properties': 'error',
+      'unicorn/no-array-for-each': 'error',
+    },
+  },
+  {
+    // Tools JavaScript files - same rules as TypeScript tools
+    files: ['tools/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        NodeJS: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+    plugins: {
+      unicorn,
+      import: importPlugin,
+    },
+    rules: {
+      // Core JavaScript rules
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off', // Tools use console for output
+
+      // Import rules
+      'import/no-duplicates': 'error',
+
+      // SonarJS rules - catch SonarQube issues
+      'sonarjs/cognitive-complexity': ['warn', 30],
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
+      'sonarjs/no-ignored-exceptions': 'error',
+
+      // Unicorn rules - catch modern JavaScript issues
+      'unicorn/prefer-node-protocol': 'error',
+      'unicorn/prefer-number-properties': 'error',
+      'unicorn/no-array-for-each': 'error',
+      'unicorn/prefer-top-level-await': 'error',
+      'unicorn/throw-new-error': 'error',
+    },
+  },
+  {
     ignores: [
       'build/**',
       'dist/**',
       'coverage/**',
       'node_modules/**',
-      '*.js',
+      '*.config.js', // Root config files (vitest, eslint, etc)
       '**/*.d.ts',
     ],
   },
