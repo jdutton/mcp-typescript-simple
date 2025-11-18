@@ -64,6 +64,9 @@ export function getDevDependencies(): Record<string, string> {
     '@eslint/js': '^9.35.0',
     '@typescript-eslint/eslint-plugin': '^8.44.0',
     '@typescript-eslint/parser': '^8.44.0',
+    'eslint-plugin-sonarjs': '^3.0.5',
+    'eslint-plugin-unicorn': '^62.0.0',
+    'eslint-plugin-import': '^2.31.0',
   };
 }
 
@@ -73,7 +76,6 @@ export function getDevDependencies(): Record<string, string> {
 export function getScripts(config: ProjectConfig): Record<string, string> {
   const { basePort } = config;
   const testPort1 = basePort + 1;
-  const testPort2 = basePort + 2;
 
   return {
     // Setup

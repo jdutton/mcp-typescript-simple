@@ -33,9 +33,9 @@ function validateProjectName(name: string): boolean | string {
  * Validate port number
  */
 function validatePort(input: string): boolean | string {
-  const port = parseInt(input, 10);
+  const port = Number.parseInt(input, 10);
 
-  if (isNaN(port)) {
+  if (Number.isNaN(port)) {
     return 'Port must be a number';
   }
 
@@ -76,13 +76,11 @@ export async function promptForConfig(projectName?: string): Promise<ProjectConf
   console.log('\n✨ Creating production-ready MCP server\n');
 
   // Project name
-  const name = projectName
-    ? projectName
-    : await input({
-        message: 'Project name:',
-        default: 'my-mcp-server',
-        validate: validateProjectName,
-      });
+  const name = projectName ?? await input({
+    message: 'Project name:',
+    default: 'my-mcp-server',
+    validate: validateProjectName,
+  });
 
   // Description
   const description = await input({
@@ -103,7 +101,7 @@ export async function promptForConfig(projectName?: string): Promise<ProjectConf
     default: '3020',
     validate: validatePort,
   });
-  const basePort = parseInt(basePortInput, 10);
+  const basePort = Number.parseInt(basePortInput, 10);
 
   return {
     name,

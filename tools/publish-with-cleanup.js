@@ -53,6 +53,57 @@ function logSection(title) {
 }
 
 /**
+ * Check if dependency is internal and has hardcoded version
+ */
+function isInternalDependencyViolation(depName, depVersion) {
+  return depName.startsWith('@mcp-typescript-simple/') && depVersion !== '*';
+}
+
+/**
+ * Find wildcard violations in a single package
+ */
+function findPackageViolations(pkgJson, depTypes) {
+  const violations = [];
+
+  for (const depType of depTypes) {
+    if (!pkgJson[depType]) continue;
+
+    for (const [depName, depVersion] of Object.entries(pkgJson[depType])) {
+      if (isInternalDependencyViolation(depName, depVersion)) {
+        violations.push({
+          package: pkgJson.name,
+          depType,
+          dependency: depName,
+          version: depVersion,
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
+/**
+ * Report wildcard violations
+ */
+function reportViolations(violations) {
+  log('❌ VALIDATION FAILED: Found hardcoded versions', 'red');
+  console.log('');
+  log('Internal dependencies MUST use "*" wildcards in source code.', 'yellow');
+  log('Found hardcoded versions in:', 'yellow');
+  console.log('');
+
+  for (const v of violations) {
+    log(`  ${v.package}`, 'red');
+    log(`    ${v.depType}.${v.dependency}: "${v.version}" (should be "*")`, 'yellow');
+  }
+
+  console.log('');
+  log('💡 Fix: Change all hardcoded versions to "*" in package.json files', 'blue');
+  log('   Then run this script again.', 'blue');
+}
+
+/**
  * Validate that all internal dependencies use "*" wildcards
  */
 function validateWildcards() {
@@ -63,46 +114,18 @@ function validateWildcards() {
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);
 
-  const violations = [];
+  const depTypes = ['dependencies', 'devDependencies', 'peerDependencies'];
+  const allViolations = [];
 
   for (const pkg of packages) {
     const pkgPath = join(packagesDir, pkg, 'package.json');
-    const content = readFileSync(pkgPath, 'utf8');
-    const pkgJson = JSON.parse(content);
-
-    const depTypes = ['dependencies', 'devDependencies', 'peerDependencies'];
-
-    for (const depType of depTypes) {
-      if (!pkgJson[depType]) continue;
-
-      for (const [depName, depVersion] of Object.entries(pkgJson[depType])) {
-        if (depName.startsWith('@mcp-typescript-simple/') && depVersion !== '*') {
-          violations.push({
-            package: pkgJson.name,
-            depType,
-            dependency: depName,
-            version: depVersion,
-          });
-        }
-      }
-    }
+    const pkgJson = JSON.parse(readFileSync(pkgPath, 'utf8'));
+    const violations = findPackageViolations(pkgJson, depTypes);
+    allViolations.push(...violations);
   }
 
-  if (violations.length > 0) {
-    log('❌ VALIDATION FAILED: Found hardcoded versions', 'red');
-    console.log('');
-    log('Internal dependencies MUST use "*" wildcards in source code.', 'yellow');
-    log('Found hardcoded versions in:', 'yellow');
-    console.log('');
-
-    for (const v of violations) {
-      log(`  ${v.package}`, 'red');
-      log(`    ${v.depType}.${v.dependency}: "${v.version}" (should be "*")`, 'yellow');
-    }
-
-    console.log('');
-    log('💡 Fix: Change all hardcoded versions to "*" in package.json files', 'blue');
-    log('   Then run this script again.', 'blue');
+  if (allViolations.length > 0) {
+    reportViolations(allViolations);
     return false;
   }
 

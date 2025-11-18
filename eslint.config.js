@@ -3,6 +3,7 @@ import typescriptEslint from '@typescript-eslint/eslint-plugin';
 import typescriptParser from '@typescript-eslint/parser';
 import sonarjs from 'eslint-plugin-sonarjs';
 import unicorn from 'eslint-plugin-unicorn';
+import importPlugin from 'eslint-plugin-import';
 
 export default [
   eslint.configs.recommended,
@@ -27,6 +28,7 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       unicorn,
+      import: importPlugin,
     },
     rules: {
       // Disable type-aware rules for test files
@@ -63,6 +65,9 @@ export default [
         caughtErrorsIgnorePattern: '^_',
       }],
 
+      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      'import/no-duplicates': 'error',
+
       // Unicorn rules - modern JavaScript
       'unicorn/prefer-node-protocol': 'error',
       'unicorn/prefer-number-properties': 'error',
@@ -96,6 +101,7 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       unicorn,
+      import: importPlugin,
     },
     rules: {
       // TypeScript core rules
@@ -125,6 +131,9 @@ export default [
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+
+      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      'import/no-duplicates': 'error',
 
       // SonarJS rules - active enforcement (catches majority of SonarQube issues)
       'sonarjs/no-ignored-exceptions': 'error', // ✅ Catches 11 SonarQube issues
@@ -172,6 +181,7 @@ export default [
     plugins: {
       '@typescript-eslint': typescriptEslint,
       unicorn,
+      import: importPlugin,
     },
     rules: {
       // Disable type-aware rules inherited from sonarjs.configs.recommended
@@ -191,6 +201,9 @@ export default [
       'prefer-const': 'error',
       'no-var': 'error',
       'no-console': 'off', // Tools use console for output
+
+      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      'import/no-duplicates': 'error',
 
       // SonarJS rules - more lenient for tools
       'sonarjs/cognitive-complexity': ['warn', 30],

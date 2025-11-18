@@ -4,10 +4,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import path from 'node:path';
+import path, { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { promptForConfig, getDefaultConfig } from './prompts.js';
 import { generateProject } from './generator.js';
 import type { CliOptions, ProjectConfig } from './types.js';
@@ -89,59 +88,55 @@ function displayNextSteps(config: ProjectConfig, projectPath: string): void {
 }
 
 /**
- * Main CLI logic
+ * CLI setup and execution (top-level)
  */
-async function main() {
-  program
-    .name('create-mcp-typescript-simple')
-    .description('Scaffolding tool for creating production-ready MCP TypeScript Simple servers')
-    .version(VERSION)
-    .argument('[project-name]', 'Name of the project to create')
-    .option('-y, --yes', 'Skip prompts and use defaults')
-    .action(async (projectName: string | undefined, options: CliOptions) => {
-      try {
-        // Validate project name if provided
-        if (projectName && !/^[a-z0-9-_]+$/.test(projectName)) {
-          console.error(chalk.red('\n❌ Invalid project name'));
-          console.error(chalk.yellow('   Project name must be lowercase with only letters, numbers, dashes, and underscores\n'));
+program
+  .name('create-mcp-typescript-simple')
+  .description('Scaffolding tool for creating production-ready MCP TypeScript Simple servers')
+  .version(VERSION)
+  .argument('[project-name]', 'Name of the project to create')
+  .option('-y, --yes', 'Skip prompts and use defaults')
+  .action(async (projectName: string | undefined, options: CliOptions) => {
+    try {
+      // Validate project name if provided
+      if (projectName && !/^[a-z0-9-_]+$/.test(projectName)) {
+        console.error(chalk.red('\n❌ Invalid project name'));
+        console.error(chalk.yellow('   Project name must be lowercase with only letters, numbers, dashes, and underscores\n'));
+        process.exit(1);
+      }
+
+      let config: ProjectConfig;
+
+      // Get configuration
+      if (options.yes) {
+        if (!projectName) {
+          console.error(chalk.red('\n❌ Project name is required with --yes flag\n'));
           process.exit(1);
         }
 
-        let config: ProjectConfig;
-
-        // Get configuration
-        if (options.yes) {
-          if (!projectName) {
-            console.error(chalk.red('\n❌ Project name is required with --yes flag\n'));
-            process.exit(1);
-          }
-
-          config = await getDefaultConfig(projectName);
-          console.log(chalk.cyan(`\n✨ Creating ${projectName} with default configuration\n`));
-        } else {
-          // Interactive prompts
-          config = await promptForConfig(projectName);
-        }
-
-        // Generate project
-        await generateProject(config, config.name);
-
-        // Always initialize git
-        await initGit(path.resolve(process.cwd(), config.name));
-
-        // Always install dependencies
-        await installDependencies(path.resolve(process.cwd(), config.name));
-
-        // Display next steps
-        displayNextSteps(config, config.name);
-      } catch (error) {
-        console.error(chalk.red('\n❌ Error creating project:'));
-        console.error(chalk.gray(`  ${error instanceof Error ? error.message : String(error)}\n`));
-        process.exit(1);
+        config = await getDefaultConfig(projectName);
+        console.log(chalk.cyan(`\n✨ Creating ${projectName} with default configuration\n`));
+      } else {
+        // Interactive prompts
+        config = await promptForConfig(projectName);
       }
-    });
 
-  program.parse();
-}
+      // Generate project
+      await generateProject(config, config.name);
 
-main();
+      // Always initialize git
+      await initGit(path.resolve(process.cwd(), config.name));
+
+      // Always install dependencies
+      await installDependencies(path.resolve(process.cwd(), config.name));
+
+      // Display next steps
+      displayNextSteps(config, config.name);
+    } catch (error) {
+      console.error(chalk.red('\n❌ Error creating project:'));
+      console.error(chalk.gray(`  ${error instanceof Error ? error.message : String(error)}\n`));
+      process.exit(1);
+    }
+  });
+
+program.parse();

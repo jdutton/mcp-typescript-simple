@@ -19,6 +19,18 @@ import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
 import { MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
 import { logger } from '@mcp-typescript-simple/observability';
 
+/**
+ * Helper function to clear cache and wait for propagation
+ *
+ * Race condition fix: Cache clear operations need time to propagate
+ * before subsequent requests. Without this delay, tests can fail with
+ * ECONNRESET or HTTP parse errors when racing against cache state.
+ */
+async function clearCacheAndWait(instanceManager: any, delayMs = 50): Promise<void> {
+  instanceManager['instanceCache'].clear();
+  await new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
 describe('Session Reconstruction Integration Tests', () => {
   let app: Express;
   let mcpServer: MCPStreamableHttpServer;
@@ -80,6 +92,8 @@ describe('Session Reconstruction Integration Tests', () => {
   afterEach(async () => {
     await mcpServer.stop();
     metadataStore.dispose();
+    // Wait for server to fully release resources
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   describe('Basic Session Creation and Resumption', () => {
@@ -195,7 +209,7 @@ describe('Session Reconstruction Integration Tests', () => {
       // Step 3: Simulate server restart by clearing instance cache
       // This simulates a cold start where instance cache is empty but metadata persists
       const instanceManager = mcpServer['instanceManager'];
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Verify cache is empty
       const stats = instanceManager.getStats();
@@ -262,7 +276,7 @@ describe('Session Reconstruction Integration Tests', () => {
           .expect(200);
 
         // Clear cache (simulate cold start)
-        instanceManager['instanceCache'].clear();
+        await clearCacheAndWait(instanceManager);
 
         // Next iteration will reconstruct
       }
@@ -309,7 +323,7 @@ describe('Session Reconstruction Integration Tests', () => {
 
       // Clear cache to force reconstruction
       const instanceManager = mcpServer['instanceManager'];
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Test hello tool
       const helloResponse = await request(app)
@@ -330,7 +344,7 @@ describe('Session Reconstruction Integration Tests', () => {
       expect(helloResponse.body.result.content[0].text).toContain('Alice');
 
       // Clear cache again
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Test echo tool
       const echoResponse = await request(app)
@@ -351,7 +365,7 @@ describe('Session Reconstruction Integration Tests', () => {
       expect(echoResponse.body.result.content[0].text).toContain('Test message');
 
       // Clear cache again
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Test current-time tool
       const timeResponse = await request(app)
@@ -395,7 +409,7 @@ describe('Session Reconstruction Integration Tests', () => {
 
       // Clear cache to force reconstruction
       const instanceManager = mcpServer['instanceManager'];
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Make 3 concurrent requests - first will reconstruct, others should reuse
       const requests = Promise.all([
@@ -481,7 +495,7 @@ describe('Session Reconstruction Integration Tests', () => {
 
       // Clear instance cache to simulate server restart
       const instanceManager = mcpServer['instanceManager'];
-      instanceManager['instanceCache'].clear();
+      await clearCacheAndWait(instanceManager);
 
       // Verify cache is empty
       const stats = instanceManager.getStats();
