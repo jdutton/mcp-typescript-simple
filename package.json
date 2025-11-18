@@ -1,6 +1,6 @@
 {
   "name": "mcp-typescript-simple",
-  "version": "0.9.0-rc.12",
+  "version": "0.9.0-rc.13",
   "description": "A framework for building TypeScript MCP servers",
   "main": "packages/example-mcp/dist/index.js",
   "type": "module",
