@@ -14,9 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.0-rc.12] - 2025-11-18
+## [0.9.0] - 2025-11-18
 
-### Initial npm Release
+### First Public Release
 
 **First public release** of mcp-typescript-simple - a production-ready TypeScript framework for building Model Context Protocol (MCP) servers with enterprise security, multi-LLM integration, and serverless deployment.
 
@@ -49,6 +49,8 @@ npm run dev:oauth        # HTTP mode with OAuth
   - Validation pipeline: [vibe-validate](https://github.com/jdutton/vibe-validate) with 312x caching speedup
   - Docker observability: Complete Grafana LGTM stack (Loki, Grafana, OpenTelemetry, Prometheus)
   - Configurable nginx port: Avoids common 8080 conflicts (defaults to 8180, derived from BASE_PORT)
+  - Strict ESLint rules: Production-quality linting with SonarJS/Unicorn rules for shift-left quality enforcement
+  - License neutral: Projects default to UNLICENSED with clear license selection guidance
 
 ### Added - Core Framework
 
@@ -116,6 +118,7 @@ npm run dev:oauth        # HTTP mode with OAuth
 
 - **Production-ready security score**: 93/100 (from comprehensive red team audit)
 - **Zero hardcoded secrets**: All credentials externalized to environment variables
+- **Zero high-severity vulnerabilities**: js-yaml upgraded to 4.1.1 (fixes CVE-2024-48959 Prototype Pollution)
 - **Comprehensive security documentation**: Red team audit, shift-left recommendations, compliance mapping
 - **Defense-in-depth**: Input validation, rate limiting, OCSF audit logging, encrypted session storage
 
@@ -135,21 +138,18 @@ npm run dev:oauth        # HTTP mode with OAuth
 
 ---
 
-## Release Candidate Notes
-
-**This is a release candidate (0.9.0-rc.12)** for the first public npm release. We're seeking early adopter feedback before the 1.0.0 stable release.
+## Community Feedback Welcome
 
 **Target Audience**: Developers building production MCP servers requiring enterprise security, observability, and multi-LLM support.
 
-**Feedback Welcome**:
+**Get Help & Share Feedback**:
 - **GitHub Issues**: https://github.com/jdutton/mcp-typescript-simple/issues
 - **Discussions**: https://github.com/jdutton/mcp-typescript-simple/discussions
 
-**Before 1.0.0 Stable**:
+**Roadmap to 1.0.0**:
 - Complete plugin architecture public API
 - Finish Vitest migration
-- Gather and incorporate community feedback
-- API stability freeze
+- API stability freeze based on community feedback
 
 ---
 
