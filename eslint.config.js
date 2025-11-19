@@ -220,12 +220,58 @@ export default [
     },
   },
   {
+    // Tools JavaScript files - same rules as TypeScript tools
+    files: ['tools/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        NodeJS: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        Buffer: 'readonly',
+      },
+    },
+    plugins: {
+      unicorn,
+      import: importPlugin,
+    },
+    rules: {
+      // Core JavaScript rules
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-console': 'off', // Tools use console for output
+
+      // Import rules
+      'import/no-duplicates': 'error',
+
+      // SonarJS rules - catch SonarQube issues
+      'sonarjs/cognitive-complexity': ['warn', 30],
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
+      'sonarjs/no-ignored-exceptions': 'error', // ✅ catches empty catch blocks
+
+      // Unicorn rules - catch modern JavaScript issues
+      'unicorn/prefer-node-protocol': 'error', // ✅ catches fs → node:fs
+      'unicorn/prefer-number-properties': 'error',
+      'unicorn/no-array-for-each': 'error',
+      'unicorn/prefer-top-level-await': 'error', // ✅ catches promise chains
+      'unicorn/throw-new-error': 'error',
+    },
+  },
+  {
     ignores: [
       'build/**',
       'dist/**',
       'coverage/**',
       'node_modules/**',
-      '*.js',
+      '*.config.js', // Root config files (vitest, eslint, etc)
       '**/*.d.ts',
       'packages/*/vitest.config.ts',
       'vitest.*.config.ts',

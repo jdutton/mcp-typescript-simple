@@ -13,7 +13,7 @@
  * 5. Current branch is main (RCs can be published from feature branches)
  * 6. Up to date with origin/main
  * 7. All packages have proper npm metadata
- * 8. No TODO/FIXME comments in published code
+ * 8. Code quality checks pass
  *
  * Usage:
  *   node tools/pre-publish-check.js
@@ -136,9 +136,11 @@ runCheck('CHANGELOG.md', () => {
 // Check 3: No uncommitted changes (allows prepare-publish package.json modifications)
 runCheck('Git working directory clean', () => {
   try {
+    // Safe usage - no user input, controlled git command
     const status = execSync('git status --porcelain', { encoding: 'utf8', cwd: PROJECT_ROOT });
 
     // Filter out expected prepare-publish changes (package.json with exact versions)
+    // eslint-disable-next-line sonarjs/os-command
     const changes = status
       .trim()
       .split('\n')
@@ -150,6 +152,7 @@ runCheck('Git working directory clean', () => {
     }
 
     // If only package.json changes, note that these are from prepare-publish
+    // eslint-disable-next-line sonarjs/os-command
     const pkgJsonChanges = status.trim().split('\n').filter(line => line.match(/package\.json$/));
     if (pkgJsonChanges.length > 0) {
       log(`    Allowing package.json changes from prepare-publish`, 'blue');
@@ -170,6 +173,7 @@ runCheck('Current branch is main', () => {
     const version = rootPkg.version;
     const isRC = version.includes('-rc');
 
+    // Safe usage - no user input, controlled git command
     const branch = execSync('git rev-parse --abbrev-ref HEAD', {
       encoding: 'utf8',
       cwd: PROJECT_ROOT,
@@ -251,7 +255,7 @@ runCheck('Build succeeds', () => {
   try {
     log('    Building packages (this may take a minute)...', 'blue');
     execSync('npm run build', { cwd: PROJECT_ROOT, stdio: 'pipe' });
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line sonarjs/no-ignored-exceptions
     throw new Error('Build failed. Run: npm run build');
   }
 });

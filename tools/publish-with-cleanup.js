@@ -20,7 +20,7 @@
  * - Exit code propagation
  */
 
-import { execSync, spawn } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -146,7 +146,7 @@ function preparePublish() {
     });
     log('✅ Packages prepared successfully', 'green');
     return true;
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line sonarjs/no-ignored-exceptions
     log('❌ Prepare-publish failed', 'red');
     return false;
   }
@@ -170,6 +170,8 @@ function publishPackages(isDryRun, npmTag) {
       process.env.NPM_TAG = npmTag;
     }
 
+    // Safe usage - args are controlled by script, not user input
+    // eslint-disable-next-line sonarjs/os-command
     execSync(`npm ${args.join(' ')}`, {
       cwd: PROJECT_ROOT,
       stdio: 'inherit',
@@ -178,7 +180,7 @@ function publishPackages(isDryRun, npmTag) {
 
     log(isDryRun ? '✅ Dry-run completed' : '✅ Packages published', 'green');
     return true;
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line sonarjs/no-ignored-exceptions
     log(isDryRun ? '❌ Dry-run failed' : '❌ Publishing failed', 'red');
     return false;
   }
@@ -197,7 +199,7 @@ function cleanup() {
     });
     log('✅ Package.json files reverted to "*" wildcards', 'green');
     return true;
-  } catch (error) {
+  } catch (_error) { // eslint-disable-line sonarjs/no-ignored-exceptions
     log('❌ Cleanup failed - manual intervention required', 'red');
     log('   Run: git checkout -- packages/*/package.json', 'yellow');
     return false;
@@ -277,16 +279,18 @@ async function main() {
   }
 }
 
-main().catch(error => {
+try {
+  await main();
+} catch (error) {
   log(`❌ Unexpected error: ${error.message}`, 'red');
   console.error(error);
 
   // Attempt cleanup even on unexpected errors
   try {
     cleanup();
-  } catch (cleanupError) {
+  } catch (_cleanupError) { // eslint-disable-line sonarjs/no-ignored-exceptions
     log('❌ Cleanup also failed', 'red');
   }
 
   process.exit(1);
-});
+}
