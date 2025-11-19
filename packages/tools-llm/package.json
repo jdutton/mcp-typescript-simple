@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/tools-llm",
-  "version": "0.9.0-rc.13",
+  "version": "0.9.0",
   "description": "LLM infrastructure for building LLM-powered MCP tools",
   "type": "module",
   "main": "./dist/index.js",
