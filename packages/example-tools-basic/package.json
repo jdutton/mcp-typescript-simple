@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/example-tools-basic",
-  "version": "0.9.0-rc.13",
+  "version": "0.9.0",
   "description": "Example: Basic MCP tools for demonstration and testing",
   "type": "module",
   "main": "./dist/index.js",
