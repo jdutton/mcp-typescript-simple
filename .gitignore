@@ -52,9 +52,6 @@ Thumbs.db
 data/
 .env*.local
 
-# Validation state (never commit - contains git tree hash and validation results)
-.validate-state.yaml
-
 # Work-in-progress tracking (never commit - used for local PR/task tracking only)
 TODO.md
 TODO-ARCHIVE.md
@@ -64,3 +61,8 @@ SUMMARY.md
 test-results/
 playwright-results/
 playwright-report/
+
+# Scaffolding tool test outputs (never commit - used for local testing only)
+test-adoption-project/
+test-port-custom/
+test-*-project/

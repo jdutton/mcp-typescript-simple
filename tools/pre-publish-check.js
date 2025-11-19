@@ -10,7 +10,7 @@
  * 2. All validation checks pass (npm run validate)
  * 3. CHANGELOG.md exists and is updated
  * 4. No uncommitted changes in git
- * 5. Current branch is main
+ * 5. Current branch is main (RCs can be published from feature branches)
  * 6. Up to date with origin/main
  * 7. All packages have proper npm metadata
  * 8. No TODO/FIXME comments in published code
@@ -117,23 +117,42 @@ runCheck('CHANGELOG.md', () => {
   // Check for version being released
   const pkgJson = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf8'));
   const version = pkgJson.version;
+  const isRC = version.includes('-rc');
 
-  if (!changelog.includes(`## [${version}]`)) {
+  if (isRC) {
+    // RCs don't require individual CHANGELOG entries - they're iterative
+    // All RC changes are documented under the base version (e.g., 0.9.0-rc.8)
+    log(`    RC version detected (${version}) - CHANGELOG entry not required`, 'blue');
+  } else if (!changelog.includes(`## [${version}]`)) {
+    // Stable releases must have CHANGELOG entry
     throw new Error(
       `CHANGELOG.md missing section for v${version}. Move changes from [Unreleased] to [${version}].`
     );
+  } else {
+    log(`    CHANGELOG.md includes v${version}`, 'blue');
   }
-
-  log(`    CHANGELOG.md includes v${version}`, 'blue');
 });
 
-// Check 3: No uncommitted changes
+// Check 3: No uncommitted changes (allows prepare-publish package.json modifications)
 runCheck('Git working directory clean', () => {
   try {
     const status = execSync('git status --porcelain', { encoding: 'utf8', cwd: PROJECT_ROOT });
 
-    if (status.trim().length > 0) {
-      throw new Error(`Uncommitted changes detected:\n      ${status.trim().split('\n').join('\n      ')}`);
+    // Filter out expected prepare-publish changes (package.json with exact versions)
+    const changes = status
+      .trim()
+      .split('\n')
+      .filter(line => line.trim())
+      .filter(line => !line.match(/^\s*M\s+packages\/.*\/package\.json$/));
+
+    if (changes.length > 0) {
+      throw new Error(`Uncommitted changes detected:\n      ${changes.join('\n      ')}`);
+    }
+
+    // If only package.json changes, note that these are from prepare-publish
+    const pkgJsonChanges = status.trim().split('\n').filter(line => line.match(/package\.json$/));
+    if (pkgJsonChanges.length > 0) {
+      log(`    Allowing package.json changes from prepare-publish`, 'blue');
     }
   } catch (error) {
     if (error.message.includes('Uncommitted changes')) {
@@ -143,19 +162,28 @@ runCheck('Git working directory clean', () => {
   }
 });
 
-// Check 4: Current branch is main
+// Check 4: Current branch is main (RCs can be published from feature branches)
 runCheck('Current branch is main', () => {
   try {
+    // Get current version to check if it's an RC
+    const rootPkg = JSON.parse(readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf8'));
+    const version = rootPkg.version;
+    const isRC = version.includes('-rc');
+
     const branch = execSync('git rev-parse --abbrev-ref HEAD', {
       encoding: 'utf8',
       cwd: PROJECT_ROOT,
     }).trim();
 
-    if (branch !== 'main') {
-      throw new Error(`Current branch is '${branch}', expected 'main'`);
+    if (isRC) {
+      // RCs can be published from any branch (best practice: feature branches)
+      log(`    RC version detected (${version}) - allowing ${branch} branch`, 'blue');
+    } else if (branch !== 'main') {
+      // Stable releases must be from main
+      throw new Error(`Stable release must be from 'main' branch, currently on '${branch}'`);
     }
   } catch (error) {
-    if (error.message.includes('Current branch')) {
+    if (error.message.includes('branch')) {
       throw error;
     }
     throw new Error('Failed to determine current branch');

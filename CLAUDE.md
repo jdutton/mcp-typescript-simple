@@ -13,6 +13,53 @@ This is a production-ready TypeScript-based MCP (Model Context Protocol) server 
 - **Environment Configuration**: Never use dotenv - use Node.js --env-file or --env-file-if-exists flags instead
 - **Redis Storage**: NEVER use Vercel KV (@vercel/kv package) - use standard Redis with ioredis + REDIS_URL environment variable
 
+## Creating New MCP Servers
+
+Use the scaffolding tool to create production-ready MCP servers:
+
+```bash
+npm create @mcp-typescript-simple@latest my-server
+```
+
+**Features included:**
+- Full-featured by default (OAuth, LLM, Docker)
+- Graceful degradation (works without API keys)
+- Configurable ports (BASE_PORT for dev, BASE_PORT+1/+2 for tests)
+- Complete test suite (unit + system tests)
+- Docker deployment ready (nginx + Redis + multi-replica)
+- Validation pipeline (vibe-validate)
+
+**Key architectural patterns included:**
+- **Tool Registry Pattern**: HTTP mode session reconstruction support
+- **Session Management**: Redis-based persistence for horizontal scaling
+- **Graceful Degradation**: LLM and OAuth work without API keys
+- **Port Isolation**: Configurable BASE_PORT prevents conflicts
+
+**Generated project structure:**
+```
+my-server/
+├── src/
+│   └── index.ts           # Main server (copied from example-mcp)
+├── test/
+│   └── system/            # System tests with BASE_PORT templating
+├── .env.example           # Environment template with unique encryption key
+├── .env.oauth.example     # OAuth configuration template
+├── docker-compose.yml     # Multi-replica Docker deployment
+├── Dockerfile             # Production container
+├── package.json           # Full dependency set (no conditionals)
+├── vibe-validate.config.yaml  # Validation pipeline
+└── CLAUDE.md              # Generated guidance including HTTP session management
+
+```
+
+**Deployment options included:**
+1. **Local Development**: `npm run dev:stdio` / `npm run dev:http`
+2. **OAuth Development**: `npm run dev:oauth` (with provider configuration)
+3. **Docker Deployment**: `docker-compose up` (nginx load balancer + Redis)
+4. **Validation**: `npm run validate` (comprehensive CI/CD pipeline)
+
+See `packages/create-mcp-typescript-simple/README.md` for detailed scaffolding documentation.
+
 ## Development Commands
 
 ```bash
@@ -1146,6 +1193,48 @@ npm run version:major
 - **Version 0.9.x = Release Candidates** - use for pre-1.0.0 releases
 - **Version 1.0.0+ = Stable Releases** - only after community feedback and API stability
 
+### Dependency Version Management
+
+Internal dependencies use `"*"` wildcards during development (for workspace linking), but are automatically converted to exact versions during publishing.
+
+#### How it works:
+
+**Development:**
+```json
+{
+  "dependencies": {
+    "@mcp-typescript-simple/config": "*",
+    "@mcp-typescript-simple/tools": "*"
+  }
+}
+```
+- `"*"` allows npm workspaces to link local packages
+- Fast, efficient development workflow
+
+**Publishing:**
+- `npm run prepare-publish` converts `"*"` → exact version (e.g., `"0.9.0-rc.3"`)
+- Packages publish with exact versions
+- `git checkout` reverts package.json files back to `"*"`
+- Git never tracks the temporary changes
+
+**Result:**
+- ✅ Published packages have exact version dependencies
+- ✅ Consumers get matching versions (no mismatches)
+- ✅ Development keeps simple `"*"` wildcards
+- ✅ No manual version updates needed
+
+#### Why this matters:
+
+**Problem:**
+- Publishing with `"*"` dependencies causes npm to resolve random versions
+- Consumers get mismatched versions (e.g., server@rc.3 with config@rc.1)
+- Runtime failures due to incompatible APIs
+
+**Solution:**
+- `prepare-publish` script converts all `"*"` to current package version
+- Published packages guaranteed to have matching versions
+- Zero manual maintenance required
+
 ### Pre-Publish Checklist
 
 **MANDATORY**: Run the pre-publish check before every release:
@@ -1158,12 +1247,36 @@ This verifies:
 1. ✅ Version consistency across all workspace packages
 2. ✅ CHANGELOG.md exists and is updated for current version
 3. ✅ No uncommitted changes in git
-4. ✅ Current branch is `main`
+4. ✅ Current branch is `main` (for stable releases) OR feature branch (for RCs)
 5. ✅ Branch is up to date with `origin/main`
 6. ✅ All packages have required metadata (name, version, description, license, repository)
 7. ✅ Build succeeds without errors
 
 **If pre-publish check fails, you MUST fix all issues before proceeding with publication.**
+
+### Branch Requirements for Publishing
+
+**Release Candidates (RCs):**
+- ✅ **CAN be published from feature/PR branches**
+- ✅ **SHOULD be published from feature branches** (best practice)
+- **Rationale**: Keeps buggy/experimental RCs isolated from main branch
+- **Workflow**: Publish RC → Test → Fix issues → Republish RC → Merge to main when stable
+
+**Stable Releases (1.0.0+):**
+- ❌ **MUST be published from main branch only**
+- **Rationale**: Ensures stable releases come from tested, merged code
+- **Workflow**: Merge PR → Publish from main → Tag release
+
+**Example RC Publishing Workflow:**
+```bash
+# On feature branch (e.g., feature/improve-framework-adoption-experience)
+git add -A && git commit -m "feat: Add new feature"
+npm run bump-version 0.9.0-rc.8
+npm run publish:automated -- --tag next  # Publishes from feature branch
+npm create @mcp-typescript-simple@next test-project  # Test the RC
+# Fix any issues, republish as rc.9, rc.10, etc.
+# When stable: Create PR and merge to main
+```
 
 ### CHANGELOG.md Requirements
 
@@ -1227,6 +1340,13 @@ npm run publish:dry-run
 # Step 4: Publish packages in dependency order (CRITICAL)
 npm run publish:all
 ```
+
+**What happens during `publish:all`:**
+1. Runs `prepare-publish` - converts `"*"` → exact versions in all package.json
+2. Publishes packages in dependency order with npm
+3. Reverts package.json files with `git checkout` (keeps `"*"` in development)
+
+**Result:** Published packages have exact versions, development keeps `"*"` wildcards.
 
 **Publish order (DO NOT CHANGE):**
 1. `@mcp-typescript-simple/config` (base configuration)
@@ -1434,12 +1554,13 @@ npm run typecheck
 
 1. **Always update CHANGELOG.md first** - before bumping version or publishing
 2. **Use bump-version script** - never manually edit versions
-3. **Run pre-publish check** - catches issues before publication
-4. **Test dry-run** - verify package contents before publishing
-5. **Publish in dependency order** - use `npm run publish:all`
-6. **Verify after publishing** - run `npm run verify-npm-packages`
-7. **Create GitHub release** - after successful npm publication
-8. **Announce in discussions** - share release notes with community
+3. **Keep "*" wildcards** - for internal dependencies (prepare-publish handles conversion)
+4. **Run pre-publish check** - catches issues before publication
+5. **Test dry-run** - verify package contents before publishing
+6. **Publish in dependency order** - use `npm run publish:all`
+7. **Verify after publishing** - run `npm run verify-npm-packages`
+8. **Create GitHub release** - after successful npm publication
+9. **Announce in discussions** - share release notes with community
 
 ### Future Automation
 

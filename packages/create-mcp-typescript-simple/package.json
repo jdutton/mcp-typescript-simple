@@ -1,0 +1,63 @@
+{
+  "name": "create-mcp-typescript-simple",
+  "version": "0.9.0-rc.13",
+  "description": "Scaffolding tool for creating production-ready MCP TypeScript Simple servers",
+  "type": "module",
+  "bin": {
+    "create-mcp-typescript-simple": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run",
+    "test:regression": "vitest run test/scaffolding-validation.test.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "typescript",
+    "scaffolding",
+    "create",
+    "generator",
+    "cli",
+    "model-context-protocol",
+    "oauth",
+    "llm",
+    "production-ready"
+  ],
+  "author": "Jeff Dutton",
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/prompts": "^7.10.1",
+    "chalk": "^5.4.1",
+    "commander": "^13.0.0",
+    "handlebars": "^4.7.8",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^24.5.2",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jdutton/mcp-typescript-simple.git",
+    "directory": "packages/create-mcp-typescript-simple"
+  },
+  "bugs": {
+    "url": "https://github.com/jdutton/mcp-typescript-simple/issues"
+  },
+  "homepage": "https://github.com/jdutton/mcp-typescript-simple/tree/main/packages/create-mcp-typescript-simple#readme"
+}

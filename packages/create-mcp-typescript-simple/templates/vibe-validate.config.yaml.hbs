@@ -1,0 +1,62 @@
+# vibe-validate configuration
+# Production-ready validation for MCP servers
+# See: https://github.com/jdutton/vibe-validate/blob/main/docs/configuration-reference.md
+
+$schema: https://raw.githubusercontent.com/jdutton/vibe-validate/main/packages/config/vibe-validate.schema.json
+
+developerFeedback: true
+
+# Locking configuration - prevents concurrent validation runs from conflicting
+locking:
+  enabled: true
+  concurrencyScope: project
+  projectId: {{name}}
+
+# Git settings
+git:
+  mainBranch: main
+
+# Pre-commit hooks configuration
+hooks:
+  preCommit:
+    enabled: true
+    secretScanning:
+      enabled: true
+      scanCommand: "gitleaks protect --staged --verbose"
+
+# Validation configuration
+validation:
+  phases:
+    # Phase 1: Fast Checks & Build
+    - name: 'Fast Checks & Build'
+      parallel: false
+      failFast: false
+      steps:
+        - name: typecheck
+          command: npm run typecheck
+          description: TypeScript type checking
+
+        - name: lint
+          command: npm run lint
+          description: ESLint code checking
+
+        - name: build
+          command: npm run build
+          description: Build project
+
+        - name: unit-tests
+          command: npm run test:unit
+          description: Unit tests with Vitest
+
+    # Phase 2: System Tests (parallel execution)
+    - name: 'System Tests'
+      parallel: true
+      failFast: false
+      steps:
+        - name: system-tests-stdio
+          command: npm run test:system:stdio
+          description: System tests (STDIO transport)
+
+        - name: system-tests-http
+          command: npm run test:system:ci
+          description: System tests (HTTP transport with CI auto-start)

@@ -1,0 +1,19 @@
+# Whitelist all template files including dotfiles
+# This overrides npm's default behavior of excluding dotfiles
+
+# Include everything by default
+!*
+
+# Exclude development files
+src/
+test/
+*.test.ts
+*.spec.ts
+tsconfig.json
+vitest.config.ts
+
+# Include templates directory with ALL files (including dotfiles)
+!templates/
+!templates/**/*
+!templates/.*
+!templates/**/.*

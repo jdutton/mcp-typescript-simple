@@ -1,0 +1,274 @@
+# {{mcpServerName}}
+
+{{description}}
+
+This is a **production-ready MCP server** you can customize for your use case. It includes example tools to show you the patterns - replace them with your own business logic.
+
+## What's Included
+
+- ✅ **Working MCP server** - STDIO and HTTP modes ready
+- ✅ **Example tools** - Patterns for basic and LLM-powered tools (delete/replace as needed)
+{{#if includeAuth}}
+- ✅ **Authentication** - OAuth 2.0 with {{oauthProviders}}
+{{/if}}
+- ✅ **Production deployment** - Docker and Vercel configurations ready
+- ✅ **Testing & validation** - Comprehensive test suite and CI/CD pipeline
+- 🔐 **Secure by default** - Encryption keys, OAuth, session management
+
+## Quick Start: Make This Server Yours
+
+### 1. Get Dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure Environment (Optional)
+
+```bash
+cp .env.example .env
+# Edit .env to add API keys (all optional - server works without them)
+```
+
+{{#if includeLLM}}
+**Optional LLM providers:**
+{{#if hasAnthropic}}
+- `ANTHROPIC_API_KEY` - https://console.anthropic.com/
+{{/if}}
+{{#if hasOpenAI}}
+- `OPENAI_API_KEY` - https://platform.openai.com/api-keys
+{{/if}}
+{{#if hasGemini}}
+- `GOOGLE_API_KEY` - https://makersuite.google.com/app/apikey
+{{/if}}
+
+{{/if}}
+### 3. Start Building
+
+```bash
+# Start development server
+npm run dev:stdio
+
+# In another terminal, test your tools
+npm run test:mcp
+```
+
+### 4. Customize for Your Use Case
+
+**Replace the example tools with your own:**
+
+1. Study `src/tools/hello.ts` and `src/tools/echo.ts` patterns
+2. Delete example tools you don't need
+3. Create new tools in `src/tools/` following the same patterns
+4. Run `npm run validate` to ensure everything works
+
+**See `CLAUDE.md` for detailed tool creation guide.**
+
+## Example Tools (Replace These!)
+
+This server includes working examples to demonstrate patterns:
+
+**Basic tools** (no API keys needed):
+- `hello`, `echo`, `current-time` - Simple synchronous tools
+
+{{#if includeLLM}}
+**LLM-powered tools** (require API keys):
+- `chat`, `analyze`, `summarize`, `explain` - AI integration patterns
+
+{{/if}}
+**Next step:** Replace these with your own tools following the same patterns.
+
+## Building Your Own Tools
+
+### Adding a New Tool
+
+1. **Create tool file:** `src/tools/my-tool.ts`
+
+```typescript
+import { ToolDefinition } from '@mcp-typescript-simple/tools';
+
+export const myTool: ToolDefinition = {
+  name: 'my-tool',
+  description: 'What your tool does',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      // your parameters
+    },
+    required: []
+  },
+  execute: async (input) => {
+    // your logic here
+    const result = 'your result';
+    return {
+      content: [{ type: 'text', text: result }]
+    };
+  }
+};
+```
+
+2. **Register tool:** Add to `src/tools/index.ts`
+
+```typescript
+export { myTool } from './my-tool.js';
+```
+
+3. **Test:** `npm run validate`
+
+4. **Deploy:** `docker-compose up` or `vercel`
+
+### Tool Patterns
+
+- **Basic tools:** See `src/tools/echo.ts` for synchronous operations
+{{#if includeLLM}}
+- **LLM tools:** See `src/tools/chat.ts` for AI integrations
+{{/if}}
+- **Async operations:** All tools support async/await
+- **Error handling:** Follow patterns in example tools
+
+**Comprehensive guide:** See `CLAUDE.md` for step-by-step instructions.
+
+## Development
+
+### Available Scripts
+
+```bash
+npm run dev:stdio        # STDIO mode
+npm run dev:http         # HTTP mode (no auth)
+{{#if includeAuth}}
+npm run dev:oauth        # HTTP mode with OAuth
+{{/if}}
+npm run build            # Build project
+npm test                 # Run tests
+npm run validate         # Full validation (required before commit)
+npm run typecheck        # TypeScript type checking
+npm run lint             # Code linting
+```
+
+## Deploying Your Server
+
+### Local Development
+
+```bash
+npm run dev:stdio        # STDIO mode (MCP Inspector)
+npm run dev:http         # HTTP mode (no auth)
+{{#if includeAuth}}
+npm run dev:oauth        # HTTP mode with OAuth
+{{/if}}
+```
+
+### Production Deployment
+
+**Docker (recommended for self-hosting):**
+
+```bash
+docker-compose up
+# Access: http://localhost:{{nginxPort}}
+# Grafana observability: http://localhost:{{grafanaPort}}
+```
+
+{{#if includeVercel}}
+**Vercel (serverless):**
+
+```bash
+vercel                   # Preview deployment
+vercel --prod            # Production deployment
+```
+
+{{/if}}
+**Before deploying:**
+
+1. Replace example tools with your own
+2. Run `npm run validate` to ensure tests pass
+3. Update environment variables for production
+4. Review security configuration
+
+See `CLAUDE.md` for production deployment checklists.
+## Project Structure
+
+```
+{{name}}/
+├── src/
+│   ├── index.ts              # Main entry point (customize as needed)
+│   ├── config.ts             # Configuration (add your settings here)
+│   └── tools/                # ⭐ START HERE: Replace example tools
+│       ├── index.ts          # Tool registry (add your tools here)
+│       └── hello.ts          # Example tool (replace or delete)
+├── test/
+│   └── tools/                # Add tests for your custom tools
+│       └── hello.test.ts
+├── docker/                   # Production Docker deployment
+│   ├── docker-compose.yml
+│   ├── nginx.conf
+│   └── Dockerfile
+{{#if includeVercel}}
+├── api/                      # Vercel serverless functions
+│   ├── mcp.ts               # MCP protocol endpoint
+│   ├── auth.ts              # OAuth authentication
+│   └── health.ts            # Health check
+{{/if}}
+├── .env.example              # Copy to .env and add your keys
+├── CLAUDE.md                 # ⭐ READ THIS FIRST
+├── package.json
+├── tsconfig.json
+└── vibe-validate.config.yaml # Validation pipeline
+```
+
+**Key files to customize:**
+- `src/tools/` - Your business logic goes here
+- `src/config.ts` - Add your configuration options
+- `.env` - Your API keys and secrets
+
+## Next Steps
+
+### 1. Read CLAUDE.md First (HIGHLY RECOMMENDED)
+
+Comprehensive guide covering:
+- Adding and customizing tools
+- Testing and validation workflow
+- Production deployment best practices
+- Security and authentication configuration
+
+### 2. Customize This Server
+
+- Replace example tools with your business logic
+- Configure authentication for your use case
+- Set up production deployment (Docker or Vercel)
+
+### 3. Get Help
+
+- **Framework documentation:** [mcp-typescript-simple docs](https://github.com/jdutton/mcp-typescript-simple/docs)
+- **Report issues:** [GitHub Issues](https://github.com/jdutton/mcp-typescript-simple/issues)
+- **Ask questions:** [GitHub Discussions](https://github.com/jdutton/mcp-typescript-simple/discussions)
+
+## Security
+
+- ✅ Unique `TOKEN_ENCRYPTION_KEY` generated for this server
+- ✅ `.env` files in `.gitignore` (never committed)
+{{#if includeAuth}}
+- ✅ OAuth with Dynamic Client Registration (DCR)
+{{/if}}
+- ✅ Redis session storage with encryption
+
+**Never commit `.env` files to git!**
+
+## License
+
+This project is unlicensed by default. Choose an appropriate license for your use case.
+
+For open source projects, consider:
+- MIT - Permissive, widely used
+- Apache 2.0 - Permissive with patent protection
+- GPL - Copyleft, requires derivatives to be open source
+
+For proprietary projects, add a copyright notice or keep as "UNLICENSED".
+
+## Support
+
+- 📚 [Framework Documentation](https://github.com/jdutton/mcp-typescript-simple/docs)
+- 🐛 [Report Issues](https://github.com/jdutton/mcp-typescript-simple/issues)
+- 💬 [Discussions](https://github.com/jdutton/mcp-typescript-simple/discussions)
+
+---
+
+**Powered by** [`@mcp-typescript-simple`](https://github.com/jdutton/mcp-typescript-simple) - Production-ready MCP server framework for TypeScript

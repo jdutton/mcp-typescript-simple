@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/testing",
-  "version": "0.9.0-rc.3",
+  "version": "0.9.0-rc.13",
   "description": "Reusable MCP testing framework with port management, process utilities, and Playwright helpers",
   "type": "module",
   "main": "./dist/index.js",

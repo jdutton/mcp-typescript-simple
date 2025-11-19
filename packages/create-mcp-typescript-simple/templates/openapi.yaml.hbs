@@ -1,0 +1,1482 @@
+openapi: 3.1.0
+info:
+  title: {{name}} API
+  version: 1.0.0
+  description: |
+    {{description}}
+
+    ## Features
+    - **Dual-mode operation**: STDIO (traditional) + Streamable HTTP with OAuth
+    - **Multi-LLM integration**: Claude, OpenAI, and Gemini with type-safe provider selection
+    - **OAuth Dynamic Client Registration (DCR)**: RFC 7591 compliant automatic client registration
+    - **Comprehensive discovery**: RFC 8414, RFC 9728, and OpenID Connect metadata
+    - **OpenTelemetry observability**: Structured logging, metrics, and tracing
+
+    ## Authentication
+    This API uses OAuth 2.0 for authentication. Use the `/auth/{provider}/authorize` endpoint
+    to initiate the OAuth flow, then use the returned access token with Bearer authentication
+    for subsequent requests.
+
+    ## MCP Protocol
+    The main MCP endpoint (`/mcp`) implements JSON-RPC 2.0 over Streamable HTTP transport.
+    All tool invocations use the JSON-RPC format with `method: tools/call`.
+
+  contact:
+    name: {{author}}
+
+servers:
+  - url: http://localhost:{{basePort}}
+    description: Local development server
+
+tags:
+  - name: Health & Status
+    description: Health checks and system status endpoints
+  - name: MCP Protocol
+    description: Model Context Protocol JSON-RPC endpoints
+  - name: OAuth Authentication
+    description: OAuth 2.0 authentication and authorization
+  - name: OAuth Discovery
+    description: OAuth metadata discovery endpoints (RFC 8414, 9728, OpenID Connect)
+  - name: Dynamic Client Registration
+    description: OAuth 2.0 Dynamic Client Registration (RFC 7591/7592)
+  - name: Admin & Monitoring
+    description: Administrative and monitoring endpoints
+  - name: Debug
+    description: Debug and troubleshooting endpoints
+
+security:
+  - BearerAuth: []
+  - OAuth2: []
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health & Status
+      summary: Health check
+      description: Returns server health status, OAuth provider information, and available LLM providers
+      operationId: getHealth
+      security: []
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Healthy server with OAuth
+                  value:
+                    status: "healthy"
+                    version: "1.0.0"
+                    environment: "development"
+                    oauth:
+                      enabled: true
+                      provider: "google"
+                      endpoints:
+                        authorize: "/auth/google/authorize"
+                        callback: "/auth/google/callback"
+                        token: "/token"
+                        logout: "/auth/google/logout"
+                    llm:
+                      providers: ["claude", "openai", "gemini"]
+                      defaultProvider: "claude"
+                    timestamp: "2025-09-30T14:00:00.000Z"
+
+  /mcp:
+    get:
+      tags:
+        - MCP Protocol
+      summary: Establish MCP connection
+      description: Establishes a Streamable HTTP connection for MCP protocol communication
+      operationId: establishMcpConnection
+      responses:
+        '200':
+          description: MCP connection established
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                format: binary
+                description: Server-Sent Events stream for MCP messages
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags:
+        - MCP Protocol
+      summary: Send MCP JSON-RPC request
+      description: |
+        Send JSON-RPC 2.0 requests to invoke MCP tools or call protocol methods.
+
+        ## Available Tools
+        - `hello` - Greet users by name
+        - `echo` - Echo back messages
+        - `current-time` - Get current timestamp
+        - `chat` - Interactive AI assistant (requires LLM provider)
+        - `analyze` - Deep text analysis with AI (requires LLM provider)
+        - `summarize` - Text summarization (requires LLM provider)
+        - `explain` - Educational explanations (requires LLM provider)
+
+        ## Protocol Methods
+        - `initialize` - Initialize MCP session
+        - `tools/list` - List available tools
+        - `tools/call` - Invoke a specific tool
+
+      operationId: sendMcpRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JsonRpcRequest'
+            examples:
+              listTools:
+                summary: List available tools
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "tools/list"
+              callHello:
+                summary: Call hello tool
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: "tools/call"
+                  params:
+                    name: "hello"
+                    arguments:
+                      name: "Alice"
+              callSummarize:
+                summary: Call summarize tool with Gemini
+                value:
+                  jsonrpc: "2.0"
+                  id: 3
+                  method: "tools/call"
+                  params:
+                    name: "summarize"
+                    arguments:
+                      text: "Long text to summarize..."
+                      length: "brief"
+                      provider: "gemini"
+      responses:
+        '200':
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JsonRpcResponse'
+              examples:
+                toolsList:
+                  summary: Tools list response
+                  value:
+                    jsonrpc: "2.0"
+                    id: 1
+                    result:
+                      tools:
+                        - name: "hello"
+                          description: "Say hello to someone"
+                          inputSchema:
+                            type: "object"
+                            properties:
+                              name:
+                                type: "string"
+                                description: "The name of the person to greet"
+                            required: ["name"]
+                helloResponse:
+                  summary: Hello tool response
+                  value:
+                    jsonrpc: "2.0"
+                    id: 2
+                    result:
+                      content:
+                        - type: "text"
+                          text: "Hello, Alice! 👋"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - MCP Protocol
+      summary: Close MCP connection
+      description: Closes the active MCP connection and cleans up session
+      operationId: closeMcpConnection
+      responses:
+        '200':
+          description: Connection closed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Get OAuth provider information
+      description: Returns information about the configured OAuth provider
+      operationId: getAuthInfo
+      security: []
+      responses:
+        '200':
+          description: OAuth provider information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthProviderInfo'
+
+  /auth/login:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Provider selection page
+      description: |
+        Displays HTML page with available OAuth providers for user selection.
+        Used when multiple OAuth providers are configured (Google, GitHub, Microsoft).
+
+        If only one provider is configured, automatically redirects to that provider.
+      operationId: oauthLogin
+      security: []
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth client state parameter (preserved through provider selection)
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+          description: OAuth client redirect URI (preserved through provider selection)
+      responses:
+        '200':
+          description: HTML provider selection page
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Redirect to single provider (when only one provider configured)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/authorize:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Generic OAuth authorization endpoint
+      description: |
+        Generic OAuth 2.0 authorization endpoint that redirects to provider selection.
+        Compatible with standard OAuth 2.0 clients that use `/authorize` endpoint.
+
+        Redirects to `/auth/login` for provider selection.
+      operationId: genericAuthorize
+      security: []
+      parameters:
+        - name: response_type
+          in: query
+          schema:
+            type: string
+            enum: [code]
+          description: OAuth response type (always 'code')
+        - name: client_id
+          in: query
+          schema:
+            type: string
+          description: OAuth client ID
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+          description: OAuth client redirect URI
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth client state parameter
+        - name: scope
+          in: query
+          schema:
+            type: string
+          description: Requested OAuth scopes
+        - name: code_challenge
+          in: query
+          schema:
+            type: string
+          description: PKCE code challenge
+        - name: code_challenge_method
+          in: query
+          schema:
+            type: string
+            enum: [S256]
+          description: PKCE challenge method
+      responses:
+        '302':
+          description: Redirect to provider selection or single provider
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/{provider}/authorize:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: Initiate OAuth authorization
+      description: |
+        Redirects to the OAuth provider's authorization page to begin the OAuth flow.
+        Supports PKCE (RFC 7636) for public clients.
+
+        ## Query Parameters for OAuth Clients (Claude Code, MCP Inspector)
+        - `redirect_uri` - Client's callback URI
+        - `state` - Client's CSRF protection state
+        - `code_challenge` - PKCE code challenge (S256)
+        - `code_challenge_method` - PKCE challenge method (S256)
+
+      operationId: authorizeOAuth
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github, microsoft]
+          description: OAuth provider name
+        - name: redirect_uri
+          in: query
+          schema:
+            type: string
+            format: uri
+          description: OAuth client redirect URI (for managed OAuth clients)
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: OAuth client state parameter (for CSRF protection)
+        - name: code_challenge
+          in: query
+          schema:
+            type: string
+          description: PKCE code challenge (S256)
+        - name: code_challenge_method
+          in: query
+          schema:
+            type: string
+            enum: [S256]
+          description: PKCE code challenge method
+      responses:
+        '302':
+          description: Redirect to OAuth provider authorization page
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/{provider}/callback:
+    get:
+      tags:
+        - OAuth Authentication
+      summary: OAuth callback handler
+      description: Handles OAuth provider callback with authorization code
+      operationId: handleOAuthCallback
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github, microsoft]
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from OAuth provider
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '302':
+          description: Redirect to client or success page
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/token:
+    post:
+      tags:
+        - OAuth Authentication
+      summary: Token endpoint
+      description: |
+        Universal OAuth 2.0 token endpoint supporting:
+        - Authorization code exchange (grant_type=authorization_code)
+        - Refresh token flow (grant_type=refresh_token)
+
+        Implements RFC 6749 and RFC 7636 (PKCE).
+
+      operationId: exchangeToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+            examples:
+              authorizationCode:
+                summary: Exchange authorization code
+                value:
+                  grant_type: "authorization_code"
+                  code: "SplxlOBeZQQYbYS6WxSbIA"
+                  redirect_uri: "http://localhost:6274/callback"
+                  code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+                  client_id: "client-id-123"
+              refreshToken:
+                summary: Refresh access token
+                value:
+                  grant_type: "refresh_token"
+                  refresh_token: "8xLOxBtZp8"
+                  client_id: "client-id-123"
+      responses:
+        '200':
+          description: Token exchange successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              examples:
+                success:
+                  value:
+                    access_token: "eyJhbGc...EXAMPLE_ACCESS_TOKEN"
+                    token_type: "Bearer"
+                    expires_in: 3600
+                    refresh_token: "8xLOxBtZp8"
+                    scope: "openid profile email"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/revoke:
+    post:
+      tags:
+        - OAuth Authentication
+      summary: Token revocation endpoint
+      description: |
+        Universal OAuth 2.0 token revocation endpoint per RFC 7009.
+
+        Revokes access tokens or refresh tokens from any configured OAuth provider.
+        The endpoint automatically detects which provider issued the token and routes
+        the revocation request accordingly.
+
+        **Important**: Per RFC 7009 Section 2.2, this endpoint returns HTTP 200 even
+        if the token is invalid, expired, or already revoked. This prevents token
+        scanning attacks.
+
+        ## Supported token_type_hint values
+        - `access_token` - Hint that the token is an access token
+        - `refresh_token` - Hint that the token is a refresh token
+
+      operationId: revokeToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: The token to revoke (access token or refresh token)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                token_type_hint:
+                  type: string
+                  description: Hint about the type of token being revoked
+                  enum: [access_token, refresh_token]
+                  example: "access_token"
+            examples:
+              revokeAccessToken:
+                summary: Revoke access token
+                value:
+                  token: "eyJhbGc...EXAMPLE_ACCESS_TOKEN"
+                  token_type_hint: "access_token"
+              revokeRefreshToken:
+                summary: Revoke refresh token
+                value:
+                  token: "8xLOxBtZp8"
+                  token_type_hint: "refresh_token"
+      responses:
+        '200':
+          description: |
+            Token revocation successful or token was already invalid.
+            Per RFC 7009, returns 200 even if token was invalid/expired.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+              examples:
+                success:
+                  value:
+                    success: true
+        '400':
+          description: Invalid request (missing token parameter)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "invalid_request"
+                  error_description:
+                    type: string
+                    example: "Missing or invalid token parameter"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/{provider}/logout:
+    post:
+      tags:
+        - OAuth Authentication
+      summary: User logout
+      description: Revokes OAuth tokens and ends user session
+      operationId: logoutUser
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github, microsoft]
+      responses:
+        '200':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /.well-known/oauth-authorization-server:
+    get:
+      tags:
+        - OAuth Discovery
+      summary: OAuth Authorization Server Metadata
+      description: |
+        Returns OAuth 2.0 Authorization Server Metadata per RFC 8414.
+        Used by OAuth clients to discover endpoint URLs and capabilities.
+      operationId: getAuthServerMetadata
+      security: []
+      responses:
+        '200':
+          description: Authorization server metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthServerMetadata'
+
+  /.well-known/oauth-protected-resource:
+    get:
+      tags:
+        - OAuth Discovery
+      summary: OAuth Protected Resource Metadata
+      description: |
+        Returns OAuth 2.0 Protected Resource Metadata per RFC 9728.
+        Used by clients to discover resource server capabilities.
+      operationId: getProtectedResourceMetadata
+      security: []
+      responses:
+        '200':
+          description: Protected resource metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProtectedResourceMetadata'
+
+  /.well-known/oauth-protected-resource/mcp:
+    get:
+      tags:
+        - OAuth Discovery
+      summary: MCP-specific OAuth metadata
+      description: Returns MCP-specific OAuth protected resource metadata
+      operationId: getMcpResourceMetadata
+      security: []
+      responses:
+        '200':
+          description: MCP resource metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResourceMetadata'
+
+  /.well-known/openid-configuration:
+    get:
+      tags:
+        - OAuth Discovery
+      summary: OpenID Connect Discovery
+      description: Returns OpenID Connect Discovery metadata for compatibility
+      operationId: getOpenIdConfiguration
+      security: []
+      responses:
+        '200':
+          description: OpenID Connect configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenIdConfiguration'
+
+  /register:
+    post:
+      tags:
+        - Dynamic Client Registration
+      summary: Register OAuth client
+      description: |
+        Dynamic Client Registration per RFC 7591.
+
+        Automatically registers OAuth clients (like Claude Code, MCP Inspector)
+        without manual configuration. Returns client credentials that can be
+        used immediately for OAuth flows.
+
+      operationId: registerClient
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClientRegistrationRequest'
+            examples:
+              mcpInspector:
+                summary: MCP Inspector registration
+                value:
+                  client_name: "MCP Inspector"
+                  redirect_uris:
+                    - "http://localhost:6274/oauth/callback"
+                  grant_types:
+                    - "authorization_code"
+                    - "refresh_token"
+                  response_types:
+                    - "code"
+                  token_endpoint_auth_method: "none"
+              claudeCode:
+                summary: Claude Code registration
+                value:
+                  client_name: "Claude Code (mcp-typescript-simple)"
+                  redirect_uris:
+                    - "http://localhost:50151/callback"
+                  grant_types:
+                    - "authorization_code"
+                    - "refresh_token"
+                  response_types:
+                    - "code"
+                  token_endpoint_auth_method: "none"
+                  scope: "openid profile email"
+      responses:
+        '201':
+          description: Client registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRegistrationResponse'
+              examples:
+                success:
+                  value:
+                    client_id: "4b7799ac-8ee9-4d39-85df-67d47cd46779"
+                    client_secret: "EXAMPLE_CLIENT_SECRET_VALUE"
+                    client_id_issued_at: 1759234192
+                    client_secret_expires_at: 1761826192
+                    client_name: "MCP Inspector"
+                    redirect_uris:
+                      - "http://localhost:6274/oauth/callback"
+                    grant_types:
+                      - "authorization_code"
+                      - "refresh_token"
+                    response_types:
+                      - "code"
+                    token_endpoint_auth_method: "none"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /register/{client_id}:
+    get:
+      tags:
+        - Dynamic Client Registration
+      summary: Retrieve client configuration
+      description: Retrieves OAuth client configuration per RFC 7592
+      operationId: getClientConfiguration
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Client configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientRegistrationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Dynamic Client Registration
+      summary: Delete registered client
+      description: Deletes OAuth client registration per RFC 7592
+      operationId: deleteClient
+      security:
+        - ClientAuth: []
+      parameters:
+        - name: client_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Client deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/sessions:
+    get:
+      tags:
+        - Admin & Monitoring
+      summary: List active sessions
+      description: Returns list of active MCP sessions
+      operationId: listSessions
+      responses:
+        '200':
+          description: Active sessions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/sessions/{sessionId}:
+    delete:
+      tags:
+        - Admin & Monitoring
+      summary: Close specific session
+      description: Forcefully closes a specific MCP session
+      operationId: closeSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session closed successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/info:
+    get:
+      tags:
+        - Admin & Monitoring
+      summary: Get deployment information
+      description: Returns deployment configuration and environment details
+      operationId: getDeploymentInfo
+      responses:
+        '200':
+          description: Deployment information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/metrics:
+    get:
+      tags:
+        - Admin & Monitoring
+      summary: Get system metrics
+      description: Returns system metrics and performance data
+      operationId: getMetrics
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemMetrics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /debug/github-oauth:
+    get:
+      tags:
+        - Debug
+      summary: GitHub OAuth troubleshooting
+      description: Debug endpoint for GitHub OAuth configuration issues
+      operationId: debugGitHubOAuth
+      security: []
+      responses:
+        '200':
+          description: Debug information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  configured:
+                    type: boolean
+                  clientId:
+                    type: string
+                  redirectUri:
+                    type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Bearer token authentication using OAuth 2.0 access tokens
+
+    OAuth2:
+      type: oauth2
+      description: OAuth 2.0 authorization code flow with PKCE
+      flows:
+        authorizationCode:
+          authorizationUrl: /auth/google/authorize
+          tokenUrl: /token
+          refreshUrl: /token
+          scopes:
+            openid: OpenID Connect scope
+            profile: User profile information
+            email: User email address
+
+    ClientAuth:
+      type: http
+      scheme: bearer
+      description: Client authentication using client_secret as bearer token
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+          example: "1.0.0"
+        environment:
+          type: string
+          enum: [development, production, test]
+        oauth:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            provider:
+              type: string
+              enum: [google, github, microsoft, generic]
+            endpoints:
+              type: object
+              properties:
+                authorize:
+                  type: string
+                callback:
+                  type: string
+                token:
+                  type: string
+                logout:
+                  type: string
+        llm:
+          type: object
+          properties:
+            providers:
+              type: array
+              items:
+                type: string
+                enum: [claude, openai, gemini]
+            defaultProvider:
+              type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    JsonRpcRequest:
+      type: object
+      required:
+        - jsonrpc
+        - method
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: number
+        method:
+          type: string
+          enum:
+            - initialize
+            - tools/list
+            - tools/call
+        params:
+          type: object
+
+    JsonRpcResponse:
+      type: object
+      required:
+        - jsonrpc
+      properties:
+        jsonrpc:
+          type: string
+          const: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: number
+        result:
+          type: object
+        error:
+          $ref: '#/components/schemas/JsonRpcError'
+
+    JsonRpcError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: object
+
+    ToolContent:
+      type: object
+      required:
+        - type
+      properties:
+        type:
+          type: string
+          enum: [text, image, resource, resource_link]
+        text:
+          type: string
+          description: Text content (for type=text)
+
+    OAuthProviderInfo:
+      type: object
+      properties:
+        provider:
+          type: string
+        enabled:
+          type: boolean
+        endpoints:
+          type: object
+          properties:
+            authorize:
+              type: string
+            callback:
+              type: string
+            token:
+              type: string
+            logout:
+              type: string
+
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+      properties:
+        grant_type:
+          type: string
+          enum: [authorization_code, refresh_token]
+        code:
+          type: string
+          description: Authorization code (for authorization_code grant)
+        redirect_uri:
+          type: string
+          format: uri
+          description: Redirect URI (for authorization_code grant)
+        code_verifier:
+          type: string
+          description: PKCE code verifier (for authorization_code grant)
+        refresh_token:
+          type: string
+          description: Refresh token (for refresh_token grant)
+        client_id:
+          type: string
+          description: OAuth client ID
+        client_secret:
+          type: string
+          description: OAuth client secret (if required)
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds
+        refresh_token:
+          type: string
+        scope:
+          type: string
+
+    AuthServerMetadata:
+      type: object
+      description: RFC 8414 Authorization Server Metadata
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        registration_endpoint:
+          type: string
+          format: uri
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        grant_types_supported:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_methods_supported:
+          type: array
+          items:
+            type: string
+        code_challenge_methods_supported:
+          type: array
+          items:
+            type: string
+
+    ProtectedResourceMetadata:
+      type: object
+      description: RFC 9728 Protected Resource Metadata
+      required:
+        - resource
+      properties:
+        resource:
+          type: string
+          format: uri
+        authorization_servers:
+          type: array
+          items:
+            type: string
+            format: uri
+        bearer_methods_supported:
+          type: array
+          items:
+            type: string
+        resource_documentation:
+          type: string
+          format: uri
+
+    McpResourceMetadata:
+      type: object
+      description: MCP-specific resource metadata
+      properties:
+        resource:
+          type: string
+          format: uri
+        mcp_version:
+          type: string
+        transport_types:
+          type: array
+          items:
+            type: string
+        tools:
+          type: array
+          items:
+            type: object
+
+    OpenIdConfiguration:
+      type: object
+      description: OpenID Connect Discovery metadata
+      required:
+        - issuer
+        - authorization_endpoint
+        - token_endpoint
+        - jwks_uri
+      properties:
+        issuer:
+          type: string
+          format: uri
+        authorization_endpoint:
+          type: string
+          format: uri
+        token_endpoint:
+          type: string
+          format: uri
+        jwks_uri:
+          type: string
+          format: uri
+        userinfo_endpoint:
+          type: string
+          format: uri
+        response_types_supported:
+          type: array
+          items:
+            type: string
+        subject_types_supported:
+          type: array
+          items:
+            type: string
+        id_token_signing_alg_values_supported:
+          type: array
+          items:
+            type: string
+
+    ClientRegistrationRequest:
+      type: object
+      description: RFC 7591 Client Registration Request
+      required:
+        - redirect_uris
+      properties:
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+          minItems: 1
+        client_name:
+          type: string
+        client_uri:
+          type: string
+          format: uri
+        grant_types:
+          type: array
+          items:
+            type: string
+            enum: [authorization_code, refresh_token]
+          default: [authorization_code]
+        response_types:
+          type: array
+          items:
+            type: string
+            enum: [code]
+          default: [code]
+        token_endpoint_auth_method:
+          type: string
+          enum: [none, client_secret_post, client_secret_basic]
+          default: client_secret_post
+        scope:
+          type: string
+
+    ClientRegistrationResponse:
+      type: object
+      description: RFC 7591 Client Registration Response
+      required:
+        - client_id
+      properties:
+        client_id:
+          type: string
+          format: uuid
+        client_secret:
+          type: string
+        client_id_issued_at:
+          type: integer
+          format: int64
+        client_secret_expires_at:
+          type: integer
+          format: int64
+        client_name:
+          type: string
+        redirect_uris:
+          type: array
+          items:
+            type: string
+            format: uri
+        grant_types:
+          type: array
+          items:
+            type: string
+        response_types:
+          type: array
+          items:
+            type: string
+        token_endpoint_auth_method:
+          type: string
+        scope:
+          type: string
+
+    SessionList:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            type: object
+            properties:
+              sessionId:
+                type: string
+                format: uuid
+              authStatus:
+                type: string
+                enum: [anonymous, authenticated]
+              createdAt:
+                type: string
+                format: date-time
+              lastActivity:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    SystemMetrics:
+      type: object
+      properties:
+        uptime:
+          type: integer
+          description: Server uptime in seconds
+        memory:
+          type: object
+          properties:
+            heapUsed:
+              type: integer
+            heapTotal:
+              type: integer
+            rss:
+              type: integer
+        sessions:
+          type: object
+          properties:
+            active:
+              type: integer
+            total:
+              type: integer
+        requests:
+          type: object
+          properties:
+            total:
+              type: integer
+            successful:
+              type: integer
+            failed:
+              type: integer
+
+    DeploymentInfo:
+      type: object
+      properties:
+        platform:
+          type: string
+          description: Deployment platform (e.g., 'vercel', 'local')
+          example: vercel
+        mode:
+          type: string
+          description: Deployment mode (e.g., 'serverless', 'local')
+          example: serverless
+        version:
+          type: string
+          description: Application version
+          example: 1.0.0
+        node_version:
+          type: string
+          description: Node.js version
+          example: v20
+        region:
+          type: string
+          description: Deployment region
+          example: iad1
+        deployment_id:
+          type: string
+          description: Unique deployment identifier
+          example: dpl_abc123
+        deployment_url:
+          type: string
+          description: Deployment URL
+          example: https://mcp-typescript-simple.vercel.app
+        git_commit:
+          type: string
+          description: Git commit SHA
+          example: 7f7dab7
+        git_branch:
+          type: string
+          description: Git branch name
+          example: main
+        environment:
+          type: string
+          description: Environment (development, production, etc.)
+          example: production
+        uptime:
+          type: number
+          description: Server uptime in seconds
+          example: 123.45
+        memory_usage:
+          type: object
+          description: Memory usage statistics
+          properties:
+            rss:
+              type: integer
+            heapTotal:
+              type: integer
+            heapUsed:
+              type: integer
+            external:
+              type: integer
+            arrayBuffers:
+              type: integer
+        cpu_usage:
+          type: object
+          description: CPU usage statistics
+          properties:
+            user:
+              type: integer
+            system:
+              type: integer
+        oauth_providers:
+          type: array
+          description: Configured OAuth providers
+          items:
+            type: string
+          example: ['google', 'github']
+        oauth_configured:
+          type: boolean
+          description: Whether OAuth is configured
+          example: true
+        llm_providers:
+          type: array
+          description: Configured LLM providers
+          items:
+            type: string
+          example: ['claude', 'openai']
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+    OAuthError:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: OAuth error code
+        error_description:
+          type: string
+          description: Human-readable error description
+        error_uri:
+          type: string
+          format: uri
+          description: URI for more information about the error
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidRequest:
+              value:
+                error: "invalid_request"
+                message: "Missing required parameter: code"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            missingToken:
+              value:
+                error: "unauthorized"
+                message: "Missing or invalid access token"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            insufficientPermissions:
+              value:
+                error: "forbidden"
+                message: "Insufficient permissions for this resource"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            notFound:
+              value:
+                error: "not_found"
+                message: "Requested resource not found"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            serverError:
+              value:
+                error: "server_error"
+                message: "An internal server error occurred"

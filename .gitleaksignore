@@ -4,6 +4,10 @@
 # Test encryption key used consistently across test suite
 # This is NOT a production secret - it's a deterministic test fixture
 packages/auth/test/factory.test.ts:generic-api-key:73
+
+# Documentation example showing generated .env.example output
+# This is NOT a real secret - it's documentation of scaffolding tool output
+packages/create-mcp-typescript-simple/README.md:generic-api-key:98
 packages/example-mcp/test/integration/admin-token-endpoints.test.ts:generic-api-key:52
 packages/example-mcp/test/system/vitest-global-setup.ts:generic-api-key:154
 packages/http-server/test/server/streamable-http-server.test.ts:generic-api-key:17
