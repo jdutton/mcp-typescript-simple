@@ -17,6 +17,7 @@ function getTemplateFiles(_config: ProjectConfig): TemplateFile[] {
     { source: 'package.json.hbs', destination: 'package.json', isTemplate: true },
     { source: 'tsconfig.json', destination: 'tsconfig.json', isTemplate: false },
     { source: 'gitignore', destination: '.gitignore', isTemplate: false },
+    { source: '.gitattributes', destination: '.gitattributes', isTemplate: false },
     { source: 'eslint.config.js', destination: 'eslint.config.js', isTemplate: false },
     { source: 'README.md.hbs', destination: 'README.md', isTemplate: true },
     { source: 'CLAUDE.md.hbs', destination: 'CLAUDE.md', isTemplate: true },
