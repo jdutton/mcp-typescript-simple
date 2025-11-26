@@ -23,7 +23,7 @@ export interface OAuthTokenStore {
    * @param accessToken The access token to use as the key
    * @param tokenInfo The token metadata to store
    */
-  storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void>;
+  storeToken(_accessToken: string, _tokenInfo: StoredTokenInfo): Promise<void>;
 
   /**
    * Retrieve token information by access token
@@ -31,7 +31,7 @@ export interface OAuthTokenStore {
    * @param accessToken The access token to look up
    * @returns Token metadata or null if not found/expired
    */
-  getToken(accessToken: string): Promise<StoredTokenInfo | null>;
+  getToken(_accessToken: string): Promise<StoredTokenInfo | null>;
 
   /**
    * Find token information by refresh token
@@ -39,14 +39,14 @@ export interface OAuthTokenStore {
    * @param refreshToken The refresh token to look up
    * @returns Object containing access token and token info, or null if not found/expired
    */
-  findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null>;
+  findByRefreshToken(_refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null>;
 
   /**
    * Delete a token by access token
    *
    * @param accessToken The access token to delete
    */
-  deleteToken(accessToken: string): Promise<void>;
+  deleteToken(_accessToken: string): Promise<void>;
 
   /**
    * Clean up expired tokens

@@ -43,6 +43,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
   private syncTimer?: NodeJS.Timeout;
   private exitHandler?: () => void;
 
+  /* eslint-disable no-unused-vars, sonarjs/no-async-constructor -- primaryStore is a parameter property used throughout the class; warmCache is fire-and-forget initialization */
   constructor(
     private primaryStore: MCPSessionMetadataStore,
     private secondaryStore?: MCPSessionMetadataStore,
@@ -58,7 +59,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
 
     // Warm primary cache from secondary store on startup (if configured)
     if (this.secondaryStore) {
-      this.warmCache();
+      void this.warmCache();
     }
 
     // Start periodic cleanup if enabled
@@ -72,6 +73,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
 
     logger.info('CachingMCPMetadataStore initialized');
   }
+  /* eslint-enable no-unused-vars, sonarjs/no-async-constructor */
 
   /**
    * Warm primary cache from secondary store (background task)
@@ -90,26 +92,28 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
    * Start periodic cleanup for both stores
    */
   private startPeriodicCleanup(intervalMs: number): void {
-    this.syncTimer = setInterval(async () => {
-      try {
-        const cleanupTasks = [this.primaryStore.cleanup()];
-        if (this.secondaryStore) {
-          cleanupTasks.push(this.secondaryStore.cleanup());
-        }
+    this.syncTimer = setInterval(() => {
+      void (async () => {
+        try {
+          const cleanupTasks = [this.primaryStore.cleanup()];
+          if (this.secondaryStore) {
+            cleanupTasks.push(this.secondaryStore.cleanup());
+          }
 
-        const results = await Promise.all(cleanupTasks);
-        const primaryCount = results[0] ?? 0;
-        const secondaryCount = results[1] ?? 0;
+          const results = await Promise.all(cleanupTasks);
+          const primaryCount = results[0] ?? 0;
+          const secondaryCount = results[1] ?? 0;
 
-        if (primaryCount > 0 || secondaryCount > 0) {
-          logger.debug('Periodic cleanup completed', {
-            primaryCount,
-            secondaryCount,
-          });
+          if (primaryCount > 0 || secondaryCount > 0) {
+            logger.debug('Periodic cleanup completed', {
+              primaryCount,
+              secondaryCount,
+            });
+          }
+        } catch (error) {
+          logger.error('Periodic cleanup failed', { error });
         }
-      } catch (error) {
-        logger.error('Periodic cleanup failed', { error });
-      }
+      })();
     }, intervalMs);
 
     logger.debug('Periodic cleanup started', { intervalMs });

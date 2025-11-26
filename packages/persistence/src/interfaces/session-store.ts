@@ -14,17 +14,17 @@ export interface OAuthSessionStore {
   /**
    * Store an OAuth session by state parameter
    */
-  storeSession(state: string, session: OAuthSession): Promise<void>;
+  storeSession(_state: string, _session: OAuthSession): Promise<void>;
 
   /**
    * Retrieve an OAuth session by state parameter
    */
-  getSession(state: string): Promise<OAuthSession | null>;
+  getSession(_state: string): Promise<OAuthSession | null>;
 
   /**
    * Delete an OAuth session by state parameter
    */
-  deleteSession(state: string): Promise<void>;
+  deleteSession(_state: string): Promise<void>;
 
   /**
    * Clean up expired sessions

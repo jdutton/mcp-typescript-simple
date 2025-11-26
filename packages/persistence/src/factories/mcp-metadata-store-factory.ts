@@ -47,7 +47,7 @@ export class MCPMetadataStoreFactory {
    * Create a session metadata store based on configuration
    */
   static async create(options: MCPMetadataStoreFactoryOptions = {}): Promise<MCPSessionMetadataStore> {
-    const storeType = options.type || 'auto';
+    const storeType = options.type ?? 'auto';
 
     if (storeType === 'auto') {
       return await this.createAutoDetected(options);
@@ -89,13 +89,13 @@ export class MCPMetadataStoreFactory {
       return await this.createCachingStore({
         ...options,
         type: 'redis',
-        redisUrl: options.redisUrl || process.env.REDIS_URL,
+        redisUrl: options.redisUrl ?? process.env.REDIS_URL,
       });
     }
 
     // 3. Development with file preference: Use file backend
     if (!isProduction || process.env.USE_FILE_STORE) {
-      const filePath = options.filePath || getDataPath('mcp-sessions.json');
+      const filePath = options.filePath ?? getDataPath('mcp-sessions.json');
       logger.info('Creating caching MCP metadata store with file backend', {
         detected: true,
         scalable: false,
@@ -133,7 +133,7 @@ export class MCPMetadataStoreFactory {
    * Create file-based session metadata store
    */
   private static createFileStore(filePath?: string): FileMCPMetadataStore {
-    return new FileMCPMetadataStore(filePath || getDataPath('mcp-sessions.json'));
+    return new FileMCPMetadataStore(filePath ?? getDataPath('mcp-sessions.json'));
   }
 
   /**

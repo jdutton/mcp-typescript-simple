@@ -96,7 +96,7 @@ export interface MCPSessionMetadataStore {
    * @param sessionId - Unique session identifier
    * @param metadata - Session metadata to store
    */
-  storeSession(sessionId: string, metadata: MCPSessionMetadata): Promise<void>;
+  storeSession(_sessionId: string, _metadata: MCPSessionMetadata): Promise<void>;
 
   /**
    * Retrieve session metadata by session ID
@@ -104,14 +104,14 @@ export interface MCPSessionMetadataStore {
    * @param sessionId - Unique session identifier
    * @returns Session metadata or null if not found or expired
    */
-  getSession(sessionId: string): Promise<MCPSessionMetadata | null>;
+  getSession(_sessionId: string): Promise<MCPSessionMetadata | null>;
 
   /**
    * Delete session metadata by session ID
    *
    * @param sessionId - Unique session identifier
    */
-  deleteSession(sessionId: string): Promise<void>;
+  deleteSession(_sessionId: string): Promise<void>;
 
   /**
    * Clean up expired sessions

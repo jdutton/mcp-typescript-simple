@@ -135,7 +135,8 @@ export class TokenEncryptionService {
       ]);
 
       return plaintext.toString('utf8');
-    } catch (error) {
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions -- Security: Intentionally don't log cryptographic failure details
+    } catch (_error) {
       // Security: Intentionally don't log or include original error details
       // Cryptographic failure details could leak information to attackers
       throw new Error(
@@ -166,7 +167,8 @@ export class TokenEncryptionService {
     const json = this.decrypt(encrypted);
     try {
       return JSON.parse(json) as T;
-    } catch (error) {
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions -- JSON parse error indicates data corruption
+    } catch (_error) {
       // Decryption succeeded but data is not valid JSON - data corruption or format mismatch
       throw new Error('Decrypted data is not valid JSON');
     }

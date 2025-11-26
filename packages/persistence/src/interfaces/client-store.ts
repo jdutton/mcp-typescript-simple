@@ -34,7 +34,7 @@ export interface OAuthRegisteredClientsStore {
    * - Store client metadata for future retrieval
    */
   registerClient(
-    client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
+    _client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
   ): Promise<OAuthClientInformationFull>;
 
   /**
@@ -48,7 +48,7 @@ export interface OAuthRegisteredClientsStore {
    * - Do NOT automatically delete expired secrets (let middleware handle)
    * - Include all metadata fields for validation
    */
-  getClient(clientId: string): Promise<OAuthClientInformationFull | undefined>;
+  getClient(_clientId: string): Promise<OAuthClientInformationFull | undefined>;
 
   /**
    * Delete a registered OAuth client
@@ -58,7 +58,7 @@ export interface OAuthRegisteredClientsStore {
    *
    * Optional method for client cleanup/revocation
    */
-  deleteClient?(clientId: string): Promise<boolean>;
+  deleteClient?(_clientId: string): Promise<boolean>;
 
   /**
    * List all registered clients (admin/debugging)
