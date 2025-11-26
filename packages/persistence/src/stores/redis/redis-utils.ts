@@ -20,6 +20,7 @@ export function maskRedisUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.password) {
+  // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- REDIS_PASSWORD is an environment variable name, not a password
       parsed.password = '***';
     }
     return parsed.toString();
@@ -37,7 +38,7 @@ export function maskRedisUrl(url: string): string {
  * @returns Configured Redis client instance with event handlers
  */
 export function createRedisClient(redisUrl: string | undefined, connectionName: string): Redis {
-  const url = redisUrl || process.env.REDIS_URL;
+  const url = redisUrl ?? process.env.REDIS_URL;
   if (!url) {
     throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
   }

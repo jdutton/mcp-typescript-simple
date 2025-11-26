@@ -74,13 +74,15 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
   private evictLRU(): void {
     if (this.accessOrder.length === 0) return;
 
-    const lruSessionId = this.accessOrder.shift()!;
-    this.sessions.delete(lruSessionId);
+    const lruSessionId = this.accessOrder.shift();
+    if (lruSessionId) {
+      this.sessions.delete(lruSessionId);
 
-    logger.debug('Evicted LRU session', {
-      sessionId: lruSessionId.substring(0, 8) + '...',
-      remainingCount: this.sessions.size,
-    });
+      logger.debug('Evicted LRU session', {
+        sessionId: lruSessionId.substring(0, 8) + '...',
+        remainingCount: this.sessions.size,
+      });
+    }
   }
 
   async storeSession(sessionId: string, metadata: MCPSessionMetadata): Promise<void> {
@@ -103,7 +105,7 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
       createdAt: new Date(sessionMetadata.createdAt).toISOString(),
       expiresAt: new Date(sessionMetadata.expiresAt).toISOString(),
       hasAuth: !!sessionMetadata.authInfo,
-      eventCount: sessionMetadata.events?.length || 0,
+      eventCount: sessionMetadata.events?.length ?? 0,
       cacheSize: this.sessions.size,
     });
   }
@@ -142,7 +144,7 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
       ageSeconds,
       ttlSeconds,
       hasAuth: !!metadata.authInfo,
-      eventCount: metadata.events?.length || 0,
+      eventCount: metadata.events?.length ?? 0,
     });
 
     return metadata;

@@ -1,3 +1,7 @@
+/* eslint-disable security/detect-non-literal-fs-filename */
+// ^ File operations with runtime-constructed paths are necessary for configurable data storage
+// All paths are administrator-configured (environment/constructor) not user input
+
 /**
  * File-Based OAuth Token Store (DEVELOPMENT ONLY)
  *
@@ -77,7 +81,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       throw new Error('TokenEncryptionService is REQUIRED - zero tolerance for unencrypted OAuth tokens');
     }
 
-    this.filePath = options.filePath || './data/oauth-tokens.json.enc';
+    this.filePath = options.filePath ?? './data/oauth-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;
@@ -138,7 +142,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
         // File doesn't exist yet, that's fine
         logger.info('No existing OAuth token file found, starting fresh');
       } else {
-        logger.error('Failed to load OAuth tokens from file', error as Record<string, any>);
+        logger.error('Failed to load OAuth tokens from file', error as Record<string, unknown>);
       }
     }
   }
@@ -204,7 +208,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
         filePath: this.filePath,
       });
     } catch (error) {
-      logger.error('Failed to save OAuth tokens to file', error as Record<string, any>);
+      logger.error('Failed to save OAuth tokens to file', error as Record<string, unknown>);
       throw error;
     }
   }

@@ -18,8 +18,12 @@
  * - Performance degrades with many clients (full file read/write)
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename */
+// ^ File operations with runtime-constructed paths are necessary for configurable data storage
+// All paths are administrator-configured (environment/constructor) not user input
+
 import { promises as fs, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname } from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
@@ -86,7 +90,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         logger.info('No existing client file found, starting fresh');
       } else {
-        logger.error('Failed to load clients from file', error as Record<string, any>);
+        logger.error('Failed to load clients from file', error as Record<string, unknown>);
         throw error;
       }
     }
@@ -136,7 +140,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
         filePath: this.filePath,
       });
     } catch (error) {
-      logger.error('Failed to save clients to file', error as Record<string, any>);
+      logger.error('Failed to save clients to file', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -145,13 +149,14 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
     client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
   ): Promise<OAuthClientInformationFull> {
     // Check max clients limit
-    if (this.clients.size >= this.options.maxClients!) {
+    const maxClients = this.options.maxClients ?? 10000;
+    if (this.clients.size >= maxClients) {
       logger.warn('Client registration failed: max clients limit reached', {
         currentCount: this.clients.size,
-        maxClients: this.options.maxClients,
+        maxClients,
       });
       throw new Error(
-        `Maximum number of registered clients reached (${this.options.maxClients})`
+        `Maximum number of registered clients reached (${maxClients})`
       );
     }
 
@@ -162,8 +167,9 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
 
     // Calculate expiration
     let expiresAt: number | undefined;
-    if (this.options.defaultSecretExpirySeconds! > 0) {
-      expiresAt = issuedAt + this.options.defaultSecretExpirySeconds!;
+    const expirySeconds = this.options.defaultSecretExpirySeconds ?? 30 * 24 * 60 * 60;
+    if (expirySeconds > 0) {
+      expiresAt = issuedAt + expirySeconds;
     }
 
     // Create full client information
@@ -280,7 +286,7 @@ export class FileClientStore implements OAuthRegisteredClientsStore {
         updatedAt: parsed.updatedAt,
       });
     } catch (error) {
-      logger.error('Failed to reload clients from file', error as Record<string, any>);
+      logger.error('Failed to reload clients from file', error as Record<string, unknown>);
       throw error;
     }
   }

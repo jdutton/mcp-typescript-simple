@@ -204,7 +204,7 @@ async function handleRefreshTokenGrant(
     try {
       const tokenData = await tokenStore.findByRefreshToken(refresh_token);
 
-      if (tokenData && tokenData.tokenInfo) {
+      if (tokenData?.tokenInfo) {
         const providerType = tokenData.tokenInfo.provider;
         correctProvider = providers.get(providerType) || null;
         correctProviderType = providerType;

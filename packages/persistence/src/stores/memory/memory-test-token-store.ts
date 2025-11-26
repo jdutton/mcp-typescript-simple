@@ -48,14 +48,14 @@ export class InMemoryTestTokenStore implements InitialAccessTokenStore {
 
   constructor(private readonly options: InMemoryTestTokenStoreOptions = {}) {
     if (options.autoCleanup) {
-      const intervalMs = options.cleanupIntervalMs || 60 * 60 * 1000; // 1 hour default
+      const intervalMs = options.cleanupIntervalMs ?? (60 * 60 * 1000); // 1 hour default
       this.cleanupTimer = setInterval(() => {
         void this.cleanup();
       }, intervalMs);
     }
 
     logger.info('InMemoryTestTokenStore initialized (test/dev use only)', {
-      autoCleanup: options.autoCleanup || false,
+      autoCleanup: options.autoCleanup ?? false,
       cleanupIntervalMs: options.cleanupIntervalMs,
       encryption: 'disabled (process-isolated)',
     });
@@ -72,7 +72,7 @@ export class InMemoryTestTokenStore implements InitialAccessTokenStore {
       tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
-      maxUses: options.max_uses || 'unlimited',
+      maxUses: options.max_uses ?? 'unlimited',
     });
 
     return tokenData;
@@ -96,7 +96,7 @@ export class InMemoryTestTokenStore implements InitialAccessTokenStore {
       logger.info('Token validated and used', {
         tokenId: result.token.id,
         usageCount: result.token.usage_count,
-        maxUses: result.token.max_uses || 'unlimited',
+        maxUses: result.token.max_uses ?? 'unlimited',
       });
     }
 

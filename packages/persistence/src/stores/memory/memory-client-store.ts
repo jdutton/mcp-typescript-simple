@@ -48,13 +48,13 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
     client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
   ): Promise<OAuthClientInformationFull> {
     // Check max clients limit
-    if (this.clients.size >= this.options.maxClients!) {
+    if (this.clients.size >= (this.options.maxClients ?? 10000)) {
       logger.warn('Client registration failed: max clients limit reached', {
         currentCount: this.clients.size,
         maxClients: this.options.maxClients,
       });
       throw new Error(
-        `Maximum number of registered clients reached (${this.options.maxClients})`
+        `Maximum number of registered clients reached (${this.options.maxClients ?? 10000})`
       );
     }
 
@@ -65,9 +65,10 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
 
     // Calculate expiration (use milliseconds internally for precision)
     let expiresAt: number | undefined;
-    if (this.options.defaultSecretExpirySeconds! > 0) {
+    const defaultExpiry = this.options.defaultSecretExpirySeconds ?? (30 * 24 * 60 * 60);
+    if (defaultExpiry > 0) {
       // Store as seconds for OAuth spec compliance, but check with ms precision
-      expiresAt = issuedAt + this.options.defaultSecretExpirySeconds!;
+      expiresAt = issuedAt + defaultExpiry;
     }
 
     // Create full client information
@@ -188,13 +189,15 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
    * Start automatic cleanup of expired clients
    */
   private startAutoCleanup(): void {
-    this.cleanupInterval = setInterval(async () => {
-      try {
-        await this.cleanupExpired();
-      } catch (error) {
-        logger.error('Auto-cleanup failed', error as Record<string, any>);
-      }
-    }, this.options.cleanupIntervalMs!);
+    this.cleanupInterval = setInterval(() => {
+      void (async () => {
+        try {
+          await this.cleanupExpired();
+        } catch (error) {
+          logger.error('Auto-cleanup failed', error as Record<string, unknown>);
+        }
+      })();
+    }, this.options.cleanupIntervalMs ?? (60 * 60 * 1000));
 
     // Create exit handler and register it
     this.exitHandler = () => this.stopAutoCleanup();

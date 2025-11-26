@@ -22,11 +22,7 @@ import {
 } from './types.js';
 import { logger } from '../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore , MemorySessionStore , OAuthTokenStore , MemoryOAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
 import { logonEvent, logoffEvent, emitOCSFEvent, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
@@ -1258,7 +1254,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     try {
       let userInfo: OAuthUserInfo | undefined;
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
 
         // Retrieve user info before removing token (for audit event)
