@@ -84,11 +84,6 @@ export function getEnvironmentPorts(env: TestEnvironment): number[] {
 
     case 'stdio':
       return [TEST_PORTS.ALTERNATIVE_HTTP];
-
-    default:
-      // Type guard - should never reach here
-      const _exhaustive: never = env;
-      return [];
   }
 }
 
@@ -146,7 +141,7 @@ export function getAllTestPorts(): number[] {
 export function getHTTPTestPort(): number {
   const envPort = process.env.HTTP_TEST_PORT;
   if (envPort) {
-    return parseInt(envPort, 10);
+    return Number.parseInt(envPort, 10);
   }
   return TEST_PORTS.ALTERNATIVE_HTTP;
 }

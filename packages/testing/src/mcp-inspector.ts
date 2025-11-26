@@ -8,10 +8,10 @@
  * - Process group management for Inspector and its children
  */
 
-import { Page, expect } from '@playwright/test';
-import { ChildProcess, spawn } from 'child_process';
+import { Page } from '@playwright/test';
+import { ChildProcess, spawn } from 'node:child_process';
 import axios from 'axios';
-import { setTimeout as sleep } from 'timers/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { verifyPortsFreed } from './port-utils.js';
 import { stopProcessGroup } from './process-utils.js';
 import { setupTestEnvironment, TestEnvironmentCleanup } from './test-setup.js';
@@ -35,6 +35,7 @@ export async function startMCPInspector(mcpServerUrl: string): Promise<ChildProc
 
   // Inspector uses CLIENT_PORT (UI) and SERVER_PORT (proxy)
   // For streamable HTTP servers, pass the URL and transport type
+  // eslint-disable-next-line sonarjs/no-os-command-from-path -- npx is from test environment PATH, not user input
   const inspector = spawn('npx', [
     '@modelcontextprotocol/inspector',
     '--transport', 'streamable-http',  // Use streamable-http transport
@@ -126,7 +127,7 @@ export async function waitForInspectorLoad(page: Page): Promise<void> {
  * Connect to MCP server via Inspector UI
  * Handles OAuth flow if needed
  */
-export async function connectToServerViaInspector(page: Page, mcpServerUrl: string): Promise<void> {
+export async function connectToServerViaInspector(page: Page, _mcpServerUrl: string): Promise<void> {
   console.log('🔌 Connecting to MCP server via Inspector...');
 
   try {
@@ -134,7 +135,7 @@ export async function connectToServerViaInspector(page: Page, mcpServerUrl: stri
     // The exact selectors depend on MCP Inspector's UI structure
 
     // Try to find a "Connect" button if not already connected
-    const connectButton = await page.locator('button:has-text("Connect"), button[aria-label="Connect"]').first();
+    const connectButton = page.locator('button:has-text("Connect"), button[aria-label="Connect"]').first();
 
     if (await connectButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       console.log('   Clicking Connect button...');
@@ -145,7 +146,7 @@ export async function connectToServerViaInspector(page: Page, mcpServerUrl: stri
     }
 
     // Check if already connected (look for connection status indicator)
-    const connectionStatus = await page.locator('[data-testid="connection-status"], .connection-status').first();
+    const connectionStatus = page.locator('[data-testid="connection-status"], .connection-status').first();
 
     if (await connectionStatus.isVisible({ timeout: 2000 }).catch(() => false)) {
       const statusText = await connectionStatus.textContent();
@@ -169,7 +170,7 @@ export async function disconnectFromServerViaInspector(page: Page): Promise<void
   console.log('🔌 Disconnecting from MCP server...');
 
   try {
-    const disconnectButton = await page.locator('button:has-text("Disconnect"), button[aria-label="Disconnect"]').first();
+    const disconnectButton = page.locator('button:has-text("Disconnect"), button[aria-label="Disconnect"]').first();
 
     if (await disconnectButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await disconnectButton.click();
@@ -192,7 +193,7 @@ export async function sendPingViaInspector(page: Page): Promise<void> {
 
   try {
     // Look for ping button or invoke ping via developer tools
-    const pingButton = await page.locator('button:has-text("Ping"), [data-action="ping"]').first();
+    const pingButton = page.locator('button:has-text("Ping"), [data-action="ping"]').first();
 
     if (await pingButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await pingButton.click();
@@ -255,7 +256,7 @@ export async function invokeToolViaInspector(
 
   try {
     // Find the tool in the list
-    const toolButton = await page.locator(`button:has-text("${toolName}"), [data-tool="${toolName}"]`).first();
+    const toolButton = page.locator(`button:has-text("${toolName}"), [data-tool="${toolName}"]`).first();
 
     if (!await toolButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       throw new Error(`Tool "${toolName}" not found in UI`);
@@ -267,7 +268,7 @@ export async function invokeToolViaInspector(
 
     // Fill in arguments
     for (const [key, value] of Object.entries(args)) {
-      const input = await page.locator(`input[name="${key}"], textarea[name="${key}"]`).first();
+      const input = page.locator(`input[name="${key}"], textarea[name="${key}"]`).first();
 
       if (await input.isVisible({ timeout: 1000 }).catch(() => false)) {
         await input.fill(String(value));
@@ -277,21 +278,21 @@ export async function invokeToolViaInspector(
     }
 
     // Submit the tool invocation
-    const invokeButton = await page.locator('button:has-text("Invoke"), button:has-text("Execute"), button:has-text("Run")').first();
+    const invokeButton = page.locator('button:has-text("Invoke"), button:has-text("Execute"), button:has-text("Run")').first();
     await invokeButton.click();
 
     // Wait for result
     await sleep(2000);
 
     // Try to extract result from UI
-    const resultElement = await page.locator('[data-testid="tool-result"], .tool-result, [role="region"]').first();
+    const resultElement = page.locator('[data-testid="tool-result"], .tool-result, [role="region"]').first();
 
     if (await resultElement.isVisible({ timeout: 3000 }).catch(() => false)) {
       const resultText = await resultElement.textContent();
       console.log('   ✅ Tool invocation successful');
       return {
         success: true,
-        result: resultText || undefined
+        result: resultText ?? undefined
       };
     }
 
@@ -316,8 +317,6 @@ export async function invokeToolViaInspector(
 export async function verifyConnectionState(page: Page, expectedState: 'connected' | 'disconnected'): Promise<void> {
   console.log(`   Verifying connection state: ${expectedState}`);
 
-  const timeout = 5000;
-
   if (expectedState === 'connected') {
     // Look for indicators of connection
     const connectedIndicators = [
@@ -328,7 +327,7 @@ export async function verifyConnectionState(page: Page, expectedState: 'connecte
     ];
 
     for (const selector of connectedIndicators) {
-      const element = await page.locator(selector).first();
+      const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
         console.log('   ✅ Connection state verified: connected');
         return;
@@ -344,7 +343,7 @@ export async function verifyConnectionState(page: Page, expectedState: 'connecte
     ];
 
     for (const selector of disconnectedIndicators) {
-      const element = await page.locator(selector).first();
+      const element = page.locator(selector).first();
       if (await element.isVisible({ timeout: 1000 }).catch(() => false)) {
         console.log('   ✅ Connection state verified: disconnected');
         return;

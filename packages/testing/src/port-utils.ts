@@ -5,8 +5,8 @@
  * to prevent tests from hanging when ports are already in use.
  */
 
-import net from 'net';
-import { spawn } from 'child_process';
+import net from 'node:net';
+import { spawn } from 'node:child_process';
 
 /**
  * Check if a port is available using lsof (more reliable than bind test)
@@ -16,6 +16,7 @@ import { spawn } from 'child_process';
  */
 async function isPortAvailableViaLsof(port: number): Promise<boolean> {
   const checkPromise = new Promise<boolean>((resolve) => {
+    // eslint-disable-next-line sonarjs/no-os-command-from-path -- lsof is a standard system utility, PATH is from test environment
     const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
     let output = '';
 
@@ -32,6 +33,7 @@ async function isPortAvailableViaLsof(port: number): Promise<boolean> {
       }
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async fallback needed for bind test
     lsof.on('error', async () => {
       // If lsof command fails, fall back to bind test
       const result = await isPortAvailableViaBind(port);
@@ -203,6 +205,7 @@ export interface PortCleanupResult {
  */
 export async function getProcessUsingPort(port: number): Promise<ProcessInfo | null> {
   return new Promise((resolve) => {
+    // eslint-disable-next-line sonarjs/no-os-command-from-path -- lsof is a standard system utility, PATH is from test environment
     const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
     let pidOutput = '';
 
@@ -210,24 +213,29 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
       pidOutput += data.toString();
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async callback needed for ps command execution
     lsof.on('close', async (code) => {
       if (code === 0 && pidOutput.trim()) {
-        const firstLine = pidOutput.trim().split('\n')[0] || '';
-        const pid = parseInt(firstLine, 10);
-        if (!isNaN(pid)) {
+        const firstLine = pidOutput.trim().split('\n')[0] ?? '';
+        const pid = Number.parseInt(firstLine, 10);
+        if (!Number.isNaN(pid)) {
           // Get process command
           const psResult = await new Promise<string>((psResolve) => {
+            // eslint-disable-next-line sonarjs/no-os-command-from-path -- ps is a standard system utility, PATH is from test environment
             const ps = spawn('ps', ['-p', pid.toString(), '-o', 'comm='], { stdio: 'pipe' });
             let command = '';
 
+            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps output
             ps.stdout?.on('data', (data) => {
               command += data.toString();
             });
 
+            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps completion
             ps.on('close', () => {
               psResolve(command.trim() || 'unknown');
             });
 
+            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps errors
             ps.on('error', () => {
               psResolve('unknown');
             });
@@ -296,12 +304,7 @@ export function isTestProcess(processInfo: ProcessInfo): boolean {
   }
 
   // If command contains 'test' or 'dev', it's likely safe
-  if (command.includes('test') || command.includes('dev')) {
-    return true;
-  }
-
-  // Conservative default: NOT safe to kill
-  return false;
+  return command.includes('test') || command.includes('dev');
 }
 
 /**

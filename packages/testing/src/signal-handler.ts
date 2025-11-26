@@ -12,7 +12,7 @@
  * 5. Cleanup callback support
  */
 
-import { ChildProcess } from 'child_process';
+import { ChildProcess } from 'node:child_process';
 
 /**
  * Cleanup callback function type
@@ -86,6 +86,7 @@ class SignalHandlerManager {
     process.setMaxListeners(100);
 
     // SIGINT (CTRL-C)
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async signal handler needed for graceful shutdown
     process.on('SIGINT', async () => {
       if (!this.isShuttingDown) {
         console.log('\n⚠️  SIGINT received (CTRL-C), cleaning up...');
@@ -94,6 +95,7 @@ class SignalHandlerManager {
     });
 
     // SIGTERM (kill command)
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises -- async signal handler needed for graceful shutdown
     process.on('SIGTERM', async () => {
       if (!this.isShuttingDown) {
         console.log('\n⚠️  SIGTERM received, cleaning up...');
@@ -126,6 +128,7 @@ class SignalHandlerManager {
    * 4. Force SIGKILL after timeout
    * 5. Exit process
    */
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Complex shutdown logic is unavoidable for reliable cleanup
   private async shutdown(signal: 'SIGINT' | 'SIGTERM'): Promise<void> {
     if (this.isShuttingDown) {
       return;
@@ -263,7 +266,12 @@ export function registerCleanup(callback: CleanupCallback): () => void {
 /**
  * Get current signal handler state (for debugging)
  */
-export function getSignalHandlerState() {
+export function getSignalHandlerState(): {
+  processCount: number;
+  callbackCount: number;
+  isShuttingDown: boolean;
+  handlersInstalled: boolean;
+} {
   return signalHandler.getState();
 }
 
@@ -271,6 +279,6 @@ export function getSignalHandlerState() {
  * Reset signal handler state (for testing only!)
  * WARNING: Only use in tests!
  */
-export function resetSignalHandler() {
+export function resetSignalHandler(): void {
   signalHandler.reset();
 }
