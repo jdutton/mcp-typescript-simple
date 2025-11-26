@@ -141,7 +141,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     redirectUri?: string
   ): Promise<void> {
     const storedCodeVerifier = await this.getStoredCodeVerifier(code);
-    const codeVerifierToUse = storedCodeVerifier || clientCodeVerifier;
+    const codeVerifierToUse = storedCodeVerifier ?? clientCodeVerifier;
 
     logger.oauthInfo('Token exchange request', {
       provider: this.getProviderType(),
@@ -149,7 +149,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       clientProvidedCodeVerifier: clientCodeVerifier?.substring(0, 10),
       serverStoredCodeVerifier: storedCodeVerifier?.substring(0, 10),
       usingCodeVerifier: codeVerifierToUse?.substring(0, 10),
-      serverRedirectUri: this.config.redirectUri,
+      serverRedirectUri: this._config.redirectUri,
       hasCode: !!code,
       codeLength: code?.length
     });
@@ -226,14 +226,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   constructor(
-    protected config: OAuthConfig,
+    protected _config: OAuthConfig,
     sessionStore?: OAuthSessionStore,
     tokenStore?: OAuthTokenStore,
     pkceStore?: PKCEStore
   ) {
     // Use provided stores or default to memory stores
-    this.sessionStore = sessionStore || new MemorySessionStore();
-    this.tokenStore = tokenStore || new MemoryOAuthTokenStore();
+    this.sessionStore = sessionStore ?? new MemorySessionStore();
+    this.tokenStore = tokenStore ?? new MemoryOAuthTokenStore();
 
     // PKCE store is required - throw error if not provided
     if (!pkceStore) {
@@ -332,7 +332,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   ): AuthInfo {
     return {
       token,
-      clientId: this.config.clientId,
+      clientId: this._config.clientId,
       scopes: tokenInfo.scopes,
       expiresAt: Math.floor(tokenInfo.expiresAt / 1000),
       extra: {
@@ -358,8 +358,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
     return {
       token,
-      clientId: this.config.clientId,
-      scopes: scopes || this.getDefaultScopes(),
+      clientId: this._config.clientId,
+      scopes: scopes ?? this.getDefaultScopes(),
       expiresAt,
       extra: {
         userInfo,
@@ -383,8 +383,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   ): AuthInfo {
     return {
       token,
-      clientId: this.config.clientId,
-      scopes: scopes || this.getDefaultScopes(),
+      clientId: this._config.clientId,
+      scopes: scopes ?? this.getDefaultScopes(),
       expiresAt: expiresAtSeconds,
       extra: {
         userInfo,
@@ -631,9 +631,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     scopes: string[] = this.getDefaultScopes()
   ): string {
     const params = new URLSearchParams({
-      client_id: this.config.clientId,
+      client_id: this._config.clientId,
       response_type: 'code',
-      redirect_uri: this.config.redirectUri,
+      redirect_uri: this._config.redirectUri,
       scope: scopes.join(' '),
       state,
       code_challenge: codeChallenge,
@@ -654,11 +654,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     redirectUri?: string
   ): Promise<ProviderTokenResponse> {
     const params: Record<string, string> = {
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
+      client_id: this._config.clientId,
+      client_secret: this._config.clientSecret,
       code,
       grant_type: 'authorization_code',
-      redirect_uri: redirectUri || this.config.redirectUri,
+      redirect_uri: redirectUri ?? this._config.redirectUri,
       ...additionalParams,
     };
 
@@ -685,7 +685,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         status: response.status,
         statusText: response.statusText,
         errorBody: errorText,
-        redirectUri: redirectUri || this.config.redirectUri,
+        redirectUri: redirectUri ?? this._config.redirectUri,
         hasCodeVerifier: !!codeVerifier
       });
       throw new OAuthTokenError(
@@ -707,8 +707,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     additionalParams: Record<string, string> = {}
   ): Promise<ProviderTokenResponse> {
     const params = new URLSearchParams({
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
+      client_id: this._config.clientId,
+      client_secret: this._config.clientSecret,
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
       ...additionalParams,
@@ -787,7 +787,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     logger.oauthDebug('Query parameters', { provider: providerName, query: req.query });
 
     // Handle case where req.query is undefined (common in tests)
-    const query = req.query || {};
+    const query = req.query ?? {};
 
     return {
       clientRedirectUri: query.redirect_uri as string,
@@ -810,7 +810,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
     const state = this.generateState();
     let codeVerifier = '';
-    let codeChallenge = clientCodeChallenge || '';
+    let codeChallenge = clientCodeChallenge ?? '';
 
     // If no client code challenge provided, generate our own PKCE pair
     if (!clientCodeChallenge) {
@@ -851,7 +851,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       // Use client's original state if provided, otherwise use our server state
       // This is critical for OAuth clients (Claude Code, MCP Inspector) that manage their own state
-      const stateToReturn = session.clientState || state;
+      const stateToReturn = session.clientState ?? state;
       redirectUrl.searchParams.set('state', stateToReturn);
 
       if (session.clientState) {
@@ -923,7 +923,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     logger.oauthDebug('Handling token exchange from form data', { provider: providerName });
 
     // Handle case where req.body is undefined (common in tests)
-    const body = req.body || {};
+    const body = req.body ?? {};
 
     // Log complete request body structure for debugging (redacted)
     const bodyKeys = Object.keys(body);
@@ -967,7 +967,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       clientIdPrefix: client_id?.substring(0, 10),
       hasRedirectUri: !!redirect_uri
     });
-    logger.oauthDebug('Using redirect_uri', { provider: providerName, redirectUri: this.config.redirectUri });
+    logger.oauthDebug('Using redirect_uri', { provider: providerName, redirectUri: this._config.redirectUri });
 
     return {
       isValid: true,
@@ -1004,10 +1004,10 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       state,
       codeVerifier, // Empty if using client's challenge, populated if we generated it
       codeChallenge,
-      redirectUri: this.config.redirectUri,
+      redirectUri: this._config.redirectUri,
       clientRedirectUri, // Store MCP Inspector's or Claude Code's redirect URI
       clientState, // Store client's original state for validation
-      scopes: customScopes || (this.config.scopes.length > 0 ? this.config.scopes : this.getDefaultScopes()),
+      scopes: customScopes ?? (this._config.scopes.length > 0 ? this._config.scopes : this.getDefaultScopes()),
       provider: this.getProviderType(),
       expiresAt: Date.now() + this.SESSION_TIMEOUT,
     };
@@ -1090,9 +1090,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // Store token
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || undefined,
-        idToken: tokenData.id_token || undefined,
-        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+        refreshToken: tokenData.refresh_token ?? undefined,
+        idToken: tokenData.id_token ?? undefined,
+        expiresAt: Date.now() + (tokenData.expires_in ?? 3600) * 1000,
         userInfo,
         provider: this.getProviderType(),
         scopes: session.scopes,
@@ -1107,14 +1107,14 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       });
 
       // Clean up session
-      this.removeSession(state);
+      void this.removeSession(state);
 
       // Return response
       const response: OAuthTokenResponse = {
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         id_token: tokenData.id_token,
-        expires_in: tokenData.expires_in || 3600,
+        expires_in: tokenData.expires_in ?? 3600,
         token_type: 'Bearer',
         scope: tokenData.scope,
         user: userInfo,
@@ -1152,14 +1152,19 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       const { code, code_verifier, redirect_uri } = validation;
 
+      // Code must be present at this point (validated earlier)
+      if (!code) {
+        throw new Error('Code is required but not present');
+      }
+
       // Resolve code_verifier
-      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code, code_verifier);
 
       // Validate code_verifier is available
       if (!codeVerifierToUse) {
         logger.oauthInfo('Token exchange: No code_verifier found - not my code, skipping to next provider', {
           provider: this.getProviderType(),
-          codePrefix: code!.substring(0, 10),
+          codePrefix: code.substring(0, 10),
           hasClientCodeVerifier: !!code_verifier
         });
         // Return silently without sending response - let loop try next provider
@@ -1169,11 +1174,11 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       logger.oauthInfo('Token exchange: Code verifier resolved - this is my code', {
         provider: this.getProviderType(),
-        codePrefix: code!.substring(0, 10)
+        codePrefix: code.substring(0, 10)
       });
 
       // Log request
-      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+      await this.logTokenExchangeRequest(code, code_verifier, redirect_uri);
 
       // Exchange code for tokens
       const tokenData = await this.exchangeCodeForTokens(
@@ -1181,7 +1186,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         code!,
         codeVerifierToUse,
         {},
-        this.config.redirectUri
+        this._config.redirectUri
       );
 
       if (!tokenData.access_token) {
@@ -1194,12 +1199,12 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // Store token
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token || undefined,
-        idToken: tokenData.id_token || undefined,
-        expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
+        refreshToken: tokenData.refresh_token ?? undefined,
+        idToken: tokenData.id_token ?? undefined,
+        expiresAt: Date.now() + (tokenData.expires_in ?? 3600) * 1000,
         userInfo,
         provider: this.getProviderType(),
-        scopes: tokenData.scope?.split(/[,\s]+/).filter(Boolean) || [],
+        scopes: tokenData.scope?.split(/[,\s]+/).filter(Boolean) ?? [],
       };
 
       await this.storeToken(tokenData.access_token, tokenInfo);
@@ -1211,13 +1216,13 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       });
 
       // Cleanup
-      await this.cleanupAfterTokenExchange(code!);
+      await this.cleanupAfterTokenExchange(code);
 
       // Response
       const response: OAuthTokenResponse = {
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-        expires_in: tokenData.expires_in || 3600,
+        expires_in: tokenData.expires_in ?? 3600,
         token_type: 'Bearer',
         scope: tokenData.scope,
         user: userInfo,
@@ -1348,7 +1353,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       .status(params.status, undefined, params.errorMessage)
       .message(params.status === StatusId.Success
         ? `OAuth ${this.getProviderName()} logon successful`
-        : `OAuth ${this.getProviderName()} logon failed: ${params.errorMessage || 'Unknown error'}`)
+        : `OAuth ${this.getProviderName()} logon failed: ${params.errorMessage ?? 'Unknown error'}`)
       .authProtocol(4); // OAuth 2.0
 
     // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder
@@ -1386,7 +1391,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       .status(params.status, undefined, params.errorMessage)
       .message(params.status === StatusId.Success
         ? `OAuth ${this.getProviderName()} logoff successful`
-        : `OAuth ${this.getProviderName()} logoff failed: ${params.errorMessage || 'Unknown error'}`)
+        : `OAuth ${this.getProviderName()} logoff failed: ${params.errorMessage ?? 'Unknown error'}`)
       .authProtocol(4); // OAuth 2.0
 
     // OCSF requires user info - use actual user if available, otherwise use anonymous placeholder

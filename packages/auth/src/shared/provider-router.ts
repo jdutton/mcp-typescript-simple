@@ -35,7 +35,7 @@ export async function handleProviderAuthorizationRequest(
 ): Promise<void> {
   try {
     setOAuthAntiCachingHeaders(res);
-    await provider.handleAuthorizationRequest(req as any, res as any);
+    await provider.handleAuthorizationRequest(req as unknown as Request, res as unknown as Response);
   } catch (error) {
     logger.error("OAuth authorization error", { provider: providerType, error });
     sendOAuthError(res, 500, 'server_error', 'Authorization failed');
@@ -60,7 +60,7 @@ export async function handleProviderAuthorizationCallback(
 ): Promise<void> {
   try {
     setOAuthAntiCachingHeaders(res);
-    await provider.handleAuthorizationCallback(req as any, res as any);
+    await provider.handleAuthorizationCallback(req as unknown as Request, res as unknown as Response);
   } catch (error) {
     logger.error("OAuth callback error", { provider: providerType, error });
     sendOAuthError(res, 500, 'server_error', 'Authorization callback failed');
@@ -85,7 +85,7 @@ export async function handleProviderLogout(
 ): Promise<void> {
   try {
     setOAuthAntiCachingHeaders(res);
-    await provider.handleLogout(req as any, res as any);
+    await provider.handleLogout(req as unknown as Request, res as unknown as Response);
   } catch (error) {
     logger.error("Logout error", { provider: providerType, error });
     sendOAuthError(res, 500, 'server_error', 'Logout failed');
@@ -128,7 +128,7 @@ export function handleOAuthDiscovery(
  */
 export function handleGenericAuthorize(
   providers: Map<string, OAuthProvider>,
-  query: Record<string, any>,
+  query: Record<string, unknown>,
   res: OAuthResponseAdapter
 ): void {
   setOAuthAntiCachingHeaders(res);
@@ -137,7 +137,8 @@ export function handleGenericAuthorize(
   if (providers.size === 1) {
     const [providerType] = providers.keys();
     const queryString = new URLSearchParams(query as Record<string, string>).toString();
-    const redirectUrl = `/auth/${providerType}${queryString ? `?${queryString}` : ''}`;
+    const queryPart = queryString ? `?${queryString}` : '';
+    const redirectUrl = `/auth/${providerType}${queryPart}`;
 
     if (res.redirect) {
       res.redirect(302, redirectUrl);
@@ -151,7 +152,8 @@ export function handleGenericAuthorize(
 
   // Multiple providers - redirect to login page
   const queryString = new URLSearchParams(query as Record<string, string>).toString();
-  const redirectUrl = `/auth/login${queryString ? `?${queryString}` : ''}`;
+  const queryPart = queryString ? `?${queryString}` : '';
+  const redirectUrl = `/auth/login${queryPart}`;
 
   if (res.redirect) {
     res.redirect(302, redirectUrl);

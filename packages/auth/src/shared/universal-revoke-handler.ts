@@ -35,7 +35,7 @@ export async function handleUniversalRevokeRequest(
 ): Promise<void> {
   try {
     // Extract token parameter (RFC 7009 Section 2.1)
-    const { token, token_type_hint } = req.body || {};
+    const { token, token_type_hint: _token_type_hint } = req.body ?? {};
 
     // Validate required token parameter
     if (!token || typeof token !== 'string' || token.trim() === '') {

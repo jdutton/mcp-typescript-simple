@@ -29,7 +29,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
     super(config, sessionStore, tokenStore, pkceStore);
 
-    this.tenantId = config.tenantId || 'common';
+    this.tenantId = config.tenantId ?? 'common';
     this.MICROSOFT_AUTH_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize`;
     this.MICROSOFT_TOKEN_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
   }
@@ -68,7 +68,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      this.storeSession(state, session);
+      void this.storeSession(state, session);
 
       // Build authorization URL
       const authUrl = this.buildAuthorizationUrl(
@@ -96,7 +96,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
     try {
       const { refresh_token } = req.body;
 
-      if (!refresh_token || typeof refresh_token !== 'string') {
+      if (!refresh_token ?? typeof refresh_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
         return;
@@ -124,8 +124,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       const newTokenInfo: StoredTokenInfo = {
         ...tokenData.tokenInfo,
         accessToken: refreshedToken.access_token,
-        refreshToken: refreshedToken.refresh_token || tokenData.tokenInfo.refreshToken,
-        expiresAt: Date.now() + (refreshedToken.expires_in || 3600) * 1000,
+        refreshToken: refreshedToken.refresh_token ?? tokenData.tokenInfo.refreshToken,
+        expiresAt: Date.now() + (refreshedToken.expires_in ?? 3600) * 1000,
       };
 
       // Remove old token and store new one
@@ -135,7 +135,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       const response: Pick<OAuthTokenResponse, 'access_token' | 'refresh_token' | 'expires_in' | 'token_type'> = {
         access_token: refreshedToken.access_token,
         refresh_token: newTokenInfo.refreshToken,
-        expires_in: refreshedToken.expires_in || 3600,
+        expires_in: refreshedToken.expires_in ?? 3600,
         token_type: 'Bearer',
       };
 
@@ -200,19 +200,19 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         emailPreference: userData.mail ? 'mail' : 'userPrincipalName'
       });
 
-      if (!userData.id || (!userData.mail && !userData.userPrincipalName)) {
+      if (!userData.id ?? (!userData.mail && !userData.userPrincipalName)) {
         logger.oauthError('Incomplete user data from Microsoft', { userData });
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
       // Safe to use non-null assertion since we've validated above
-      const email = (userData.mail || userData.userPrincipalName)!;
+      const email = (userData.mail ?? userData.userPrincipalName)!;
       logger.oauthDebug('Selected email', { email });
 
       return {
         sub: userData.id,
         email: email,
-        name: userData.displayName || email,
+        name: userData.displayName ?? email,
         provider: 'microsoft',
         providerData: userData,
       };
