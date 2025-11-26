@@ -83,6 +83,7 @@ export interface OAuthUserInfo {
   name: string;         // Display name
   picture?: string;     // Profile picture URL
   provider: string;     // Provider name
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   providerData?: any;   // Provider-specific additional data
 }
 
@@ -165,48 +166,48 @@ export interface OAuthProvider extends OAuthTokenVerifier {
    * Initiate OAuth authorization flow
    * Redirects the user to the provider's authorization page
    */
-  handleAuthorizationRequest(req: Request, res: Response): Promise<void>;
+  handleAuthorizationRequest(_req: Request, _res: Response): Promise<void>;
 
   /**
    * Handle OAuth authorization callback
    * Processes the authorization code and exchanges it for tokens
    */
-  handleAuthorizationCallback(req: Request, res: Response): Promise<void>;
+  handleAuthorizationCallback(_req: Request, _res: Response): Promise<void>;
 
   /**
    * Check if this provider has a token in its local store (no external API call)
    * Returns true if the token exists in this provider's token store
    * This is a fast, local-only lookup to identify which provider owns a token
    */
-  hasToken(accessToken: string): Promise<boolean>;
+  hasToken(_accessToken: string): Promise<boolean>;
 
   /**
    * Handle token refresh requests
    * Refreshes an expired access token using the refresh token
    */
-  handleTokenRefresh(req: Request, res: Response): Promise<void>;
+  handleTokenRefresh(_req: Request, _res: Response): Promise<void>;
 
   /**
    * Handle logout requests
    * Revokes tokens and cleans up session data
    */
-  handleLogout(req: Request, res: Response): Promise<void>;
+  handleLogout(_req: Request, _res: Response): Promise<void>;
 
   /**
    * Verify an access token and return auth info
    * Implementation of OAuthTokenVerifier interface
    */
-  verifyAccessToken(token: string): Promise<AuthInfo>;
+  verifyAccessToken(_token: string): Promise<AuthInfo>;
 
   /**
    * Get user information from an access token
    */
-  getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+  getUserInfo(_accessToken: string): Promise<OAuthUserInfo>;
 
   /**
    * Check if a token is valid and not expired
    */
-  isTokenValid(token: string): Promise<boolean>;
+  isTokenValid(_token: string): Promise<boolean>;
 
   /**
    * Get the current session count for monitoring
@@ -221,7 +222,7 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   /**
    * Remove a token from the provider's token store (RFC 7009 token revocation)
    */
-  removeToken(token: string): Promise<void>;
+  removeToken(_token: string): Promise<void>;
 
   /**
    * Clean up expired sessions and tokens
@@ -241,7 +242,7 @@ export interface OAuthProviderFactory {
   /**
    * Create an OAuth provider instance based on configuration
    */
-  createProvider(config: OAuthConfig): OAuthProvider;
+  createProvider(_config: OAuthConfig): OAuthProvider;
 
   /**
    * Get list of supported provider types
@@ -260,13 +261,16 @@ export interface OAuthProviderFactory {
 export class OAuthError extends Error {
   constructor(
     message: string,
-    public code: string,
-    public provider?: string,
-    public details?: unknown
+    public _code: string,
+    public _provider?: string,
+    public _details?: unknown
   ) {
     super(message);
     this.name = 'OAuthError';
+    this.code = _code;
   }
+
+  public code: string;
 }
 
 export class OAuthStateError extends OAuthError {

@@ -118,7 +118,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      if (!code ?? !state ?? typeof code !== 'string' ?? typeof state !== 'string') {
+      if (!code || !state || typeof code !== 'string' || typeof state !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing authorization code or state' });
         return;
@@ -151,7 +151,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       });
 
       const payload = ticket.getPayload();
-      if (!payload?.sub ?? !payload.email) {
+      if (!payload?.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 
@@ -233,7 +233,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
     try {
       const { refresh_token } = req.body;
 
-      if (!refresh_token ?? typeof refresh_token !== 'string') {
+      if (!refresh_token || typeof refresh_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
         return;
@@ -311,6 +311,65 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   }
 
   /**
+   * Try to get token info from Google's tokeninfo endpoint
+   */
+  private async tryGetTokenInfo(token: string): Promise<{ sub: string; email: string; scopes?: string[]; expiry_date?: number }> {
+    logger.oauthDebug('Trying getTokenInfo method', { provider: 'google' });
+    this.oauth2Client.setCredentials({ access_token: token });
+    const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
+
+    logger.oauthDebug('getTokenInfo successful', { provider: 'google' });
+    logger.oauthDebug('Token info', {
+      provider: 'google',
+      sub: tokenInfo_google.sub,
+      email: tokenInfo_google.email
+    });
+
+    if (!tokenInfo_google.sub || !tokenInfo_google.email) {
+      throw new Error('Invalid token payload from getTokenInfo');
+    }
+
+    return {
+      sub: tokenInfo_google.sub,
+      email: tokenInfo_google.email,
+      scopes: tokenInfo_google.scopes,
+      expiry_date: tokenInfo_google.expiry_date
+    };
+  }
+
+  /**
+   * Fallback to Google's userinfo endpoint
+   */
+  private async tryGetUserInfo(token: string): Promise<{ sub: string; email: string; scopes?: string[] }> {
+    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
+    }
+
+    const userData = await response.json() as {
+      id?: string;
+      email?: string;
+    };
+    logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
+    logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
+
+    if (!userData.id || !userData.email) {
+      throw new Error('Invalid user data from userinfo endpoint');
+    }
+
+    return {
+      sub: userData.id,
+      email: userData.email,
+      scopes: ['openid', 'email', 'profile'], // Default scopes for userinfo
+    };
+  }
+
+  /**
    * Verify an access token and return auth info
    */
   async verifyAccessToken(token: string): Promise<AuthInfo> {
@@ -335,29 +394,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       let userInfo: { sub: string; email: string; scopes?: string[]; expiry_date?: number };
 
       try {
-        // Try tokeninfo endpoint first
-        logger.oauthDebug('Trying getTokenInfo method', { provider: 'google' });
-        this.oauth2Client.setCredentials({ access_token: token });
-        const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
-
-        logger.oauthDebug('getTokenInfo successful', { provider: 'google' });
-        logger.oauthDebug('Token info', {
-          provider: 'google',
-          sub: tokenInfo_google.sub,
-          email: tokenInfo_google.email
-        });
-
-        if (!tokenInfo_google.sub ?? !tokenInfo_google.email) {
-          throw new Error('Invalid token payload from getTokenInfo');
-        }
-
-        userInfo = {
-          sub: tokenInfo_google.sub,
-          email: tokenInfo_google.email,
-          scopes: tokenInfo_google.scopes,
-          expiry_date: tokenInfo_google.expiry_date
-        };
-
+        userInfo = await this.tryGetTokenInfo(token);
       } catch (tokenInfoError) {
         logger.oauthDebug('getTokenInfo failed, trying userinfo endpoint as fallback', { provider: 'google' });
         logger.oauthDebug('TokenInfo error', {
@@ -366,34 +403,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         });
 
         try {
-          // Fallback to userinfo endpoint
-          const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
-          }
-
-          const userData = await response.json() as {
-            id?: string;
-            email?: string;
-          };
-          logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
-          logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
-
-          if (!userData.id ?? !userData.email) {
-            throw new Error('Invalid user data from userinfo endpoint');
-          }
-
-          userInfo = {
-            sub: userData.id,
-            email: userData.email,
-            scopes: ['openid', 'email', 'profile'], // Default scopes for userinfo
-          };
-
+          userInfo = await this.tryGetUserInfo(token);
         } catch (userInfoError) {
           logger.oauthError('Both verification methods failed', { provider: 'google' });
           throw userInfoError;
@@ -483,7 +493,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       });
 
       const payload = ticket.getPayload();
-      if (!payload?.sub ?? !payload.email) {
+      if (!payload?.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 

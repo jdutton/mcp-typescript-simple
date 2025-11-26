@@ -96,7 +96,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
     try {
       const { refresh_token } = req.body;
 
-      if (!refresh_token ?? typeof refresh_token !== 'string') {
+      if (!refresh_token || typeof refresh_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
         return;
@@ -200,13 +200,13 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         emailPreference: userData.mail ? 'mail' : 'userPrincipalName'
       });
 
-      if (!userData.id ?? (!userData.mail && !userData.userPrincipalName)) {
+      if (!userData.id || (!userData.mail && !userData.userPrincipalName)) {
         logger.oauthError('Incomplete user data from Microsoft', { userData });
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
-      // Safe to use non-null assertion since we've validated above
-      const email = (userData.mail ?? userData.userPrincipalName)!;
+      // Safe to use since we've validated above
+      const email = (userData.mail ?? userData.userPrincipalName) ?? '';
       logger.oauthDebug('Selected email', { email });
 
       return {

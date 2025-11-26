@@ -92,7 +92,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       // However, we can check if the token is still valid
       const { access_token } = req.body;
 
-      if (!access_token ?? typeof access_token !== 'string') {
+      if (!access_token || typeof access_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing access token' });
         return;

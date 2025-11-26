@@ -18,11 +18,11 @@ export interface OAuthRequestAdapter {
 }
 
 export interface OAuthResponseAdapter {
-  status(code: number): OAuthResponseAdapter;
-  json(data: Record<string, unknown>): void | OAuthResponseAdapter;
-  setHeader(name: string, value: string): void | OAuthResponseAdapter;
-  redirect?(code: number, url: string): void;
-  send?(data: Record<string, unknown>): void;
+  status(_code: number): OAuthResponseAdapter;
+  json(_data: Record<string, unknown>): void | OAuthResponseAdapter;
+  setHeader(_name: string, _value: string): void | OAuthResponseAdapter;
+  redirect?(_code: number, _url: string): void;
+  send?(_data: Record<string, unknown>): void;
   headersSent?: boolean;
 }
 

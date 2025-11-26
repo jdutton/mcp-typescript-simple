@@ -245,7 +245,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     this.allowlistConfig = loadAllowlistConfig();
 
     // Clean up expired sessions and tokens periodically
-    this.cleanupTimer = setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
+    this.cleanupTimer = setInterval(() => {
+      this.cleanup();
+    }, 5 * 60 * 1000); // Every 5 minutes
     if (typeof this.cleanupTimer.unref === 'function') {
       this.cleanupTimer.unref();
     }
@@ -285,8 +287,8 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   abstract getProviderName(): string;
   abstract getEndpoints(): OAuthEndpoints;
   abstract getDefaultScopes(): string[];
-  abstract handleAuthorizationRequest(req: Request, res: Response): Promise<void>;
-  abstract handleTokenRefresh(req: Request, res: Response): Promise<void>;
+  abstract handleAuthorizationRequest(_req: Request, _res: Response): Promise<void>;
+  abstract handleTokenRefresh(_req: Request, _res: Response): Promise<void>;
 
   /**
    * Fetch user information from provider's API
@@ -297,7 +299,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * @param accessToken - Valid access token
    * @returns User information in standardized format
    */
-  protected abstract fetchUserInfo(accessToken: string): Promise<OAuthUserInfo>;
+  protected abstract fetchUserInfo(_accessToken: string): Promise<OAuthUserInfo>;
 
   /**
    * Get token URL for this provider (must be implemented by subclasses)
@@ -314,9 +316,9 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
    * Default implementation does nothing. Providers like Microsoft that support
    * token revocation can override this method.
    *
-   * @param accessToken - Token to revoke
+   * @param _accessToken - Token to revoke
    */
-  protected async revokeToken(accessToken: string): Promise<void> {
+  protected async revokeToken(_accessToken: string): Promise<void> {
     // Default: no-op
     // Microsoft will override this
   }
@@ -1180,10 +1182,10 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // Log request
       await this.logTokenExchangeRequest(code, code_verifier, redirect_uri);
 
-      // Exchange code for tokens
+      // Exchange code for tokens (code validated above, safe to use)
       const tokenData = await this.exchangeCodeForTokens(
         this.getTokenUrl(),
-        code!,
+        code,
         codeVerifierToUse,
         {},
         this._config.redirectUri
@@ -1420,10 +1422,15 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   /**
    * Clean up expired sessions and tokens
    */
-  async cleanup(): Promise<void> {
+  cleanup(): void {
     // Clean up expired sessions and tokens (delegated to stores)
-    await this.sessionStore.cleanup();
-    await this.tokenStore.cleanup();
+    // Run asynchronously without blocking
+    void Promise.all([
+      this.sessionStore.cleanup(),
+      this.tokenStore.cleanup()
+    ]).catch((error) => {
+      logger.error('Cleanup failed', error);
+    });
   }
 
   dispose(): void {
