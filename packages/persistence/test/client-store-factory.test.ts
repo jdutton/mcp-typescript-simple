@@ -147,6 +147,7 @@ describe('ClientStoreFactory', () => {
     });
 
     it('should pass filePath to file-based stores', async () => {
+      // eslint-disable-next-line sonarjs/publicly-writable-directories -- Test file path, not production usage
       const customPath = '/tmp/test-custom-path.json';
 
       const store = ClientStoreFactory.create({

@@ -1107,7 +1107,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       });
 
       // Clean up session
-      this.removeSession(state);
+      void this.removeSession(state);
 
       // Return response
       const response: OAuthTokenResponse = {
@@ -1152,14 +1152,23 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       const { code, code_verifier, redirect_uri } = validation;
 
+      // Type guard: code is guaranteed non-null after validation
+      if (!code) {
+        res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Missing authorization code'
+        });
+        return;
+      }
+
       // Resolve code_verifier
-      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code, code_verifier);
 
       // Validate code_verifier is available
       if (!codeVerifierToUse) {
         logger.oauthInfo('Token exchange: No code_verifier found - not my code, skipping to next provider', {
           provider: this.getProviderType(),
-          codePrefix: code!.substring(0, 10),
+          codePrefix: code.substring(0, 10),
           hasClientCodeVerifier: !!code_verifier
         });
         // Return silently without sending response - let loop try next provider
@@ -1169,16 +1178,16 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
 
       logger.oauthInfo('Token exchange: Code verifier resolved - this is my code', {
         provider: this.getProviderType(),
-        codePrefix: code!.substring(0, 10)
+        codePrefix: code.substring(0, 10)
       });
 
       // Log request
-      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+      await this.logTokenExchangeRequest(code, code_verifier, redirect_uri);
 
       // Exchange code for tokens
       const tokenData = await this.exchangeCodeForTokens(
         this.getTokenUrl(),
-        code!,
+        code,
         codeVerifierToUse,
         {},
         this.config.redirectUri
@@ -1211,7 +1220,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       });
 
       // Cleanup
-      await this.cleanupAfterTokenExchange(code!);
+      await this.cleanupAfterTokenExchange(code);
 
       // Response
       const response: OAuthTokenResponse = {

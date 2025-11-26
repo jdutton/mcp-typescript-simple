@@ -79,6 +79,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     });
 
     // Connect immediately
+    // eslint-disable-next-line sonarjs/no-async-constructor -- Fire-and-forget Redis connection, errors logged
     this.redis.connect().catch((error) => {
       logger.error('Failed to connect to Redis', { error });
     });

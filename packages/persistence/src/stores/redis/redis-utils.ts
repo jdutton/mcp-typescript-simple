@@ -20,6 +20,7 @@ export function maskRedisUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.password) {
+      // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- Password masking logic, not actual credentials
       parsed.password = '***';
     }
     return parsed.toString();

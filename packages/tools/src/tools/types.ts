@@ -3,7 +3,7 @@
  */
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { z, ZodType } from 'zod';
+import { ZodType } from 'zod';
 
 /**
  * Tool handler function that processes tool input and returns a result

@@ -9,7 +9,7 @@
  * 5. Error handling
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createAnalyzeTool, type AnalyzeToolInput } from '../src/analyze.js';
+import { createAnalyzeTool } from '../src/analyze.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 /**

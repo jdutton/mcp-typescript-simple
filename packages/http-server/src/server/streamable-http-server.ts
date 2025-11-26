@@ -27,7 +27,7 @@ import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
 import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
 import { createSecurityValidationMiddleware } from '../middleware/security-validation.js';
-import { validateProductionStorage, getStorageBackendStatus } from './production-storage-validator.js';
+import { validateProductionStorage } from './production-storage-validator.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -603,7 +603,13 @@ export class MCPStreamableHttpServer {
             let providerType: OAuthProviderType | undefined;
             let correctProvider: OAuthProvider | undefined;
 
-            for (const [type, provider] of this.oauthProviders!.entries()) {
+            if (!this.oauthProviders) {
+              logger.error("OAuth providers not initialized", { requestId });
+              this.sendUnauthorizedResponse(res, requestId, 'OAuth not configured');
+              return;
+            }
+
+            for (const [type, provider] of this.oauthProviders.entries()) {
               // Check if this provider's token store has this token
               // This calls hasToken() which is a local store lookup, NOT an API call
               try {

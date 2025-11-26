@@ -414,13 +414,19 @@ describeSystemTest('Tools Execution System', () => {
       for (const toolName of basicTools) {
         const startTime = Date.now();
 
+        let toolArguments: Record<string, unknown> = {};
+        if (toolName === 'hello') {
+          toolArguments = { name: 'Performance Test' };
+        } else if (toolName === 'echo') {
+          toolArguments = { message: 'Performance Test' };
+        }
+
         const request: MCPRequest = {
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
             name: toolName,
-            arguments: toolName === 'hello' ? { name: 'Performance Test' } :
-                       toolName === 'echo' ? { message: 'Performance Test' } : {}
+            arguments: toolArguments
           },
           id: `perf-${toolName}`
         };
@@ -444,13 +450,19 @@ describeSystemTest('Tools Execution System', () => {
       }
 
       const requests = basicTools.map((toolName, index) => {
+        let toolArguments: Record<string, unknown> = {};
+        if (toolName === 'hello') {
+          toolArguments = { name: `Concurrent Test ${index}` };
+        } else if (toolName === 'echo') {
+          toolArguments = { message: `Concurrent Test ${index}` };
+        }
+
         const request: MCPRequest = {
           jsonrpc: '2.0',
           method: 'tools/call',
           params: {
             name: toolName,
-            arguments: toolName === 'hello' ? { name: `Concurrent Test ${index}` } :
-                       toolName === 'echo' ? { message: `Concurrent Test ${index}` } : {}
+            arguments: toolArguments
           },
           id: `concurrent-${index}`
         };

@@ -56,13 +56,15 @@ export class MemoryEventStore implements EventStore {
       this.streamEvents.set(streamId, []);
     }
 
-    const streamEventList = this.streamEvents.get(streamId)!;
+    const streamEventList = this.streamEvents.get(streamId) ?? [];
     streamEventList.push(eventId);
 
     // Limit events per stream to prevent memory bloat
     if (streamEventList.length > this.MAX_EVENTS_PER_STREAM) {
-      const oldEventId = streamEventList.shift()!;
-      this.events.delete(oldEventId);
+      const oldEventId = streamEventList.shift();
+      if (oldEventId !== undefined) {
+        this.events.delete(oldEventId);
+      }
     }
 
     return eventId;

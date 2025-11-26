@@ -159,7 +159,16 @@ export function setupDCRRoutes(
         return;
       }
 
-      const deleted = await clientStore.deleteClient!(clientId);
+      if (!clientStore.deleteClient) {
+        logger.warn('Client deletion not supported by this store', { clientId });
+        res.status(501).json({
+          error: 'not_implemented',
+          error_description: 'Client deletion not supported',
+        });
+        return;
+      }
+
+      const deleted = await clientStore.deleteClient(clientId);
       if (!deleted) {
         logger.warn('Client deletion failed: not found', { clientId });
         res.status(404).json({

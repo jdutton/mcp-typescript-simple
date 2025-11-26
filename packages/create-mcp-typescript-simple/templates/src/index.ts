@@ -4,6 +4,7 @@
 // This ensures auto-instrumentation hooks are registered before any modules load
 // IMPORTANT: LoggerProvider is initialized explicitly in main() to avoid --import timing issues
 
+ 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 // Import package-based tools
@@ -25,6 +26,7 @@ import { logs } from '@opentelemetry/api-logs';
 // Initialize LLM manager
 const llmManager = new LLMManager();
 
+ 
 const server = new Server(
   {
     name: "mcp-typescript-simple",
@@ -121,8 +123,10 @@ async function main() {
       }
     };
 
-    process.on('SIGINT', () => handleShutdown('SIGINT'));
-    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+     
+    process.on('SIGINT', () => void handleShutdown('SIGINT'));
+     
+    process.on('SIGTERM', () => void handleShutdown('SIGTERM'));
 
   } catch (error) {
     logger.error("Server startup failed", error);
@@ -130,6 +134,7 @@ async function main() {
   }
 }
 
+// eslint-disable-next-line unicorn/prefer-top-level-await -- Top-level await causes issues with some test runners
 main().catch((error) => {
   logger.error("Unhandled server error", error);
   process.exit(1);

@@ -90,5 +90,6 @@ export async function processTemplateFiles(
  * Make file executable (for CLI bin files)
  */
 export async function makeExecutable(filePath: string): Promise<void> {
+  // eslint-disable-next-line sonarjs/file-permissions -- 0o755 is correct for CLI executables (rwxr-xr-x)
   await fs.chmod(filePath, 0o755);
 }

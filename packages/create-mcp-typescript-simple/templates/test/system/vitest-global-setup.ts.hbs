@@ -6,9 +6,8 @@
  * CI testing: This global setup auto-starts/stops server for express:ci environment
  */
 
-import { spawn, type ChildProcess } from 'child_process';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn, exec, type ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
 import axios from 'axios';
 
 const execAsync = promisify(exec);
@@ -94,15 +93,15 @@ async function killProcessOnPort(port: number): Promise<void> {
       console.log(`⚠️  Found ${pids.length} process(es) on port ${port}, killing...`);
       for (const pid of pids) {
         try {
-          process.kill(parseInt(pid, 10), 'SIGKILL');
+          process.kill(Number.parseInt(pid, 10), 'SIGKILL');
           console.log(`  ✅ Killed process ${pid}`);
         } catch (error) {
           console.log(`  ⚠️  Could not kill process ${pid}: ${(error as Error).message}`);
         }
       }
     }
+  // eslint-disable-next-line sonarjs/no-ignored-exceptions -- lsof returns exit code 1 if no processes found, which is expected
   } catch (error) {
-    // lsof returns exit code 1 if no processes found, which is fine
     if ((error as any).code !== 1) {
       console.log(`⚠️  Error checking for processes on port ${port}: ${(error as Error).message}`);
     }
@@ -130,8 +129,8 @@ async function waitForServerReady(
         console.log(`✅ Server is ready at ${baseUrl}`);
         return true;
       }
+    // eslint-disable-next-line sonarjs/no-ignored-exceptions -- Server not ready yet, expected behavior during startup
     } catch (_error) {
-      // Server not ready yet
       if (attempt < maxAttempts) {
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
@@ -154,7 +153,7 @@ export default async function globalSetup(): Promise<void> {
     console.log(`🚀 Vitest Global Setup: Starting HTTP server for system tests on port ${httpPort}...`);
 
     // Kill any existing processes on the target port first
-    await killProcessOnPort(parseInt(httpPort));
+    await killProcessOnPort(Number.parseInt(httpPort, 10));
 
     // Start the server process
     globalHttpServer = spawn('npx', ['tsx', 'src/index.ts'], {
@@ -165,6 +164,7 @@ export default async function globalSetup(): Promise<void> {
         HTTP_PORT: httpPort,
         MCP_DEV_SKIP_AUTH: 'true',
         TOKEN_ENCRYPTION_KEY: 'Wp3suOcV+clee' + 'wUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=',  // Test key (split to avoid false positive secret detection)
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols -- HTTP is appropriate for localhost testing
         ALLOWED_ORIGINS: 'http://localhost:{{basePort}},http://localhost:{{add basePort 1}}',  // Allow CORS from test client ports
       },
       stdio: ['ignore', 'pipe', 'pipe'],

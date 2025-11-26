@@ -100,7 +100,12 @@ export function createHttpClient(): AxiosInstance {
   // Response interceptor for logging
   client.interceptors.response.use((response) => {
     const status = response.status;
-    const emoji = status >= 200 && status < 300 ? '✅' : status >= 400 ? '❌' : '⚠️';
+    let emoji = '⚠️'; // 3xx or unexpected
+    if (status >= 200 && status < 300) {
+      emoji = '✅'; // Success
+    } else if (status >= 400) {
+      emoji = '❌'; // Error
+    }
     console.log(`${emoji} ${status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
     return response;
   });

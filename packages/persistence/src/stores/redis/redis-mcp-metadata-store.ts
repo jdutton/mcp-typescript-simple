@@ -40,7 +40,7 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
     this.encryptionService = encryptionService;
     this.redis = createRedisClient(redisUrl, 'MCP sessions');
 
-    const url = redisUrl || process.env.REDIS_URL!;
+    const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
     logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url) });
   }
 

@@ -3,11 +3,10 @@ import { vi } from 'vitest';
 import {
   OAuthDiscoveryMetadata,
   createOAuthDiscoveryMetadata,
-  type AuthorizationServerMetadata,
-  type ProtectedResourceMetadata,
-  type MCPProtectedResourceMetadata,
-  type OpenIDConnectConfiguration
-, OAuthProvider, OAuthEndpoints, OAuthProviderType } from '@mcp-typescript-simple/auth';
+  OAuthProvider,
+  OAuthEndpoints,
+  OAuthProviderType
+} from '@mcp-typescript-simple/auth';
 
 describe('OAuthDiscoveryMetadata', () => {
   let mockProvider: Mocked<OAuthProvider>;

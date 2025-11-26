@@ -48,13 +48,14 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
     client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
   ): Promise<OAuthClientInformationFull> {
     // Check max clients limit
-    if (this.clients.size >= this.options.maxClients!) {
+    const maxClients = this.options.maxClients ?? 10000;
+    if (this.clients.size >= maxClients) {
       logger.warn('Client registration failed: max clients limit reached', {
         currentCount: this.clients.size,
-        maxClients: this.options.maxClients,
+        maxClients,
       });
       throw new Error(
-        `Maximum number of registered clients reached (${this.options.maxClients})`
+        `Maximum number of registered clients reached (${maxClients})`
       );
     }
 
@@ -65,9 +66,10 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
 
     // Calculate expiration (use milliseconds internally for precision)
     let expiresAt: number | undefined;
-    if (this.options.defaultSecretExpirySeconds! > 0) {
+    const defaultSecretExpirySeconds = this.options.defaultSecretExpirySeconds ?? 0;
+    if (defaultSecretExpirySeconds > 0) {
       // Store as seconds for OAuth spec compliance, but check with ms precision
-      expiresAt = issuedAt + this.options.defaultSecretExpirySeconds!;
+      expiresAt = issuedAt + defaultSecretExpirySeconds;
     }
 
     // Create full client information
@@ -188,13 +190,14 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
    * Start automatic cleanup of expired clients
    */
   private startAutoCleanup(): void {
+    const cleanupIntervalMs = this.options.cleanupIntervalMs ?? 60 * 60 * 1000; // 1 hour default
     this.cleanupInterval = setInterval(async () => {
       try {
         await this.cleanupExpired();
       } catch (error) {
         logger.error('Auto-cleanup failed', error as Record<string, any>);
       }
-    }, this.options.cleanupIntervalMs!);
+    }, cleanupIntervalMs);
 
     // Create exit handler and register it
     this.exitHandler = () => this.stopAutoCleanup();

@@ -80,7 +80,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      this.storeSession(state, session);
+      void this.storeSession(state, session);
 
       // Generate authorization URL using Google's OAuth client (different from base method)
       const authUrl = this.oauth2Client.generateAuthUrl({
@@ -191,7 +191,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up session
-      this.removeSession(state);
+      void this.removeSession(state);
 
       // Fallback: Return token response as JSON for direct API usage
       const response: OAuthTokenResponse = {
@@ -446,11 +446,20 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       const { code, code_verifier, redirect_uri } = validation;
 
+      // Type guard: code is guaranteed non-null after validation
+      if (!code) {
+        res.status(400).json({
+          error: 'invalid_request',
+          error_description: 'Missing authorization code'
+        });
+        return;
+      }
+
       // Resolve code_verifier (OAuth proxy vs direct flow)
-      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code, code_verifier);
 
       // Log token exchange request (includes client's redirect_uri for debugging)
-      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
+      await this.logTokenExchangeRequest(code, code_verifier, redirect_uri);
 
       // IMPORTANT: Always use server's registered redirect_uri for token exchange
       // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
@@ -460,7 +469,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Use the correct code_verifier (server's stored one for proxy flows, client's for direct flows)
       const result = await this.oauth2Client.getToken({
-        code: code!,
+        code: code,
         codeVerifier: codeVerifierToUse,
         redirect_uri: redirectUriToUse,
       });
@@ -506,7 +515,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up authorization code mapping and session after successful token exchange
-      await this.cleanupAfterTokenExchange(code!);
+      await this.cleanupAfterTokenExchange(code);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);

@@ -469,6 +469,7 @@ describe('FileOAuthTokenStore', () => {
     });
 
     it('should handle special characters in tokens', async () => {
+      // eslint-disable-next-line sonarjs/no-hardcoded-secrets -- Test token with special chars, not real credentials
       const specialToken = 'token-with-special-chars-!@#$%^&*()_+-=[]{}|;:,.<>?';
       const tokenInfo: StoredTokenInfo = {
         accessToken: specialToken,

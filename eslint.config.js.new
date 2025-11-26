@@ -63,23 +63,25 @@ export default [
       'no-undef': 'off',
 
       // SonarJS rules - relaxed for tests
-      'sonarjs/no-ignored-exceptions': 'off',  // FIXME: Same as production
+      'sonarjs/no-ignored-exceptions': 'error', // Still enforce (use // NOSONAR with explanation)
       'sonarjs/os-command': 'off',
       'sonarjs/no-os-command-from-path': 'off',
       'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks
       'sonarjs/no-nested-template-literals': 'off',
       'sonarjs/slow-regex': 'off',
       'sonarjs/cognitive-complexity': ['warn', 20], // Higher threshold for tests
-      'sonarjs/no-unused-vars': 'off',  // FIXME: Disabled to match production
-      'sonarjs/no-dead-store': 'off',  // FIXME: Disabled to match production
-      'sonarjs/no-hardcoded-ip': 'off',
-      'sonarjs/assertions-in-tests': 'off',
-      'sonarjs/todo-tag': 'off',
-      'sonarjs/pseudo-random': 'off',
 
-      // Code quality - relaxed for tests
-      '@typescript-eslint/no-unused-vars': 'off',  // FIXME: Disabled to match production
-      'no-unused-vars': 'off',  // FIXME: Disabled to match production
+      // Strict on code quality
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
 
       // Security - relaxed for tests
       'security/detect-child-process': 'off', // Tests execute commands
@@ -89,16 +91,8 @@ export default [
       // Import rules - catch duplicate imports (✅ catches SonarQube issues)
       'import/no-duplicates': 'error',
 
-      // Unicorn rules - relaxed for tests
-      'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error',
-      'unicorn/throw-new-error': 'error',
-      'unicorn/prefer-module': 'error',
-      'unicorn/prefer-top-level-await': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-array-for-each': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-useless-undefined': 'error',
-      'unicorn/prefer-ternary': 'off',
-      'unicorn/prefer-string-raw': 'error',
+      // Unicorn rules - apply same modern JavaScript standards to test code
+      ...unicornRules,
     },
   },
   {
@@ -128,8 +122,11 @@ export default [
     },
     rules: {
       // TypeScript core rules
-      // FIXME: Re-enable after fixing 41 unused var errors (Session 6)
-      '@typescript-eslint/no-unused-vars': 'off',  // TEMPORARILY DISABLED
+      '@typescript-eslint/no-unused-vars': ['warn', {  // Downgraded: code quality, not bugs
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       '@typescript-eslint/no-explicit-any': 'warn',  // Downgraded: gradually improve type safety
       '@typescript-eslint/explicit-module-boundary-types': 'warn',  // Downgraded: type documentation, not bugs
       '@typescript-eslint/no-non-null-assertion': 'error',  // Keep error: null safety critical
@@ -137,8 +134,7 @@ export default [
       // TypeScript async/promise safety
       '@typescript-eslint/no-floating-promises': 'error',  // Keep error: can cause silent failures
       '@typescript-eslint/await-thenable': 'error',  // Keep error: async safety
-      // FIXME: Re-enable after fixing 14 promise misuse errors (Session 7)
-      '@typescript-eslint/no-misused-promises': 'off',  // TEMPORARILY DISABLED
+      '@typescript-eslint/no-misused-promises': 'error',  // Keep error: can cause bugs
 
       // Modern JavaScript patterns
       '@typescript-eslint/prefer-nullish-coalescing': 'warn',  // Downgraded: style preference
@@ -147,8 +143,11 @@ export default [
       // General rules
       'no-console': 'off', // Allow console in production code (used by tools)
       'no-undef': 'off', // TypeScript handles this
-      // FIXME: Re-enable after fixing 220 unused var errors (Session 6)
-      'no-unused-vars': 'off',  // TEMPORARILY DISABLED
+      'no-unused-vars': ['warn', {  // Downgraded: code quality, not bugs
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       'no-case-declarations': 'warn',  // Downgraded: style preference
 
       // Security - vulnerability detection (CRITICAL - keep as errors)
@@ -170,8 +169,7 @@ export default [
       'import/no-duplicates': 'error',
 
       // SonarJS rules - pragmatic enforcement
-      // FIXME: Re-enable after fixing 24 unhandled exceptions (Session 8)
-      'sonarjs/no-ignored-exceptions': 'off',  // TEMPORARILY DISABLED: 24 errors
+      'sonarjs/no-ignored-exceptions': 'error',  // CRITICAL: error handling
       'sonarjs/no-hardcoded-secrets': 'error',  // CRITICAL: security
       'sonarjs/no-hardcoded-passwords': 'error',  // CRITICAL: security
       'sonarjs/file-permissions': 'error',  // CRITICAL: security
@@ -202,10 +200,8 @@ export default [
       'unicorn/prefer-number-properties': 'error',  // Keep error: reliability
       'unicorn/throw-new-error': 'error',  // Keep error: correct error handling
       'unicorn/prefer-module': 'error',  // Keep error: ESM standard
-      // FIXME: Re-enable after refactoring 12 main() calls (Session 9)
-      'unicorn/prefer-top-level-await': 'off',  // TEMPORARILY DISABLED: 12 errors
-      // FIXME: Re-enable after converting 13 forEach to for...of (Session 10)
-      'unicorn/no-array-for-each': 'off',  // TEMPORARILY DISABLED: 13 errors
+      'unicorn/prefer-top-level-await': 'warn',  // Downgraded: modern style, not bugs
+      'unicorn/no-array-for-each': 'warn',  // Downgraded: style preference
       'unicorn/no-useless-undefined': 'error',  // Keep error: code clarity
       'unicorn/prefer-ternary': 'off',  // Disabled: too aggressive
       'unicorn/prefer-string-raw': 'error',  // Keep error: escape handling
@@ -243,13 +239,16 @@ export default [
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
 
-      '@typescript-eslint/no-unused-vars': 'off',  // FIXME: Disabled to match production
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       'prefer-const': 'error',
       'no-var': 'error',
       'no-console': 'off', // Tools use console for output
-      'no-unused-vars': 'off',  // FIXME: Disabled to match production
 
       // Security - relaxed for tools
       'security/detect-child-process': 'off', // Tools spawn processes
@@ -264,19 +263,11 @@ export default [
       'sonarjs/no-duplicate-string': 'off',
       'sonarjs/no-identical-functions': 'warn',
       'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
-      'sonarjs/no-ignored-exceptions': 'off',  // FIXME: Disabled to match production
+      'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling
       '@typescript-eslint/no-unsafe-function-type': 'off',
 
       // Unicorn rules for tools
-      'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error',
-      'unicorn/throw-new-error': 'error',
-      'unicorn/prefer-module': 'error',
-      'unicorn/prefer-top-level-await': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-array-for-each': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-useless-undefined': 'error',
-      'unicorn/prefer-ternary': 'off',
-      'unicorn/prefer-string-raw': 'error',
+      ...unicornRules,
     },
   },
   {
@@ -300,7 +291,11 @@ export default [
     },
     rules: {
       // Core JavaScript rules
-      'no-unused-vars': 'off',  // FIXME: Disabled to match production
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       'prefer-const': 'error',
       'no-var': 'error',
       'no-console': 'off', // Tools use console for output
@@ -318,18 +313,10 @@ export default [
       'sonarjs/no-duplicate-string': 'off',
       'sonarjs/no-identical-functions': 'warn',
       'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
-      'sonarjs/no-ignored-exceptions': 'off',  // FIXME: Disabled to match production
+      'sonarjs/no-ignored-exceptions': 'error', // ✅ catches empty catch blocks
 
-      // Unicorn rules - match production
-      'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error',
-      'unicorn/throw-new-error': 'error',
-      'unicorn/prefer-module': 'error',
-      'unicorn/prefer-top-level-await': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-array-for-each': 'off',  // FIXME: Disabled to match production
-      'unicorn/no-useless-undefined': 'error',
-      'unicorn/prefer-ternary': 'off',
-      'unicorn/prefer-string-raw': 'error',
+      // Unicorn rules - catch modern JavaScript issues
+      ...unicornRules,
     },
   },
   {

@@ -54,7 +54,7 @@ data/
 
 # Work-in-progress tracking (never commit - used for local PR/task tracking only)
 TODO.md
-TODO-ARCHIVE.md
+TODO*.md
 SUMMARY.md
 
 # Playwright test artifacts

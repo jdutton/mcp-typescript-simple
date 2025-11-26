@@ -58,6 +58,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
     });
 
     // Connect immediately
+    // eslint-disable-next-line sonarjs/no-async-constructor -- Fire-and-forget Redis connection, errors logged
     this.redis.connect().catch((error) => {
       logger.error('Failed to connect to Redis', { error });
     });
@@ -81,13 +82,14 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
     try {
       // Check max clients limit
       const currentCount = await this.redis.scard(INDEX_KEY);
-      if (currentCount >= this.options.maxClients!) {
+      const maxClients = this.options.maxClients ?? 10000;
+      if (currentCount >= maxClients) {
         logger.warn('Client registration failed: max clients limit reached', {
           currentCount,
-          maxClients: this.options.maxClients,
+          maxClients,
         });
         throw new Error(
-          `Maximum number of registered clients reached (${this.options.maxClients})`
+          `Maximum number of registered clients reached (${maxClients})`
         );
       }
 
@@ -98,8 +100,9 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       // Calculate expiration
       let expiresAt: number | undefined;
-      if (this.options.defaultSecretExpirySeconds! > 0) {
-        expiresAt = issuedAt + this.options.defaultSecretExpirySeconds!;
+      const defaultSecretExpirySeconds = this.options.defaultSecretExpirySeconds ?? 30 * 24 * 60 * 60;
+      if (defaultSecretExpirySeconds > 0) {
+        expiresAt = issuedAt + defaultSecretExpirySeconds;
       }
 
       // Create full client information
@@ -209,11 +212,14 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       const expiredIds: string[] = [];
 
       for (let i = 0; i < results.length; i++) {
-        if (results[i]) {
-          clients.push(JSON.parse(results[i]!));
-        } else {
+        const result = results[i];
+        const clientId = clientIds[i];
+
+        if (result) {
+          clients.push(JSON.parse(result));
+        } else if (clientId) {
           // Client expired but still in index
-          expiredIds.push(clientIds[i]!);
+          expiredIds.push(clientId);
         }
       }
 
@@ -253,8 +259,9 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       // Find expired clients (in index but not in Redis)
       const expiredIds: string[] = [];
       for (let i = 0; i < clientIds.length; i++) {
-        if (!exists[i]) {
-          expiredIds.push(clientIds[i]!);
+        const clientId = clientIds[i];
+        if (!exists[i] && clientId) {
+          expiredIds.push(clientId);
         }
       }
 

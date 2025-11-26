@@ -58,7 +58,8 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
 
     // Warm primary cache from secondary store on startup (if configured)
     if (this.secondaryStore) {
-      this.warmCache();
+      // eslint-disable-next-line sonarjs/no-async-constructor -- Fire-and-forget cache warming, errors logged internally
+      void this.warmCache();
     }
 
     // Start periodic cleanup if enabled

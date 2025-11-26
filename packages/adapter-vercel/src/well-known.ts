@@ -212,7 +212,12 @@ async function handleAuthorizationServerMetadata(
   }
 
   // Single provider: use provider-specific metadata for backward compatibility
-  const primaryProvider = oauthProviders.values().next().value!;
+  const primaryProvider = oauthProviders.values().next().value;
+  if (!primaryProvider) {
+    res.status(500).json({ error: 'No OAuth provider available' });
+    return;
+  }
+
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false,
     toolDiscoveryEndpoint: `${baseUrl}/mcp`
@@ -243,7 +248,11 @@ async function handleProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProvider = oauthProviders.values().next().value;
+  if (!primaryProvider) {
+    res.status(500).json({ error: 'No OAuth provider available' });
+    return;
+  }
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -292,7 +301,11 @@ async function handleMCPProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProvider = oauthProviders.values().next().value;
+  if (!primaryProvider) {
+    res.status(500).json({ error: 'No OAuth provider available' });
+    return;
+  }
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless
@@ -339,7 +352,11 @@ async function handleOpenIDConnectConfiguration(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProvider = oauthProviders.values().next().value;
+  if (!primaryProvider) {
+    res.status(500).json({ error: 'No OAuth provider available' });
+    return;
+  }
 
   const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
     enableResumability: false, // Default for serverless

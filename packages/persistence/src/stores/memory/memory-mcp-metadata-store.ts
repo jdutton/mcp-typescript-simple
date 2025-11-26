@@ -74,7 +74,9 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
   private evictLRU(): void {
     if (this.accessOrder.length === 0) return;
 
-    const lruSessionId = this.accessOrder.shift()!;
+    const lruSessionId = this.accessOrder.shift();
+    if (lruSessionId === undefined) return;
+
     this.sessions.delete(lruSessionId);
 
     logger.debug('Evicted LRU session', {

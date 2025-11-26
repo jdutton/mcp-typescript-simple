@@ -106,7 +106,12 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProvider = oauthProviders.values().next().value;
+      if (!firstProvider) {
+        res.status(500).json({ error: 'No OAuth provider available' });
+        return;
+      }
+
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
@@ -149,7 +154,17 @@ export function setupDiscoveryRoutes(
         return;
       }
 
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProvider = oauthProviders.values().next().value;
+      if (!firstProvider) {
+        logger.error('No OAuth provider available despite size check');
+        setAntiCachingHeaders(res);
+        res.status(500).json({
+          error: 'server_error',
+          error_description: 'OAuth configuration error'
+        });
+        return;
+      }
+
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
@@ -187,7 +202,12 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProvider = oauthProviders.values().next().value;
+      if (!firstProvider) {
+        res.status(500).json({ error: 'No OAuth provider available' });
+        return;
+      }
+
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`

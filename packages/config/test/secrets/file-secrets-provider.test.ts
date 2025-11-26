@@ -399,6 +399,7 @@ TOKEN=abc=def=ghi
     });
 
     it('should count secrets with PASSWORD in name', async () => {
+      // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- Test data, not real credentials
       (readFileSync as Mock).mockReturnValue('DB_PASSWORD=value\nUSER_NAME=value2\n');
 
       provider = new FileSecretsProvider({ auditLog: true });

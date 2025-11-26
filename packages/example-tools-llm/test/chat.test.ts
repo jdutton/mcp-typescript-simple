@@ -9,9 +9,9 @@
  * 5. Optional parameters (system_prompt, temperature)
  * 6. Error handling (provider unavailable, invalid model)
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createChatTool, type ChatToolInput } from '../src/chat.js';
-import type { LLMManager , AnyModel } from '@mcp-typescript-simple/tools-llm';
+import { describe, it, expect, vi } from 'vitest';
+import { createChatTool } from '../src/chat.js';
+import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 type ToolResponse = {
   content: Array<{ type: string; text?: string }>;

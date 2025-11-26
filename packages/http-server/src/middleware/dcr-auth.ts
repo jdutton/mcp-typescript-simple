@@ -125,7 +125,7 @@ export function requireAdminToken(tokenStore: InitialAccessTokenStore) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // First validate the token
     await new Promise<void>((resolve, reject) => {
-      tokenMiddleware(req, res, (err?: unknown) => {
+      void tokenMiddleware(req, res, (err?: unknown) => {
         if (err) reject(err);
         else resolve();
       });

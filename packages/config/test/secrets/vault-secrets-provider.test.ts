@@ -129,11 +129,13 @@ describe('VaultSecretsProvider', () => {
     });
 
     it('should prefer explicit options over environment variables', () => {
+      // eslint-disable-next-line sonarjs/no-clear-text-protocols -- Test with localhost HTTP, not production
       process.env.VAULT_ADDR = 'http://env-vault:8200';
       process.env.VAULT_TOKEN = 'env-token';
       process.env.VAULT_NAMESPACE = 'env-namespace';
 
       provider = new VaultSecretsProvider({
+        // eslint-disable-next-line sonarjs/no-clear-text-protocols -- Test with localhost HTTP, not production
         vaultAddr: 'http://option-vault:8200',
         vaultToken: 'option-token',
         vaultNamespace: 'option-namespace',
@@ -240,6 +242,7 @@ describe('VaultSecretsProvider', () => {
       const mockResponse = {
         data: {
           data: {
+            // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- Test data, not real credentials
             value: { username: 'admin', password: 'secret' },
           },
           metadata: {
@@ -260,6 +263,7 @@ describe('VaultSecretsProvider', () => {
 
       const value = await provider.getSecret<{ username: string; password: string }>('DB_CREDS');
 
+      // eslint-disable-next-line sonarjs/no-hardcoded-passwords -- Test data, not real credentials
       expect(value).toEqual({ username: 'admin', password: 'secret' });
     });
 

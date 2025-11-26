@@ -17,7 +17,6 @@
  */
 
 import { promises as fs, existsSync } from 'node:fs';
-import * as path from 'node:path';
 
 // Define all data files
 const DATA_FILES = {

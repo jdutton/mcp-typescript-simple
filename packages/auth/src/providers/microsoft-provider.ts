@@ -68,7 +68,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      this.storeSession(state, session);
+      void this.storeSession(state, session);
 
       // Build authorization URL
       const authUrl = this.buildAuthorizationUrl(
@@ -205,8 +205,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         throw new OAuthProviderError('Incomplete user data from Microsoft', 'microsoft');
       }
 
-      // Safe to use non-null assertion since we've validated above
-      const email = (userData.mail || userData.userPrincipalName)!;
+      // Safe to use nullish coalescing since we've validated above
+      const email = userData.mail ?? userData.userPrincipalName ?? '';
       logger.oauthDebug('Selected email', { email });
 
       return {

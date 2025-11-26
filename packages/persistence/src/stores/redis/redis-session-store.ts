@@ -32,7 +32,7 @@ export class RedisSessionStore implements OAuthSessionStore {
   constructor(redisUrl?: string) {
     this.redis = createRedisClient(redisUrl, 'OAuth sessions');
 
-    const url = redisUrl || process.env.REDIS_URL!;
+    const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
     logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url) });
   }
 

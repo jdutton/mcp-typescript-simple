@@ -10,7 +10,7 @@
  * 6. Error handling
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createSummarizeTool, type SummarizeToolInput } from '../src/summarize.js';
+import { createSummarizeTool } from '../src/summarize.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 /**

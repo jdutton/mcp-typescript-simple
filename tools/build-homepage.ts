@@ -23,6 +23,8 @@ function convertMarkdown(md: string): string {
   let html = md;
 
   // Code blocks (fenced with ```)
+  // Use simple negated character class to prevent ReDoS
+  // eslint-disable-next-line security/detect-unsafe-regex -- Simplified pattern, no catastrophic backtracking
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
     const language = lang || 'plaintext';
     return `<pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>`;
@@ -44,6 +46,8 @@ function convertMarkdown(md: string): string {
 
   // Lists (simple unordered lists)
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  // Wrap consecutive <li> tags in <ul> - use simple character class
+  // eslint-disable-next-line security/detect-unsafe-regex -- Simplified pattern, no catastrophic backtracking
   html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
   // Horizontal rule

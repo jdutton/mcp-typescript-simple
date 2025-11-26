@@ -132,7 +132,7 @@ export function buildSessionsResponse(options: SessionsResponseOptions): Session
   const llmProviders = getConfiguredLLMProviders();
 
   const deployment: DeploymentInfo = {
-    platform: options.deployment === 'vercel' ? 'vercel' : 'vercel',
+    platform: options.deployment === 'vercel' ? 'vercel' : 'local',
     mode: 'serverless',
     version: process.env.npm_package_version || '1.0.0',
     node_version: options.deployment === 'vercel'
@@ -179,7 +179,7 @@ export function buildInfoResponse(options: InfoResponseOptions): InfoResponse {
   const llmProviders = getConfiguredLLMProviders();
 
   const response: InfoResponse = {
-    platform: options.deployment === 'vercel' ? 'vercel' : 'vercel',
+    platform: options.deployment === 'vercel' ? 'vercel' : 'local',
     mode: 'serverless',
     version: process.env.npm_package_version || '1.0.0',
     node_version: options.deployment === 'vercel'
@@ -215,7 +215,7 @@ export function buildMetricsResponse(options: MetricsResponseOptions): MetricsRe
 
   const response: MetricsResponse = {
     timestamp: new Date().toISOString(),
-    platform: options.deployment === 'vercel' ? 'vercel-serverless' : 'vercel-serverless',
+    platform: options.deployment === 'vercel' ? 'vercel-serverless' : 'local',
     performance: {
       uptime_seconds: process.uptime(),
       memory_usage: process.memoryUsage(),

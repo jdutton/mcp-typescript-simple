@@ -10,7 +10,7 @@
  * 6. Error handling
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createExplainTool, type ExplainToolInput } from '../src/explain.js';
+import { createExplainTool } from '../src/explain.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 /**
