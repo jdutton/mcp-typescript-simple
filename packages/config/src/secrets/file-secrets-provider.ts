@@ -70,7 +70,8 @@ export class FileSecretsProvider extends BaseSecretsProvider {
         // Remove quotes if present
         this.envVars[key.trim()] = value.replaceAll(/(^["'])|(["']$)/g, '');
       }
-    } catch (error) {
+    // eslint-disable-next-line sonarjs/no-ignored-exceptions -- Expected: .env.local might not exist (ENOENT) - fall back to process.env
+    } catch (_error) {
       // .env.local doesn't exist (ENOENT) - fall back to process.env
       // This is expected behavior for environments without local env files
       this.envVars = { ...process.env } as Record<string, string>;

@@ -60,7 +60,7 @@ export function detectSecretsProvider(): 'file' | 'encrypted-file' | 'vault' | '
 export async function createSecretsProvider(
   options: SecretsFactoryOptions = {}
 ): Promise<SecretsProvider> {
-  const providerType = options.provider || detectSecretsProvider();
+  const providerType = options.provider ?? detectSecretsProvider();
 
   switch (providerType) {
     case 'vercel':

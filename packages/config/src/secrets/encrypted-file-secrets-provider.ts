@@ -77,11 +77,11 @@ export class EncryptedFileSecretsProvider extends BaseSecretsProvider {
   constructor(options: EncryptedFileSecretsProviderOptions = {}) {
     super(options);
 
-    this.filePath = options.filePath || '.secrets.encrypted';
+    this.filePath = options.filePath ?? '.secrets.encrypted';
     this.backupPath = `${this.filePath}.backup`;
 
     // Get master key
-    const masterKeyB64 = options.masterKey || process.env.SECRETS_MASTER_KEY;
+    const masterKeyB64 = options.masterKey ?? process.env.SECRETS_MASTER_KEY;
     if (!masterKeyB64) {
       throw new Error(
         'Master encryption key not configured. Set SECRETS_MASTER_KEY environment variable.\n' +

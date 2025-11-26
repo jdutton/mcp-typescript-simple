@@ -166,7 +166,7 @@ export abstract class BaseSecretsProvider implements SecretsProvider {
   /**
    * Check if a secret exists
    */
-  abstract hasSecret(key: string): Promise<boolean>;
+  abstract hasSecret(_key: string): Promise<boolean>;
 
   /**
    * Dispose of resources
@@ -184,12 +184,12 @@ export abstract class BaseSecretsProvider implements SecretsProvider {
   /**
    * Retrieve secret from provider-specific storage (to be implemented by subclasses)
    */
-  protected abstract retrieveSecret<T = string>(key: string): Promise<T | undefined>;
+  protected abstract retrieveSecret<T = string>(_key: string): Promise<T | undefined>;
 
   /**
    * Store secret in provider-specific storage (to be implemented by subclasses)
    */
-  protected abstract storeSecret<T = string>(key: string, value: T): Promise<void>;
+  protected abstract storeSecret<T = string>(_key: string, _value: T): Promise<void>;
 
   /**
    * Dispose provider-specific resources (to be implemented by subclasses)
