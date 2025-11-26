@@ -76,7 +76,7 @@ export type AnyModel = ClaudeModel | OpenAIModel | GeminiModel;
 export interface ClaudeConfig {
   apiKey: string;
   models: {
-    [K in ClaudeModel]: {
+    [_K in ClaudeModel]: {
       maxTokens: number;
       available: boolean;
     };
@@ -87,7 +87,7 @@ export interface ClaudeConfig {
 export interface OpenAIConfig {
   apiKey: string;
   models: {
-    [K in OpenAIModel]: {
+    [_K in OpenAIModel]: {
       maxTokens: number;
       available: boolean;
     };
@@ -98,7 +98,7 @@ export interface OpenAIConfig {
 export interface GeminiConfig {
   apiKey: string;
   models: {
-    [K in GeminiModel]: {
+    [_K in GeminiModel]: {
       maxTokens: number;
       available: boolean;
     };

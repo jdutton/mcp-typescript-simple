@@ -54,45 +54,10 @@ export class LLMManager {
   async initialize(): Promise<void> {
     const config = await this.configManager.loadConfig();
 
-    // Initialize Claude client
-    if (config.providers.claude.apiKey) {
-      try {
-        const anthropic = new Anthropic({
-          apiKey: config.providers.claude.apiKey,
-        });
-        this.clients.claude = anthropic;
-        logger.info('Claude client initialized', { provider: 'claude' });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.warn('Failed to initialize Claude client', { provider: 'claude', error: errorMessage });
-      }
-    }
-
-    // Initialize OpenAI client
-    if (config.providers.openai.apiKey) {
-      try {
-        const openai = new OpenAI({
-          apiKey: config.providers.openai.apiKey,
-        });
-        this.clients.openai = openai;
-        logger.info('OpenAI client initialized', { provider: 'openai' });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.warn('Failed to initialize OpenAI client', { provider: 'openai', error: errorMessage });
-      }
-    }
-
-    // Initialize Gemini client
-    if (config.providers.gemini.apiKey) {
-      try {
-        const genAI = new GoogleGenerativeAI(config.providers.gemini.apiKey);
-        this.clients.gemini = genAI;
-        logger.info('Gemini client initialized', { provider: 'gemini' });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.warn('Failed to initialize Gemini client', { provider: 'gemini', error: errorMessage });
-      }
-    }
+    // Initialize all clients
+    await this.initializeClaudeClient(config.providers.claude.apiKey);
+    await this.initializeOpenAIClient(config.providers.openai.apiKey);
+    await this.initializeGeminiClient(config.providers.gemini.apiKey);
 
     if (this.getAvailableProviders().length === 0) {
       throw new Error('No LLM clients could be initialized - check your API keys');
@@ -101,9 +66,54 @@ export class LLMManager {
     logger.info('LLM Manager initialized', { providerCount: this.getAvailableProviders().length, providers: this.getAvailableProviders() });
   }
 
+  private async initializeClaudeClient(apiKey: string | undefined): Promise<void> {
+    if (!apiKey) {
+      return;
+    }
+
+    try {
+      const anthropic = new Anthropic({ apiKey });
+      this.clients.claude = anthropic;
+      logger.info('Claude client initialized', { provider: 'claude' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn('Failed to initialize Claude client', { provider: 'claude', error: errorMessage });
+    }
+  }
+
+  private async initializeOpenAIClient(apiKey: string | undefined): Promise<void> {
+    if (!apiKey) {
+      return;
+    }
+
+    try {
+      const openai = new OpenAI({ apiKey });
+      this.clients.openai = openai;
+      logger.info('OpenAI client initialized', { provider: 'openai' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn('Failed to initialize OpenAI client', { provider: 'openai', error: errorMessage });
+    }
+  }
+
+  private async initializeGeminiClient(apiKey: string | undefined): Promise<void> {
+    if (!apiKey) {
+      return;
+    }
+
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      this.clients.gemini = genAI;
+      logger.info('Gemini client initialized', { provider: 'gemini' });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn('Failed to initialize Gemini client', { provider: 'gemini', error: errorMessage });
+    }
+  }
+
   async complete(request: LLMRequest & { _fallbackAttempted?: boolean }): Promise<LLMResponse> {
     const startTime = Date.now();
-    const provider = request.provider || await this.getDefaultProvider();
+    const provider = request.provider ?? await this.getDefaultProvider();
 
     // Resolve model selection with validation
     const resolvedModel = await this.resolveModel(provider, request.model);
@@ -538,7 +548,7 @@ export class LLMManager {
 
     const key = {
       message: request.message,
-      systemPrompt: request.systemPrompt || '',
+      systemPrompt: request.systemPrompt ?? '',
       temperature: request.temperature ?? defaultTemperature,
       provider,
       model
