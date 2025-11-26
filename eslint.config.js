@@ -4,10 +4,13 @@ import typescriptParser from '@typescript-eslint/parser';
 import sonarjs from 'eslint-plugin-sonarjs';
 import unicorn from 'eslint-plugin-unicorn';
 import importPlugin from 'eslint-plugin-import';
+import security from 'eslint-plugin-security';
+import pluginNode from 'eslint-plugin-n';
 
 export default [
   eslint.configs.recommended,
   sonarjs.configs.recommended,
+  security.configs.recommended,
   {
     // Test files - disable type-aware linting (test files excluded from tsconfig)
     files: ['**/*.test.ts', '**/test/**/*.ts', '**/test-*.ts', '**/tests/**/*.ts'],
@@ -29,6 +32,8 @@ export default [
       '@typescript-eslint': typescriptEslint,
       unicorn,
       import: importPlugin,
+      security,
+      n: pluginNode,
     },
     rules: {
       // Disable type-aware rules for test files
@@ -53,7 +58,7 @@ export default [
       'sonarjs/slow-regex': 'off',
       'sonarjs/cognitive-complexity': ['warn', 20], // Higher threshold for tests
 
-      // Strict on code quality
+      // Code quality - strict in tests
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
@@ -65,7 +70,12 @@ export default [
         caughtErrorsIgnorePattern: '^_',
       }],
 
-      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      // Security - relaxed for tests
+      'security/detect-child-process': 'off', // Tests execute commands
+      'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths
+      'security/detect-object-injection': 'off', // TypeScript type safety covers this
+
+      // Import rules - catch duplicate imports
       'import/no-duplicates': 'error',
 
       // Unicorn rules - modern JavaScript
@@ -102,9 +112,11 @@ export default [
       '@typescript-eslint': typescriptEslint,
       unicorn,
       import: importPlugin,
+      security,
+      n: pluginNode,
     },
     rules: {
-      // TypeScript core rules
+      // TypeScript core rules - STRICT
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
@@ -114,12 +126,12 @@ export default [
       '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
 
-      // TypeScript async/promise safety
+      // TypeScript async/promise safety - STRICT
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': 'error',
 
-      // Modern JavaScript patterns (catches SonarQube nullish coalescing issues)
+      // Modern JavaScript patterns
       '@typescript-eslint/prefer-nullish-coalescing': 'error',
       '@typescript-eslint/prefer-optional-chain': 'error',
 
@@ -132,18 +144,33 @@ export default [
         caughtErrorsIgnorePattern: '^_',
       }],
 
-      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      // Security - CRITICAL vulnerability detection
+      'security/detect-child-process': 'error',
+      'security/detect-non-literal-fs-filename': 'warn', // Can be noisy but important
+      'security/detect-non-literal-regexp': 'warn',
+      'security/detect-unsafe-regex': 'error', // CRITICAL: ReDoS vulnerability
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-no-csrf-before-method-override': 'error',
+      'security/detect-possible-timing-attacks': 'warn',
+      'security/detect-pseudoRandomBytes': 'error',
+      'security/detect-object-injection': 'off', // TypeScript type safety covers this
+
+      // Node.js best practices
+      'n/no-path-concat': 'error', // Prevents path.join issues
+
+      // Import rules
       'import/no-duplicates': 'error',
 
-      // SonarJS rules - active enforcement (catches majority of SonarQube issues)
-      'sonarjs/no-ignored-exceptions': 'error', // ✅ Catches 11 SonarQube issues
+      // SonarJS rules - STRICT enforcement
+      'sonarjs/no-ignored-exceptions': 'error',
       'sonarjs/no-control-regex': 'error',
       'sonarjs/no-redundant-jump': 'error',
       'sonarjs/updated-loop-counter': 'error',
       'sonarjs/no-nested-template-literals': 'error',
-      'sonarjs/no-nested-functions': 'error', // ✅ Catches 3 SonarQube issues (nesting depth)
-      'sonarjs/no-nested-conditional': 'error', // ✅ Catches 1 SonarQube issue (nested ternary)
-      'sonarjs/cognitive-complexity': ['error', 15], // ✅ Catches 1 SonarQube issue (complexity 21→15)
+      'sonarjs/no-nested-functions': 'error',
+      'sonarjs/no-nested-conditional': 'error',
+      'sonarjs/cognitive-complexity': ['error', 15],
       'sonarjs/slow-regex': 'warn',
       'sonarjs/duplicates-in-character-class': 'error',
       'sonarjs/prefer-single-boolean-return': 'error',
@@ -151,13 +178,13 @@ export default [
 
       // Unicorn rules - modern JavaScript best practices
       'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error', // ✅ Catches 2 SonarQube issues (Number.parseInt)
+      'unicorn/prefer-number-properties': 'error',
       'unicorn/throw-new-error': 'error',
       'unicorn/prefer-module': 'error',
       'unicorn/prefer-top-level-await': 'error',
-      'unicorn/no-array-for-each': 'error', // ✅ Catches 1 SonarQube issue (forEach→for...of)
+      'unicorn/no-array-for-each': 'error',
       'unicorn/no-useless-undefined': 'error',
-      'unicorn/prefer-ternary': 'off',
+      'unicorn/prefer-ternary': 'off', // Can reduce readability
       'unicorn/prefer-string-raw': 'error',
     },
   },
@@ -182,6 +209,8 @@ export default [
       '@typescript-eslint': typescriptEslint,
       unicorn,
       import: importPlugin,
+      security,
+      n: pluginNode,
     },
     rules: {
       // Disable type-aware rules inherited from sonarjs.configs.recommended
@@ -202,7 +231,12 @@ export default [
       'no-var': 'error',
       'no-console': 'off', // Tools use console for output
 
-      // Import rules - catch duplicate imports (✅ catches SonarQube issues)
+      // Security - relaxed for tools
+      'security/detect-child-process': 'off', // Tools spawn processes
+      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths
+      'security/detect-object-injection': 'off',
+
+      // Import rules
       'import/no-duplicates': 'error',
 
       // SonarJS rules - more lenient for tools
@@ -212,6 +246,9 @@ export default [
       'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
       'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling
       '@typescript-eslint/no-unsafe-function-type': 'off',
+
+      // Node.js rules
+      'n/no-path-concat': 'error',
 
       // Unicorn rules for tools
       'unicorn/prefer-node-protocol': 'error',
@@ -235,6 +272,8 @@ export default [
     plugins: {
       unicorn,
       import: importPlugin,
+      security,
+      n: pluginNode,
     },
     rules: {
       // Core JavaScript rules
@@ -247,21 +286,29 @@ export default [
       'no-var': 'error',
       'no-console': 'off', // Tools use console for output
 
+      // Security - relaxed for tools
+      'security/detect-child-process': 'off', // Tools spawn processes
+      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths
+      'security/detect-object-injection': 'off',
+
       // Import rules
       'import/no-duplicates': 'error',
 
-      // SonarJS rules - catch SonarQube issues
+      // SonarJS rules - catch issues
       'sonarjs/cognitive-complexity': ['warn', 30],
       'sonarjs/no-duplicate-string': 'off',
       'sonarjs/no-identical-functions': 'warn',
       'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes
-      'sonarjs/no-ignored-exceptions': 'error', // ✅ catches empty catch blocks
+      'sonarjs/no-ignored-exceptions': 'error',
 
-      // Unicorn rules - catch modern JavaScript issues
-      'unicorn/prefer-node-protocol': 'error', // ✅ catches fs → node:fs
+      // Node.js rules
+      'n/no-path-concat': 'error',
+
+      // Unicorn rules
+      'unicorn/prefer-node-protocol': 'error',
       'unicorn/prefer-number-properties': 'error',
       'unicorn/no-array-for-each': 'error',
-      'unicorn/prefer-top-level-await': 'error', // ✅ catches promise chains
+      'unicorn/prefer-top-level-await': 'error',
       'unicorn/throw-new-error': 'error',
     },
   },

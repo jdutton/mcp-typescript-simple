@@ -67,6 +67,8 @@ export function getDevDependencies(): Record<string, string> {
     'eslint-plugin-sonarjs': '^3.0.5',
     'eslint-plugin-unicorn': '^62.0.0',
     'eslint-plugin-import': '^2.31.0',
+    'eslint-plugin-n': '^17.23.1',           // Node.js best practices
+    'eslint-plugin-security': '^3.0.1',     // Security vulnerability detection
   };
 }
 
@@ -102,6 +104,6 @@ export function getScripts(config: ProjectConfig): Record<string, string> {
 
     // Type checking and linting
     'typecheck': 'tsc --noEmit',
-    'lint': 'eslint src/**/*.ts test/**/*.ts',
+    'lint': 'eslint .',
   };
 }
