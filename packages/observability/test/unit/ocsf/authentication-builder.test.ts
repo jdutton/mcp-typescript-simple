@@ -2,6 +2,9 @@
  * Unit tests for OCSF Authentication Event Builder
  */
 
+/* eslint-disable sonarjs/no-hardcoded-ip */
+// Test files use hardcoded IPs for test data
+
 import { describe, it, expect } from 'vitest';
 import {
   logonEvent,

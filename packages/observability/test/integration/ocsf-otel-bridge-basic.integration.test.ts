@@ -7,6 +7,9 @@
  * Focus: End-to-end setup validation, not detailed log inspection.
  */
 
+/* eslint-disable sonarjs/no-hardcoded-ip */
+// Test files use hardcoded IPs for test data
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { LoggerProvider, ConsoleLogRecordExporter, SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { logs } from '@opentelemetry/api-logs';

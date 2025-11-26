@@ -71,7 +71,7 @@ export function getObservabilityConfig(): ObservabilityConfig {
     runtime,
     service: {
       name: 'mcp-typescript-simple',
-      version: process.env.npm_package_version || '1.0.0',
+      version: process.env.npm_package_version ?? '1.0.0',
       namespace: environment === 'production' ? 'prod' : 'dev'
     },
     sampling: {
@@ -83,7 +83,7 @@ export function getObservabilityConfig(): ObservabilityConfig {
       console: environment === 'development',
       otlp: {
         enabled: true,
-        endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318',
+        endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318',
         protocol: 'http/protobuf'
       }
     }
@@ -108,7 +108,7 @@ export function getObservabilityConfig(): ObservabilityConfig {
       config.sampling.traces = 0.1; // 10% sampling for performance
       if (process.env.VERCEL) {
         // Vercel-specific configuration
-        config.exporters.otlp.endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || '';
+        config.exporters.otlp.endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '';
       }
       break;
 

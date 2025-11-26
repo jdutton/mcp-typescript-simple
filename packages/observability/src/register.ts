@@ -10,9 +10,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-  SEMRESATTRS_SERVICE_NAMESPACE,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT
+  ATTR_SERVICE_VERSION
 } from '@opentelemetry/semantic-conventions';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -41,8 +39,8 @@ if (environment === 'test') {
   console.debug('[OTEL] Skipping initialization in test environment');
 } else {
   try {
-    const serviceName = process.env.OTEL_SERVICE_NAME || 'mcp-typescript-simple';
-    const serviceVersion = process.env.npm_package_version || '1.0.0';
+    const serviceName = process.env.OTEL_SERVICE_NAME ?? 'mcp-typescript-simple';
+    const serviceVersion = process.env.npm_package_version ?? '1.0.0';
     const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT; // No default!
 
     // Determine log exporter based on OTLP endpoint configuration
@@ -53,7 +51,7 @@ if (environment === 'test') {
       service: serviceName,
       environment,
       exporter: exporterType,
-      endpoint: otlpEndpoint || 'N/A (using console)'
+      endpoint: otlpEndpoint ?? 'N/A (using console)'
     });
 
     // Create resource with service information
@@ -61,8 +59,8 @@ if (environment === 'test') {
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: serviceName,
       [ATTR_SERVICE_VERSION]: serviceVersion,
-      [SEMRESATTRS_SERVICE_NAMESPACE]: environment === 'production' ? 'prod' : 'dev',
-      [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment
+      'service.namespace': environment === 'production' ? 'prod' : 'dev',
+      'deployment.environment': environment
     });
 
     // Configure trace and metric exporters (OTLP only if endpoint configured)
@@ -103,7 +101,13 @@ if (environment === 'test') {
     logs.setGlobalLoggerProvider(loggerProvider);
 
     // Initialize SDK with exporters (traces and metrics only if OTLP configured)
-    const sdkConfig: any = {
+    interface SDKConfig {
+      resource: ReturnType<typeof resourceFromAttributes>;
+      instrumentations: ReturnType<typeof getNodeAutoInstrumentations>[];
+      traceExporter?: OTLPTraceExporter;
+      metricReader?: PeriodicExportingMetricReader;
+    }
+    const sdkConfig: SDKConfig = {
       resource,
       instrumentations: [
         getNodeAutoInstrumentations({
@@ -118,14 +122,14 @@ if (environment === 'test') {
               // Add custom attributes for HTTP requests
               span.setAttributes({
                 'mcp.component': 'http-server',
-                'http.target': (request as any).url || ''
+                'http.target': (request as { url?: string }).url ?? ''
               });
             }
           },
           // Enable Express instrumentation (best effort for Express 5.x)
           '@opentelemetry/instrumentation-express': {
             enabled: true,
-            requestHook: (span, info) => {
+            requestHook: (span, _info) => {
               // Add Express-specific attributes
               span.setAttributes({
                 'mcp.component': 'express-middleware'
@@ -179,7 +183,9 @@ if (environment === 'test') {
     };
 
     // Only register beforeExit (automatic cleanup) - let main app handle SIGINT/SIGTERM
-    process.on('beforeExit', shutdown);
+    process.on('beforeExit', () => {
+      void shutdown();
+    });
 
   } catch (error) {
     console.error('[OTEL] Failed to initialize:', error);

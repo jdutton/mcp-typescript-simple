@@ -11,9 +11,7 @@ import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
-  ATTR_SERVICE_VERSION,
-  SEMRESATTRS_SERVICE_NAMESPACE,
-  SEMRESATTRS_DEPLOYMENT_ENVIRONMENT
+  ATTR_SERVICE_VERSION
 } from '@opentelemetry/semantic-conventions';
 import { getObservabilityConfig, type ObservabilityConfig } from './config.js';
 
@@ -30,7 +28,7 @@ export class ObservabilityLogger {
   private hasTransports: boolean;
 
   constructor(config?: ObservabilityConfig) {
-    this.config = config || getObservabilityConfig();
+    this.config = config ?? getObservabilityConfig();
     this.isProduction = this.config.environment === 'production';
     this.hasTransports = false; // Will be set in createPinoLogger
 
@@ -169,9 +167,7 @@ export class ObservabilityLogger {
       return obj;
     }
 
-    if (!visited) {
-      visited = new WeakSet();
-    }
+    visited ??= new WeakSet();
 
     if (visited.has(obj as object)) {
       return '[Circular Reference]';
@@ -215,19 +211,19 @@ export class ObservabilityLogger {
   debug(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.debug(dataWithTrace || {}, sanitizedMessage);
+    this.pino.debug(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   info(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.info(dataWithTrace || {}, sanitizedMessage);
+    this.pino.info(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   warn(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.warn(dataWithTrace || {}, sanitizedMessage);
+    this.pino.warn(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   error(message: string, error?: Error | unknown): void {
@@ -243,7 +239,7 @@ export class ObservabilityLogger {
     } else if (error) {
       const { data: sanitizedError } = this.sanitizeForProduction('', error);
       const dataWithTrace = this.addTraceContextToData(sanitizedError);
-      this.pino.error(dataWithTrace || {}, sanitizedMessage);
+      this.pino.error(dataWithTrace ?? {}, sanitizedMessage);
     } else {
       const dataWithTrace = this.addTraceContextToData({});
       this.pino.error(dataWithTrace, sanitizedMessage);
@@ -279,9 +275,7 @@ export class ObservabilityLogger {
 let loggerInstance: ObservabilityLogger | null = null;
 
 export function getLogger(): ObservabilityLogger {
-  if (!loggerInstance) {
-    loggerInstance = new ObservabilityLogger();
-  }
+  loggerInstance ??= new ObservabilityLogger();
   return loggerInstance;
 }
 
@@ -326,9 +320,9 @@ export function initializeLoggerProvider(): void {
   }
 
   try {
-    const serviceName = process.env.OTEL_SERVICE_NAME || 'mcp-typescript-simple';
-    const serviceVersion = process.env.npm_package_version || '1.0.0';
-    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+    const serviceName = process.env.OTEL_SERVICE_NAME ?? 'mcp-typescript-simple';
+    const serviceVersion = process.env.npm_package_version ?? '1.0.0';
+    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318';
 
     console.debug('[LoggerProvider] Initializing', {
       service: serviceName,
@@ -340,8 +334,8 @@ export function initializeLoggerProvider(): void {
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: serviceName,
       [ATTR_SERVICE_VERSION]: serviceVersion,
-      [SEMRESATTRS_SERVICE_NAMESPACE]: environment === 'production' ? 'prod' : 'dev',
-      [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment
+      'service.namespace': environment === 'production' ? 'prod' : 'dev',
+      'deployment.environment': environment
     });
 
     // Configure log exporter

@@ -85,7 +85,7 @@ export abstract class BaseOCSFEventBuilder<TEvent extends BaseOCSFEvent, TBuilde
    */
   withMetadata(metadata: Partial<Metadata>): TBuilder {
     this.event.metadata = {
-      ...this.event.metadata!,
+      ...(this.event.metadata ?? {}),
       ...metadata,
     };
     return this as unknown as TBuilder;

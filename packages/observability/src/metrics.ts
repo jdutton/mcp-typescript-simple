@@ -112,7 +112,7 @@ export function recordToolInvocation(
     toolInvocationCounter.add(1, {
       tool_name: toolName,
       success: success.toString(),
-      error_type: errorType || 'none'
+      error_type: errorType ?? 'none'
     });
 
     toolDuration.record(duration, {

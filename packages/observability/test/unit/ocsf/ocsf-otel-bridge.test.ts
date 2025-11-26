@@ -2,6 +2,9 @@
  * Unit tests for OCSF-OTEL Bridge
  */
 
+/* eslint-disable sonarjs/no-hardcoded-ip, unicorn/no-useless-undefined */
+// Test files use hardcoded IPs and explicit undefined for test data
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { OCSFOTELBridge, emitOCSFEvent } from '../../../src/ocsf/ocsf-otel-bridge.js';
 import { logonEvent, createAPIEvent, SeverityId, StatusId } from '../../../src/ocsf/index.js';
