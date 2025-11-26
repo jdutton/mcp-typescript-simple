@@ -210,7 +210,11 @@ export class EnvironmentConfig {
     if (!this._configStatus) {
       this.load();
     }
-    return this._configStatus!;
+    // After load(), _configStatus is guaranteed to be set
+    if (!this._configStatus) {
+      throw new Error('Configuration status not initialized after load()');
+    }
+    return this._configStatus;
   }
 
   /**

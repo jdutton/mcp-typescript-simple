@@ -86,7 +86,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       expect(authInfo.expiresAt).toBeDefined();
       expect(typeof authInfo.expiresAt).toBe('number');
       if (authInfo.expiresAt !== undefined) {
-        expect(isNaN(authInfo.expiresAt)).toBe(false);
+        expect(Number.isNaN(authInfo.expiresAt)).toBe(false);
 
         // Expiration should be in the future (Unix timestamp in seconds)
         const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -120,7 +120,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       expect(authInfo.expiresAt).toBeDefined();
       expect(typeof authInfo.expiresAt).toBe('number');
       if (authInfo.expiresAt !== undefined) {
-        expect(isNaN(authInfo.expiresAt)).toBe(false);
+        expect(Number.isNaN(authInfo.expiresAt)).toBe(false);
 
         // Expiration should be in the future (Unix timestamp in seconds)
         const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -155,7 +155,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       expect(authInfo.expiresAt).toBeDefined();
       expect(typeof authInfo.expiresAt).toBe('number');
       if (authInfo.expiresAt !== undefined) {
-        expect(isNaN(authInfo.expiresAt)).toBe(false);
+        expect(Number.isNaN(authInfo.expiresAt)).toBe(false);
 
         // Expiration should be in the future (Unix timestamp in seconds)
         const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -221,12 +221,12 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
       // From: node_modules/@modelcontextprotocol/sdk/dist/esm/server/auth/middleware/bearerAuth.js
       const isValidExpiration =
         typeof authInfo.expiresAt === 'number' &&
-        !isNaN(authInfo.expiresAt);
+        !Number.isNaN(authInfo.expiresAt);
 
       expect(isValidExpiration).toBe(true);
 
       // Should not throw "Token has no expiration time"
-      if (typeof authInfo.expiresAt !== 'number' || isNaN(authInfo.expiresAt)) {
+      if (typeof authInfo.expiresAt !== 'number' || Number.isNaN(authInfo.expiresAt)) {
         throw new Error("Token has no expiration time");
       }
 

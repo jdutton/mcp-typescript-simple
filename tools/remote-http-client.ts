@@ -757,7 +757,7 @@ function parseArgs(): ClientConfig {
       case '--timeout':
         if (!next) throw new Error('--timeout requires a value');
         config.timeout = Number.parseInt(next, 10);
-        if (isNaN(config.timeout!)) throw new Error('--timeout must be a number');
+        if (Number.isNaN(config.timeout!)) throw new Error('--timeout must be a number');
         i++;
         break;
 

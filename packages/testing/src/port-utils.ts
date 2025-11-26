@@ -214,7 +214,7 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
       if (code === 0 && pidOutput.trim()) {
         const firstLine = pidOutput.trim().split('\n')[0] ?? '';
         const pid = Number.parseInt(firstLine, 10);
-        if (!isNaN(pid)) {
+        if (!Number.isNaN(pid)) {
           // Get process command
           const psResult = await new Promise<string>((psResolve) => {
             const ps = spawn('ps', ['-p', pid.toString(), '-o', 'comm='], { stdio: 'pipe' });

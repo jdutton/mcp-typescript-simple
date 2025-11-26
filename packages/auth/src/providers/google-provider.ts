@@ -13,7 +13,6 @@ import {
   OAuthProviderType,
   OAuthUserInfo,
   OAuthTokenResponse,
-  OAuthSession,
   StoredTokenInfo,
   OAuthTokenError,
   OAuthProviderError

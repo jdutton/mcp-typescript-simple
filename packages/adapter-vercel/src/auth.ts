@@ -145,7 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (oauthPath === '/authorize') {
       if (req.method === 'GET') {
         logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
-        handleGenericAuthorize(providers, req.query as Record<string, any>, res);
+        handleGenericAuthorize(providers, req.query as Record<string, unknown>, res);
         return;
       }
     }

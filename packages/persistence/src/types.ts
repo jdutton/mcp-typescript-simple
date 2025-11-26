@@ -19,7 +19,7 @@ export interface OAuthUserInfo {
   name: string;         // Display name
   picture?: string;     // Profile picture URL
   provider: string;     // Provider name
-  providerData?: any;   // Provider-specific additional data
+  providerData?: Record<string, unknown>;   // Provider-specific additional data
 }
 
 /**

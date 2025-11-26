@@ -113,7 +113,8 @@ async function handleAuthorizationCodeGrant(
 
   for (const [providerType, provider] of providers.entries()) {
     if ('hasStoredCodeForProvider' in provider) {
-      const hasCode = await (provider as any).hasStoredCodeForProvider(code);
+      const providerWithCodeCheck = provider as OAuthProvider & { hasStoredCodeForProvider: (code: string) => Promise<boolean> };
+      const hasCode = await providerWithCodeCheck.hasStoredCodeForProvider(code);
       logger.info("Provider code check result", {
         provider: providerType,
         hasCode,
@@ -154,9 +155,9 @@ async function handleAuthorizationCodeGrant(
     try {
       logger.debug("Using correct provider for token exchange", { provider: correctProviderType });
       const tokenProvider = correctProvider as OAuthProvider & {
-        handleTokenExchange: (req: any, res: any) => Promise<void>
+        handleTokenExchange: (req: OAuthRequestAdapter, res: OAuthResponseAdapter) => Promise<void>
       };
-      await tokenProvider.handleTokenExchange(req as any, res as any);
+      await tokenProvider.handleTokenExchange(req, res);
       logger.debug("Token exchange succeeded", { provider: correctProviderType });
       return;
     } catch (error) {
@@ -199,7 +200,8 @@ async function handleRefreshTokenGrant(
   // Get token store from any provider (they all share the same store)
   const firstProvider = providers.values().next().value;
   if (firstProvider && 'getTokenStore' in firstProvider) {
-    const tokenStore = (firstProvider as any).getTokenStore();
+    const providerWithTokenStore = firstProvider as OAuthProvider & { getTokenStore: () => { findByRefreshToken: (token: string) => Promise<{ tokenInfo?: { provider: string } } | null> } };
+    const tokenStore = providerWithTokenStore.getTokenStore();
 
     try {
       const tokenData = await tokenStore.findByRefreshToken(refresh_token);
@@ -222,7 +224,7 @@ async function handleRefreshTokenGrant(
   // If we found the correct provider, use it directly
   if (correctProvider) {
     try {
-      await correctProvider.handleTokenRefresh(req as any, res as any);
+      await correctProvider.handleTokenRefresh(req as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[0], res as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[1]);
       return; // Success
     } catch (error) {
       // Correct provider failed, don't try others
@@ -241,7 +243,7 @@ async function handleRefreshTokenGrant(
   logger.debug('Trying each provider for refresh token');
   for (const provider of providers.values()) {
     try {
-      await provider.handleTokenRefresh(req as any, res as any);
+      await provider.handleTokenRefresh(req as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[0], res as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[1]);
       return; // Success
     } catch (error) {
       // Try next provider

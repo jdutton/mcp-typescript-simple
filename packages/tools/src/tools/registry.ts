@@ -17,7 +17,7 @@ import { ToolDefinition, toMCPTool } from './types.js';
  * - Testability (can invoke tools directly without server)
  */
 export class ToolRegistry {
-  private tools: Map<string, ToolDefinition<any>> = new Map();
+  private tools: Map<string, ToolDefinition<unknown>> = new Map();
 
   /**
    * Register a tool in the registry
@@ -32,7 +32,7 @@ export class ToolRegistry {
   /**
    * Get a tool definition by name
    */
-  get(name: string): ToolDefinition<any> | undefined {
+  get(name: string): ToolDefinition<unknown> | undefined {
     return this.tools.get(name);
   }
 

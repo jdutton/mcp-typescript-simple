@@ -55,7 +55,8 @@ export async function handleUniversalRevokeRequest(
       try {
         // Check if provider has this token
         if ('getToken' in provider) {
-          const storedToken = await (provider as any).getToken(token);
+          const providerWithGetToken = provider as OAuthProvider & { getToken: (token: string) => Promise<unknown> };
+          const storedToken = await providerWithGetToken.getToken(token);
           if (storedToken) {
             // Remove token from provider's store
             await provider.removeToken(token);
