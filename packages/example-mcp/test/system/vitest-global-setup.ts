@@ -3,7 +3,7 @@
  * Manages HTTP server startup for all system tests
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 
 let globalHttpServer: ChildProcess | null = null;
 
@@ -135,7 +135,7 @@ export default async function globalSetup(): Promise<void> {
     console.log(`🚀 Vitest Global Setup: Starting HTTP server for system tests on port ${httpPort}...`);
 
     // Kill any existing processes on the target port first
-    await killProcessOnPort(parseInt(httpPort));
+    await killProcessOnPort(Number.parseInt(httpPort));
 
     // Wait for port cleanup
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -258,15 +258,15 @@ async function killProcessOnPort(port: number): Promise<void> {
           console.log(`🛑 Vitest Global Setup: Found ${pids.length} processes on port ${port}, killing: ${pids.join(', ')}`);
 
           // Kill all processes with SIGKILL
-          pids.forEach(pid => {
+          for (const pid of pids) {
             try {
-              const pidNum = parseInt(pid.trim());
+              const pidNum = Number.parseInt(pid.trim());
               process.kill(pidNum, 'SIGKILL');
               console.log(`⚡ Vitest Global Setup: Killed process ${pidNum}`);
             } catch (e) {
               console.log(`⚠️  Vitest Global Setup: Failed to kill process ${pid}: ${(e as Error).message}`);
             }
-          });
+          }
 
           // Also kill any tsx processes just to be sure
           spawn('pkill', ['-9', '-f', 'tsx src/index.ts'], { stdio: 'ignore' });

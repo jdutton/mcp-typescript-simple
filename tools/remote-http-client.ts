@@ -1,6 +1,6 @@
 #!/usr/bin/env -S npx tsx
 
-import { createInterface } from 'readline';
+import { createInterface } from 'node:readline';
 
 interface MCPRequest {
   jsonrpc: string;
@@ -611,12 +611,12 @@ class RemoteHTTPMCPClient {
       return;
     }
 
-    this.availableTools.forEach((tool) => {
+    for (const tool of this.availableTools) {
       const params = this.getToolParameters(tool);
       console.log(`  • ${tool.name} ${params}`);
       console.log(`    ${tool.description}`);
       console.log();
-    });
+    }
   }
 
   private async describeTool(toolName: string): Promise<void> {
@@ -756,7 +756,7 @@ function parseArgs(): ClientConfig {
 
       case '--timeout':
         if (!next) throw new Error('--timeout requires a value');
-        config.timeout = parseInt(next, 10);
+        config.timeout = Number.parseInt(next, 10);
         if (isNaN(config.timeout!)) throw new Error('--timeout must be a number');
         i++;
         break;

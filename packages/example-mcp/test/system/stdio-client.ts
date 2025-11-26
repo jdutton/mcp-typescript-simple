@@ -9,7 +9,7 @@
  * - Graceful shutdown with SIGTERM → SIGKILL cascade
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import { registerProcess } from '@mcp-typescript-simple/testing/signal-handler';
 
 export interface MCPRequest {
@@ -286,10 +286,10 @@ export class STDIOTestClient {
     this.isStarted = false;
 
     // Reject all pending requests
-    this.pendingRequests.forEach(({ reject, timer }) => {
+    for (const { reject, timer } of this.pendingRequests) {
       clearTimeout(timer);
       reject(new Error('Server connection lost'));
-    });
+    }
     this.pendingRequests.clear();
 
     // Unregister from signal handler

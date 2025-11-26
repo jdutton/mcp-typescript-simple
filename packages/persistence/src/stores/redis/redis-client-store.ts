@@ -196,7 +196,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       // Get all client IDs from index
       const clientIds = await this.redis.smembers(INDEX_KEY);
 
-      if (!clientIds || clientIds.length === 0) {
+      if (clientIds?.length === 0) {
         return [];
       }
 
@@ -242,7 +242,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       // Get all client IDs from index
       const clientIds = await this.redis.smembers(INDEX_KEY);
 
-      if (!clientIds || clientIds.length === 0) {
+      if (clientIds?.length === 0) {
         return 0;
       }
 
@@ -292,7 +292,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
     try {
       const clientIds = await this.redis.smembers(INDEX_KEY);
 
-      if (!clientIds || clientIds.length === 0) {
+      if (clientIds?.length === 0) {
         return;
       }
 

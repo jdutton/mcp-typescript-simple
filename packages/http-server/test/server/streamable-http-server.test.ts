@@ -88,7 +88,7 @@ describe('MCPStreamableHttpServer', () => {
 
   it('stops the streamable server via close callback', async () => {
     const server = makeServer();
-    const close = vi.fn((cb) => { cb?.(); return undefined; });
+    const close = vi.fn((cb) => { cb?.(); return; });
     (server as any).server = {
       close,
       on: vi.fn()
@@ -100,7 +100,7 @@ describe('MCPStreamableHttpServer', () => {
 
   it('registers streamable transport handler', async () => {
     const server = makeServer();
-    const handler = vi.fn().mockResolvedValue(undefined);
+    const handler = vi.fn().mockResolvedValue();
     server.onStreamableHTTPTransport(handler);
 
     const transport = {} as unknown as StreamableHTTPServerTransport;

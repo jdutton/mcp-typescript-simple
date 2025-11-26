@@ -19,9 +19,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore , OAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Google OAuth provider implementation
@@ -149,12 +147,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Get user information from ID token
       const ticket = await this.oauth2Client.verifyIdToken({
-        idToken: tokens.id_token || '',
+        idToken: tokens.id_token ?? '',
         audience: this.config.clientId,
       });
 
       const payload = ticket.getPayload();
-      if (!payload || !payload.sub || !payload.email) {
+      if (!payload?.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 
@@ -299,7 +297,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   async handleLogout(req: Request, res: Response): Promise<void> {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         await this.removeToken(token);
       }
@@ -470,18 +468,18 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       const tokens = result.tokens;
 
-      if (!tokens || !tokens.access_token) {
+      if (!tokens?.access_token) {
         throw new OAuthTokenError('No access token received', 'google');
       }
 
       // Get user information from ID token
       const ticket = await this.oauth2Client.verifyIdToken({
-        idToken: tokens.id_token || '',
+        idToken: tokens.id_token ?? '',
         audience: this.config.clientId,
       });
 
       const payload = ticket.getPayload();
-      if (!payload || !payload.sub || !payload.email) {
+      if (!payload?.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 
@@ -523,11 +521,11 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       };
 
       // Remove undefined fields to clean up response
-      Object.keys(response).forEach(key => {
+      for (const key of Object.keys(response)) {
         if (response[key as keyof typeof response] === undefined) {
           delete response[key as keyof typeof response];
         }
-      });
+      }
 
       logger.oauthInfo('Token exchange successful', { provider: 'google', userEmail: userInfo.email });
       logger.oauthDebug('Sending response to client', { provider: 'google', response: JSON.stringify(response, null, 2) });

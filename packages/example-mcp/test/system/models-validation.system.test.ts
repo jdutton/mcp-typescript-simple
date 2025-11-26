@@ -40,7 +40,7 @@ describe('Model Validation System Tests', () => {
       }
     });
 
-    claudeModels.forEach(model => {
+    for (const model of claudeModels) {
       it(`should successfully complete with Claude model: ${model}`, async () => {
         if (!availableProviders.includes('claude')) {
           console.log(`⏭️  Skipping ${model} - Claude not configured`);
@@ -74,7 +74,7 @@ describe('Model Validation System Tests', () => {
           throw new Error(`Claude model '${model}' failed: ${errorMessage}`);
         }
       });
-    });
+    }
   });
 
   describe('OpenAI Models', () => {
@@ -92,7 +92,7 @@ describe('Model Validation System Tests', () => {
       }
     });
 
-    openaiModels.forEach(model => {
+    for (const model of openaiModels) {
       it(`should successfully complete with OpenAI model: ${model}`, async () => {
         if (!availableProviders.includes('openai')) {
           console.log(`⏭️  Skipping ${model} - OpenAI not configured`);
@@ -126,7 +126,7 @@ describe('Model Validation System Tests', () => {
           throw new Error(`OpenAI model '${model}' failed: ${errorMessage}`);
         }
       });
-    });
+    }
   });
 
   describe('Gemini Models', () => {
@@ -142,7 +142,7 @@ describe('Model Validation System Tests', () => {
       }
     });
 
-    geminiModels.forEach(model => {
+    for (const model of geminiModels) {
       it(`should successfully complete with Gemini model: ${model}`, async () => {
         if (!availableProviders.includes('gemini')) {
           console.log(`⏭️  Skipping ${model} - Gemini not configured`);
@@ -176,7 +176,7 @@ describe('Model Validation System Tests', () => {
           throw new Error(`Gemini model '${model}' failed: ${errorMessage}`);
         }
       });
-    });
+    }
   });
 
   describe('Model Availability Summary', () => {
@@ -194,11 +194,11 @@ describe('Model Validation System Tests', () => {
       console.log('\n📊 Model Validation Summary:');
       console.log('═══════════════════════════════════════════════════════');
 
-      schemaInfo.providers.forEach(provider => {
+      for (const provider of schemaInfo.providers) {
         console.log(`\n${provider.name.toUpperCase()}:`);
         console.log(`  Models: ${provider.models.join(', ')}`);
         console.log(`  Status: ✅ Available (${provider.models.length} models)`);
-      });
+      }
 
       console.log('\n═══════════════════════════════════════════════════════\n');
 

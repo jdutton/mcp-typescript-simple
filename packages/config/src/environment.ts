@@ -89,7 +89,7 @@ export class EnvironmentConfig {
       MCP_MODE: process.env.MCP_MODE || 'stdio',
       MCP_DEV_SKIP_AUTH: process.env.MCP_DEV_SKIP_AUTH === 'true',
       OAUTH_MOCK_MODE: process.env.OAUTH_MOCK_MODE === 'true',
-      HTTP_PORT: parseInt(process.env.HTTP_PORT || '3000', 10),
+      HTTP_PORT: Number.parseInt(process.env.HTTP_PORT || '3000', 10),
       HTTP_HOST: process.env.HTTP_HOST || 'localhost',
       MCP_LEGACY_CLIENT_SUPPORT: process.env.MCP_LEGACY_CLIENT_SUPPORT !== 'false',
 
@@ -167,7 +167,7 @@ export class EnvironmentConfig {
     const configured: string[] = [];
     const missing: string[] = [];
 
-    secretKeys.forEach(key => {
+    for (const key of secretKeys) {
       const value = env[key];
       // Special handling for SESSION_SECRET which has a default value
       if (key === 'SESSION_SECRET') {
@@ -184,7 +184,7 @@ export class EnvironmentConfig {
           missing.push(key);
         }
       }
-    });
+    }
 
     return {
       configuration,
@@ -218,7 +218,7 @@ export class EnvironmentConfig {
    */
   static logConfiguration(): void {
     if (!this._logger) {
-      // eslint-disable-next-line no-console
+       
       console.warn('EnvironmentConfig: Logger not set, skipping configuration logging');
       return;
     }

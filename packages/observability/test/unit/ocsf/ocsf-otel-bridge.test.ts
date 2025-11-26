@@ -302,7 +302,7 @@ describe('OCSFOTELBridge', () => {
 
     it('should use correlation_uid as trace_id when span not available', () => {
       // No active span
-      vi.spyOn(trace, 'getActiveSpan').mockReturnValue(undefined);
+      vi.spyOn(trace, 'getActiveSpan').mockReturnValue();
 
       const event = logonEvent()
         .user({ name: 'testuser' })

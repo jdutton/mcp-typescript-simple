@@ -15,7 +15,7 @@ export class Logger {
 
   static getInstance(): Logger {
     if (!Logger.instance) {
-      const level = (process.env.LOG_LEVEL as LogLevel) || 'info';
+      const level = (process.env.LOG_LEVEL as LogLevel) ?? 'info';
       Logger.instance = new Logger(level);
     }
     return Logger.instance;
@@ -51,7 +51,7 @@ export class Logger {
 
   error(message: string, error?: Error | unknown): void {
     if (this.shouldLog('error')) {
-      console.error(`[ERROR] ${message}`, error || '');
+      console.error(`[ERROR] ${message}`, error ?? '');
     }
   }
 

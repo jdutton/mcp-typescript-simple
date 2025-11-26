@@ -460,10 +460,10 @@ describeSystemTest('Tools Execution System', () => {
 
       const responses = await Promise.all(requests);
 
-      responses.forEach((response, index) => {
+      for (const [index, response] of responses.entries()) {
         expect(response.result).toBeDefined();
         expect(response.id).toBe(`concurrent-${index}`);
-      });
+      }
 
       console.log(`🔄 Concurrent tool execution: ${responses.length} tools completed successfully`);
     });

@@ -101,13 +101,13 @@ export default async function globalTeardown(): Promise<void> {
         console.log('✅ Vitest Global Teardown: HTTP server stopped');
 
         // Also cleanup any remaining tsx processes
-        const { spawn } = await import('child_process');
+        const { spawn } = await import('node:child_process');
         spawn('pkill', ['-f', 'tsx src/index.ts'], { stdio: 'ignore' });
 
       } catch (error) {
         console.error(`⚠️  Vitest Global Teardown: Error stopping server: ${(error as Error).message}`);
         // Try to kill any remaining processes on port 3001
-        const { spawn } = await import('child_process');
+        const { spawn } = await import('node:child_process');
         spawn('pkill', ['-f', 'tsx src/index.ts'], { stdio: 'ignore' });
       }
     } else {

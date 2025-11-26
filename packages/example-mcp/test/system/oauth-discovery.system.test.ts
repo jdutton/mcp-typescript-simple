@@ -198,9 +198,9 @@ describeSystemTest('OAuth Discovery', () => {
       const metadata = response.data;
 
       const expectedToolTypes = ['function', 'text_generation', 'analysis'];
-      expectedToolTypes.forEach(toolType => {
+      for (const toolType of expectedToolTypes) {
         expect(metadata.supported_tool_types).toContain(toolType);
-      });
+      }
     });
   });
 
@@ -233,9 +233,9 @@ describeSystemTest('OAuth Discovery', () => {
 
       if (!metadata.message && metadata.claims_supported) {
         const expectedClaims = ['sub', 'name', 'email'];
-        expectedClaims.forEach(claim => {
+        for (const claim of expectedClaims) {
           expect(metadata.claims_supported).toContain(claim);
-        });
+        }
       }
     });
   });

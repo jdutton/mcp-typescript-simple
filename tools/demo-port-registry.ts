@@ -11,7 +11,7 @@
  * 4. Port status monitoring
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import {
   getAllTestPorts,
   getHeadlessPorts,

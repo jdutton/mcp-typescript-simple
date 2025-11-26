@@ -20,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Parse the URL path to determine the admin endpoint
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const url = new URL(req.url ?? '', `http://${req.headers.host}`);
     const pathSegments = url.pathname.split('/').filter(Boolean);
 
     // Remove 'api' and 'admin' from path segments to get the actual admin path
@@ -40,7 +40,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             activeSessions: 0,
             expiredSessions: 0
           },
-          region: process.env.VERCEL_REGION || 'unknown',
+          region: process.env.VERCEL_REGION ?? 'unknown',
           deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
           note: 'Serverless deployments do not maintain persistent sessions between requests'
         });
@@ -70,11 +70,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'GET') {
         const response = buildInfoResponse({
           deployment: 'vercel',
-          region: process.env.VERCEL_REGION || 'unknown',
+          region: process.env.VERCEL_REGION ?? 'unknown',
           deploymentId: process.env.VERCEL_DEPLOYMENT_ID?.substring(0, 12) || 'local',
           deploymentUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'unknown',
-          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-          gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown',
+          gitBranch: process.env.VERCEL_GIT_COMMIT_REF ?? 'unknown',
           uptime: process.uptime(),
           memoryUsage: process.memoryUsage(),
           cpuUsage: process.cpuUsage(),
@@ -90,10 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (req.method === 'GET') {
         const response = buildMetricsResponse({
           deployment: 'vercel',
-          region: process.env.VERCEL_REGION || 'unknown',
+          region: process.env.VERCEL_REGION ?? 'unknown',
           deploymentId: process.env.VERCEL_DEPLOYMENT_ID || 'local',
-          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-          gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+          gitCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown',
+          gitBranch: process.env.VERCEL_GIT_COMMIT_REF ?? 'unknown',
         });
 
         res.status(200).json(response);

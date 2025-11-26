@@ -205,7 +205,7 @@ export class ObservabilityLogger {
   private addTraceContextToData(data?: unknown): unknown {
     if (this.hasTransports) {
       // When using transports, manually add trace context
-      const traceData = this.addTraceContext(data as Record<string, unknown> || {});
+      const traceData = this.addTraceContext(data as Record<string, unknown> ?? {});
       return traceData;
     }
     return data;
@@ -215,19 +215,19 @@ export class ObservabilityLogger {
   debug(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.debug(dataWithTrace || {}, sanitizedMessage);
+    this.pino.debug(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   info(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.info(dataWithTrace || {}, sanitizedMessage);
+    this.pino.info(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   warn(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.warn(dataWithTrace || {}, sanitizedMessage);
+    this.pino.warn(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   error(message: string, error?: Error | unknown): void {
@@ -243,7 +243,7 @@ export class ObservabilityLogger {
     } else if (error) {
       const { data: sanitizedError } = this.sanitizeForProduction('', error);
       const dataWithTrace = this.addTraceContextToData(sanitizedError);
-      this.pino.error(dataWithTrace || {}, sanitizedMessage);
+      this.pino.error(dataWithTrace ?? {}, sanitizedMessage);
     } else {
       const dataWithTrace = this.addTraceContextToData({});
       this.pino.error(dataWithTrace, sanitizedMessage);

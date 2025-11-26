@@ -538,7 +538,7 @@ export class LLMManager {
 
     const key = {
       message: request.message,
-      systemPrompt: request.systemPrompt || '',
+      systemPrompt: request.systemPrompt ?? '',
       temperature: request.temperature ?? defaultTemperature,
       provider,
       model

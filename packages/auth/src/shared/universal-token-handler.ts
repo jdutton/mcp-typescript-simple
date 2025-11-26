@@ -34,7 +34,7 @@ export async function handleUniversalTokenRequest(
   providers: Map<string, OAuthProvider>
 ): Promise<void> {
   try {
-    const { grant_type, refresh_token, code } = req.body || {};
+    const { grant_type, refresh_token, code } = req.body ?? {};
 
     logger.debug("Multi-provider token handler", {
       grant_type,
@@ -99,7 +99,7 @@ async function handleAuthorizationCodeGrant(
     codeVerifierPrefix: req.body?.code_verifier?.substring(0, 8),
     hasClientId: !!req.body?.client_id,
     hasRedirectUri: !!req.body?.redirect_uri,
-    allBodyKeys: Object.keys(req.body || {})
+    allBodyKeys: Object.keys(req.body ?? {})
   });
 
   // Find the correct provider by checking who has the authorization code
@@ -204,7 +204,7 @@ async function handleRefreshTokenGrant(
     try {
       const tokenData = await tokenStore.findByRefreshToken(refresh_token);
 
-      if (tokenData && tokenData.tokenInfo) {
+      if (tokenData?.tokenInfo) {
         const providerType = tokenData.tokenInfo.provider;
         correctProvider = providers.get(providerType) || null;
         correctProviderType = providerType;

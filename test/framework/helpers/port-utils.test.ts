@@ -195,13 +195,13 @@ describe('Port Utilities - Safety Logic', () => {
       const results = await cleanupLeakedTestPorts(unusedPorts);
 
       expect(results).toHaveLength(3);
-      results.forEach((result, index) => {
+      for (const [index, result] of results.entries()) {
         expect(result).toMatchObject({
           port: unusedPorts[index],
           wasInUse: false,
           success: true,
         });
-      });
+      }
     });
 
     it('should provide error details when port cannot be freed', async () => {
@@ -221,53 +221,53 @@ describe('Port Utilities - Safety Logic', () => {
     it('should never return true for database processes', () => {
       const databases = ['postgres', 'mysql', 'mongod', 'redis'];
 
-      databases.forEach((db) => {
+      for (const db of databases) {
         const processInfo: ProcessInfo = {
           pid: 1234,
           command: db,
           port: 1234,
         };
         expect(isTestProcess(processInfo)).toBe(false);
-      });
+      }
     });
 
     it('should never return true for web servers', () => {
       const servers = ['nginx', 'apache', 'httpd'];
 
-      servers.forEach((server) => {
+      for (const server of servers) {
         const processInfo: ProcessInfo = {
           pid: 1234,
           command: server,
           port: 80,
         };
         expect(isTestProcess(processInfo)).toBe(false);
-      });
+      }
     });
 
     it('should never return true for system processes', () => {
       const systemProcesses = ['systemd', 'launchd', 'kernel_task'];
 
-      systemProcesses.forEach((proc) => {
+      for (const proc of systemProcesses) {
         const processInfo: ProcessInfo = {
           pid: 1,
           command: proc,
           port: 1234,
         };
         expect(isTestProcess(processInfo)).toBe(false);
-      });
+      }
     });
 
     it('should always return true for known test runners', () => {
       const testRunners = ['vitest', 'playwright'];
 
-      testRunners.forEach((runner) => {
+      for (const runner of testRunners) {
         const processInfo: ProcessInfo = {
           pid: 1234,
           command: runner,
           port: 3000,
         };
         expect(isTestProcess(processInfo)).toBe(true);
-      });
+      }
     });
   });
 

@@ -144,11 +144,11 @@ export class ClientStoreFactory {
       storeType: (process.env.DCR_STORE_TYPE as ClientStoreType) ?? 'auto',
       filePath: process.env.DCR_FILE_PATH,
       defaultSecretExpirySeconds: process.env.DCR_DEFAULT_SECRET_EXPIRY
-        ? parseInt(process.env.DCR_DEFAULT_SECRET_EXPIRY, 10)
+        ? Number.parseInt(process.env.DCR_DEFAULT_SECRET_EXPIRY, 10)
         : undefined,
       enableAutoCleanup: process.env.DCR_ENABLE_AUTO_CLEANUP === 'true',
       maxClients: process.env.DCR_MAX_CLIENTS
-        ? parseInt(process.env.DCR_MAX_CLIENTS, 10)
+        ? Number.parseInt(process.env.DCR_MAX_CLIENTS, 10)
         : undefined,
     };
   }

@@ -93,10 +93,10 @@ describe('EncryptedFileSecretsProvider', () => {
     });
 
     // Mock fs promises
-    (fs.mkdir as Mock).mockResolvedValue(undefined);
-    (fs.writeFile as Mock).mockResolvedValue(undefined);
-    (fs.copyFile as Mock).mockResolvedValue(undefined);
-    (fs.rename as Mock).mockResolvedValue(undefined);
+    (fs.mkdir as Mock).mockResolvedValue();
+    (fs.writeFile as Mock).mockResolvedValue();
+    (fs.copyFile as Mock).mockResolvedValue();
+    (fs.rename as Mock).mockResolvedValue();
   });
 
   afterEach(async () => {

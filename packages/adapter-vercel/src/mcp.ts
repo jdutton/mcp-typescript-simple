@@ -10,7 +10,6 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { ToolRegistry } from "@mcp-typescript-simple/tools";
 import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
@@ -147,14 +146,14 @@ async function getInstanceManager(): Promise<MCPInstanceManager> {
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const startTime = Date.now();
-  const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const requestId = req.headers['x-request-id'] ?? `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
     logger.debug("MCP serverless request received", {
       requestId,
       method: req.method,
       url: req.url,
-      userAgent: req.headers['user-agent'] || 'unknown'
+      userAgent: req.headers['user-agent'] ?? 'unknown'
     });
 
     // Set CORS headers for browser requests
@@ -215,7 +214,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Validate Bearer token
         const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!authHeader?.startsWith('Bearer ')) {
           logger.warn("Missing or invalid Authorization header", { requestId });
           res.status(401).json({
             jsonrpc: '2.0',
@@ -318,7 +317,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         eventStore: undefined,
         allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
         allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
-        enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
+        enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS ?? process.env.ALLOWED_ORIGINS),
       });
 
       // Create new server using tool registry

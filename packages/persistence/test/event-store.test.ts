@@ -35,7 +35,7 @@ describe('MemoryEventStore', () => {
     expect(internal.events.size).toBe(3);
     expect(internal.streamEvents.get('stream-1')).toEqual([firstId, secondId, thirdId]);
 
-    const send = vi.fn().mockResolvedValue(undefined);
+    const send = vi.fn().mockResolvedValue();
     const streamId = await store.replayEventsAfter(firstId, { send });
 
     expect(streamId).toBe('stream-1');
@@ -61,7 +61,7 @@ describe('MemoryEventStore', () => {
     const total = 1005;
     const ids: string[] = [];
     for (let i = 0; i < total; i++) {
-      // eslint-disable-next-line no-await-in-loop
+       
       ids.push(await store.storeEvent('stream-x', createMessage(String(i))));
     }
 

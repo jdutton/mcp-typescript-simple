@@ -9,8 +9,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthProvider } from '@mcp-typescript-simple/auth';
-import { createOAuthDiscoveryMetadata } from '@mcp-typescript-simple/auth';
+import { OAuthProvider , createOAuthDiscoveryMetadata } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
 
 export interface DiscoveryRoutesOptions {
@@ -143,7 +142,7 @@ export function setupDiscoveryRoutes(
           supported_tool_types: ['function', 'text_generation', 'analysis'],
           scopes_supported: ['mcp:read', 'mcp:write'],
           session_management: {
-            resumability_supported: options.enableResumability || false
+            resumability_supported: options.enableResumability ?? false
           },
           message: 'OAuth provider not configured'
         });

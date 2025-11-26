@@ -9,9 +9,9 @@
  */
 
 import { Page, expect } from '@playwright/test';
-import { ChildProcess, spawn } from 'child_process';
+import { ChildProcess, spawn } from 'node:child_process';
 import axios from 'axios';
-import { setTimeout as sleep } from 'timers/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { verifyPortsFreed } from './port-utils.js';
 import { stopProcessGroup } from './process-utils.js';
 import { setupTestEnvironment, TestEnvironmentCleanup } from './test-setup.js';

@@ -151,7 +151,7 @@ export class OAuthDiscoveryMetadata {
       ],
       scopes_supported: ['mcp:read', 'mcp:write'],
       session_management: {
-        resumability_supported: this.options.enableResumability || false,
+        resumability_supported: this.options.enableResumability ?? false,
         session_timeout_seconds: this.options.sessionTimeoutSeconds
       }
     };

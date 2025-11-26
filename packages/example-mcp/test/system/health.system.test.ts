@@ -141,9 +141,9 @@ describeSystemTest('Health Endpoint', () => {
 
       // Validate provider names if any are present
       if (health.llm_providers && health.llm_providers.length > 0) {
-        health.llm_providers.forEach(provider => {
+        for (const provider of health.llm_providers) {
           expect(provider).toMatch(/^(claude|openai|gemini)$/);
-        });
+        }
       }
     });
   });

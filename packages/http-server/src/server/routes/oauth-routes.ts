@@ -9,21 +9,16 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthProvider, OAuthProviderType } from '@mcp-typescript-simple/auth';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
-import { setupDCRRoutes } from './dcr-routes.js';
-import { logger } from '@mcp-typescript-simple/observability';
-import { generateLoginPageHTML } from '@mcp-typescript-simple/auth';
-import { setOAuthAntiCachingHeaders } from '@mcp-typescript-simple/auth';
-import { handleUniversalTokenRequest } from '@mcp-typescript-simple/auth';
-import { handleUniversalRevokeRequest } from '@mcp-typescript-simple/auth';
-import {
+import { OAuthProvider, OAuthProviderType , generateLoginPageHTML , setOAuthAntiCachingHeaders , handleUniversalTokenRequest , handleUniversalRevokeRequest ,
   handleProviderAuthorizationRequest,
   handleProviderAuthorizationCallback,
   handleProviderLogout,
   handleOAuthDiscovery,
   handleGenericAuthorize
 } from '@mcp-typescript-simple/auth';
+import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
+import { setupDCRRoutes } from './dcr-routes.js';
+import { logger } from '@mcp-typescript-simple/observability';
 
 /**
  * Setup OAuth 2.0 authentication routes with multi-provider support

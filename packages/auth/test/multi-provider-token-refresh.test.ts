@@ -47,11 +47,11 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -142,7 +142,7 @@ describe('Multi-Provider Token Refresh', () => {
           accessToken: 'github-access-token',
           tokenInfo: githubTokenInfo,
         }),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -295,11 +295,11 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const googleProvider = {
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -336,7 +336,7 @@ describe('Multi-Provider Token Refresh', () => {
       };
 
       const githubProvider = {
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);

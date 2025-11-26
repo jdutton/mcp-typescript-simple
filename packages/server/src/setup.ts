@@ -23,7 +23,7 @@ export interface ServerLogger {
 const defaultLogger: ServerLogger = {
   debug: () => {}, // Silent by default
   error: (message: string, error?: unknown) => {
-    // eslint-disable-next-line no-console
+     
     console.error(message, error);
   },
 };

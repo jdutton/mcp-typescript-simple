@@ -72,9 +72,9 @@ describe('API Contract Tests - Multi-Target OpenAPI Compliance', () => {
 
     // Add OpenAPI schemas to AJV
     if (openapiSpec.components?.schemas) {
-      Object.entries(openapiSpec.components.schemas).forEach(([name, schema]) => {
+      for (const [name, schema] of Object.entries(openapiSpec.components.schemas)) {
         ajv.addSchema(schema as any, `#/components/schemas/${name}`);
-      });
+      }
     }
   });
 

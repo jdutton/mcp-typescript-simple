@@ -269,7 +269,7 @@ describe('Scaffolding Validation Regression', () => {
   describe('Production Readiness', () => {
     it('should include all npm scripts for development', () => {
       const packageJson = JSON.parse(
-        require('fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
+        require('node:fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
       );
 
       const expectedScripts = [
@@ -295,7 +295,7 @@ describe('Scaffolding Validation Regression', () => {
 
     it('should include proper npm metadata', () => {
       const packageJson = JSON.parse(
-        require('fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
+        require('node:fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
       );
 
       expect(packageJson.name).toBeDefined();

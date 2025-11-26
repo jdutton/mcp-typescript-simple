@@ -22,7 +22,7 @@ import { logger } from '@mcp-typescript-simple/observability';
  * Extend Express Request to include validated token
  */
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
+   
   namespace Express {
     interface Request {
       initialAccessToken?: InitialAccessToken;
@@ -53,7 +53,7 @@ export function requireInitialAccessToken(tokenStore: InitialAccessTokenStore) {
 
     // Parse Bearer token
     const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (!match || !match[1]) {
+    if (!match?.[1]) {
       logger.warn('DCR auth failed: invalid Authorization header format', {
         path: req.path,
         method: req.method,

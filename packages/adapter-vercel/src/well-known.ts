@@ -41,7 +41,7 @@ async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | 
     const providers = await OAuthProviderFactory.createAllFromEnvironment();
     logger.info("OAuth provider creation completed", {
       success: !!providers,
-      count: providers?.size || 0,
+      count: providers?.size ?? 0,
       providers: providers ? Array.from(providers.keys()) : []
     });
 
@@ -70,8 +70,8 @@ async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | 
  * Get base URL from Vercel request
  */
 function getBaseUrl(req: VercelRequest): string {
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const protocol = req.headers['x-forwarded-proto'] ?? 'https';
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host;
   return `${protocol}://${host}`;
 }
 
@@ -111,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let discoveryPath = '';
     if (req.url) {
       const match = req.url.match(/\/\.well-known\/(.+?)(?:\?|$)/);
-      if (match && match[1]) {
+      if (match?.[1]) {
         discoveryPath = match[1];
       }
     }

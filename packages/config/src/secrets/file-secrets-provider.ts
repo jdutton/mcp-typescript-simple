@@ -70,7 +70,7 @@ export class FileSecretsProvider extends BaseSecretsProvider {
         // Remove quotes if present
         this.envVars[key.trim()] = value.replaceAll(/(^["'])|(["']$)/g, '');
       }
-    } catch (error) {
+    } catch (_error) {
       // .env.local doesn't exist (ENOENT) - fall back to process.env
       // This is expected behavior for environments without local env files
       this.envVars = { ...process.env } as Record<string, string>;
@@ -104,7 +104,7 @@ export class FileSecretsProvider extends BaseSecretsProvider {
     if (value.startsWith('{') || value.startsWith('[')) {
       try {
         parsedValue = JSON.parse(value);
-      } catch {
+      } catch (_error) {
         // Not JSON, keep as string
         parsedValue = value;
       }

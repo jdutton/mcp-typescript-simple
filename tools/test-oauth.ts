@@ -76,7 +76,7 @@ Examples:
   process.exit(0);
 }
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 
 interface ServerHealthData {
   auth?: string;

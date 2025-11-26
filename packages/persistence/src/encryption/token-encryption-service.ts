@@ -135,7 +135,7 @@ export class TokenEncryptionService {
       ]);
 
       return plaintext.toString('utf8');
-    } catch (error) {
+    } catch (_error) {
       // Security: Intentionally don't log or include original error details
       // Cryptographic failure details could leak information to attackers
       throw new Error(
@@ -166,7 +166,7 @@ export class TokenEncryptionService {
     const json = this.decrypt(encrypted);
     try {
       return JSON.parse(json) as T;
-    } catch (error) {
+    } catch (_error) {
       // Decryption succeeded but data is not valid JSON - data corruption or format mismatch
       throw new Error('Decrypted data is not valid JSON');
     }
@@ -191,7 +191,7 @@ export class TokenEncryptionService {
     try {
       const buffer = Buffer.from(key, 'base64');
       return buffer.length === KEY_LENGTH;
-    } catch {
+    } catch (_error) {
       return false;
     }
   }

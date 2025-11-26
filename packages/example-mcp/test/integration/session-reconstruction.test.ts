@@ -448,10 +448,10 @@ describe('Session Reconstruction Integration Tests', () => {
       const responses = await requests;
 
       // All should succeed
-      responses.forEach((response) => {
+      for (const response of responses) {
         expect(response.status).toBe(200);
         expect(response.body.result.tools).toBeInstanceOf(Array);
-      });
+      }
 
       // Should only have one cached instance (all shared same reconstruction)
       const stats = instanceManager.getStats();

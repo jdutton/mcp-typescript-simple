@@ -52,9 +52,9 @@ class MCPTestClient {
     });
 
     const responseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
+    for (const [key, value] of response.headers.entries()) {
       responseHeaders[key] = value;
-    });
+    }
 
     const data = await response.json();
     return {

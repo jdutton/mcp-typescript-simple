@@ -55,7 +55,7 @@ export class InMemoryTestTokenStore implements InitialAccessTokenStore {
     }
 
     logger.info('InMemoryTestTokenStore initialized (test/dev use only)', {
-      autoCleanup: options.autoCleanup || false,
+      autoCleanup: options.autoCleanup ?? false,
       cleanupIntervalMs: options.cleanupIntervalMs,
       encryption: 'disabled (process-isolated)',
     });

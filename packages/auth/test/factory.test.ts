@@ -1,7 +1,6 @@
 import { vi } from 'vitest';
 
-import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
-import { logger } from '@mcp-typescript-simple/auth';
+import { OAuthProviderFactory , logger } from '@mcp-typescript-simple/auth';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 

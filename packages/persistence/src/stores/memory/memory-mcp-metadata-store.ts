@@ -103,7 +103,7 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
       createdAt: new Date(sessionMetadata.createdAt).toISOString(),
       expiresAt: new Date(sessionMetadata.expiresAt).toISOString(),
       hasAuth: !!sessionMetadata.authInfo,
-      eventCount: sessionMetadata.events?.length || 0,
+      eventCount: sessionMetadata.events?.length ?? 0,
       cacheSize: this.sessions.size,
     });
   }
@@ -142,7 +142,7 @@ export class MemoryMCPMetadataStore implements MCPSessionMetadataStore {
       ageSeconds,
       ttlSeconds,
       hasAuth: !!metadata.authInfo,
-      eventCount: metadata.events?.length || 0,
+      eventCount: metadata.events?.length ?? 0,
     });
 
     return metadata;

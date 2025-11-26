@@ -12,7 +12,7 @@
  * 5. Cleanup callback support
  */
 
-import { ChildProcess } from 'child_process';
+import { ChildProcess } from 'node:child_process';
 
 /**
  * Cleanup callback function type

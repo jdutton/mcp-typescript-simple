@@ -571,7 +571,7 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
       '/.well-known/oauth-authorization-server'
     ];
 
-    endpoints.forEach(endpoint => {
+    for (const endpoint of endpoints) {
       it(`should include CORS headers on ${endpoint}`, async () => {
         // Add Accept header for /mcp endpoint
         const headers = endpoint === '/mcp'
@@ -594,6 +594,6 @@ describeSystemTest('Vercel Route Coverage System Tests', () => {
         expect(response.status).toBe(200);
         expect(response.headers['access-control-allow-origin']).toBeDefined();
       });
-    });
+    }
   });
 });

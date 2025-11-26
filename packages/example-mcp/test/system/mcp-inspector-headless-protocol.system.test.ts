@@ -102,9 +102,9 @@
  */
 
 import { test, expect, chromium, Browser } from '@playwright/test';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import axios from 'axios';
-import { setTimeout as sleep } from 'timers/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { getMockOAuthEnvVars, MOCK_USER_DATA } from '@mcp-typescript-simple/testing/mock-oauth-server';
 import {
   startMCPInspector,

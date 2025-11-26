@@ -29,12 +29,12 @@ describe('Multi-Provider Token Exchange', () => {
     it('should find correct provider by authorization code', async () => {
       const googleProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(true),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -110,7 +110,7 @@ describe('Multi-Provider Token Exchange', () => {
 
       const githubProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -208,7 +208,7 @@ describe('Multi-Provider Token Exchange', () => {
 
       const githubProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -241,12 +241,12 @@ describe('Multi-Provider Token Exchange', () => {
     it('should use correct provider when code_verifier found', async () => {
       const googleProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(true),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
         hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);

@@ -83,7 +83,7 @@ export interface OAuthUserInfo {
   name: string;         // Display name
   picture?: string;     // Profile picture URL
   provider: string;     // Provider name
-  providerData?: any;   // Provider-specific additional data
+  providerData?: Record<string, unknown>;   // Provider-specific additional data
 }
 
 /**
@@ -262,7 +262,7 @@ export class OAuthError extends Error {
     message: string,
     public code: string,
     public provider?: string,
-    public details?: any
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'OAuthError';
@@ -277,14 +277,14 @@ export class OAuthStateError extends OAuthError {
 }
 
 export class OAuthTokenError extends OAuthError {
-  constructor(message: string, provider?: string, details?: any) {
+  constructor(message: string, provider?: string, details?: Record<string, unknown>) {
     super(message, 'token_error', provider, details);
     this.name = 'OAuthTokenError';
   }
 }
 
 export class OAuthProviderError extends OAuthError {
-  constructor(message: string, provider?: string, details?: any) {
+  constructor(message: string, provider?: string, details?: Record<string, unknown>) {
     super(message, 'provider_error', provider, details);
     this.name = 'OAuthProviderError';
   }

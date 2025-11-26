@@ -146,7 +146,7 @@ export function getAllTestPorts(): number[] {
 export function getHTTPTestPort(): number {
   const envPort = process.env.HTTP_TEST_PORT;
   if (envPort) {
-    return parseInt(envPort, 10);
+    return Number.parseInt(envPort, 10);
   }
   return TEST_PORTS.ALTERNATIVE_HTTP;
 }

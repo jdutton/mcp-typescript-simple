@@ -10,8 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import { RedisPKCEStore } from '../../src/index.js';
-import { PKCEData } from '../../src/index.js';
+import { RedisPKCEStore , PKCEData } from '../../src/index.js';
 
 // Hoist Redis mock to avoid initialization issues
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
@@ -383,9 +382,9 @@ describe('RedisPKCEStore', () => {
       );
 
       // Verify all match
-      retrieved.forEach((data, i) => {
+      for (const [i, data] of retrieved.entries()) {
         expect(data).toEqual(dataArray[i]);
-      });
+      }
     });
 
     it('should handle interleaved operations', async () => {

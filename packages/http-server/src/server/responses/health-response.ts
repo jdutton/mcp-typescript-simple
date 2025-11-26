@@ -97,8 +97,8 @@ export function buildHealthResponse(options: HealthResponseOptions): HealthRespo
   // Add feature flags if provided (Express deployment)
   if (options.enableResumability !== undefined || options.enableJsonResponse !== undefined) {
     response.features = {
-      resumability: options.enableResumability || false,
-      jsonResponse: options.enableJsonResponse || false,
+      resumability: options.enableResumability ?? false,
+      jsonResponse: options.enableJsonResponse ?? false,
     };
   }
 

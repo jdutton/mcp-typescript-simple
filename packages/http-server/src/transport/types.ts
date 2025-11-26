@@ -10,7 +10,7 @@ import type { ToolRegistry } from "@mcp-typescript-simple/tools";
 /**
  * Configuration options for different transport types
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+ 
 export interface StdioTransportOptions {
   // Currently no configuration options for STDIO transport
   // This interface is reserved for future configuration options

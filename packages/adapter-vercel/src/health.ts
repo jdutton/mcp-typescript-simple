@@ -28,11 +28,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const healthResponse = buildHealthResponse({
       deployment: 'vercel',
       mode: 'streamable_http',
-      region: process.env.VERCEL_REGION || 'unknown',
+      region: process.env.VERCEL_REGION ?? 'unknown',
       deploymentId: process.env.VERCEL_DEPLOYMENT_ID || 'local',
       deploymentUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
-      gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-      gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+      gitCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown',
+      gitBranch: process.env.VERCEL_GIT_COMMIT_REF ?? 'unknown',
     });
 
     res.status(200).json(healthResponse);

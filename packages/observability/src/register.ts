@@ -118,7 +118,7 @@ if (environment === 'test') {
               // Add custom attributes for HTTP requests
               span.setAttributes({
                 'mcp.component': 'http-server',
-                'http.target': (request as any).url || ''
+                'http.target': (request as any).url ?? ''
               });
             }
           },

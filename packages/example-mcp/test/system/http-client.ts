@@ -10,7 +10,7 @@
  * - Graceful shutdown with SIGTERM → SIGKILL cascade
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import { getHTTPTestPort } from '@mcp-typescript-simple/testing/port-registry';
 import { registerProcess } from '@mcp-typescript-simple/testing/signal-handler';
 
@@ -206,24 +206,24 @@ export class HTTPTestClient {
             console.log(`🛑 Killing existing processes on port ${port}: ${pids.join(', ')}`);
 
             // Kill all processes
-            pids.forEach(pid => {
+            for (const pid of pids) {
               try {
-                process.kill(parseInt(pid), 'SIGTERM');
+                process.kill(Number.parseInt(pid), 'SIGTERM');
               } catch {
                 // Process might already be dead, ignore
               }
-            });
+            }
 
             // Wait longer for graceful shutdown in test environment
             setTimeout(() => {
               // Force kill if still running
-              pids.forEach(pid => {
+              for (const pid of pids) {
                 try {
-                  process.kill(parseInt(pid), 'SIGKILL');
+                  process.kill(Number.parseInt(pid), 'SIGKILL');
                 } catch {
                   // Process might already be dead, ignore
                 }
-              });
+              }
               // Additional wait to ensure port is freed
               setTimeout(resolve, 500);
             }, 2000);

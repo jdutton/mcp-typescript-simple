@@ -47,7 +47,7 @@ describe('MCP server bootstrap', () => {
     const transportStart = vi.fn(async () => {
       startResolve();
     });
-    const transportStop = vi.fn(async () => undefined);
+    const transportStop = vi.fn(async () => {});
     const transportGetInfo = vi.fn(() => 'stdio');
 
     const transportManager = {
@@ -62,10 +62,10 @@ describe('MCP server bootstrap', () => {
 
     // Mock package imports
     const llmModule = await import('@mcp-typescript-simple/tools-llm');
-    const initializeSpy = vi.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue(undefined);
+    const initializeSpy = vi.spyOn(llmModule.LLMManager.prototype, 'initialize').mockResolvedValue();
 
     const setupModule = await import('@mcp-typescript-simple/server');
-    const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServerWithRegistry').mockResolvedValue(undefined);
+    const setupMCPServerSpy = vi.spyOn(setupModule, 'setupMCPServerWithRegistry').mockResolvedValue();
 
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
       throw new Error(`process.exit called with ${code}`);

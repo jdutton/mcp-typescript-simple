@@ -3,7 +3,7 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { createServer, Server as HttpServer } from 'http';
+import { createServer, Server as HttpServer } from 'node:http';
 import helmet from 'helmet';
 import cors from 'cors';
 import * as OpenApiValidator from 'express-openapi-validator';
@@ -11,21 +11,15 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
-import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
-import { OAuthProvider, OAuthUserInfo } from '@mcp-typescript-simple/auth';
+import { OAuthProviderFactory , OAuthProvider, OAuthUserInfo , OAuthProviderType } from '@mcp-typescript-simple/auth';
 import { generateSessionId } from '../session/session-utils.js';
 import { createSessionManager, type SessionManager } from '../session/index.js';
-import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
-import { ClientStoreFactory } from '@mcp-typescript-simple/persistence';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
-import { TokenStoreFactory } from '@mcp-typescript-simple/persistence';
-import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
+import { EventStoreFactory , ClientStoreFactory , OAuthRegisteredClientsStore , TokenStoreFactory , InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
 import { MCPInstanceManager } from './mcp-instance-manager.js';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
-import { OAuthProviderType } from '@mcp-typescript-simple/auth';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
@@ -360,10 +354,10 @@ export class MCPStreamableHttpServer {
         method: req.method,
         path: req.path,
         client: req.ip,
-        userAgent: req.headers['user-agent'] || 'unknown',
+        userAgent: req.headers['user-agent'] ?? 'unknown',
         auth: sanitizedAuth,
         contentType: req.headers['content-type'] || 'none',
-        bodySize: req.headers['content-length'] || 'unknown',
+        bodySize: req.headers['content-length'] ?? 'unknown',
         accept: req.headers.accept
       });
 
@@ -491,7 +485,7 @@ export class MCPStreamableHttpServer {
     // Catch-all error handler with enhanced logging
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-      const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+      const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
       logger.error("Express error handler caught error", {
         requestId,
@@ -583,7 +577,7 @@ export class MCPStreamableHttpServer {
     // Create custom auth middleware with multi-provider support
     const authMiddleware = this.options.requireAuth && this.oauthProviders
       ? async (req: Request, res: Response, next: NextFunction) => {
-          const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+          const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
           // Allow OPTIONS requests without authentication (CORS preflight)
           if (req.method === 'OPTIONS') {
@@ -595,7 +589,7 @@ export class MCPStreamableHttpServer {
 
           // Extract Bearer token from Authorization header
           const authHeader = req.headers.authorization;
-          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          if (!authHeader?.startsWith('Bearer ')) {
             logger.warn("Auth failed: Missing or invalid Authorization header", { requestId });
             this.sendUnauthorizedResponse(res, requestId, 'Missing or invalid Authorization header');
             return;
@@ -648,7 +642,7 @@ export class MCPStreamableHttpServer {
               provider: providerType,
               clientId: authInfo.clientId,
               scopes: authInfo.scopes?.join(', ') || 'none',
-              user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
+              user: userInfo ? (userInfo.email || userInfo.sub ?? 'unknown') : undefined
             });
 
             next();
@@ -662,14 +656,14 @@ export class MCPStreamableHttpServer {
           }
         }
       : (req: Request, res: Response, next: NextFunction) => {
-          const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+          const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
           logger.debug("Auth middleware bypassed (auth not required)", { requestId });
           next();
         };
 
     // Streamable HTTP endpoint (GET, POST, DELETE)
     const mcpHandler = async (req: Request, res: Response): Promise<void> => {
-      const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+      const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
       try {
         logger.debug("MCP handler starting Streamable HTTP processing", {
@@ -966,7 +960,7 @@ export class MCPStreamableHttpServer {
     try {
       // Store session metadata in instance manager for horizontal scalability
       await this.instanceManager.storeSessionMetadata(sessionId, authInfo ? {
-        provider: authInfo.extra?.provider as string || 'unknown',
+        provider: authInfo.extra?.provider as string ?? 'unknown',
         userId: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).sub : undefined,
         email: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).email : undefined,
       } : undefined);

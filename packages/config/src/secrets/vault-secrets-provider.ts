@@ -90,7 +90,7 @@ export class VaultSecretsProvider extends BaseSecretsProvider {
     super(options);
 
     this.vaultAddr = options.vaultAddr || process.env.VAULT_ADDR || 'http://localhost:8200';
-    this.vaultToken = options.vaultToken || process.env.VAULT_TOKEN || '';
+    this.vaultToken = options.vaultToken || process.env.VAULT_TOKEN ?? '';
     this.vaultNamespace = options.vaultNamespace || process.env.VAULT_NAMESPACE;
     this.mountPoint = options.mountPoint || 'secret';
     this.basePath = options.basePath || 'mcp-server';

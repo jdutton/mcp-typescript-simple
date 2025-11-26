@@ -29,7 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Parse the URL path to determine the docs endpoint
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const url = new URL(req.url ?? '', `http://${req.headers.host}`);
     const pathname = url.pathname;
 
     logger.debug("Docs request received", { method: req.method, path: pathname });
@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Homepage at / (root)
     if (pathname === '/' || pathname === '') {
-      const acceptHeader = req.headers.accept || '';
+      const acceptHeader = req.headers.accept ?? '';
 
       // Load homepage content
       let homepageMd: string | null = null;

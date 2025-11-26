@@ -29,7 +29,7 @@ export class StdioTransportManager implements TransportManager {
 
   constructor(private options: StdioTransportOptions) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   async initialize(server: Server, _toolRegistry?: ToolRegistry): Promise<void> {
     this.server = server;
     this.transport = new StdioServerTransport();

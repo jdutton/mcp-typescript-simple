@@ -138,7 +138,7 @@ describe('Analyze Tool', () => {
   describe('Analysis Type Selection', () => {
     const analysisTypes = ['sentiment', 'themes', 'structure', 'comprehensive', 'summary'] as const;
 
-    analysisTypes.forEach(analysisType => {
+    for (const analysisType of analysisTypes) {
       it(`should handle ${analysisType} analysis type`, async () => {
         const { manager, completeMock } = createMockManager();
         const tool = createAnalyzeTool(manager);
@@ -152,7 +152,7 @@ describe('Analyze Tool', () => {
         const callArgs = completeMock.mock.calls[0]?.[0];
         expect(callArgs?.systemPrompt).toBeDefined();
       });
-    });
+    }
 
     it('should use comprehensive analysis as default', async () => {
       const { manager, completeMock } = createMockManager();

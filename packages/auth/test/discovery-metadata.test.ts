@@ -7,8 +7,7 @@ import {
   type ProtectedResourceMetadata,
   type MCPProtectedResourceMetadata,
   type OpenIDConnectConfiguration
-} from '@mcp-typescript-simple/auth';
-import type { OAuthProvider, OAuthEndpoints, OAuthProviderType } from '@mcp-typescript-simple/auth';
+, OAuthProvider, OAuthEndpoints, OAuthProviderType } from '@mcp-typescript-simple/auth';
 
 describe('OAuthDiscoveryMetadata', () => {
   let mockProvider: Mocked<OAuthProvider>;
@@ -347,7 +346,7 @@ describe('OAuthDiscoveryMetadata', () => {
     it('exercises all provider types through public methods', () => {
       const providerTypes: OAuthProviderType[] = ['google', 'github', 'microsoft', 'generic'];
 
-      providerTypes.forEach(providerType => {
+      for (const providerType of providerTypes) {
         mockProvider.getProviderType.mockReturnValue(providerType);
         const generator = new OAuthDiscoveryMetadata(mockProvider, baseUrl);
 
@@ -366,7 +365,7 @@ describe('OAuthDiscoveryMetadata', () => {
           expect(authMetadata.service_documentation).toBeDefined();
           expect(authMetadata.userinfo_endpoint).toBeDefined();
         }
-      });
+      }
     });
 
     it('exercises different endpoint configurations', () => {

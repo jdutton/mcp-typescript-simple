@@ -320,9 +320,9 @@ class VercelConfigTestRunner {
 
     if (failed > 0) {
       console.log('\nFailed tests:');
-      this.results.filter(r => !r.passed).forEach(r => {
+      for (const r of this.results.filter(r => !r.passed)) {
         console.log(`❌ ${r.name}: ${r.error}`);
-      });
+      }
     } else {
       console.log('\n✅ All Vercel configuration tests passed!');
     }

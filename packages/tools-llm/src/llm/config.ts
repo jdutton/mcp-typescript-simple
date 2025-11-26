@@ -12,9 +12,9 @@ export class LLMConfigManager {
 
   async loadConfig(): Promise<LLMConfig> {
     // Read directly from process.env
-    const claudeKey = process.env.ANTHROPIC_API_KEY || '';
-    const openaiKey = process.env.OPENAI_API_KEY || '';
-    const geminiKey = process.env.GOOGLE_API_KEY || '';
+    const claudeKey = process.env.ANTHROPIC_API_KEY ?? '';
+    const openaiKey = process.env.OPENAI_API_KEY ?? '';
+    const geminiKey = process.env.GOOGLE_API_KEY ?? '';
 
     const emptyKeys: string[] = [];
     if (!claudeKey) {

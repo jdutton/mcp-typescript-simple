@@ -22,11 +22,7 @@ import {
 } from './types.js';
 import { logger } from '../utils/logger.js';
 import { loadAllowlistConfig, checkAllowlistAuthorization, type AllowlistConfig } from '../allowlist.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { MemorySessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore , MemorySessionStore , OAuthTokenStore , MemoryOAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
 import { logonEvent, logoffEvent, emitOCSFEvent, StatusId } from '@mcp-typescript-simple/observability/ocsf';
 
 /**
@@ -791,7 +787,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     logger.oauthDebug('Query parameters', { provider: providerName, query: req.query });
 
     // Handle case where req.query is undefined (common in tests)
-    const query = req.query || {};
+    const query = req.query ?? {};
 
     return {
       clientRedirectUri: query.redirect_uri as string,
@@ -814,7 +810,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     const providerName = this.getProviderName();
     const state = this.generateState();
     let codeVerifier = '';
-    let codeChallenge = clientCodeChallenge || '';
+    let codeChallenge = clientCodeChallenge ?? '';
 
     // If no client code challenge provided, generate our own PKCE pair
     if (!clientCodeChallenge) {
@@ -927,7 +923,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     logger.oauthDebug('Handling token exchange from form data', { provider: providerName });
 
     // Handle case where req.body is undefined (common in tests)
-    const body = req.body || {};
+    const body = req.body ?? {};
 
     // Log complete request body structure for debugging (redacted)
     const bodyKeys = Object.keys(body);
@@ -1203,7 +1199,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
         expiresAt: Date.now() + (tokenData.expires_in || 3600) * 1000,
         userInfo,
         provider: this.getProviderType(),
-        scopes: tokenData.scope?.split(/[,\s]+/).filter(Boolean) || [],
+        scopes: tokenData.scope?.split(/[,\s]+/).filter(Boolean) ?? [],
       };
 
       await this.storeToken(tokenData.access_token, tokenInfo);
@@ -1258,7 +1254,7 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
     try {
       let userInfo: OAuthUserInfo | undefined;
       const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      if (authHeader?.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
 
         // Retrieve user info before removing token (for audit event)

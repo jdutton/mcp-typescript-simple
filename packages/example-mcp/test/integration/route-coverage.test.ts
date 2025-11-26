@@ -54,12 +54,12 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
       if (middleware.route) {
         // Regular route
         const methods = Object.keys(middleware.route.methods);
-        methods.forEach(method => {
+        for (const method of methods) {
           routes.push({
             method: method.toUpperCase(),
             path: middleware.route.path
           });
-        });
+        }
       } else if (middleware.name === 'router') {
         // Nested router (like /auth/*, /admin/*)
         const routerStack = middleware.handle?.stack || [];
@@ -76,13 +76,13 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
               .replace(/\/\$\/i$/, '')   // Remove $/i
               .replace(/\?\/$/, '');     // Remove ?/
 
-            methods.forEach(method => {
+            for (const method of methods) {
               const fullPath = cleanBasePath + handler.route.path;
               routes.push({
                 method: method.toUpperCase(),
                 path: fullPath
               });
-            });
+            }
           }
         });
       }
@@ -98,14 +98,14 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
     const paths: Array<{ method: string; path: string }> = [];
 
     Object.entries(spec.paths || {}).forEach(([path, methods]: [string, any]) => {
-      Object.keys(methods).forEach(method => {
+      for (const method of Object.keys(methods)) {
         if (['get', 'post', 'put', 'patch', 'delete', 'options', 'head'].includes(method)) {
           paths.push({
             method: method.toUpperCase(),
             path: path
           });
         }
-      });
+      }
     });
 
     return paths;
@@ -188,9 +188,9 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
 
       if (undocumentedRoutes.length > 0) {
         console.error('\n❌ Undocumented routes found:');
-        undocumentedRoutes.forEach(route => {
+        for (const route of undocumentedRoutes) {
           console.error(`  ${route.method} ${route.path}`);
-        });
+        }
         console.error('\nPlease add these routes to openapi.yaml\n');
       }
 
@@ -227,23 +227,23 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
 
       if (conditionalMissing.length > 0) {
         console.log('\n⚠️  Conditional routes (not implemented in test environment):');
-        conditionalMissing.forEach(route => {
+        for (const route of conditionalMissing) {
           console.log(`  ${route.method} ${route.path}`);
-        });
+        }
       }
 
       if (coreMissing.length > 0) {
         console.log('\n✅ Core endpoints (route extraction limitation, verified via compliance tests):');
-        coreMissing.forEach(route => {
+        for (const route of coreMissing) {
           console.log(`  ${route.method} ${route.path}`);
-        });
+        }
       }
 
       if (trulyMissing.length > 0) {
         console.error('\n❌ Documented routes not implemented:');
-        trulyMissing.forEach(route => {
+        for (const route of trulyMissing) {
           console.error(`  ${route.method} ${route.path}`);
-        });
+        }
         console.error('\nPlease implement these routes or remove from openapi.yaml\n');
       }
 
@@ -278,11 +278,10 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
       });
 
       console.log('\n  Routes by category:');
-      Object.entries(routesByTag)
-        .sort(([, a], [, b]) => b - a)
-        .forEach(([tag, count]) => {
+      for (const [tag, count] of Object.entries(routesByTag)
+        .sort(([, a], [, b]) => b - a)) {
           console.log(`    ${tag}: ${count}`);
-        });
+        }
 
       // This test always passes - it's just for reporting
       expect(true).toBe(true);
@@ -295,29 +294,29 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
       const pathParams = new Set<string>();
 
       // Extract all path parameters
-      openApiPaths.forEach(route => {
+      for (const route of openApiPaths) {
         const matches = route.path.match(/\{(\w+)\}/g);
         if (matches) {
-          matches.forEach(match => {
+          for (const match of matches) {
             pathParams.add(match.replace(/[{}]/g, ''));
-          });
+          }
         }
-      });
+      }
 
       console.log('\n🔧 Path parameters used:');
-      Array.from(pathParams).sort().forEach(param => {
+      for (const param of Array.from(pathParams).sort()) {
         console.log(`  {${param}}`);
-      });
+      }
 
       // Check for common naming issues
       const inconsistencies: string[] = [];
 
       // Check for snake_case vs camelCase
-      pathParams.forEach(param => {
+      for (const param of pathParams) {
         if (param.includes('_')) {
           inconsistencies.push(`Parameter "${param}" uses snake_case (consider camelCase)`);
         }
-      });
+      }
 
       // Check for singular vs plural confusion
       const singularPlural = new Map([
@@ -326,19 +325,19 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
         ['token', 'tokens'],
       ]);
 
-      singularPlural.forEach((plural, singular) => {
+      for (const [singular, plural] of singularPlural.entries()) {
         const hasSingular = pathParams.has(singular);
         const hasPlural = pathParams.has(plural);
         if (hasSingular && hasPlural) {
           inconsistencies.push(`Both "${singular}" and "${plural}" are used as parameters`);
         }
-      });
+      }
 
       if (inconsistencies.length > 0) {
         console.log('\n⚠️  Potential naming inconsistencies:');
-        inconsistencies.forEach(issue => {
+        for (const issue of inconsistencies) {
           console.log(`  - ${issue}`);
-        });
+        }
       }
 
       // This is informational only

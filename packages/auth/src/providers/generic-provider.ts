@@ -15,9 +15,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore , OAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Generic OAuth provider implementation
@@ -161,7 +159,7 @@ export class GenericOAuthProvider extends BaseOAuthProvider {
     const userData = await response.json() as Record<string, unknown>;
 
     return {
-      sub: (userData.sub as string) || (userData.id as string) || 'unknown',
+      sub: (userData.sub as string) || (userData.id as string) ?? 'unknown',
       email: (userData.email as string) || 'unknown@example.com',
       name: (userData.name as string) || (userData.email as string) || 'Unknown User',
       picture: (userData.picture as string) || (userData.avatar_url as string),

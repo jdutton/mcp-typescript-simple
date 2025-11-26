@@ -108,7 +108,7 @@ export function getObservabilityConfig(): ObservabilityConfig {
       config.sampling.traces = 0.1; // 10% sampling for performance
       if (process.env.VERCEL) {
         // Vercel-specific configuration
-        config.exporters.otlp.endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || '';
+        config.exporters.otlp.endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '';
       }
       break;
 

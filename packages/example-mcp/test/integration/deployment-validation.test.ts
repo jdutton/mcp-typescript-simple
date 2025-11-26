@@ -15,8 +15,8 @@
  * deployment validation that runs independently of the test framework.
  */
 
-import { spawn, exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn, exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
 
@@ -400,9 +400,9 @@ class CITestRunner {
 
     if (failed > 0) {
       console.log('\nFailed tests:');
-      this.results.filter(r => !r.passed).forEach(r => {
+      for (const r of this.results.filter(r => !r.passed)) {
         console.log(`❌ ${r.name}: ${r.error}`);
-      });
+      }
     }
   }
 }

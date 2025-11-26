@@ -2,9 +2,8 @@
  * Unit tests for TokenStoreFactory
  */
 
-import { TokenStoreFactory, createTokenStore } from '../src/index.js';
+import { TokenStoreFactory, createTokenStore , FileTokenStore } from '../src/index.js';
 import { InMemoryTestTokenStore } from './helpers/memory-test-token-store.js';
-import { FileTokenStore } from '../src/index.js';
 import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 import { getTestEncryptionKey } from './helpers/encryption-test-helper.js';
 

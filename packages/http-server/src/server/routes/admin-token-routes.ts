@@ -16,8 +16,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
+import { InitialAccessTokenStore , OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
 import { requireInitialAccessToken } from '../../middleware/dcr-auth.js';
 import { logger } from '@mcp-typescript-simple/observability';
 
@@ -56,7 +55,7 @@ export function setupAdminTokenRoutes(
       const token = await tokenStore.createToken({
         description,
         expires_in: expires_in || 2592000, // 30 days default
-        max_uses: max_uses || 0, // Unlimited default
+        max_uses: max_uses ?? 0, // Unlimited default
       });
 
       logger.info('Initial access token created via admin endpoint', {

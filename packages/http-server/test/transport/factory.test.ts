@@ -62,7 +62,7 @@ describe('TransportFactory', () => {
       ['session', failingTransport]
     ]);
 
-    const stopSpy = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const stopSpy = vi.fn<() => Promise<void>>().mockResolvedValue();
     (manager as unknown as { httpServer?: { stop: () => Promise<void> } }).httpServer = { stop: stopSpy } as any;
 
     const stopPromise = manager.stop();

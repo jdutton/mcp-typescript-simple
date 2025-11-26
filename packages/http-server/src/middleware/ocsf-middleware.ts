@@ -85,7 +85,7 @@ export function emitAPIActivityEvent(
           scheme: protocol,
           query_string: req.url.includes('?') ? req.url.split('?')[1] : undefined,
         },
-        user_agent: req.get('user-agent') || 'unknown',
+        user_agent: req.get('user-agent') ?? 'unknown',
         // Request body size from Content-Length header (bytes received)
         length: req.get('content-length') ? Number.parseInt(req.get('content-length') as string, 10) : undefined,
       })

@@ -598,10 +598,10 @@ describeSystemTest('MCP Protocol System', () => {
       }
 
       // All valid requests should succeed
-      validResponses.forEach((response) => {
+      for (const response of validResponses) {
         expect(response.jsonrpc).toBe('2.0');
         expect(response.result).toBeDefined();
-      });
+      }
 
       console.log(`🔄 Concurrent tool calls: ${responses.length} completed successfully`);
     });

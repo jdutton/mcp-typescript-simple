@@ -48,17 +48,17 @@ describe('Token Refresh Optimization', () => {
 
       const googleProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const microsoftProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -114,12 +114,12 @@ describe('Token Refresh Optimization', () => {
 
       const googleProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -170,17 +170,17 @@ describe('Token Refresh Optimization', () => {
 
       const googleProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const githubProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       const microsoftProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -226,7 +226,7 @@ describe('Token Refresh Optimization', () => {
 
       const githubProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -265,7 +265,7 @@ describe('Token Refresh Optimization', () => {
     it('should fallback when token store lookup throws error', async () => {
       const googleProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -319,7 +319,7 @@ describe('Token Refresh Optimization', () => {
 
       const googleProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);
@@ -383,7 +383,7 @@ describe('Token Refresh Optimization', () => {
           name,
           provider: {
             getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-            handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+            handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
           },
         };
       });
@@ -455,7 +455,7 @@ describe('Token Refresh Optimization', () => {
 
       const githubProvider = {
         getTokenStore: vi.fn<() => any>().mockReturnValue(mockTokenStore),
-        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        handleTokenRefresh: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(),
       };
 
       mockProviders.set('google', googleProvider);

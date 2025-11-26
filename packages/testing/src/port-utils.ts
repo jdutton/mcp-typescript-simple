@@ -5,8 +5,8 @@
  * to prevent tests from hanging when ports are already in use.
  */
 
-import net from 'net';
-import { spawn } from 'child_process';
+import net from 'node:net';
+import { spawn } from 'node:child_process';
 
 /**
  * Check if a port is available using lsof (more reliable than bind test)
@@ -212,8 +212,8 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
 
     lsof.on('close', async (code) => {
       if (code === 0 && pidOutput.trim()) {
-        const firstLine = pidOutput.trim().split('\n')[0] || '';
-        const pid = parseInt(firstLine, 10);
+        const firstLine = pidOutput.trim().split('\n')[0] ?? '';
+        const pid = Number.parseInt(firstLine, 10);
         if (!isNaN(pid)) {
           // Get process command
           const psResult = await new Promise<string>((psResolve) => {
@@ -225,7 +225,7 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
             });
 
             ps.on('close', () => {
-              psResolve(command.trim() || 'unknown');
+              psResolve(command.trim() ?? 'unknown');
             });
 
             ps.on('error', () => {
