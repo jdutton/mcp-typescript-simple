@@ -371,7 +371,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     const tokenUrl = env.OAUTH_TOKEN_URL;
     const userInfoUrl = env.OAUTH_USER_INFO_URL;
     const revocationUrl = env.OAUTH_REVOCATION_URL;
-    const providerName = env.OAUTH_PROVIDER_NAME || 'Custom OAuth Provider';
+    const providerName = env.OAUTH_PROVIDER_NAME ?? 'Custom OAuth Provider';
 
     if (!clientId || !clientSecret || !authorizationUrl || !tokenUrl || !userInfoUrl) {
       throw new OAuthProviderError(
@@ -400,8 +400,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
    * Get default redirect URI for a provider
    */
   private getDefaultRedirectUri(provider: string): string {
-    const host = process.env.HTTP_HOST || 'localhost';
-    const port = process.env.HTTP_PORT || '3000';
+    const host = process.env.HTTP_HOST ?? 'localhost';
+    const port = process.env.HTTP_PORT ?? '3000';
     const protocol = process.env.REQUIRE_HTTPS === 'true' ? 'https' : 'http';
 
     return `${protocol}://${host}:${port}/auth/${provider}/callback`;

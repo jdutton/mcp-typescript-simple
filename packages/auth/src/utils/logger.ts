@@ -51,7 +51,7 @@ export class Logger {
 
   error(message: string, error?: Error | unknown): void {
     if (this.shouldLog('error')) {
-      console.error(`[ERROR] ${message}`, error || '');
+      console.error(`[ERROR] ${message}`, error ?? '');
     }
   }
 

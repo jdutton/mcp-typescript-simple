@@ -34,7 +34,7 @@ export async function handleUniversalTokenRequest(
   providers: Map<string, OAuthProvider>
 ): Promise<void> {
   try {
-    const { grant_type, refresh_token, code } = req.body || {};
+    const { grant_type, refresh_token, code } = (req.body ?? {}) as Record<string, unknown>;
 
     logger.debug("Multi-provider token handler", {
       grant_type,
@@ -44,13 +44,13 @@ export async function handleUniversalTokenRequest(
 
     // Authorization Code Grant - find correct provider (two-phase approach)
     if (grant_type === 'authorization_code') {
-      await handleAuthorizationCodeGrant(req, res, providers, code);
+      await handleAuthorizationCodeGrant(req, res, providers, code as string);
       return;
     }
 
     // Refresh Token Grant - O(1) provider lookup
     if (grant_type === 'refresh_token' || refresh_token) {
-      await handleRefreshTokenGrant(req, res, providers, refresh_token);
+      await handleRefreshTokenGrant(req, res, providers, refresh_token as string);
       return;
     }
 
@@ -95,11 +95,11 @@ async function handleAuthorizationCodeGrant(
   logger.debug("Token exchange request body", {
     grant_type: 'authorization_code',
     code: code?.substring(0, 10) + '...',
-    hasCodeVerifier: !!req.body?.code_verifier,
-    codeVerifierPrefix: req.body?.code_verifier?.substring(0, 8),
-    hasClientId: !!req.body?.client_id,
-    hasRedirectUri: !!req.body?.redirect_uri,
-    allBodyKeys: Object.keys(req.body || {})
+    hasCodeVerifier: !!(req.body as Record<string, unknown>)?.code_verifier,
+    codeVerifierPrefix: ((req.body as Record<string, unknown>)?.code_verifier as string | undefined)?.substring(0, 8),
+    hasClientId: !!(req.body as Record<string, unknown>)?.client_id,
+    hasRedirectUri: !!(req.body as Record<string, unknown>)?.redirect_uri,
+    allBodyKeys: Object.keys((req.body ?? {}) as Record<string, unknown>)
   });
 
   // Find the correct provider by checking who has the authorization code
@@ -113,7 +113,7 @@ async function handleAuthorizationCodeGrant(
 
   for (const [providerType, provider] of providers.entries()) {
     if ('hasStoredCodeForProvider' in provider) {
-      const hasCode = await (provider as any).hasStoredCodeForProvider(code);
+      const hasCode = await (provider as unknown as { hasStoredCodeForProvider: (_code: string) => Promise<boolean> }).hasStoredCodeForProvider(code);
       logger.info("Provider code check result", {
         provider: providerType,
         hasCode,
@@ -136,7 +136,7 @@ async function handleAuthorizationCodeGrant(
     logger.error("No provider found for authorization code", {
       codePrefix: code?.substring(0, 10),
       availableProviders: Array.from(providers.keys()),
-      hasCodeVerifier: !!req.body?.code_verifier,
+      hasCodeVerifier: !!(req.body as Record<string, unknown>)?.code_verifier,
       message: 'Authorization code not found in any provider PKCE store. Either code expired, already used, or client must provide code_verifier for direct OAuth flow.'
     });
 
@@ -154,9 +154,9 @@ async function handleAuthorizationCodeGrant(
     try {
       logger.debug("Using correct provider for token exchange", { provider: correctProviderType });
       const tokenProvider = correctProvider as OAuthProvider & {
-        handleTokenExchange: (req: any, res: any) => Promise<void>
+        handleTokenExchange: (_req: OAuthRequestAdapter, _res: OAuthResponseAdapter) => Promise<void>
       };
-      await tokenProvider.handleTokenExchange(req as any, res as any);
+      await tokenProvider.handleTokenExchange(req as unknown as Parameters<typeof tokenProvider.handleTokenExchange>[0], res as unknown as Parameters<typeof tokenProvider.handleTokenExchange>[1]);
       logger.debug("Token exchange succeeded", { provider: correctProviderType });
       return;
     } catch (error) {
@@ -186,6 +186,7 @@ async function handleAuthorizationCodeGrant(
  * @param providers - Map of available OAuth providers
  * @param refresh_token - Refresh token
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity -- OAuth refresh token flow requires nested provider lookup and fallback logic
 async function handleRefreshTokenGrant(
   req: OAuthRequestAdapter,
   res: OAuthResponseAdapter,
@@ -199,14 +200,14 @@ async function handleRefreshTokenGrant(
   // Get token store from any provider (they all share the same store)
   const firstProvider = providers.values().next().value;
   if (firstProvider && 'getTokenStore' in firstProvider) {
-    const tokenStore = (firstProvider as any).getTokenStore();
+    const tokenStore = (firstProvider as unknown as { getTokenStore: () => { findByRefreshToken: (_token: string) => Promise<{ tokenInfo?: { provider: string } }> } }).getTokenStore();
 
     try {
       const tokenData = await tokenStore.findByRefreshToken(refresh_token);
 
-      if (tokenData && tokenData.tokenInfo) {
+      if (tokenData?.tokenInfo) {
         const providerType = tokenData.tokenInfo.provider;
-        correctProvider = providers.get(providerType) || null;
+        correctProvider = providers.get(providerType) ?? null;
         correctProviderType = providerType;
 
         if (correctProvider) {
@@ -222,7 +223,7 @@ async function handleRefreshTokenGrant(
   // If we found the correct provider, use it directly
   if (correctProvider) {
     try {
-      await correctProvider.handleTokenRefresh(req as any, res as any);
+      await correctProvider.handleTokenRefresh(req as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[0], res as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[1]);
       return; // Success
     } catch (error) {
       // Correct provider failed, don't try others
@@ -241,11 +242,12 @@ async function handleRefreshTokenGrant(
   logger.debug('Trying each provider for refresh token');
   for (const provider of providers.values()) {
     try {
-      await provider.handleTokenRefresh(req as any, res as any);
+      await provider.handleTokenRefresh(req as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[0], res as unknown as Parameters<OAuthProvider['handleTokenRefresh']>[1]);
       return; // Success
-    } catch (error) {
-      // Try next provider
-      continue;
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions -- Multi-provider fallback: try each provider until one succeeds
+    } catch (_error) {
+      // Try next provider - ignore error and continue sequential attempt
+      // This is intentional: multi-provider fallback requires trying all providers
     }
   }
 
