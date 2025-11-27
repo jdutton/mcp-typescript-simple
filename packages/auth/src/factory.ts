@@ -136,8 +136,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     ];
   }
 
-  private throwUnsupportedProvider(type: string, configExhaustive: never): never {
-    void configExhaustive;
+  private throwUnsupportedProvider(type: string, _configExhaustive: never): never {
     throw new OAuthProviderError(`Unsupported OAuth provider type: ${String(type)}`, type);
   }
 
@@ -203,13 +202,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   }
 
   static async disposeAll(): Promise<void> {
-    try {
-      const factory = await OAuthProviderFactory.getInstance();
-      factory.disposeAll();
-    } catch (error) {
-      // Surface aggregated disposal errors to callers but ensure shutdown hook references reset
-      throw error;
-    }
+    const factory = await OAuthProviderFactory.getInstance();
+    factory.disposeAll();
   }
 
   /**
@@ -280,6 +274,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       const env = EnvironmentConfig.get();
       const clientId = env.GOOGLE_CLIENT_ID;
       const clientSecret = env.GOOGLE_CLIENT_SECRET;
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       const redirectUri = env.GOOGLE_REDIRECT_URI || this.getDefaultRedirectUri('google');
 
       if (!clientId || !clientSecret) {
@@ -293,8 +288,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
         type: 'google',
         clientId,
         clientSecret,
-        redirectUri: redirectUri || this.getDefaultRedirectUri('google'),
-        scopes: this.getScopesFromEnv('GOOGLE_SCOPES') || ['openid', 'email', 'profile'],
+        redirectUri: redirectUri ?? this.getDefaultRedirectUri('google'),
+        scopes: this.getScopesFromEnv('GOOGLE_SCOPES') ?? ['openid', 'email', 'profile'],
       };
 
       return this.createProvider(config);
@@ -329,8 +324,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       type: 'github',
       clientId,
       clientSecret,
-      redirectUri: redirectUri || this.getDefaultRedirectUri('github'),
-      scopes: this.getScopesFromEnv('GITHUB_SCOPES') || ['read:user', 'user:email'],
+      redirectUri: redirectUri ?? this.getDefaultRedirectUri('github'),
+      scopes: this.getScopesFromEnv('GITHUB_SCOPES') ?? ['read:user', 'user:email'],
     };
 
     return this.createProvider(config);
@@ -357,8 +352,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       type: 'microsoft',
       clientId,
       clientSecret,
-      redirectUri: redirectUri || this.getDefaultRedirectUri('microsoft'),
-      scopes: this.getScopesFromEnv('MICROSOFT_SCOPES') || ['openid', 'profile', 'email'],
+      redirectUri: redirectUri ?? this.getDefaultRedirectUri('microsoft'),
+      scopes: this.getScopesFromEnv('MICROSOFT_SCOPES') ?? ['openid', 'profile', 'email'],
       tenantId,
     };
 
@@ -377,6 +372,7 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
     const tokenUrl = env.OAUTH_TOKEN_URL;
     const userInfoUrl = env.OAUTH_USER_INFO_URL;
     const revocationUrl = env.OAUTH_REVOCATION_URL;
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const providerName = env.OAUTH_PROVIDER_NAME || 'Custom OAuth Provider';
 
     if (!clientId || !clientSecret || !authorizationUrl || !tokenUrl || !userInfoUrl) {
@@ -390,8 +386,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
       type: 'generic',
       clientId,
       clientSecret,
-      redirectUri: redirectUri || this.getDefaultRedirectUri('oauth'),
-      scopes: this.getScopesFromEnv('OAUTH_SCOPES') || ['openid', 'profile', 'email'],
+      redirectUri: redirectUri ?? this.getDefaultRedirectUri('oauth'),
+      scopes: this.getScopesFromEnv('OAUTH_SCOPES') ?? ['openid', 'profile', 'email'],
       authorizationUrl,
       tokenUrl,
       userInfoUrl,
@@ -406,8 +402,8 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
    * Get default redirect URI for a provider
    */
   private getDefaultRedirectUri(provider: string): string {
-    const host = process.env.HTTP_HOST || 'localhost';
-    const port = process.env.HTTP_PORT || '3000';
+    const host = process.env.HTTP_HOST ?? 'localhost';
+    const port = process.env.HTTP_PORT ?? '3000';
     const protocol = process.env.REQUIRE_HTTPS === 'true' ? 'https' : 'http';
 
     return `${protocol}://${host}:${port}/auth/${provider}/callback`;
