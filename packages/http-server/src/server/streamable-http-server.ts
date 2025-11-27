@@ -786,7 +786,7 @@ export class MCPStreamableHttpServer {
     logger.info("Session cleanup requested", { requestId, sessionId });
 
     // Check if session exists in metadata store (authoritative source)
-    const metadataStore = (this.instanceManager as unknown as Record<string, unknown>).metadataStore as any;
+    const metadataStore = (this.instanceManager as unknown as Record<string, unknown>).metadataStore as { getSession: (_sessionId: string) => Promise<unknown>; deleteSession: (_sessionId: string) => Promise<void> };
     const metadata = await metadataStore.getSession(sessionId);
     if (!metadata) {
       logger.warn("Session not found for cleanup", { requestId, sessionId });
