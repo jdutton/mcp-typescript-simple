@@ -132,9 +132,9 @@ export function buildSessionsResponse(options: SessionsResponseOptions): Session
   const llmProviders = getConfiguredLLMProviders();
 
   const deployment: DeploymentInfo = {
-    platform: options.deployment === 'vercel' ? 'vercel' : 'vercel',
+    platform: 'vercel',
     mode: 'serverless',
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version ?? '1.0.0',
     node_version: options.deployment === 'vercel'
       ? process.version.split('.')[0] // Major version only for Vercel
       : process.version,
@@ -172,6 +172,21 @@ export function buildSessionsResponse(options: SessionsResponseOptions): Session
 }
 
 /**
+ * Add Vercel-specific fields to response
+ */
+function addVercelFields(response: InfoResponse, options: InfoResponseOptions): void {
+  if (options.region) response.region = options.region;
+  if (options.deploymentId) response.deployment_id = options.deploymentId;
+  if (options.deploymentUrl) response.deployment_url = options.deploymentUrl;
+  if (options.gitCommit) response.git_commit = options.gitCommit;
+  if (options.gitBranch) response.git_branch = options.gitBranch;
+  if (options.uptime !== undefined) response.uptime = options.uptime;
+  if (options.memoryUsage) response.memory_usage = options.memoryUsage;
+  if (options.cpuUsage) response.cpu_usage = options.cpuUsage;
+  response.environment = process.env.NODE_ENV ?? 'development';
+}
+
+/**
  * Build info endpoint response
  */
 export function buildInfoResponse(options: InfoResponseOptions): InfoResponse {
@@ -179,9 +194,9 @@ export function buildInfoResponse(options: InfoResponseOptions): InfoResponse {
   const llmProviders = getConfiguredLLMProviders();
 
   const response: InfoResponse = {
-    platform: options.deployment === 'vercel' ? 'vercel' : 'vercel',
+    platform: 'vercel',
     mode: 'serverless',
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version ?? '1.0.0',
     node_version: options.deployment === 'vercel'
       ? process.version.split('.')[0] // Major version only for Vercel
       : process.version,
@@ -192,15 +207,7 @@ export function buildInfoResponse(options: InfoResponseOptions): InfoResponse {
 
   // Add Vercel-specific fields
   if (options.deployment === 'vercel') {
-    if (options.region) response.region = options.region;
-    if (options.deploymentId) response.deployment_id = options.deploymentId;
-    if (options.deploymentUrl) response.deployment_url = options.deploymentUrl;
-    if (options.gitCommit) response.git_commit = options.gitCommit;
-    if (options.gitBranch) response.git_branch = options.gitBranch;
-    if (options.uptime !== undefined) response.uptime = options.uptime;
-    if (options.memoryUsage) response.memory_usage = options.memoryUsage;
-    if (options.cpuUsage) response.cpu_usage = options.cpuUsage;
-    response.environment = process.env.NODE_ENV || 'development';
+    addVercelFields(response, options);
   }
 
   return response;
@@ -215,17 +222,17 @@ export function buildMetricsResponse(options: MetricsResponseOptions): MetricsRe
 
   const response: MetricsResponse = {
     timestamp: new Date().toISOString(),
-    platform: options.deployment === 'vercel' ? 'vercel-serverless' : 'vercel-serverless',
+    platform: 'vercel-serverless',
     performance: {
       uptime_seconds: process.uptime(),
       memory_usage: process.memoryUsage(),
       cpu_usage: process.cpuUsage(),
     },
     deployment: {
-      region: options.region || (options.deployment === 'local' ? 'local' : 'unknown'),
-      version: process.env.npm_package_version || '1.0.0',
+      region: options.region ?? (options.deployment === 'local' ? 'local' : 'unknown'),
+      version: process.env.npm_package_version ?? '1.0.0',
       node_version: process.version,
-      environment: process.env.NODE_ENV || 'development',
+      environment: process.env.NODE_ENV ?? 'development',
     },
     configuration: {
       oauth_providers: oauthProviders,

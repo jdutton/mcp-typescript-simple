@@ -27,9 +27,8 @@ export class StdioTransportManager implements TransportManager {
   private server?: Server;
   private transport?: StdioServerTransport;
 
-  constructor(private options: StdioTransportOptions) {}
+  constructor(private _options: StdioTransportOptions) {}
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async initialize(server: Server, _toolRegistry?: ToolRegistry): Promise<void> {
     this.server = server;
     this.transport = new StdioServerTransport();
@@ -69,12 +68,13 @@ export class StreamableHTTPTransportManager implements TransportManager {
   private llmManager?: LLMManager;
   private toolRegistry?: ToolRegistry;
 
+  // eslint-disable-next-line no-unused-vars
   constructor(private options: StreamableHTTPTransportOptions) {}
 
-  async initialize(server: Server, toolRegistry?: ToolRegistry): Promise<void> {
+  async initialize(_server: Server, toolRegistry?: ToolRegistry): Promise<void> {
     // Note: server parameter unused - HTTPServer creates its own instances internally
     // Store toolRegistry to use when creating new transport connections
-    this.toolRegistry = toolRegistry || new ToolRegistry();
+    this.toolRegistry = toolRegistry ?? new ToolRegistry();
     this.llmManager = undefined; // Will be recreated by the HTTPServer
 
     // Create HTTP server with OAuth support and Streamable HTTP transport
@@ -97,7 +97,7 @@ export class StreamableHTTPTransportManager implements TransportManager {
 
     // Configure HTTP server to handle Streamable HTTP connections
     this.httpServer.onStreamableHTTPTransport(async (streamableTransport: StreamableHTTPServerTransport) => {
-      const sessionId = streamableTransport.sessionId || 'anonymous';
+      const sessionId = streamableTransport.sessionId ?? 'anonymous';
       this.streamableTransports.set(sessionId, streamableTransport);
 
       const removeTransport = () => {
@@ -132,7 +132,7 @@ export class StreamableHTTPTransportManager implements TransportManager {
 
         // Set up the server with the shared tool registry
         // Users should register their own tools before starting the server
-        const toolRegistry = this.toolRegistry || new ToolRegistry();
+        const toolRegistry = this.toolRegistry ?? new ToolRegistry();
 
         await setupMCPServerWithRegistry(transportServer, toolRegistry);
 
@@ -265,7 +265,7 @@ export class TransportFactory implements ITransportFactory {
         return factory.createTransport(mode, {});
 
 
-      case TransportMode.STREAMABLE_HTTP:
+      case TransportMode.STREAMABLE_HTTP: {
         const streamableServerConfig = EnvironmentConfig.getServerConfig();
         const streamableSecurityConfig = EnvironmentConfig.getSecurityConfig();
 
@@ -280,6 +280,7 @@ export class TransportFactory implements ITransportFactory {
           enableResumability: true, // Enable resumability by default
           enableJsonResponse: true, // Use JSON responses for HTTP clients
         });
+      }
 
       default:
         throw new Error(`Unsupported transport mode: ${mode}`);

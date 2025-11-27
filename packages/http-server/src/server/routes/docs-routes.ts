@@ -41,7 +41,7 @@ export function setupDocsRoutes(app: Express): void {
 
     // Serve homepage at / with content negotiation
     app.get('/', (req: Request, res: Response) => {
-      const acceptHeader = req.get('accept') || '';
+      const acceptHeader = req.get('accept') ?? '';
 
       // If client explicitly requests markdown, send markdown
       if (acceptHeader.includes('text/markdown') || acceptHeader.includes('text/plain')) {

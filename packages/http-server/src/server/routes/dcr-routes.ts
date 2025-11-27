@@ -76,9 +76,9 @@ export function setupDCRRoutes(
         tos_uri: req.body.tos_uri,
         policy_uri: req.body.policy_uri,
         jwks_uri: req.body.jwks_uri,
-        token_endpoint_auth_method: req.body.token_endpoint_auth_method || 'client_secret_post',
-        grant_types: req.body.grant_types || ['authorization_code', 'refresh_token'],
-        response_types: req.body.response_types || ['code'],
+        token_endpoint_auth_method: req.body.token_endpoint_auth_method ?? 'client_secret_post',
+        grant_types: req.body.grant_types ?? ['authorization_code', 'refresh_token'],
+        response_types: req.body.response_types ?? ['code'],
       });
 
       logger.info('Client registered successfully', {
@@ -126,7 +126,8 @@ export function setupDCRRoutes(
       }
 
       // Omit client_secret from response for security (RFC 7592)
-      const { client_secret, ...clientWithoutSecret } = client;
+      // eslint-disable-next-line sonarjs/no-unused-vars
+      const { client_secret: _, ...clientWithoutSecret } = client;
 
       logger.info('Client configuration retrieved', { clientId });
       res.json(clientWithoutSecret);
@@ -159,7 +160,7 @@ export function setupDCRRoutes(
         return;
       }
 
-      const deleted = await clientStore.deleteClient!(clientId);
+      const deleted = await clientStore.deleteClient?.(clientId);
       if (!deleted) {
         logger.warn('Client deletion failed: not found', { clientId });
         res.status(404).json({

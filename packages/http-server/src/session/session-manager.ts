@@ -52,9 +52,9 @@ export interface SessionManager {
    * @returns Session information
    */
   createSession(
-    authInfo?: AuthInfo,
-    metadata?: Record<string, unknown>,
-    sessionId?: string
+    _authInfo?: AuthInfo,
+    _metadata?: Record<string, unknown>,
+    _sessionId?: string
   ): Promise<SessionInfo>;
 
   /**
@@ -63,7 +63,7 @@ export interface SessionManager {
    * @param sessionId - Unique session identifier
    * @returns Session info or undefined if not found or expired
    */
-  getSession(sessionId: string): Promise<SessionInfo | undefined>;
+  getSession(_sessionId: string): Promise<SessionInfo | undefined>;
 
   /**
    * Check if session is valid (exists and not expired)
@@ -71,7 +71,7 @@ export interface SessionManager {
    * @param sessionId - Unique session identifier
    * @returns True if session is valid
    */
-  isSessionValid(sessionId: string): Promise<boolean>;
+  isSessionValid(_sessionId: string): Promise<boolean>;
 
   /**
    * Close and delete session by ID
@@ -79,7 +79,7 @@ export interface SessionManager {
    * @param sessionId - Unique session identifier
    * @returns True if session existed and was closed
    */
-  closeSession(sessionId: string): Promise<boolean>;
+  closeSession(_sessionId: string): Promise<boolean>;
 
   /**
    * Get all active (non-expired) sessions

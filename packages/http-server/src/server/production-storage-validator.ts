@@ -93,8 +93,8 @@ export function validateProductionStorage(): void {
     console.error('  • AWS ElastiCache: https://aws.amazon.com/elasticache/');
     console.error('');
     console.error('Current environment:');
-    console.error(`  NODE_ENV: ${process.env.NODE_ENV || 'undefined'}`);
-    console.error(`  VERCEL_ENV: ${process.env.VERCEL_ENV || 'undefined'}`);
+    console.error(`  NODE_ENV: ${process.env.NODE_ENV ?? 'undefined'}`);
+    console.error(`  VERCEL_ENV: ${process.env.VERCEL_ENV ?? 'undefined'}`);
     console.error(`  REDIS_URL: ${redisUrl ? 'SET' : '❌ NOT SET'}`);
     console.error('');
     console.error('═══════════════════════════════════════════════════════════════');

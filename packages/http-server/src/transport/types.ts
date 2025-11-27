@@ -2,7 +2,6 @@
  * Transport layer types and interfaces for MCP server
  */
 
-// import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { TransportMode } from '@mcp-typescript-simple/config';
 import type { ToolRegistry } from "@mcp-typescript-simple/tools";
@@ -10,7 +9,6 @@ import type { ToolRegistry } from "@mcp-typescript-simple/tools";
 /**
  * Configuration options for different transport types
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface StdioTransportOptions {
   // Currently no configuration options for STDIO transport
   // This interface is reserved for future configuration options
@@ -38,7 +36,7 @@ export interface TransportManager {
   /**
    * Initialize the transport with the given MCP server
    */
-  initialize(server: Server, toolRegistry?: ToolRegistry): Promise<void>;
+  initialize(_server: Server, _toolRegistry?: ToolRegistry): Promise<void>;
 
   /**
    * Start the transport and begin accepting connections
@@ -65,5 +63,5 @@ export interface TransportManager {
  * Factory interface for creating transport instances
  */
 export interface TransportFactory {
-  createTransport(mode: TransportMode, options: TransportOptions): TransportManager;
+  createTransport(_mode: TransportMode, _options: TransportOptions): TransportManager;
 }

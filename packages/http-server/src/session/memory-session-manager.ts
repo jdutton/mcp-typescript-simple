@@ -49,7 +49,7 @@ export class MemorySessionManager implements SessionManager {
     metadata?: Record<string, unknown>,
     sessionId?: string
   ): Promise<SessionInfo> {
-    const id = sessionId || randomUUID();
+    const id = sessionId ?? randomUUID();
     const now = Date.now();
 
     const sessionInfo: SessionInfo = {

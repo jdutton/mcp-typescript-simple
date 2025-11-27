@@ -14,9 +14,13 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { MCPSessionMetadataStore, MCPSessionMetadata, AuthInfo, MemoryMCPMetadataStore } from '@mcp-typescript-simple/persistence';
-import { createMCPMetadataStore } from '@mcp-typescript-simple/persistence';
-import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
+import {
+  MCPSessionMetadataStore,
+  MCPSessionMetadata,
+  AuthInfo,
+  createMCPMetadataStore,
+  EventStoreFactory,
+} from '@mcp-typescript-simple/persistence';
 import { setupMCPServerWithRegistry } from '@mcp-typescript-simple/server';
 import type { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { logger } from '@mcp-typescript-simple/observability';
@@ -41,8 +45,8 @@ export interface TransportCreationOptions {
   enableResumability?: boolean;
   allowedHosts?: string[];
   allowedOrigins?: string[];
-  onSessionInitialized?: (sessionId: string) => Promise<void>;
-  onSessionClosed?: (sessionId: string) => Promise<void>;
+  onSessionInitialized?: (_sessionId: string) => Promise<void>;
+  onSessionClosed?: (_sessionId: string) => Promise<void>;
 }
 
 /**
@@ -95,7 +99,7 @@ export class MCPInstanceManager {
    * @param metadataStore - Optional override for testing (auto-detected if not provided)
    */
   static async createAsync(toolRegistry: ToolRegistry, metadataStore?: MCPSessionMetadataStore): Promise<MCPInstanceManager> {
-    const store = metadataStore || await createMCPMetadataStore();
+    const store = metadataStore ?? (await createMCPMetadataStore());
     return new MCPInstanceManager(toolRegistry, store);
   }
 
@@ -135,7 +139,7 @@ export class MCPInstanceManager {
       age: Math.round((Date.now() - metadata.createdAt) / 1000) + 's',
       ttl: Math.round((metadata.expiresAt - Date.now()) / 1000) + 's',
       hasAuth: !!metadata.authInfo,
-      eventCount: metadata.events?.length || 0,
+      eventCount: metadata.events?.length ?? 0,
     });
 
     instance = await this.createInstance(sessionId, metadata, options);
@@ -248,7 +252,7 @@ export class MCPInstanceManager {
       eventStore,
       allowedHosts: options.allowedHosts,
       allowedOrigins: options.allowedOrigins,
-      enableDnsRebindingProtection: !!(options.allowedHosts || options.allowedOrigins),
+      enableDnsRebindingProtection: !!(options.allowedHosts ?? options.allowedOrigins),
     });
   }
 
