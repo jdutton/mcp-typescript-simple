@@ -23,9 +23,7 @@ export class MemorySessionStore implements OAuthSessionStore {
     logger.info('MemorySessionStore initialized');
 
     // Start automatic cleanup of expired sessions
-    this.cleanupInterval = setInterval(() => {
-      void this.cleanup();
-    }, 5 * 60 * 1000); // Every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
     if (typeof this.cleanupInterval.unref === 'function') {
       this.cleanupInterval.unref();
     }

@@ -122,7 +122,7 @@
     "release:minor": "npm run version:minor && npm run build && git add -A && git commit -m 'chore: Release minor version' && npm run tag:create",
     "release:major": "npm run version:major && npm run build && git add -A && git commit -m 'chore: Release major version' && npm run tag:create",
     "tag:create": "node -e \"const pkg = require('./packages/example-mcp/package.json'); const tag = 'v' + pkg.version; require('child_process').execSync('git tag -a ' + tag + ' -m \\\"Release ' + tag + '\\\"', {stdio: 'inherit'});\"",
-    "postinstall": "sh tools/build-workspaces.sh",
+    "postinstall": "node tools/build-workspaces.js",
     "prepare": "husky || true"
   },
   "keywords": [

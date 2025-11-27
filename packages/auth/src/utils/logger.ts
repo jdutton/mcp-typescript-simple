@@ -51,7 +51,6 @@ export class Logger {
 
   error(message: string, error?: Error | unknown): void {
     if (this.shouldLog('error')) {
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       console.error(`[ERROR] ${message}`, error || '');
     }
   }

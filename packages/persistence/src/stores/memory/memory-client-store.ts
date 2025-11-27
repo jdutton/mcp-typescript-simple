@@ -48,13 +48,13 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
     client: Omit<OAuthClientInformationFull, 'client_id' | 'client_id_issued_at'>
   ): Promise<OAuthClientInformationFull> {
     // Check max clients limit
-    if (this.clients.size >= (this.options.maxClients ?? 10000)) {
+    if (this.clients.size >= this.options.maxClients!) {
       logger.warn('Client registration failed: max clients limit reached', {
         currentCount: this.clients.size,
         maxClients: this.options.maxClients,
       });
       throw new Error(
-        `Maximum number of registered clients reached (${this.options.maxClients ?? 10000})`
+        `Maximum number of registered clients reached (${this.options.maxClients})`
       );
     }
 
@@ -65,10 +65,9 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
 
     // Calculate expiration (use milliseconds internally for precision)
     let expiresAt: number | undefined;
-    const defaultExpiry = this.options.defaultSecretExpirySeconds ?? (30 * 24 * 60 * 60);
-    if (defaultExpiry > 0) {
+    if (this.options.defaultSecretExpirySeconds! > 0) {
       // Store as seconds for OAuth spec compliance, but check with ms precision
-      expiresAt = issuedAt + defaultExpiry;
+      expiresAt = issuedAt + this.options.defaultSecretExpirySeconds!;
     }
 
     // Create full client information
@@ -189,15 +188,13 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
    * Start automatic cleanup of expired clients
    */
   private startAutoCleanup(): void {
-    this.cleanupInterval = setInterval(() => {
-      void (async () => {
-        try {
-          await this.cleanupExpired();
-        } catch (error) {
-          logger.error('Auto-cleanup failed', error as Record<string, unknown>);
-        }
-      })();
-    }, this.options.cleanupIntervalMs ?? (60 * 60 * 1000));
+    this.cleanupInterval = setInterval(async () => {
+      try {
+        await this.cleanupExpired();
+      } catch (error) {
+        logger.error('Auto-cleanup failed', error as Record<string, any>);
+      }
+    }, this.options.cleanupIntervalMs!);
 
     // Create exit handler and register it
     this.exitHandler = () => this.stopAutoCleanup();

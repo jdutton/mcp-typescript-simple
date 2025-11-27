@@ -13,12 +13,15 @@ import {
   OAuthProviderType,
   OAuthUserInfo,
   OAuthTokenResponse,
+  OAuthSession,
   StoredTokenInfo,
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore , OAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
+import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Google OAuth provider implementation
@@ -80,7 +83,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      void this.storeSession(state, session);
+      this.storeSession(state, session);
 
       // Generate authorization URL using Google's OAuth client (different from base method)
       const authUrl = this.oauth2Client.generateAuthUrl({
@@ -88,7 +91,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         scope: session.scopes,
         state,
         code_challenge: codeChallenge,
-        code_challenge_method: (clientCodeChallengeMethod ?? 'S256') as CodeChallengeMethod,
+        code_challenge_method: (clientCodeChallengeMethod || 'S256') as CodeChallengeMethod,
         prompt: 'consent',
         redirect_uri: this.config.redirectUri, // Use our registered redirect URI
       });
@@ -146,12 +149,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       // Get user information from ID token
       const ticket = await this.oauth2Client.verifyIdToken({
-        idToken: tokens.id_token ?? '',
+        idToken: tokens.id_token || '',
         audience: this.config.clientId,
       });
 
       const payload = ticket.getPayload();
-      if (!payload?.sub || !payload.email) {
+      if (!payload || !payload.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 
@@ -159,7 +162,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const userInfo: OAuthUserInfo = {
         sub: payload.sub,
         email: payload.email,
-        name: payload.name ?? payload.email,
+        name: payload.name || payload.email,
         picture: payload.picture,
         provider: 'google',
         providerData: payload,
@@ -180,9 +183,9 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? undefined,
-        idToken: tokens.id_token ?? undefined,
-        expiresAt: tokens.expiry_date ?? (Date.now() + 3600 * 1000),
+        refreshToken: tokens.refresh_token || undefined,
+        idToken: tokens.id_token || undefined,
+        expiresAt: tokens.expiry_date || (Date.now() + 3600 * 1000),
         userInfo,
         provider: 'google',
         scopes: session.scopes,
@@ -191,12 +194,12 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up session
-      void this.removeSession(state);
+      this.removeSession(state);
 
       // Fallback: Return token response as JSON for direct API usage
       const response: OAuthTokenResponse = {
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token ?? undefined,
+        refresh_token: tokens.refresh_token || undefined,
         expires_in: Math.floor((tokenInfo.expiresAt - Date.now()) / 1000),
         token_type: 'Bearer',
         user: userInfo,
@@ -262,8 +265,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const newTokenInfo: StoredTokenInfo = {
         ...tokenData.tokenInfo,
         accessToken: credentials.access_token,
-        refreshToken: credentials.refresh_token ?? tokenData.tokenInfo.refreshToken,
-        expiresAt: credentials.expiry_date ?? (Date.now() + 3600 * 1000),
+        refreshToken: credentials.refresh_token || tokenData.tokenInfo.refreshToken,
+        expiresAt: credentials.expiry_date || (Date.now() + 3600 * 1000),
       };
 
       // Remove old token and store new one
@@ -296,7 +299,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   async handleLogout(req: Request, res: Response): Promise<void> {
     try {
       const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
+      if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         await this.removeToken(token);
       }
@@ -308,65 +311,6 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       this.setAntiCachingHeaders(res);
       res.status(500).json({ error: 'Logout failed' });
     }
-  }
-
-  /**
-   * Try to get token info from Google's tokeninfo endpoint
-   */
-  private async tryGetTokenInfo(token: string): Promise<{ sub: string; email: string; scopes?: string[]; expiry_date?: number }> {
-    logger.oauthDebug('Trying getTokenInfo method', { provider: 'google' });
-    this.oauth2Client.setCredentials({ access_token: token });
-    const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
-
-    logger.oauthDebug('getTokenInfo successful', { provider: 'google' });
-    logger.oauthDebug('Token info', {
-      provider: 'google',
-      sub: tokenInfo_google.sub,
-      email: tokenInfo_google.email
-    });
-
-    if (!tokenInfo_google.sub || !tokenInfo_google.email) {
-      throw new Error('Invalid token payload from getTokenInfo');
-    }
-
-    return {
-      sub: tokenInfo_google.sub,
-      email: tokenInfo_google.email,
-      scopes: tokenInfo_google.scopes,
-      expiry_date: tokenInfo_google.expiry_date
-    };
-  }
-
-  /**
-   * Fallback to Google's userinfo endpoint
-   */
-  private async tryGetUserInfo(token: string): Promise<{ sub: string; email: string; scopes?: string[] }> {
-    const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
-    }
-
-    const userData = await response.json() as {
-      id?: string;
-      email?: string;
-    };
-    logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
-    logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
-
-    if (!userData.id || !userData.email) {
-      throw new Error('Invalid user data from userinfo endpoint');
-    }
-
-    return {
-      sub: userData.id,
-      email: userData.email,
-      scopes: ['openid', 'email', 'profile'], // Default scopes for userinfo
-    };
   }
 
   /**
@@ -394,7 +338,29 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       let userInfo: { sub: string; email: string; scopes?: string[]; expiry_date?: number };
 
       try {
-        userInfo = await this.tryGetTokenInfo(token);
+        // Try tokeninfo endpoint first
+        logger.oauthDebug('Trying getTokenInfo method', { provider: 'google' });
+        this.oauth2Client.setCredentials({ access_token: token });
+        const tokenInfo_google = await this.oauth2Client.getTokenInfo(token);
+
+        logger.oauthDebug('getTokenInfo successful', { provider: 'google' });
+        logger.oauthDebug('Token info', {
+          provider: 'google',
+          sub: tokenInfo_google.sub,
+          email: tokenInfo_google.email
+        });
+
+        if (!tokenInfo_google.sub || !tokenInfo_google.email) {
+          throw new Error('Invalid token payload from getTokenInfo');
+        }
+
+        userInfo = {
+          sub: tokenInfo_google.sub,
+          email: tokenInfo_google.email,
+          scopes: tokenInfo_google.scopes,
+          expiry_date: tokenInfo_google.expiry_date
+        };
+
       } catch (tokenInfoError) {
         logger.oauthDebug('getTokenInfo failed, trying userinfo endpoint as fallback', { provider: 'google' });
         logger.oauthDebug('TokenInfo error', {
@@ -403,7 +369,34 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         });
 
         try {
-          userInfo = await this.tryGetUserInfo(token);
+          // Fallback to userinfo endpoint
+          const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`Userinfo API returned ${response.status}: ${response.statusText}`);
+          }
+
+          const userData = await response.json() as {
+            id?: string;
+            email?: string;
+          };
+          logger.oauthDebug('Userinfo endpoint successful', { provider: 'google' });
+          logger.oauthDebug('User data', { provider: 'google', id: userData.id, email: userData.email });
+
+          if (!userData.id || !userData.email) {
+            throw new Error('Invalid user data from userinfo endpoint');
+          }
+
+          userInfo = {
+            sub: userData.id,
+            email: userData.email,
+            scopes: ['openid', 'email', 'profile'], // Default scopes for userinfo
+          };
+
         } catch (userInfoError) {
           logger.oauthError('Both verification methods failed', { provider: 'google' });
           throw userInfoError;
@@ -456,44 +449,39 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
       const { code, code_verifier, redirect_uri } = validation;
 
-      // Code must be present at this point (validated earlier)
-      if (!code) {
-        throw new Error('Code is required but not present');
-      }
-
       // Resolve code_verifier (OAuth proxy vs direct flow)
-      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code, code_verifier);
+      const codeVerifierToUse = await this.resolveCodeVerifierForTokenExchange(code!, code_verifier);
 
       // Log token exchange request (includes client's redirect_uri for debugging)
-      await this.logTokenExchangeRequest(code, code_verifier, redirect_uri);
+      await this.logTokenExchangeRequest(code!, code_verifier, redirect_uri);
 
       // IMPORTANT: Always use server's registered redirect_uri for token exchange
       // Per OAuth 2.0 RFC 6749 Section 3.1.2: The redirect_uri MUST match the
       // registered redirect URI. Client-provided redirect_uri is logged but not used
       // for security - prevents redirect_uri substitution attacks.
-      const redirectUriToUse = this._config.redirectUri;
+      const redirectUriToUse = this.config.redirectUri;
 
       // Use the correct code_verifier (server's stored one for proxy flows, client's for direct flows)
       const result = await this.oauth2Client.getToken({
-        code: code,
+        code: code!,
         codeVerifier: codeVerifierToUse,
         redirect_uri: redirectUriToUse,
       });
 
       const tokens = result.tokens;
 
-      if (!tokens?.access_token) {
+      if (!tokens || !tokens.access_token) {
         throw new OAuthTokenError('No access token received', 'google');
       }
 
       // Get user information from ID token
       const ticket = await this.oauth2Client.verifyIdToken({
-        idToken: tokens.id_token ?? '',
+        idToken: tokens.id_token || '',
         audience: this.config.clientId,
       });
 
       const payload = ticket.getPayload();
-      if (!payload?.sub || !payload.email) {
+      if (!payload || !payload.sub || !payload.email) {
         throw new OAuthProviderError('Invalid ID token payload', 'google');
       }
 
@@ -501,7 +489,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       const userInfo: OAuthUserInfo = {
         sub: payload.sub,
         email: payload.email,
-        name: payload.name ?? payload.email,
+        name: payload.name || payload.email,
         picture: payload.picture,
         provider: 'google',
         providerData: payload,
@@ -510,9 +498,9 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       // Store token information
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? undefined,
-        idToken: tokens.id_token ?? undefined,
-        expiresAt: tokens.expiry_date ?? (Date.now() + 3600 * 1000),
+        refreshToken: tokens.refresh_token || undefined,
+        idToken: tokens.id_token || undefined,
+        expiresAt: tokens.expiry_date || (Date.now() + 3600 * 1000),
         userInfo,
         provider: 'google',
         scopes: ['openid', 'email', 'profile'], // Default scopes for token exchange
@@ -521,7 +509,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up authorization code mapping and session after successful token exchange
-      await this.cleanupAfterTokenExchange(code);
+      await this.cleanupAfterTokenExchange(code!);
 
       // Return standard OAuth 2.0 token response (RFC 6749 Section 5.1)
       const expiresIn = Math.floor((tokenInfo.expiresAt - Date.now()) / 1000);
@@ -529,17 +517,17 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         access_token: tokens.access_token,
         token_type: 'Bearer',
         expires_in: expiresIn,
-        refresh_token: tokens.refresh_token ?? undefined,
+        refresh_token: tokens.refresh_token || undefined,
         scope: tokenInfo.scopes.join(' '), // Add scope as required by OAuth spec
         user: userInfo,
       };
 
       // Remove undefined fields to clean up response
-      for (const key of Object.keys(response)) {
+      Object.keys(response).forEach(key => {
         if (response[key as keyof typeof response] === undefined) {
           delete response[key as keyof typeof response];
         }
-      }
+      });
 
       logger.oauthInfo('Token exchange successful', { provider: 'google', userEmail: userInfo.email });
       logger.oauthDebug('Sending response to client', { provider: 'google', response: JSON.stringify(response, null, 2) });
@@ -587,7 +575,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
     return {
       sub: userData.id,
       email: userData.email,
-      name: userData.name ?? userData.email,
+      name: userData.name || userData.email,
       picture: userData.picture,
       provider: 'google',
       providerData: userData,

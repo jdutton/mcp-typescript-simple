@@ -12,7 +12,9 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore , OAuthTokenStore , PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
+import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * GitHub OAuth provider implementation
@@ -61,7 +63,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      void this.storeSession(state, session);
+      this.storeSession(state, session);
 
       // Build authorization URL with PKCE
       const authUrl = this.buildAuthorizationUrl(
@@ -180,7 +182,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       // Get user emails (needed for primary email)
       let primaryEmail = userData.email;
-      logger.oauthDebug('Initial email from user profile', { email: primaryEmail ?? 'private' });
+      logger.oauthDebug('Initial email from user profile', { email: primaryEmail || 'private' });
 
       if (!primaryEmail) {
         logger.oauthDebug('Fetching user emails from /user/emails endpoint');
@@ -208,9 +210,9 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
             const primary = emails.find((email) => email.primary && email.verified);
             const fallback = emails.find((email) => email.verified);
-            primaryEmail = primary?.email ?? fallback?.email ?? emails[0]?.email;
+            primaryEmail = primary?.email || fallback?.email || emails[0]?.email;
 
-            logger.oauthInfo('Selected email', { email: primaryEmail ?? 'none' });
+            logger.oauthInfo('Selected email', { email: primaryEmail || 'none' });
           } else {
             const errorBody = await emailResponse.text();
             logger.oauthError('GitHub emails API error', {
@@ -236,7 +238,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
       return {
         sub: userData.id.toString(),
         email: primaryEmail,
-        name: userData.name ?? userData.login,
+        name: userData.name || userData.login,
         picture: userData.avatar_url,
         provider: 'github',
         providerData: userData,

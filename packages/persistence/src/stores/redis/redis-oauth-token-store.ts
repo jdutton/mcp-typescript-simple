@@ -48,7 +48,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     this.encryptionService = encryptionService;
     this.redis = createRedisClient(redisUrl, 'OAuth tokens');
 
-    const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
+    const url = redisUrl || process.env.REDIS_URL!;
     logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
   }
 

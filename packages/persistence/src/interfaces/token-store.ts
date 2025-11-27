@@ -93,7 +93,7 @@ export interface InitialAccessTokenStore {
    * @param options Token creation options
    * @returns The created token with all metadata
    */
-  createToken(_options: CreateTokenOptions): Promise<InitialAccessToken>;
+  createToken(options: CreateTokenOptions): Promise<InitialAccessToken>;
 
   /**
    * Validate a token and mark it as used
@@ -109,7 +109,7 @@ export interface InitialAccessTokenStore {
    * @param token The token value to validate
    * @returns Validation result with token metadata if valid
    */
-  validateAndUseToken(_token: string): Promise<TokenValidationResult>;
+  validateAndUseToken(token: string): Promise<TokenValidationResult>;
 
   /**
    * Get token metadata by ID (without marking as used)
@@ -117,7 +117,7 @@ export interface InitialAccessTokenStore {
    * @param id Token ID
    * @returns Token metadata or undefined if not found
    */
-  getToken(_id: string): Promise<InitialAccessToken | undefined>;
+  getToken(id: string): Promise<InitialAccessToken | undefined>;
 
   /**
    * Get token metadata by token value (without marking as used)
@@ -125,7 +125,7 @@ export interface InitialAccessTokenStore {
    * @param token Token value
    * @returns Token metadata or undefined if not found
    */
-  getTokenByValue(_token: string): Promise<InitialAccessToken | undefined>;
+  getTokenByValue(token: string): Promise<InitialAccessToken | undefined>;
 
   /**
    * List all tokens (optionally filtered)
@@ -133,7 +133,7 @@ export interface InitialAccessTokenStore {
    * @param options Filter options
    * @returns Array of token metadata
    */
-  listTokens(_options?: {
+  listTokens(options?: {
     includeRevoked?: boolean;
     includeExpired?: boolean;
   }): Promise<InitialAccessToken[]>;
@@ -144,7 +144,7 @@ export interface InitialAccessTokenStore {
    * @param id Token ID
    * @returns True if token was revoked, false if not found
    */
-  revokeToken(_id: string): Promise<boolean>;
+  revokeToken(id: string): Promise<boolean>;
 
   /**
    * Delete a token by ID (permanent removal)
@@ -152,7 +152,7 @@ export interface InitialAccessTokenStore {
    * @param id Token ID
    * @returns True if token was deleted, false if not found
    */
-  deleteToken(_id: string): Promise<boolean>;
+  deleteToken(id: string): Promise<boolean>;
 
   /**
    * Clean up expired and revoked tokens

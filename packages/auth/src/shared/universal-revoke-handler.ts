@@ -28,7 +28,6 @@ import {
  * @param res - Response adapter
  * @param providers - Map of available OAuth providers
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity
 export async function handleUniversalRevokeRequest(
   req: OAuthRequestAdapter,
   res: OAuthResponseAdapter,
@@ -36,7 +35,7 @@ export async function handleUniversalRevokeRequest(
 ): Promise<void> {
   try {
     // Extract token parameter (RFC 7009 Section 2.1)
-    const { token } = req.body ?? {};
+    const { token, token_type_hint } = req.body || {};
 
     // Validate required token parameter
     if (!token || typeof token !== 'string' || token.trim() === '') {
@@ -56,7 +55,6 @@ export async function handleUniversalRevokeRequest(
       try {
         // Check if provider has this token
         if ('getToken' in provider) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const storedToken = await (provider as any).getToken(token);
           if (storedToken) {
             // Remove token from provider's store

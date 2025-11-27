@@ -3,13 +3,13 @@
  */
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { ZodType } from 'zod';
+import { z, ZodType } from 'zod';
 
 /**
  * Tool handler function that processes tool input and returns a result
  */
 export type ToolHandler<TInput = unknown> = (
-  _input: TInput
+  input: TInput
 ) => Promise<CallToolResult>;
 
 /**
@@ -46,7 +46,7 @@ export function toMCPTool<TInput>(definition: ToolDefinition<TInput>): Tool {
   return {
     name: definition.name,
     description: definition.description,
-    inputSchema: jsonSchema as Record<string, unknown>, // Type assertion needed for MCP SDK compatibility
+    inputSchema: jsonSchema as any, // Type assertion needed for MCP SDK compatibility
   };
 }
 
@@ -54,73 +54,69 @@ export function toMCPTool<TInput>(definition: ToolDefinition<TInput>): Tool {
  * Simple Zod to JSON Schema converter for basic types
  * For production, consider using zod-to-json-schema library
  */
-function zodToJsonSchema(schema: ZodType<unknown>): Record<string, unknown> {
+function zodToJsonSchema(schema: ZodType<any>): Record<string, any> {
   // Try to get the JSON schema directly if available
-  const zodDef = (schema as Record<string, unknown>)._def as Record<string, unknown> | undefined;
+  const zodDef = (schema as any)._def;
 
-  if (!zodDef) {
-    return { type: 'object' };
-  }
+  if (zodDef?.typeName === 'ZodObject') {
+    const shape = zodDef.shape();
+    const properties: Record<string, any> = {};
+    const required: string[] = [];
 
-  const typeName = zodDef.typeName as string;
+    for (const [key, value] of Object.entries(shape)) {
+      const propSchema = value as ZodType<any>;
+      properties[key] = zodToJsonSchema(propSchema);
 
-  // Handle object types
-  if (typeName === 'ZodObject') {
-    return convertZodObject(zodDef);
-  }
-
-  // Handle optional types
-  if (typeName === 'ZodOptional') {
-    return zodToJsonSchema(zodDef.innerType as ZodType<unknown>);
-  }
-
-  // Handle primitive and enum types
-  return convertPrimitiveType(typeName, zodDef);
-}
-
-/**
- * Convert ZodObject to JSON Schema
- */
-function convertZodObject(zodDef: Record<string, unknown>): Record<string, unknown> {
-  const shape = (zodDef.shape as () => Record<string, unknown>)();
-  const properties: Record<string, unknown> = {};
-  const required: string[] = [];
-
-  for (const [key, value] of Object.entries(shape)) {
-    const propSchema = value as ZodType<unknown>;
-    properties[key] = zodToJsonSchema(propSchema);
-
-    // Check if field is optional
-    const propDef = (propSchema as Record<string, unknown>)._def as Record<string, unknown> | undefined;
-    if (propDef?.typeName !== 'ZodOptional') {
-      required.push(key);
+      // Check if field is optional
+      if ((propSchema as any)._def?.typeName !== 'ZodOptional') {
+        required.push(key);
+      }
     }
+
+    return {
+      type: 'object',
+      properties,
+      ...(required.length > 0 ? { required } : {}),
+    };
   }
 
-  return {
-    type: 'object',
-    properties,
-    ...(required.length > 0 ? { required } : {}),
-  };
-}
-
-/**
- * Convert primitive Zod types to JSON Schema
- */
-function convertPrimitiveType(typeName: string, zodDef: Record<string, unknown>): Record<string, unknown> {
-  const description = zodDef.description as string | undefined;
-  const baseSchema = description ? { description } : {};
-
-  switch (typeName) {
-    case 'ZodString':
-      return { type: 'string', ...baseSchema };
-    case 'ZodNumber':
-      return { type: 'number', ...baseSchema };
-    case 'ZodBoolean':
-      return { type: 'boolean', ...baseSchema };
-    case 'ZodEnum':
-      return { type: 'string', enum: zodDef.values as unknown[], ...baseSchema };
-    default:
-      return { type: 'object' };
+  if (zodDef?.typeName === 'ZodString') {
+    const description = zodDef.description;
+    return {
+      type: 'string',
+      ...(description ? { description } : {}),
+    };
   }
+
+  if (zodDef?.typeName === 'ZodNumber') {
+    const description = zodDef.description;
+    return {
+      type: 'number',
+      ...(description ? { description } : {}),
+    };
+  }
+
+  if (zodDef?.typeName === 'ZodBoolean') {
+    const description = zodDef.description;
+    return {
+      type: 'boolean',
+      ...(description ? { description } : {}),
+    };
+  }
+
+  if (zodDef?.typeName === 'ZodEnum') {
+    const description = zodDef.description;
+    return {
+      type: 'string',
+      enum: zodDef.values,
+      ...(description ? { description } : {}),
+    };
+  }
+
+  if (zodDef?.typeName === 'ZodOptional') {
+    return zodToJsonSchema(zodDef.innerType);
+  }
+
+  // Fallback for unknown types
+  return { type: 'object' };
 }

@@ -244,8 +244,8 @@ export class OCSFOTELBridge {
     // Emit log via OTEL
     this.logger.emit({
       severityNumber,
-      severityText: event.severity ?? 'UNKNOWN',
-      body: event.message ?? `${event.class_name ?? 'Event'}: ${event.activity_name ?? 'Activity'}`,
+      severityText: event.severity || 'UNKNOWN',
+      body: event.message || `${event.class_name || 'Event'}: ${event.activity_name || 'Activity'}`,
       attributes,
       timestamp: event.time,
       observedTimestamp,

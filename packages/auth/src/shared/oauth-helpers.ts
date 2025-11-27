@@ -12,17 +12,17 @@
  */
 export interface OAuthRequestAdapter {
   method?: string;
-  body?: Record<string, unknown>;
-  query?: Record<string, unknown>;
+  body?: any;
+  query?: any;
   url?: string;
 }
 
 export interface OAuthResponseAdapter {
-  status(_code: number): OAuthResponseAdapter;
-  json(_data: Record<string, unknown>): void | OAuthResponseAdapter;
-  setHeader(_name: string, _value: string): void | OAuthResponseAdapter;
-  redirect?(_code: number, _url: string): void;
-  send?(_data: Record<string, unknown>): void;
+  status(code: number): OAuthResponseAdapter;
+  json(data: any): void | OAuthResponseAdapter;
+  setHeader(name: string, value: string): void | OAuthResponseAdapter;
+  redirect?(code: number, url: string): void;
+  send?(data: any): void;
   headersSent?: boolean;
 }
 
@@ -52,7 +52,7 @@ export function createOAuthErrorResponse(
   code: number,
   error: string,
   description: string
-): { statusCode: number; body: Record<string, string> } {
+): { statusCode: number; body: any } {
   return {
     statusCode: code,
     body: {
@@ -93,7 +93,7 @@ export function sendOAuthError(
  */
 export function sendOAuthSuccess(
   res: OAuthResponseAdapter,
-  data: Record<string, unknown>
+  data: any
 ): void {
   setOAuthAntiCachingHeaders(res);
   res.status(200).json(data);

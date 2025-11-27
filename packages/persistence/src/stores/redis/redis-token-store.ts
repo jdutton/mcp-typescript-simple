@@ -52,7 +52,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
   private readonly encryptionService: TokenEncryptionService;
 
   constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService) {
-    const url = redisUrl ?? process.env.REDIS_URL;
+    const url = redisUrl || process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
@@ -79,7 +79,6 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     });
 
     // Connect immediately
-  /* eslint-disable sonarjs/no-async-constructor -- Fire-and-forget Redis connection initialization */
     this.redis.connect().catch((error) => {
       logger.error('Failed to connect to Redis', { error });
     });
@@ -172,7 +171,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
-      maxUses: options.max_uses ?? 'unlimited',
+      maxUses: options.max_uses || 'unlimited',
       ttl: ttlSeconds ? `${ttlSeconds}s` : 'none',
     });
 
@@ -224,7 +223,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       logger.info('Token validated and used', {
         tokenId: result.token.id,
         usageCount: result.token.usage_count,
-        maxUses: result.token.max_uses ?? 'unlimited',
+        maxUses: result.token.max_uses || 'unlimited',
       });
     }
 

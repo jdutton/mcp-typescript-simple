@@ -56,15 +56,13 @@ export class MemoryEventStore implements EventStore {
       this.streamEvents.set(streamId, []);
     }
 
-    const streamEventList = this.streamEvents.get(streamId) ?? [];
+    const streamEventList = this.streamEvents.get(streamId)!;
     streamEventList.push(eventId);
 
     // Limit events per stream to prevent memory bloat
     if (streamEventList.length > this.MAX_EVENTS_PER_STREAM) {
-      const oldEventId = streamEventList.shift();
-      if (oldEventId) {
-        this.events.delete(oldEventId);
-      }
+      const oldEventId = streamEventList.shift()!;
+      this.events.delete(oldEventId);
     }
 
     return eventId;
@@ -75,7 +73,7 @@ export class MemoryEventStore implements EventStore {
    */
   async replayEventsAfter(
     lastEventId: EventId,
-    { send }: { send: (_eventId: EventId, _message: JSONRPCMessage) => Promise<void> }
+    { send }: { send: (eventId: EventId, message: JSONRPCMessage) => Promise<void> }
   ): Promise<StreamId> {
     // Find the event with the given ID
     const lastEvent = this.events.get(lastEventId);
@@ -120,57 +118,39 @@ export class MemoryEventStore implements EventStore {
    */
   private cleanup(): void {
     const now = Date.now();
-    const expiredEvents = this.findExpiredEvents(now);
-
-    // Remove expired events
-    for (const eventId of expiredEvents) {
-      this.removeExpiredEvent(eventId);
-    }
-
-    if (expiredEvents.length > 0) {
-      logger.debug("Cleaned up expired events", { count: expiredEvents.length });
-    }
-  }
-
-  /**
-   * Find all expired events
-   */
-  private findExpiredEvents(now: number): EventId[] {
     const expiredEvents: EventId[] = [];
+
+    // Find expired events
     for (const [eventId, event] of this.events) {
       if (now - event.timestamp > this.EVENT_TTL) {
         expiredEvents.push(eventId);
       }
     }
-    return expiredEvents;
-  }
 
-  /**
-   * Remove a single expired event
-   */
-  private removeExpiredEvent(eventId: EventId): void {
-    const event = this.events.get(eventId);
-    if (!event) return;
+    // Remove expired events
+    for (const eventId of expiredEvents) {
+      const event = this.events.get(eventId);
+      if (event) {
+        this.events.delete(eventId);
 
-    this.events.delete(eventId);
-    this.removeEventFromStream(eventId, event.streamId);
-  }
+        // Remove from stream tracking
+        const streamEventList = this.streamEvents.get(event.streamId);
+        if (streamEventList) {
+          const index = streamEventList.indexOf(eventId);
+          if (index !== -1) {
+            streamEventList.splice(index, 1);
+          }
 
-  /**
-   * Remove event from stream tracking
-   */
-  private removeEventFromStream(eventId: EventId, streamId: StreamId): void {
-    const streamEventList = this.streamEvents.get(streamId);
-    if (!streamEventList) return;
-
-    const index = streamEventList.indexOf(eventId);
-    if (index !== -1) {
-      streamEventList.splice(index, 1);
+          // Clean up empty stream lists
+          if (streamEventList.length === 0) {
+            this.streamEvents.delete(event.streamId);
+          }
+        }
+      }
     }
 
-    // Clean up empty stream lists
-    if (streamEventList.length === 0) {
-      this.streamEvents.delete(streamId);
+    if (expiredEvents.length > 0) {
+      logger.debug("Cleaned up expired events", { count: expiredEvents.length });
     }
   }
 
@@ -224,9 +204,11 @@ export class EventStoreFactory {
    * For now, only returns in-memory store, but can be extended for persistent stores
    */
   static createEventStore(type: 'memory' = 'memory'): EventStore {
-    if (type === 'memory') {
-      return new MemoryEventStore();
+    switch (type) {
+      case 'memory':
+        return new MemoryEventStore();
+      default:
+        throw new Error(`Unsupported event store type: ${type}`);
     }
-    throw new Error(`Unsupported event store type: ${type}`);
   }
 }

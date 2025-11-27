@@ -6,33 +6,33 @@
  */
 
 export interface PersistenceLogger {
-  info(_message: string, _meta?: Record<string, unknown>): void;
-  warn(_message: string, _meta?: Record<string, unknown>): void;
-  error(_message: string, _meta?: Record<string, unknown>): void;
-  debug(_message: string, _meta?: Record<string, unknown>): void;
+  info(message: string, meta?: Record<string, any>): void;
+  warn(message: string, meta?: Record<string, any>): void;
+  error(message: string, meta?: Record<string, any>): void;
+  debug(message: string, meta?: Record<string, any>): void;
   // Optional OAuth-specific logging methods
-  oauthDebug?(_message: string, _meta?: Record<string, unknown>): void;
-  oauthWarn?(_message: string, _meta?: Record<string, unknown>): void;
-  oauthError?(_message: string, _meta?: Record<string, unknown>): void;
+  oauthDebug?(message: string, meta?: Record<string, any>): void;
+  oauthWarn?(message: string, meta?: Record<string, any>): void;
+  oauthError?(message: string, meta?: Record<string, any>): void;
 }
 
 /**
  * No-op logger implementation (default)
  */
 class NoOpLogger implements PersistenceLogger {
-  info(_message: string, _meta?: Record<string, unknown>): void {
+  info(_message: string, _meta?: Record<string, any>): void {
     // No-op
   }
 
-  warn(_message: string, _meta?: Record<string, unknown>): void {
+  warn(_message: string, _meta?: Record<string, any>): void {
     // No-op
   }
 
-  error(_message: string, _meta?: Record<string, unknown>): void {
+  error(_message: string, _meta?: Record<string, any>): void {
     // No-op
   }
 
-  debug(_message: string, _meta?: Record<string, unknown>): void {
+  debug(_message: string, _meta?: Record<string, any>): void {
     // No-op
   }
 }
@@ -62,8 +62,8 @@ export function getLogger(): PersistenceLogger {
  * Exported logger object that delegates to the current logger instance
  */
 export const logger: PersistenceLogger = {
-  info: (message: string, meta?: Record<string, unknown>) => loggerInstance.info(message, meta),
-  warn: (message: string, meta?: Record<string, unknown>) => loggerInstance.warn(message, meta),
-  error: (message: string, meta?: Record<string, unknown>) => loggerInstance.error(message, meta),
-  debug: (message: string, meta?: Record<string, unknown>) => loggerInstance.debug(message, meta),
+  info: (message: string, meta?: Record<string, any>) => loggerInstance.info(message, meta),
+  warn: (message: string, meta?: Record<string, any>) => loggerInstance.warn(message, meta),
+  error: (message: string, meta?: Record<string, any>) => loggerInstance.error(message, meta),
+  debug: (message: string, meta?: Record<string, any>) => loggerInstance.debug(message, meta),
 };

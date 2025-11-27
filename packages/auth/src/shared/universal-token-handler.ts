@@ -34,7 +34,6 @@ export async function handleUniversalTokenRequest(
   providers: Map<string, OAuthProvider>
 ): Promise<void> {
   try {
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const { grant_type, refresh_token, code } = req.body || {};
 
     logger.debug("Multi-provider token handler", {
@@ -100,7 +99,6 @@ async function handleAuthorizationCodeGrant(
     codeVerifierPrefix: req.body?.code_verifier?.substring(0, 8),
     hasClientId: !!req.body?.client_id,
     hasRedirectUri: !!req.body?.redirect_uri,
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     allBodyKeys: Object.keys(req.body || {})
   });
 
@@ -115,7 +113,6 @@ async function handleAuthorizationCodeGrant(
 
   for (const [providerType, provider] of providers.entries()) {
     if ('hasStoredCodeForProvider' in provider) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hasCode = await (provider as any).hasStoredCodeForProvider(code);
       logger.info("Provider code check result", {
         provider: providerType,
@@ -157,10 +154,8 @@ async function handleAuthorizationCodeGrant(
     try {
       logger.debug("Using correct provider for token exchange", { provider: correctProviderType });
       const tokenProvider = correctProvider as OAuthProvider & {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        handleTokenExchange: (_req: any, _res: any) => Promise<void>
+        handleTokenExchange: (req: any, res: any) => Promise<void>
       };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await tokenProvider.handleTokenExchange(req as any, res as any);
       logger.debug("Token exchange succeeded", { provider: correctProviderType });
       return;
@@ -191,7 +186,6 @@ async function handleAuthorizationCodeGrant(
  * @param providers - Map of available OAuth providers
  * @param refresh_token - Refresh token
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity
 async function handleRefreshTokenGrant(
   req: OAuthRequestAdapter,
   res: OAuthResponseAdapter,
@@ -205,15 +199,13 @@ async function handleRefreshTokenGrant(
   // Get token store from any provider (they all share the same store)
   const firstProvider = providers.values().next().value;
   if (firstProvider && 'getTokenStore' in firstProvider) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tokenStore = (firstProvider as any).getTokenStore();
 
     try {
       const tokenData = await tokenStore.findByRefreshToken(refresh_token);
 
-      if (tokenData?.tokenInfo) {
+      if (tokenData && tokenData.tokenInfo) {
         const providerType = tokenData.tokenInfo.provider;
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         correctProvider = providers.get(providerType) || null;
         correctProviderType = providerType;
 
@@ -230,7 +222,6 @@ async function handleRefreshTokenGrant(
   // If we found the correct provider, use it directly
   if (correctProvider) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await correctProvider.handleTokenRefresh(req as any, res as any);
       return; // Success
     } catch (error) {
@@ -250,14 +241,10 @@ async function handleRefreshTokenGrant(
   logger.debug('Trying each provider for refresh token');
   for (const provider of providers.values()) {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await provider.handleTokenRefresh(req as any, res as any);
       return; // Success
     } catch (error) {
-      // Try next provider (error expected when provider doesn't own the token)
-      logger.debug('Provider refresh attempt failed, trying next', {
-        error: error instanceof Error ? error.message : String(error)
-      });
+      // Try next provider
       continue;
     }
   }

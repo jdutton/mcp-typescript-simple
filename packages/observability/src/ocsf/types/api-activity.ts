@@ -7,9 +7,6 @@
  * Reference: https://schema.ocsf.io/1.3.0/classes/api_activity
  */
 
-/* eslint-disable no-unused-vars */
-// Enums are part of OCSF specification and exported for library consumers
-
 import type {
   BaseEvent,
   Actor,

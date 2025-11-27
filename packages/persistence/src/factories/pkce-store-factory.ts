@@ -31,7 +31,7 @@ export class PKCEStoreFactory {
    * Create a PKCE store based on configuration
    */
   static create(options: PKCEStoreFactoryOptions = {}): PKCEStore {
-    const storeType = options.type ?? 'auto';
+    const storeType = options.type || 'auto';
 
     if (storeType === 'auto') {
       return this.createAutoDetected();

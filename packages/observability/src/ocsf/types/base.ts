@@ -5,9 +5,6 @@
  * Reference: https://schema.ocsf.io/1.3.0
  */
 
-/* eslint-disable no-unused-vars */
-// Enums are part of OCSF specification and exported for library consumers
-
 /**
  * Severity levels for OCSF events
  */

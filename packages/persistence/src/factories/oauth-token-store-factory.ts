@@ -43,7 +43,7 @@ export class OAuthTokenStoreFactory {
    * Create an OAuth token store based on configuration
    */
   static async create(options: OAuthTokenStoreFactoryOptions = {}): Promise<OAuthTokenStore> {
-    const storeType = options.type ?? 'auto';
+    const storeType = options.type || 'auto';
 
     if (storeType === 'auto') {
       return this.createAutoDetected();
