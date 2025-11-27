@@ -4,7 +4,7 @@
 // This ensures auto-instrumentation hooks are registered before any modules load
 // IMPORTANT: LoggerProvider is initialized explicitly in main() to avoid --import timing issues
 
-// eslint-disable-next-line sonarjs/deprecation -- Server is the correct class to use here
+// eslint-disable-next-line sonarjs/deprecation -- Server class is the official MCP SDK API
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 
 // Import package-based tools
@@ -26,7 +26,7 @@ import { logs } from '@opentelemetry/api-logs';
 // Initialize LLM manager
 const llmManager = new LLMManager();
 
-// eslint-disable-next-line sonarjs/deprecation -- Server is the correct class to use here
+// eslint-disable-next-line sonarjs/deprecation -- Server class is the official MCP SDK API
 const server = new Server(
   {
     name: "mcp-typescript-simple",

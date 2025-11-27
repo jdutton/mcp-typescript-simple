@@ -12,7 +12,9 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
+  // eslint-disable-next-line sonarjs/deprecation -- No non-deprecated alternative available yet
   SEMRESATTRS_SERVICE_NAMESPACE,
+  // eslint-disable-next-line sonarjs/deprecation -- No non-deprecated alternative available yet
   SEMRESATTRS_DEPLOYMENT_ENVIRONMENT
 } from '@opentelemetry/semantic-conventions';
 import { getObservabilityConfig, type ObservabilityConfig } from './config.js';
@@ -30,7 +32,7 @@ export class ObservabilityLogger {
   private hasTransports: boolean;
 
   constructor(config?: ObservabilityConfig) {
-    this.config = config || getObservabilityConfig();
+    this.config = config ?? getObservabilityConfig();
     this.isProduction = this.config.environment === 'production';
     this.hasTransports = false; // Will be set in createPinoLogger
 
@@ -169,9 +171,7 @@ export class ObservabilityLogger {
       return obj;
     }
 
-    if (!visited) {
-      visited = new WeakSet();
-    }
+    visited ??= new WeakSet();
 
     if (visited.has(obj as object)) {
       return '[Circular Reference]';
@@ -205,7 +205,7 @@ export class ObservabilityLogger {
   private addTraceContextToData(data?: unknown): unknown {
     if (this.hasTransports) {
       // When using transports, manually add trace context
-      const traceData = this.addTraceContext(data as Record<string, unknown> || {});
+      const traceData = this.addTraceContext((data as Record<string, unknown>) ?? {});
       return traceData;
     }
     return data;
@@ -215,19 +215,19 @@ export class ObservabilityLogger {
   debug(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.debug(dataWithTrace || {}, sanitizedMessage);
+    this.pino.debug(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   info(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.info(dataWithTrace || {}, sanitizedMessage);
+    this.pino.info(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   warn(message: string, data?: unknown): void {
     const { message: sanitizedMessage, data: sanitizedData } = this.sanitizeForProduction(message, data);
     const dataWithTrace = this.addTraceContextToData(sanitizedData);
-    this.pino.warn(dataWithTrace || {}, sanitizedMessage);
+    this.pino.warn(dataWithTrace ?? {}, sanitizedMessage);
   }
 
   error(message: string, error?: Error | unknown): void {
@@ -243,7 +243,7 @@ export class ObservabilityLogger {
     } else if (error) {
       const { data: sanitizedError } = this.sanitizeForProduction('', error);
       const dataWithTrace = this.addTraceContextToData(sanitizedError);
-      this.pino.error(dataWithTrace || {}, sanitizedMessage);
+      this.pino.error(dataWithTrace ?? {}, sanitizedMessage);
     } else {
       const dataWithTrace = this.addTraceContextToData({});
       this.pino.error(dataWithTrace, sanitizedMessage);
@@ -279,9 +279,7 @@ export class ObservabilityLogger {
 let loggerInstance: ObservabilityLogger | null = null;
 
 export function getLogger(): ObservabilityLogger {
-  if (!loggerInstance) {
-    loggerInstance = new ObservabilityLogger();
-  }
+  loggerInstance ??= new ObservabilityLogger();
   return loggerInstance;
 }
 
@@ -326,9 +324,9 @@ export function initializeLoggerProvider(): void {
   }
 
   try {
-    const serviceName = process.env.OTEL_SERVICE_NAME || 'mcp-typescript-simple';
-    const serviceVersion = process.env.npm_package_version || '1.0.0';
-    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
+    const serviceName = process.env.OTEL_SERVICE_NAME ?? 'mcp-typescript-simple';
+    const serviceVersion = process.env.npm_package_version ?? '1.0.0';
+    const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? 'http://localhost:4318';
 
     console.debug('[LoggerProvider] Initializing', {
       service: serviceName,
@@ -340,7 +338,9 @@ export function initializeLoggerProvider(): void {
     const resource = resourceFromAttributes({
       [ATTR_SERVICE_NAME]: serviceName,
       [ATTR_SERVICE_VERSION]: serviceVersion,
+      // eslint-disable-next-line sonarjs/deprecation -- No non-deprecated alternative available yet
       [SEMRESATTRS_SERVICE_NAMESPACE]: environment === 'production' ? 'prod' : 'dev',
+      // eslint-disable-next-line sonarjs/deprecation -- No non-deprecated alternative available yet
       [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: environment
     });
 

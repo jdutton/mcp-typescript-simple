@@ -5,6 +5,8 @@
  * Reference: https://schema.ocsf.io/1.3.0
  */
 
+/* eslint-disable no-unused-vars */ // OCSF type specification enums (used as type definitions)
+
 /**
  * Severity levels for OCSF events
  */

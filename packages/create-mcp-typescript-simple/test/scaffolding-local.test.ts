@@ -53,14 +53,17 @@ describe('Local Scaffolding Unit Test', () => {
     console.log('✅ Local scaffolding completed');
   }, 120000); // 2 minute timeout for scaffolding + npm install
 
-  afterAll(() => {
-    // Cleanup temporary directory
-    if (tempDir && existsSync(tempDir)) {
-      console.log(`\n🧹 Cleaning up: ${tempDir}`);
-      rmSync(tempDir, { recursive: true, force: true });
-      console.log('✅ Cleanup completed');
-    }
-  });
+  afterAll(
+    () => {
+      // Cleanup temporary directory
+      if (tempDir && existsSync(tempDir)) {
+        console.log(`\n🧹 Cleaning up: ${tempDir}`);
+        rmSync(tempDir, { recursive: true, force: true });
+        console.log('✅ Cleanup completed');
+      }
+    },
+    30000,
+  ); // 30 second timeout for cleanup
 
   describe('Project Structure', () => {
     it('should create project directory', () => {
@@ -191,24 +194,33 @@ describe('Local Scaffolding Unit Test', () => {
       }
     });
 
-    it('should pass ESLint checking with ZERO errors', () => {
-      console.log('\n🔍 Running lint...');
-      try {
-        const output = execSync('npm run lint', {
-          cwd: projectDir,
-          stdio: 'pipe',
-          encoding: 'utf-8',
-        });
-        console.log('✅ Lint passed with zero errors');
+    it(
+      'should pass ESLint checking with ZERO errors',
+      () => {
+        console.log('\n🔍 Running lint...');
+        try {
+          const output = execSync('npm run lint', {
+            cwd: projectDir,
+            stdio: 'pipe',
+            encoding: 'utf-8',
+          });
+          console.log('✅ Lint passed with zero errors');
 
-        // Verify no warnings or errors in output
-        expect(output).not.toContain('warning');
-        expect(output).not.toContain('error');
-      } catch (error: any) {
-        console.error('❌ Lint failed:', error.stdout || error.message);
-        throw error;
-      }
-    });
+          // Verify no warnings or errors in output
+          expect(output).not.toContain('warning');
+          expect(output).not.toContain('error');
+        } catch (error: any) {
+          console.error('❌ Lint failed!');
+          console.error('STDOUT:', error.stdout);
+          console.error('STDERR:', error.stderr);
+          console.error('MESSAGE:', error.message);
+          throw new Error(
+            `ESLint validation failed:\nSTDOUT: ${error.stdout}\nSTDERR: ${error.stderr}`,
+          );
+        }
+      },
+      30000,
+    ); // 30 second timeout for ESLint
 
     it('should build successfully', () => {
       console.log('\n🔍 Running build...');
