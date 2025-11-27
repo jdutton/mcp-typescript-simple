@@ -1,3 +1,18 @@
+/* eslint-disable security/detect-non-literal-fs-filename, sonarjs/file-permissions */
+/* Justification: This is a project scaffolding tool that MUST accept user-provided paths.
+ * All paths are:
+ * 1. Derived from user input (project name/config) - expected behavior for scaffolding
+ * 2. Resolved to absolute paths to prevent directory traversal
+ * 3. Used only for creating new project files (no existing system files accessed)
+ * 4. Validated through npm naming rules (validateProjectName in prompts.ts)
+ *
+ * File permissions (0o755) are safe and standard for CLI executables:
+ * - Owner: read, write, execute (rwx)
+ * - Group: read, execute (r-x)
+ * - Others: read, execute (r-x)
+ * This is required for npm bin files to be executable after installation.
+ */
+
 import fs from 'fs-extra';
 import path from 'node:path';
 import Handlebars from 'handlebars';

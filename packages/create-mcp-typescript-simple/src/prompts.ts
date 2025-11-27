@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 /**
  * Validate project name follows npm naming rules
  */
-function validateProjectName(name: string): boolean | string {
+function validateProjectName(name: string): true | string {
   if (!name) {
     return 'Project name is required';
   }
@@ -32,7 +32,7 @@ function validateProjectName(name: string): boolean | string {
 /**
  * Validate port number
  */
-function validatePort(input: string): boolean | string {
+function validatePort(input: string): true | string {
   const port = Number.parseInt(input, 10);
 
   if (Number.isNaN(port)) {
@@ -92,7 +92,7 @@ export async function promptForConfig(projectName?: string): Promise<ProjectConf
   const gitUserName = await getGitUserName();
   const author = await input({
     message: 'Author:',
-    default: gitUserName || 'Your Name',
+    default: gitUserName ?? 'Your Name',
   });
 
   // BASE_PORT (for dev server and tests)
@@ -121,7 +121,7 @@ export async function getDefaultConfig(projectName: string): Promise<ProjectConf
   return {
     name: projectName,
     description: 'Production-ready MCP server with OAuth, LLM, and Docker',
-    author: gitUserName || 'Your Name',
+    author: gitUserName ?? 'Your Name',
     mcpServerName: toDisplayName(projectName),
     basePort: 3020,
   };
