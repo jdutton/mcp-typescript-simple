@@ -34,6 +34,8 @@
  * - Performance degrades with many tokens (full file read/write)
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename -- File store requires dynamic file paths for persistence */
+
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
@@ -138,7 +140,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
         // File doesn't exist yet, that's fine
         logger.info('No existing OAuth token file found, starting fresh');
       } else {
-        logger.error('Failed to load OAuth tokens from file', error as Record<string, any>);
+        logger.error('Failed to load OAuth tokens from file', error as Record<string, unknown>);
       }
     }
   }
@@ -204,7 +206,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
         filePath: this.filePath,
       });
     } catch (error) {
-      logger.error('Failed to save OAuth tokens to file', error as Record<string, any>);
+      logger.error('Failed to save OAuth tokens to file', error as Record<string, unknown>);
       throw error;
     }
   }

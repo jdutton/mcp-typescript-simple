@@ -137,7 +137,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       return fullClient;
     } catch (error) {
-      logger.error('Failed to register client in Redis', error as Record<string, any>);
+      logger.error('Failed to register client in Redis', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -232,7 +232,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       return clients;
     } catch (error) {
-      logger.error('Failed to list clients from Redis', error as Record<string, any>);
+      logger.error('Failed to list clients from Redis', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -268,7 +268,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       return expiredIds.length;
     } catch (error) {
-      logger.error('Failed to cleanup expired clients from Redis', error as Record<string, any>);
+      logger.error('Failed to cleanup expired clients from Redis', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -280,7 +280,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
     try {
       return await this.redis.scard(INDEX_KEY);
     } catch (error) {
-      logger.error('Failed to get client count from Redis', error as Record<string, any>);
+      logger.error('Failed to get client count from Redis', error as Record<string, unknown>);
       return 0;
     }
   }
@@ -302,7 +302,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       logger.warn('All clients cleared from Redis', { count: clientIds.length });
     } catch (error) {
-      logger.error('Failed to clear clients from Redis', error as Record<string, any>);
+      logger.error('Failed to clear clients from Redis', error as Record<string, unknown>);
       throw error;
     }
   }

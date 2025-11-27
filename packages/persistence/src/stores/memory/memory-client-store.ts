@@ -192,7 +192,7 @@ export class InMemoryClientStore implements OAuthRegisteredClientsStore {
       try {
         await this.cleanupExpired();
       } catch (error) {
-        logger.error('Auto-cleanup failed', error as Record<string, any>);
+        logger.error('Auto-cleanup failed', error as Record<string, unknown>);
       }
     }, this.options.cleanupIntervalMs!);
 
