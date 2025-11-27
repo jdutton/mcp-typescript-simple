@@ -17,6 +17,7 @@ import { ToolDefinition, toMCPTool } from './types.js';
  * - Testability (can invoke tools directly without server)
  */
 export class ToolRegistry {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic tool storage requires dynamic typing
   private tools: Map<string, ToolDefinition<any>> = new Map();
 
   /**
@@ -32,6 +33,7 @@ export class ToolRegistry {
   /**
    * Get a tool definition by name
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Generic tool retrieval requires dynamic typing
   get(name: string): ToolDefinition<any> | undefined {
     return this.tools.get(name);
   }

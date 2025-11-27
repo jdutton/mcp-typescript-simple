@@ -3,13 +3,13 @@
  */
 
 import { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { z, ZodType } from 'zod';
+import { ZodType } from 'zod';
 
 /**
  * Tool handler function that processes tool input and returns a result
  */
 export type ToolHandler<TInput = unknown> = (
-  input: TInput
+  _input: TInput
 ) => Promise<CallToolResult>;
 
 /**
@@ -46,7 +46,8 @@ export function toMCPTool<TInput>(definition: ToolDefinition<TInput>): Tool {
   return {
     name: definition.name,
     description: definition.description,
-    inputSchema: jsonSchema as any, // Type assertion needed for MCP SDK compatibility
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MCP SDK Tool.inputSchema requires any for JSON Schema compatibility
+    inputSchema: jsonSchema as any,
   };
 }
 
@@ -54,20 +55,23 @@ export function toMCPTool<TInput>(definition: ToolDefinition<TInput>): Tool {
  * Simple Zod to JSON Schema converter for basic types
  * For production, consider using zod-to-json-schema library
  */
-function zodToJsonSchema(schema: ZodType<any>): Record<string, any> {
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Zod schema introspection requires nested conditionals
+function zodToJsonSchema(schema: ZodType<unknown>): Record<string, unknown> {
   // Try to get the JSON schema directly if available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Zod internal _def property is untyped
   const zodDef = (schema as any)._def;
 
   if (zodDef?.typeName === 'ZodObject') {
     const shape = zodDef.shape();
-    const properties: Record<string, any> = {};
+    const properties: Record<string, unknown> = {};
     const required: string[] = [];
 
     for (const [key, value] of Object.entries(shape)) {
-      const propSchema = value as ZodType<any>;
+      const propSchema = value as ZodType<unknown>;
       properties[key] = zodToJsonSchema(propSchema);
 
       // Check if field is optional
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Zod internal _def property is untyped
       if ((propSchema as any)._def?.typeName !== 'ZodOptional') {
         required.push(key);
       }
