@@ -151,7 +151,7 @@ export function removeUserFromAllowlist(userEmail: string, config: AllowlistConf
  * Get list of allowed users (for admin endpoints)
  */
 export function getAllowedUsers(config: AllowlistConfig): string[] {
-  return Array.from(config.allowedUsers).sort();
+  return Array.from(config.allowedUsers).sort((a, b) => a.localeCompare(b));
 }
 
 /**

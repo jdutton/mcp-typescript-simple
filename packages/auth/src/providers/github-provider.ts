@@ -12,9 +12,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore, OAuthTokenStore, PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * GitHub OAuth provider implementation
@@ -63,7 +61,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session with client redirect support and client state preservation
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      this.storeSession(state, session);
+      void this.storeSession(state, session);
 
       // Build authorization URL with PKCE
       const authUrl = this.buildAuthorizationUrl(
