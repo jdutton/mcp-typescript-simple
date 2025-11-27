@@ -27,7 +27,7 @@ export class StdioTransportManager implements TransportManager {
   private server?: Server;
   private transport?: StdioServerTransport;
 
-  constructor(private _options: StdioTransportOptions) {}
+  constructor(private readonly _options: StdioTransportOptions) {}
 
   async initialize(server: Server, _toolRegistry?: ToolRegistry): Promise<void> {
     this.server = server;

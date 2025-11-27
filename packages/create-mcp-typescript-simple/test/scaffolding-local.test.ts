@@ -279,7 +279,7 @@ describe('Local Scaffolding Unit Test', () => {
   describe('Template-Specific Validations (Phase 2 Checks)', () => {
     it('should have security ESLint plugins in package.json', () => {
       const packageJson = JSON.parse(
-        require('fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
+        require('node:fs').readFileSync(join(projectDir, 'package.json'), 'utf-8'),
       );
 
       // Verify our Phase 2 template changes are present (in devDependencies)
@@ -288,9 +288,9 @@ describe('Local Scaffolding Unit Test', () => {
     });
 
     it('should have security plugins configured in eslint.config.js', () => {
-      const eslintConfig = require('fs').readFileSync(
+      const eslintConfig = require('node:fs').readFileSync(
         join(projectDir, 'eslint.config.js'),
-        'utf-8'
+        'utf-8',
       );
 
       // Verify security plugin imports exist
@@ -300,9 +300,9 @@ describe('Local Scaffolding Unit Test', () => {
     });
 
     it('should use void operator for promise handlers in index.ts', () => {
-      const indexTs = require('fs').readFileSync(
+      const indexTs = require('node:fs').readFileSync(
         join(projectDir, 'src', 'index.ts'),
-        'utf-8'
+        'utf-8',
       );
 
       // Verify our Phase 2 fixes are present
@@ -312,7 +312,7 @@ describe('Local Scaffolding Unit Test', () => {
     it('should use node:* imports in test files', () => {
       const setupFile = join(projectDir, 'test', 'system', 'vitest-global-setup.ts');
       if (existsSync(setupFile)) {
-        const setupContent = require('fs').readFileSync(setupFile, 'utf-8');
+        const setupContent = require('node:fs').readFileSync(setupFile, 'utf-8');
 
         // Verify modern node:* imports
         expect(setupContent).toContain("from 'node:child_process'");
@@ -323,7 +323,7 @@ describe('Local Scaffolding Unit Test', () => {
     it('should use Number.parseInt in test files', () => {
       const setupFile = join(projectDir, 'test', 'system', 'vitest-global-setup.ts');
       if (existsSync(setupFile)) {
-        const setupContent = require('fs').readFileSync(setupFile, 'utf-8');
+        const setupContent = require('node:fs').readFileSync(setupFile, 'utf-8');
 
         // Verify Number.parseInt usage (not global parseInt)
         expect(setupContent).toContain('Number.parseInt');
@@ -334,7 +334,7 @@ describe('Local Scaffolding Unit Test', () => {
   describe('Production Readiness', () => {
     it('should include all npm scripts for development', () => {
       const packageJson = JSON.parse(
-        require('fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
+        require('node:fs').readFileSync(join(projectDir, 'package.json'), 'utf-8'),
       );
 
       const expectedScripts = [
@@ -361,7 +361,7 @@ describe('Local Scaffolding Unit Test', () => {
 
     it('should include proper npm metadata', () => {
       const packageJson = JSON.parse(
-        require('fs').readFileSync(join(projectDir, 'package.json'), 'utf-8')
+        require('node:fs').readFileSync(join(projectDir, 'package.json'), 'utf-8'),
       );
 
       expect(packageJson.name).toBeDefined();

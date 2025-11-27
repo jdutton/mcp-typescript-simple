@@ -69,13 +69,13 @@ export interface OpenIDConnectConfiguration extends AuthorizationServerMetadata 
  */
 export class OAuthDiscoveryMetadata {
   constructor(
-    private _provider: OAuthProvider,
-    private _baseUrl: string,
-    private _options: {
+    private readonly _provider: OAuthProvider,
+    private readonly _baseUrl: string,
+    private readonly _options: {
       enableResumability?: boolean;
       sessionTimeoutSeconds?: number;
       toolDiscoveryEndpoint?: string;
-    } = {}
+    } = {},
   ) {}
 
   /**
