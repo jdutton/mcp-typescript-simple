@@ -121,8 +121,8 @@ async function main() {
       }
     };
 
-    process.on('SIGINT', () => handleShutdown('SIGINT'));
-    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+    process.on('SIGINT', () => { void handleShutdown('SIGINT'); });
+    process.on('SIGTERM', () => { void handleShutdown('SIGTERM'); });
 
   } catch (error) {
     logger.error("Server startup failed", error);
@@ -130,7 +130,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   logger.error("Unhandled server error", error);
   process.exit(1);
-});
+}
