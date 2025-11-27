@@ -32,7 +32,7 @@ export type ExplainToolInput = z.infer<typeof ExplainToolZodSchema>;
 /**
  * Create explain tool with injected LLM manager
  */
-export function createExplainTool(llmManager: LLMManager): ReturnType<typeof defineTool<typeof ExplainToolZodSchema>> {
+export function createExplainTool(llmManager: LLMManager): ReturnType<typeof defineTool<ExplainToolInput>> {
   return defineTool({
     name: 'explain',
     description: 'Clear, educational explanations adapted to audience level',

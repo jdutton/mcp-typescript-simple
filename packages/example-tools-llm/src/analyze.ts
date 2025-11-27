@@ -31,7 +31,7 @@ export type AnalyzeToolInput = z.infer<typeof AnalyzeToolZodSchema>;
 /**
  * Create analyze tool with injected LLM manager
  */
-export function createAnalyzeTool(llmManager: LLMManager): ReturnType<typeof defineTool<typeof AnalyzeToolZodSchema>> {
+export function createAnalyzeTool(llmManager: LLMManager): ReturnType<typeof defineTool<AnalyzeToolInput>> {
   return defineTool({
     name: 'analyze',
     description: 'Deep text analysis with flexible analytical approaches',

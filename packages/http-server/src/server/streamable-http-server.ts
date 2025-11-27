@@ -104,7 +104,7 @@ export class MCPStreamableHttpServer {
     // CRITICAL: Must use createAsync() to enable Redis-backed session storage
     this.instanceManager = await MCPInstanceManager.createAsync(this.toolRegistry);
     logger.info('MCP instance manager initialized', {
-      storeType: (this.instanceManager as Record<string, unknown>).metadataStore?.constructor.name ?? 'Unknown'
+      storeType: (this.instanceManager as unknown as Record<string, unknown>).metadataStore?.constructor.name ?? 'Unknown'
     });
 
     // Create session manager (auto-detects Memory vs Redis based on instanceManager)
@@ -786,7 +786,7 @@ export class MCPStreamableHttpServer {
     logger.info("Session cleanup requested", { requestId, sessionId });
 
     // Check if session exists in metadata store (authoritative source)
-    const metadataStore = (this.instanceManager as Record<string, unknown>).metadataStore;
+    const metadataStore = (this.instanceManager as unknown as Record<string, unknown>).metadataStore as any;
     const metadata = await metadataStore.getSession(sessionId);
     if (!metadata) {
       logger.warn("Session not found for cleanup", { requestId, sessionId });

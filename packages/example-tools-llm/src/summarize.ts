@@ -33,7 +33,7 @@ export type SummarizeToolInput = z.infer<typeof SummarizeToolZodSchema>;
 /**
  * Create summarize tool with injected LLM manager
  */
-export function createSummarizeTool(llmManager: LLMManager): ReturnType<typeof defineTool<typeof SummarizeToolZodSchema>> {
+export function createSummarizeTool(llmManager: LLMManager): ReturnType<typeof defineTool<SummarizeToolInput>> {
   return defineTool({
     name: 'summarize',
     description: 'Text summarization with flexible length and format options',

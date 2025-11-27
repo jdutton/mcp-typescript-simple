@@ -108,6 +108,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     // Individual session management (not applicable in serverless)
     if (adminPath.startsWith('/sessions/')) {
       const sessionId = pathSegments[3];
+      if (!sessionId) {
+        res.status(400).json({ error: 'Session ID required' });
+        return;
+      }
       handleSessionManagement(sessionId, req, res);
       return;
     }

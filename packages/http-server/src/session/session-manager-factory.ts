@@ -28,7 +28,7 @@ import { RedisSessionManager } from './redis-session-manager.js';
  */
 export function createSessionManager(instanceManager: MCPInstanceManager): SessionManager {
   // Check if instanceManager has metadataStore (Redis mode)
-  const metadataStore = (instanceManager as Record<string, unknown>).metadataStore as
+  const metadataStore = (instanceManager as unknown as Record<string, unknown>).metadataStore as
     | MCPSessionMetadataStore
     | undefined;
 

@@ -265,7 +265,7 @@ async function handleProtectedResourceMetadata(
     for (const providerType of oauthProviders.keys()) {
       authServers.push(`${baseUrl}/auth/${providerType}`);
     }
-    const extendedMetadata = metadata as Record<string, unknown>;
+    const extendedMetadata = metadata as unknown as Record<string, unknown>;
     extendedMetadata.authorization_servers = authServers;
     extendedMetadata.available_providers = Array.from(oauthProviders.keys());
   }
@@ -318,7 +318,7 @@ async function handleMCPProtectedResourceMetadata(
     for (const providerType of oauthProviders.keys()) {
       authServers.push(`${baseUrl}/auth/${providerType}`);
     }
-    const extendedMetadata = metadata as Record<string, unknown>;
+    const extendedMetadata = metadata as unknown as Record<string, unknown>;
     extendedMetadata.authorization_servers = authServers;
     extendedMetadata.available_providers = Array.from(oauthProviders.keys());
     extendedMetadata.provider_selection_endpoint = `${baseUrl}/auth/login`;
@@ -365,7 +365,7 @@ async function handleOpenIDConnectConfiguration(
 
   // Add multi-provider hint
   if (oauthProviders.size > 1) {
-    const extendedMetadata = metadata as Record<string, unknown>;
+    const extendedMetadata = metadata as unknown as Record<string, unknown>;
     extendedMetadata.available_providers = Array.from(oauthProviders.keys());
     extendedMetadata.provider_selection_endpoint = `${baseUrl}/auth/login`;
   }

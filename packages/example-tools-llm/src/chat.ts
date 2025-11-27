@@ -30,7 +30,7 @@ export type ChatToolInput = z.infer<typeof ChatToolZodSchema>;
 /**
  * Create chat tool with injected LLM manager
  */
-export function createChatTool(llmManager: LLMManager): ReturnType<typeof defineTool<typeof ChatToolZodSchema>> {
+export function createChatTool(llmManager: LLMManager): ReturnType<typeof defineTool<ChatToolInput>> {
   return defineTool({
     name: 'chat',
     description: 'Interactive AI assistant with flexible provider and model selection',

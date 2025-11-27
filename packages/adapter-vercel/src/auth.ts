@@ -219,7 +219,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       path: oauthPath,
       rawPath: req.url,
       queryPath: req.query.path,
-      parsedPathArray: pathArray,
       fullQuery: req.query
     });
 

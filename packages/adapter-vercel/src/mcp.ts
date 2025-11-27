@@ -321,9 +321,10 @@ async function handleNewInitialization(
 // eslint-disable-next-line sonarjs/cognitive-complexity
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const startTime = Date.now();
+  const requestIdHeader = req.headers['x-request-id'];
   // SECURITY: Math.random() is safe here - used only for request correlation, not cryptographic security
   // eslint-disable-next-line sonarjs/pseudo-random
-  const requestId = req.headers['x-request-id'] ?? `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+  const requestId = (Array.isArray(requestIdHeader) ? requestIdHeader[0] : requestIdHeader) ?? `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
   try {
     logger.debug("MCP serverless request received", {
@@ -351,7 +352,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     const instanceManager = await getInstanceManager();
 
     // Check for existing session ID
-    const sessionId = req.headers['mcp-session-id'] as string | undefined;
+    const sessionIdHeader = req.headers['mcp-session-id'];
+    const sessionId = Array.isArray(sessionIdHeader) ? sessionIdHeader[0] : sessionIdHeader;
     let transport: StreamableHTTPServerTransport;
 
     if (sessionId) {
