@@ -57,7 +57,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
       this.filePath = options;
       this.ttl = DEFAULT_TTL;
     } else {
-      this.filePath = options.filePath || './data/mcp-sessions.json';
+      this.filePath = options.filePath ?? './data/mcp-sessions.json';
       this.ttl = options.ttl ?? DEFAULT_TTL;
     }
 

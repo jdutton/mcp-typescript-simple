@@ -15,7 +15,7 @@ export class RedisPKCEStore implements PKCEStore {
   private redis: Redis;
 
   constructor(redisUrl?: string) {
-    const url = redisUrl || process.env.REDIS_URL;
+    const url = redisUrl ?? process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }

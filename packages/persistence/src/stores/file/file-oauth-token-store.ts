@@ -79,7 +79,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       throw new Error('TokenEncryptionService is REQUIRED - zero tolerance for unencrypted OAuth tokens');
     }
 
-    this.filePath = options.filePath || './data/oauth-tokens.json.enc';
+    this.filePath = options.filePath ?? './data/oauth-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;

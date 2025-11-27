@@ -56,13 +56,17 @@ export class MemoryEventStore implements EventStore {
       this.streamEvents.set(streamId, []);
     }
 
-    const streamEventList = this.streamEvents.get(streamId)!;
-    streamEventList.push(eventId);
+    const streamEventList = this.streamEvents.get(streamId);
+    if (streamEventList) {
+      streamEventList.push(eventId);
 
-    // Limit events per stream to prevent memory bloat
-    if (streamEventList.length > this.MAX_EVENTS_PER_STREAM) {
-      const oldEventId = streamEventList.shift()!;
-      this.events.delete(oldEventId);
+      // Limit events per stream to prevent memory bloat
+      if (streamEventList.length > this.MAX_EVENTS_PER_STREAM) {
+        const oldEventId = streamEventList.shift();
+        if (oldEventId) {
+          this.events.delete(oldEventId);
+        }
+      }
     }
 
     return eventId;
@@ -73,7 +77,7 @@ export class MemoryEventStore implements EventStore {
    */
   async replayEventsAfter(
     lastEventId: EventId,
-    { send }: { send: (eventId: EventId, message: JSONRPCMessage) => Promise<void> }
+    { send }: { send: (_eventId: EventId, _message: JSONRPCMessage) => Promise<void> }
   ): Promise<StreamId> {
     // Find the event with the given ID
     const lastEvent = this.events.get(lastEventId);
@@ -116,6 +120,7 @@ export class MemoryEventStore implements EventStore {
   /**
    * Clean up old events based on TTL
    */
+  // eslint-disable-next-line sonarjs/cognitive-complexity
   private cleanup(): void {
     const now = Date.now();
     const expiredEvents: EventId[] = [];
@@ -204,6 +209,7 @@ export class EventStoreFactory {
    * For now, only returns in-memory store, but can be extended for persistent stores
    */
   static createEventStore(type: 'memory' = 'memory'): EventStore {
+    // eslint-disable-next-line sonarjs/no-small-switch
     switch (type) {
       case 'memory':
         return new MemoryEventStore();

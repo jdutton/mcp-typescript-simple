@@ -84,7 +84,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       );
     }
 
-    this.filePath = options.filePath || './data/access-tokens.json.enc';
+    this.filePath = options.filePath ?? './data/access-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;
@@ -237,7 +237,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
-      maxUses: options.max_uses || 'unlimited',
+      maxUses: options.max_uses ?? 'unlimited',
     });
 
     return tokenData;
@@ -259,7 +259,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       logger.info('Token validated and used', {
         tokenId: result.token.id,
         usageCount: result.token.usage_count,
-        maxUses: result.token.max_uses || 'unlimited',
+        maxUses: result.token.max_uses ?? 'unlimited',
       });
     }
 
