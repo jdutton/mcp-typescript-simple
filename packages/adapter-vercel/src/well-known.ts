@@ -41,7 +41,7 @@ async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | 
     const providers = await OAuthProviderFactory.createAllFromEnvironment();
     logger.info("OAuth provider creation completed", {
       success: !!providers,
-      count: providers?.size || 0,
+      count: providers?.size ?? 0,
       providers: providers ? Array.from(providers.keys()) : []
     });
 
@@ -70,8 +70,8 @@ async function initializeOAuthProviders(): Promise<Map<string, OAuthProvider> | 
  * Get base URL from Vercel request
  */
 function getBaseUrl(req: VercelRequest): string {
-  const protocol = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const protocol = req.headers['x-forwarded-proto'] ?? 'https';
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost';
   return `${protocol}://${host}`;
 }
 
@@ -87,7 +87,7 @@ function setCORSHeaders(res: VercelResponse): void {
   setOAuthAntiCachingHeaders(res);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     setCORSHeaders(res);
 
@@ -110,8 +110,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Extract path after /.well-known/
     let discoveryPath = '';
     if (req.url) {
-      const match = req.url.match(/\/\.well-known\/(.+?)(?:\?|$)/);
-      if (match && match[1]) {
+      const pathRegex = /\/\.well-known\/(.+?)(?:\?|$)/;
+      const match = pathRegex.exec(req.url);
+      if (match?.[1]) {
         discoveryPath = match[1];
       }
     }
@@ -212,8 +213,11 @@ async function handleAuthorizationServerMetadata(
   }
 
   // Single provider: use provider-specific metadata for backward compatibility
-  const primaryProvider = oauthProviders.values().next().value!;
-  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
+  const primaryProviderValue = oauthProviders.values().next().value;
+  if (!primaryProviderValue) {
+    throw new Error('No primary provider available');
+  }
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProviderValue, baseUrl, {
     enableResumability: false,
     toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
@@ -243,9 +247,12 @@ async function handleProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProviderValue = oauthProviders.values().next().value;
+  if (!primaryProviderValue) {
+    throw new Error('No primary provider available');
+  }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProviderValue, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
@@ -258,8 +265,9 @@ async function handleProtectedResourceMetadata(
     for (const providerType of oauthProviders.keys()) {
       authServers.push(`${baseUrl}/auth/${providerType}`);
     }
-    (metadata as any).authorization_servers = authServers;
-    (metadata as any).available_providers = Array.from(oauthProviders.keys());
+    const extendedMetadata = metadata as Record<string, unknown>;
+    extendedMetadata.authorization_servers = authServers;
+    extendedMetadata.available_providers = Array.from(oauthProviders.keys());
   }
 
   res.json(metadata);
@@ -292,9 +300,12 @@ async function handleMCPProtectedResourceMetadata(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProviderValue = oauthProviders.values().next().value;
+  if (!primaryProviderValue) {
+    throw new Error('No primary provider available');
+  }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProviderValue, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
@@ -307,9 +318,10 @@ async function handleMCPProtectedResourceMetadata(
     for (const providerType of oauthProviders.keys()) {
       authServers.push(`${baseUrl}/auth/${providerType}`);
     }
-    (metadata as any).authorization_servers = authServers;
-    (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
+    const extendedMetadata = metadata as Record<string, unknown>;
+    extendedMetadata.authorization_servers = authServers;
+    extendedMetadata.available_providers = Array.from(oauthProviders.keys());
+    extendedMetadata.provider_selection_endpoint = `${baseUrl}/auth/login`;
   }
 
   res.json(metadata);
@@ -339,9 +351,12 @@ async function handleOpenIDConnectConfiguration(
   }
 
   // Use first provider for base metadata
-  const primaryProvider = oauthProviders.values().next().value!; // Safe: checked size > 0 above
+  const primaryProviderValue = oauthProviders.values().next().value;
+  if (!primaryProviderValue) {
+    throw new Error('No primary provider available');
+  }
 
-  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProvider, baseUrl, {
+  const discoveryMetadata = createOAuthDiscoveryMetadata(primaryProviderValue, baseUrl, {
     enableResumability: false, // Default for serverless
     toolDiscoveryEndpoint: `${baseUrl}/mcp`
   });
@@ -350,8 +365,9 @@ async function handleOpenIDConnectConfiguration(
 
   // Add multi-provider hint
   if (oauthProviders.size > 1) {
-    (metadata as any).available_providers = Array.from(oauthProviders.keys());
-    (metadata as any).provider_selection_endpoint = `${baseUrl}/auth/login`;
+    const extendedMetadata = metadata as Record<string, unknown>;
+    extendedMetadata.available_providers = Array.from(oauthProviders.keys());
+    extendedMetadata.provider_selection_endpoint = `${baseUrl}/auth/login`;
   }
 
   res.json(metadata);

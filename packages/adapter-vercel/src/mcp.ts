@@ -10,7 +10,8 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
+// requireBearerAuth not needed in Vercel adapter - auth handled via OAuth providers
+// import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js';
 import { LLMManager } from "@mcp-typescript-simple/tools-llm";
 import { ToolRegistry } from "@mcp-typescript-simple/tools";
 import { basicTools } from "@mcp-typescript-simple/example-tools-basic";
@@ -142,19 +143,194 @@ async function getInstanceManager(): Promise<MCPInstanceManager> {
 }
 
 /**
+ * Validate OAuth bearer token and extract auth info
+ * Returns auth info if valid, throws error if invalid
+ */
+async function validateBearerToken(
+  req: VercelRequest,
+  requestId: string,
+  oauthProviders: Map<string, OAuthProvider>
+): Promise<{ provider: string; userId?: string; email?: string }> {
+  logger.debug("Validating bearer token (multi-provider)", { requestId, providerCount: oauthProviders.size });
+
+  // Validate Bearer token
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    logger.warn("Missing or invalid Authorization header", { requestId });
+    throw new Error('Unauthorized: Bearer token required');
+  }
+
+  // Look up token in token stores to find which provider issued it (secure - local lookup only)
+  const token = authHeader.substring(7);
+  let providerType: string | undefined;
+  let correctProvider: OAuthProvider | undefined;
+
+  for (const [type, provider] of oauthProviders.entries()) {
+    try {
+      const hasToken = await provider.hasToken(token);
+      if (hasToken) {
+        providerType = type;
+        correctProvider = provider;
+        logger.debug("Token belongs to provider", { provider: type, requestId });
+        break;
+      }
+    } catch (error) {
+      logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
+      continue;
+    }
+  }
+
+  if (!correctProvider || !providerType) {
+    logger.warn("Token not found in any provider token store", { requestId });
+    throw new Error('Unauthorized: Invalid or expired access token');
+  }
+
+  // Verify token with the correct provider
+  logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
+  let authResult;
+  try {
+    authResult = await correctProvider.verifyAccessToken(token);
+  } catch (error) {
+    logger.warn("Token verification failed", {
+      requestId,
+      provider: providerType,
+      error: error instanceof Error ? error.message : error
+    });
+    throw new Error('Unauthorized: Token verification failed');
+  }
+
+  // Extract auth info for metadata
+  const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
+  return {
+    provider: providerType,
+    userId: userInfo?.sub,
+    email: userInfo?.email,
+  };
+}
+
+/**
+ * Create new MCP transport and server for initialization request
+ */
+async function createNewTransportAndServer(
+  requestId: string,
+  instanceManager: MCPInstanceManager,
+  authInfo?: { provider: string; userId?: string; email?: string }
+): Promise<StreamableHTTPServerTransport> {
+  logger.debug("Creating new transport for initialize request", { requestId });
+
+  // Create new transport
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+      }
+      // SECURITY: Math.random() fallback is safe here - only used when crypto.randomUUID is unavailable
+      // Session IDs are opaque tokens, not used for security decisions
+      // eslint-disable-next-line sonarjs/pseudo-random
+      return 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+    },
+    onsessioninitialized: async (newSessionId: string) => {
+      logger.info("Transport session initialized", { sessionId: newSessionId, requestId });
+      await instanceManager.storeSessionMetadata(newSessionId, authInfo);
+    },
+    onsessionclosed: async (closedSessionId: string) => {
+      logger.info("Transport session closed", { sessionId: closedSessionId, requestId });
+    },
+    enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
+    eventStore: undefined,
+    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
+    allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
+    enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS ?? process.env.ALLOWED_ORIGINS),
+  });
+
+  // Create new server using tool registry
+  const toolRegistry = await getToolRegistry();
+  const server = new Server(
+    {
+      name: "mcp-typescript-simple",
+      version: "1.0.0",
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+
+  // Setup server with tools from registry
+  await setupMCPServerWithRegistry(server, toolRegistry, logger);
+
+  // Connect server to transport
+  await server.connect(transport);
+  logger.debug("New server connected to transport", { requestId });
+
+  return transport;
+}
+
+/**
+ * Handle existing session request
+ */
+async function handleExistingSession(
+  sessionId: string,
+  requestId: string,
+  instanceManager: MCPInstanceManager
+): Promise<StreamableHTTPServerTransport> {
+  try {
+    const instance = await instanceManager.getOrRecreateInstance(sessionId, {
+      enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
+      allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
+      allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
+    });
+
+    logger.debug("Reusing/reconstructed transport for session", { sessionId, requestId });
+    return instance.transport;
+  } catch (error) {
+    logger.error("Failed to reconstruct session", { sessionId, requestId, error });
+    throw new Error('Session not found or expired');
+  }
+}
+
+/**
+ * Handle new initialization request (creates new transport)
+ */
+async function handleNewInitialization(
+  req: VercelRequest,
+  requestId: string,
+  instanceManager: MCPInstanceManager
+): Promise<StreamableHTTPServerTransport> {
+  // Check authentication if OAuth is configured (multi-provider support)
+  const oauthProviders = await getOAuthProviders();
+  const requireAuth = !!(oauthProviders?.size);
+  let authInfo: { provider: string; userId?: string; email?: string } | undefined;
+
+  if (requireAuth && oauthProviders?.size) {
+    authInfo = await validateBearerToken(req, requestId, oauthProviders);
+  }
+
+  // Create new transport and server
+  return await createNewTransportAndServer(requestId, instanceManager, authInfo);
+}
+
+/**
  * Vercel serverless function handler
  * Uses MCP instance manager for horizontal scalability
+ *
+ * Note: Cognitive complexity inherently high for serverless handlers
+ * that must handle multiple request types and states in a single entry point
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// eslint-disable-next-line sonarjs/cognitive-complexity
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   const startTime = Date.now();
-  const requestId = req.headers['x-request-id'] || `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // SECURITY: Math.random() is safe here - used only for request correlation, not cryptographic security
+  // eslint-disable-next-line sonarjs/pseudo-random
+  const requestId = req.headers['x-request-id'] ?? `req_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
   try {
     logger.debug("MCP serverless request received", {
       requestId,
       method: req.method,
       url: req.url,
-      userAgent: req.headers['user-agent'] || 'unknown'
+      userAgent: req.headers['user-agent'] ?? 'unknown'
     });
 
     // Set CORS headers for browser requests
@@ -181,21 +357,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (sessionId) {
       // Session exists - get or reconstruct from metadata
       try {
-        const instance = await instanceManager.getOrRecreateInstance(sessionId, {
-          enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
-          allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
-          allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
-        });
-
-        logger.debug("Reusing/reconstructed transport for session", { sessionId, requestId });
-        transport = instance.transport;
+        transport = await handleExistingSession(sessionId, requestId, instanceManager);
       } catch (error) {
-        logger.error("Failed to reconstruct session", { sessionId, requestId, error });
         res.status(400).json({
           jsonrpc: '2.0',
           error: {
             code: -32000,
-            message: 'Session not found or expired',
+            message: error instanceof Error ? error.message : 'Session not found or expired',
           },
           id: null,
         });
@@ -203,144 +371,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else if (!sessionId && req.method === 'POST' && isInitializeRequest(req.body)) {
       // New initialization request - create new transport and server
-      logger.debug("Creating new transport for initialize request", { requestId });
-
-      // Check authentication if OAuth is configured (multi-provider support)
-      const oauthProviders = await getOAuthProviders();
-      const requireAuth = !!(oauthProviders && oauthProviders.size > 0);
-      let authInfo: { provider: string; userId?: string; email?: string } | undefined;
-
-      if (requireAuth && oauthProviders) {
-        logger.debug("Validating bearer token (multi-provider)", { requestId, providerCount: oauthProviders.size });
-
-        // Validate Bearer token
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-          logger.warn("Missing or invalid Authorization header", { requestId });
-          res.status(401).json({
-            jsonrpc: '2.0',
-            error: {
-              code: -32000,
-              message: 'Unauthorized: Bearer token required',
-            },
-            id: null,
-          });
-          return;
-        }
-
-        // Look up token in token stores to find which provider issued it (secure - local lookup only)
-        const token = authHeader.substring(7);
-        let providerType: string | undefined;
-        let correctProvider: OAuthProvider | undefined;
-
-        for (const [type, provider] of oauthProviders.entries()) {
-          // Check if this provider's token store has this token
-          // This calls hasToken() which is a local store lookup, NOT an API call
-          try {
-            const hasToken = await provider.hasToken(token);
-
-            if (hasToken) {
-              providerType = type;
-              correctProvider = provider;
-              logger.debug("Token belongs to provider", { provider: type, requestId });
-              break;
-            }
-          } catch (error) {
-            // Token not in this provider's store, continue
-            logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
-            continue;
-          }
-        }
-
-        if (!correctProvider || !providerType) {
-          logger.warn("Token not found in any provider token store", { requestId });
-          res.status(401).json({
-            jsonrpc: '2.0',
-            error: {
-              code: -32000,
-              message: 'Unauthorized: Invalid or expired access token',
-            },
-            id: null,
-          });
-          return;
-        }
-
-        // Now verify ONLY with the correct provider (secure - no token leakage)
-        logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
-        let authResult;
-        try {
-          authResult = await correctProvider.verifyAccessToken(token);
-        } catch (error) {
-          logger.warn("Token verification failed", {
-            requestId,
-            provider: providerType,
-            error: error instanceof Error ? error.message : error
-          });
-          res.status(401).json({
-            jsonrpc: '2.0',
-            error: {
-              code: -32000,
-              message: 'Unauthorized: Token verification failed',
-            },
-            id: null,
-          });
-          return;
-        }
-
-        // Extract auth info for metadata
-        const userInfo = authResult.extra?.userInfo as { sub?: string; email?: string } | undefined;
-        authInfo = {
-          provider: providerType,
-          userId: userInfo?.sub,
-          email: userInfo?.email,
-        };
-      }
-
-      // Create new transport
-      transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => {
-          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-            return crypto.randomUUID();
-          }
-          return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        },
-        onsessioninitialized: async (newSessionId: string) => {
-          logger.info("Transport session initialized", { sessionId: newSessionId, requestId });
-
-          // Store session metadata for horizontal scalability
-          await instanceManager.storeSessionMetadata(newSessionId, authInfo);
-        },
-        onsessionclosed: async (closedSessionId: string) => {
-          logger.info("Transport session closed", { sessionId: closedSessionId, requestId });
-          // Metadata cleanup is handled by instance manager
-        },
-        enableJsonResponse: EnvironmentConfig.get().MCP_LEGACY_CLIENT_SUPPORT,
-        eventStore: undefined,
-        allowedOrigins: process.env.ALLOWED_ORIGINS?.split(','),
-        allowedHosts: process.env.ALLOWED_HOSTS?.split(','),
-        enableDnsRebindingProtection: !!(process.env.ALLOWED_HOSTS || process.env.ALLOWED_ORIGINS),
-      });
-
-      // Create new server using tool registry
-      const toolRegistry = await getToolRegistry();
-      const server = new Server(
-        {
-          name: "mcp-typescript-simple",
-          version: "1.0.0",
-        },
-        {
-          capabilities: {
-            tools: {},
+      try {
+        transport = await handleNewInitialization(req, requestId, instanceManager);
+      } catch (error) {
+        res.status(401).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32000,
+            message: error instanceof Error ? error.message : 'Unauthorized',
           },
-        }
-      );
-
-      // Setup server with tools from registry
-      await setupMCPServerWithRegistry(server, toolRegistry, logger);
-
-      // Connect server to transport
-      await server.connect(transport);
-      logger.debug("New server connected to transport", { requestId });
+          id: null,
+        });
+        return;
+      }
     } else {
       // Invalid request - no valid session ID and not an initialize request
       logger.warn("Invalid request: no session ID and not initialize", {
@@ -361,7 +404,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Handle the request with the transport
-    await transport.handleRequest(req as any, res as any, req.method === 'POST' ? req.body : undefined);
+    await transport.handleRequest(req as never, res as never, req.method === 'POST' ? req.body : undefined);
 
     const duration = Date.now() - startTime;
     logger.debug("MCP request completed", { requestId, duration });

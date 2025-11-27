@@ -44,7 +44,180 @@ function validateRedirectUris(uris: unknown): boolean {
   return true;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * Handle POST /register - Register new OAuth client (RFC 7591 Section 3.1)
+ */
+async function handleClientRegistration(
+  req: VercelRequest,
+  res: VercelResponse,
+  clientStore: OAuthRegisteredClientsStore
+): Promise<void> {
+  try {
+    logger.info('Client registration request received', {
+      clientName: req.body?.client_name,
+      redirectUris: req.body?.redirect_uris,
+    });
+
+    // Validate required fields
+    if (!validateRedirectUris(req.body?.redirect_uris)) {
+      logger.warn('Client registration failed: invalid redirect_uris');
+      res.status(400).json({
+        error: 'invalid_client_metadata',
+        error_description: 'redirect_uris is required and must be a non-empty array of valid URLs',
+      });
+      return;
+    }
+
+    // Validate individual redirect URIs for detailed error reporting
+    for (const uri of req.body.redirect_uris) {
+      try {
+        new URL(uri);
+      } catch {
+        logger.warn('Invalid redirect URI', { uri });
+        res.status(400).json({
+          error: 'invalid_redirect_uri',
+          error_description: `Invalid redirect URI: ${uri}`,
+        });
+        return;
+      }
+    }
+
+    // Register client (store generates credentials automatically)
+    const registeredClient = await clientStore.registerClient({
+      redirect_uris: req.body.redirect_uris,
+      client_name: req.body.client_name,
+      client_uri: req.body.client_uri,
+      logo_uri: req.body.logo_uri,
+      scope: req.body.scope,
+      contacts: req.body.contacts,
+      tos_uri: req.body.tos_uri,
+      policy_uri: req.body.policy_uri,
+      jwks_uri: req.body.jwks_uri,
+      token_endpoint_auth_method: req.body.token_endpoint_auth_method ?? 'client_secret_post',
+      grant_types: req.body.grant_types ?? ['authorization_code', 'refresh_token'],
+      response_types: req.body.response_types ?? ['code'],
+    });
+
+    logger.info('Client registered successfully', {
+      clientId: registeredClient.client_id,
+      clientName: registeredClient.client_name,
+    });
+
+    // Return client information (RFC 7591 Section 3.2.1)
+    res.status(201).json(registeredClient);
+  } catch (error) {
+    logger.error('Client registration error', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+/**
+ * Handle GET /register/:client_id - Retrieve client configuration (RFC 7592 Section 2.1)
+ */
+async function handleGetClient(
+  req: VercelRequest,
+  res: VercelResponse,
+  clientStore: OAuthRegisteredClientsStore
+): Promise<void> {
+  try {
+    const { client_id } = req.query;
+
+    if (!client_id || typeof client_id !== 'string') {
+      logger.warn('Client ID missing in request');
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'client_id is required',
+      });
+      return;
+    }
+
+    const client = await clientStore.getClient(client_id);
+
+    if (!client) {
+      logger.warn('Client not found', { clientId: client_id });
+      res.status(404).json({
+        error: 'invalid_client',
+        error_description: 'Client not found',
+      });
+      return;
+    }
+
+    // Omit client_secret from response for security (RFC 7592)
+    // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
+    const { client_secret, ...clientWithoutSecret } = client;
+
+    logger.info('Client configuration retrieved', { clientId: client_id });
+    res.json(clientWithoutSecret);
+  } catch (error) {
+    logger.error('Get client error', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+/**
+ * Handle DELETE /register/:client_id - Delete registered client (RFC 7592 Section 2.3)
+ */
+async function handleDeleteClient(
+  req: VercelRequest,
+  res: VercelResponse,
+  clientStore: OAuthRegisteredClientsStore
+): Promise<void> {
+  try {
+    const { client_id } = req.query;
+
+    if (!client_id || typeof client_id !== 'string') {
+      logger.warn('Client ID missing in delete request');
+      res.status(400).json({
+        error: 'invalid_request',
+        error_description: 'client_id is required',
+      });
+      return;
+    }
+
+    if (!clientStore.deleteClient) {
+      logger.warn('Client deletion not supported by storage backend');
+      res.status(501).json({
+        error: 'unsupported_operation',
+        error_description: 'Client deletion not supported by this storage backend',
+      });
+      return;
+    }
+
+    const deleted = await clientStore.deleteClient(client_id);
+
+    if (!deleted) {
+      logger.warn('Client not found for deletion', { clientId: client_id });
+      res.status(404).json({
+        error: 'invalid_client',
+        error_description: 'Client not found',
+      });
+      return;
+    }
+
+    logger.info('Client deleted successfully', { clientId: client_id });
+    res.status(204).end();
+  } catch (error) {
+    logger.error('Delete client error', error);
+    if (!res.headersSent) {
+      res.status(500).json({
+        error: 'server_error',
+        error_description: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -65,164 +238,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // POST /register - Register new OAuth client (RFC 7591 Section 3.1)
     if (req.method === 'POST') {
-      try {
-        logger.info('Client registration request received', {
-          clientName: req.body?.client_name,
-          redirectUris: req.body?.redirect_uris,
-        });
-
-        // Validate required fields
-        if (!validateRedirectUris(req.body?.redirect_uris)) {
-          logger.warn('Client registration failed: invalid redirect_uris');
-          res.status(400).json({
-            error: 'invalid_client_metadata',
-            error_description: 'redirect_uris is required and must be a non-empty array of valid URLs',
-          });
-          return;
-        }
-
-        // Validate individual redirect URIs for detailed error reporting
-        for (const uri of req.body.redirect_uris) {
-          try {
-            new URL(uri);
-          } catch {
-            logger.warn('Invalid redirect URI', { uri });
-            res.status(400).json({
-              error: 'invalid_redirect_uri',
-              error_description: `Invalid redirect URI: ${uri}`,
-            });
-            return;
-          }
-        }
-
-        // Register client (store generates credentials automatically)
-        const registeredClient = await clientStore.registerClient({
-          redirect_uris: req.body.redirect_uris,
-          client_name: req.body.client_name,
-          client_uri: req.body.client_uri,
-          logo_uri: req.body.logo_uri,
-          scope: req.body.scope,
-          contacts: req.body.contacts,
-          tos_uri: req.body.tos_uri,
-          policy_uri: req.body.policy_uri,
-          jwks_uri: req.body.jwks_uri,
-          token_endpoint_auth_method: req.body.token_endpoint_auth_method || 'client_secret_post',
-          grant_types: req.body.grant_types || ['authorization_code', 'refresh_token'],
-          response_types: req.body.response_types || ['code'],
-        });
-
-        logger.info('Client registered successfully', {
-          clientId: registeredClient.client_id,
-          clientName: registeredClient.client_name,
-        });
-
-        // Return client information (RFC 7591 Section 3.2.1)
-        res.status(201).json(registeredClient);
-        return;
-      } catch (error) {
-        logger.error('Client registration error', error);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: 'server_error',
-            error_description: error instanceof Error ? error.message : String(error),
-          });
-        }
-        return;
-      }
+      await handleClientRegistration(req, res, clientStore);
+      return;
     }
 
     // GET /register/:client_id - Retrieve client configuration (RFC 7592 Section 2.1)
     // Supports query parameter format: GET /register?client_id=X
     if (req.method === 'GET') {
-      try {
-        const { client_id } = req.query;
-
-        if (!client_id || typeof client_id !== 'string') {
-          logger.warn('Client ID missing in request');
-          res.status(400).json({
-            error: 'invalid_request',
-            error_description: 'client_id is required',
-          });
-          return;
-        }
-
-        const client = await clientStore.getClient(client_id);
-
-        if (!client) {
-          logger.warn('Client not found', { clientId: client_id });
-          res.status(404).json({
-            error: 'invalid_client',
-            error_description: 'Client not found',
-          });
-          return;
-        }
-
-        // Omit client_secret from response for security (RFC 7592)
-        const { client_secret, ...clientWithoutSecret } = client;
-
-        logger.info('Client configuration retrieved', { clientId: client_id });
-        res.json(clientWithoutSecret);
-        return;
-      } catch (error) {
-        logger.error('Get client error', error);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: 'server_error',
-            error_description: error instanceof Error ? error.message : String(error),
-          });
-        }
-        return;
-      }
+      await handleGetClient(req, res, clientStore);
+      return;
     }
 
     // DELETE /register/:client_id - Delete registered client (RFC 7592 Section 2.3)
     // Supports query parameter format: DELETE /register?client_id=X
     if (req.method === 'DELETE') {
-      try {
-        const { client_id } = req.query;
-
-        if (!client_id || typeof client_id !== 'string') {
-          logger.warn('Client ID missing in delete request');
-          res.status(400).json({
-            error: 'invalid_request',
-            error_description: 'client_id is required',
-          });
-          return;
-        }
-
-        if (!clientStore.deleteClient) {
-          logger.warn('Client deletion not supported by storage backend');
-          res.status(501).json({
-            error: 'unsupported_operation',
-            error_description: 'Client deletion not supported by this storage backend',
-          });
-          return;
-        }
-
-        const deleted = await clientStore.deleteClient(client_id);
-
-        if (!deleted) {
-          logger.warn('Client not found for deletion', { clientId: client_id });
-          res.status(404).json({
-            error: 'invalid_client',
-            error_description: 'Client not found',
-          });
-          return;
-        }
-
-        logger.info('Client deleted successfully', { clientId: client_id });
-        res.status(204).end();
-        return;
-      } catch (error) {
-        logger.error('Delete client error', error);
-        if (!res.headersSent) {
-          res.status(500).json({
-            error: 'server_error',
-            error_description: error instanceof Error ? error.message : String(error),
-          });
-        }
-        return;
-      }
+      await handleDeleteClient(req, res, clientStore);
+      return;
     }
 
     // Method not allowed

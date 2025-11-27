@@ -9,81 +9,50 @@ import { join } from 'node:path';
 import yaml from 'yaml';
 import { logger } from '@mcp-typescript-simple/observability/logger';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * Handle homepage request with content negotiation
+ */
+function handleHomepage(acceptHeader: string, res: VercelResponse): void {
+  let homepageMd: string | null = null;
+  let homepageHtml: string | null = null;
+
   try {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    const homepageMdPath = join(process.cwd(), 'docs', 'homepage.md');
+    homepageMd = readFileSync(homepageMdPath, 'utf-8');
+  } catch {
+    logger.warn('Homepage markdown not found');
+  }
 
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      res.status(200).end();
+  try {
+    const homepageHtmlPath = join(process.cwd(), 'public', 'index.html');
+    homepageHtml = readFileSync(homepageHtmlPath, 'utf-8');
+  } catch {
+    logger.warn('Homepage HTML not found');
+  }
+
+  // Content negotiation
+  if (acceptHeader.includes('text/markdown') || acceptHeader.includes('text/plain')) {
+    if (homepageMd) {
+      res.setHeader('Content-Type', 'text/markdown');
+      res.status(200).send(homepageMd);
       return;
     }
+    // Fallback to plain text
+    res.setHeader('Content-Type', 'text/plain');
+    res.status(200).send('MCP TypeScript Simple Server\n\nAPI Documentation: /docs\nSwagger UI: /api-docs\nOpenAPI Spec: /openapi.yaml\n');
+    return;
+  }
 
-    // Only allow GET requests
-    if (req.method !== 'GET') {
-      res.status(405).json({ error: 'Method not allowed' });
-      return;
-    }
+  // Default to HTML
+  if (homepageHtml) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.status(200).send(homepageHtml);
+    return;
+  }
 
-    // Parse the URL path to determine the docs endpoint
-    const url = new URL(req.url || '', `http://${req.headers.host}`);
-    const pathname = url.pathname;
-
-    logger.debug("Docs request received", { method: req.method, path: pathname });
-
-    // Load OpenAPI specification
-    const openapiPath = join(process.cwd(), 'openapi.yaml');
-    const openapiYaml = readFileSync(openapiPath, 'utf-8');
-    const openapiSpec = yaml.parse(openapiYaml);
-
-    // Homepage at / (root)
-    if (pathname === '/' || pathname === '') {
-      const acceptHeader = req.headers.accept || '';
-
-      // Load homepage content
-      let homepageMd: string | null = null;
-      let homepageHtml: string | null = null;
-
-      try {
-        const homepageMdPath = join(process.cwd(), 'docs', 'homepage.md');
-        homepageMd = readFileSync(homepageMdPath, 'utf-8');
-      } catch {
-        logger.warn('Homepage markdown not found');
-      }
-
-      try {
-        const homepageHtmlPath = join(process.cwd(), 'public', 'index.html');
-        homepageHtml = readFileSync(homepageHtmlPath, 'utf-8');
-      } catch {
-        logger.warn('Homepage HTML not found');
-      }
-
-      // Content negotiation
-      if (acceptHeader.includes('text/markdown') || acceptHeader.includes('text/plain')) {
-        if (homepageMd) {
-          res.setHeader('Content-Type', 'text/markdown');
-          res.status(200).send(homepageMd);
-          return;
-        }
-        // Fallback to plain text
-        res.setHeader('Content-Type', 'text/plain');
-        res.status(200).send('MCP TypeScript Simple Server\n\nAPI Documentation: /docs\nSwagger UI: /api-docs\nOpenAPI Spec: /openapi.yaml\n');
-        return;
-      }
-
-      // Default to HTML
-      if (homepageHtml) {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.status(200).send(homepageHtml);
-        return;
-      }
-
-      // Fallback HTML
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(200).send(`
+  // Fallback HTML
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -101,27 +70,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </ul>
 </body>
 </html>
-      `.trim());
-      return;
-    }
+  `.trim());
+}
 
-    // OpenAPI spec in YAML format
-    if (pathname === '/openapi.yaml') {
-      res.setHeader('Content-Type', 'text/yaml');
-      res.status(200).send(openapiYaml);
-      return;
-    }
-
-    // OpenAPI spec in JSON format
-    if (pathname === '/openapi.json') {
-      res.status(200).json(openapiSpec);
-      return;
-    }
-
-    // Redoc documentation at /docs
-    if (pathname === '/docs') {
-      const specJson = JSON.stringify(openapiSpec);
-      const redocHtml = `
+/**
+ * Handle Redoc documentation page
+ */
+function handleRedocDocs(openapiSpec: unknown, res: VercelResponse): void {
+  const specJson = JSON.stringify(openapiSpec);
+  const redocHtml = `
 <!DOCTYPE html>
 <html>
   <head>
@@ -173,17 +130,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     </script>
   </body>
 </html>
-      `.trim();
+  `.trim();
 
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(200).send(redocHtml);
-      return;
-    }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(redocHtml);
+}
 
-    // Swagger UI at /api-docs
-    if (pathname === '/api-docs' || pathname === '/api-docs/') {
-      const specJson = JSON.stringify(openapiSpec);
-      const swaggerHtml = `
+/**
+ * Handle Swagger UI documentation page
+ */
+function handleSwaggerUI(openapiSpec: unknown, res: VercelResponse): void {
+  const specJson = JSON.stringify(openapiSpec);
+  const swaggerHtml = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -241,10 +199,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   </script>
 </body>
 </html>
-      `.trim();
+  `.trim();
 
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.status(200).send(swaggerHtml);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.status(200).send(swaggerHtml);
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
+  try {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.status(200).end();
+      return;
+    }
+
+    // Only allow GET requests
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    // Parse the URL path to determine the docs endpoint
+    const url = new URL(req.url ?? '', `http://${req.headers.host ?? 'localhost'}`);
+    const pathname = url.pathname;
+
+    logger.debug("Docs request received", { method: req.method, path: pathname });
+
+    // Load OpenAPI specification
+    const openapiPath = join(process.cwd(), 'openapi.yaml');
+    const openapiYaml = readFileSync(openapiPath, 'utf-8');
+    const openapiSpec = yaml.parse(openapiYaml);
+
+    // Homepage at / (root)
+    if (pathname === '/' || pathname === '') {
+      const acceptHeader = req.headers.accept ?? '';
+      handleHomepage(acceptHeader, res);
+      return;
+    }
+
+    // OpenAPI spec in YAML format
+    if (pathname === '/openapi.yaml') {
+      res.setHeader('Content-Type', 'text/yaml');
+      res.status(200).send(openapiYaml);
+      return;
+    }
+
+    // OpenAPI spec in JSON format
+    if (pathname === '/openapi.json') {
+      res.status(200).json(openapiSpec);
+      return;
+    }
+
+    // Redoc documentation at /docs
+    if (pathname === '/docs') {
+      handleRedocDocs(openapiSpec, res);
+      return;
+    }
+
+    // Swagger UI at /api-docs
+    if (pathname === '/api-docs' || pathname === '/api-docs/') {
+      handleSwaggerUI(openapiSpec, res);
       return;
     }
 

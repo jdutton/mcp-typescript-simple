@@ -18,6 +18,119 @@ import {
   handleGenericAuthorize
 } from '@mcp-typescript-simple/auth/shared/provider-router';
 
+/**
+ * Handle generic OAuth routes (discovery, login, authorize, token, revoke)
+ */
+async function handleGenericRoutes(
+  oauthPath: string,
+  req: VercelRequest,
+  res: VercelResponse,
+  providers: Map<OAuthProviderType, OAuthProvider>
+): Promise<boolean> {
+  // Generic auth endpoint (discovery)
+  if (oauthPath === '/') {
+    if (req.method === 'GET') {
+      logger.debug("Returning OAuth discovery information", { path: oauthPath });
+      handleOAuthDiscovery(providers, res);
+      return true;
+    }
+  }
+
+  // Generic /authorize endpoint - redirect to /login for provider selection
+  if (oauthPath === '/authorize') {
+    if (req.method === 'GET') {
+      logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
+      handleGenericAuthorize(providers, req.query as Record<string, unknown>, res);
+      return true;
+    }
+  }
+
+  // Provider selection/login page
+  if (oauthPath === '/login') {
+    if (req.method === 'GET') {
+      logger.debug("Rendering provider selection page", { path: oauthPath });
+
+      const availableProviders = Array.from(providers.keys());
+      const clientState = req.query.state as string | undefined;
+      const clientRedirectUri = req.query.redirect_uri as string | undefined;
+
+      const loginHtml = generateLoginPageHTML({
+        availableProviders,
+        clientState,
+        clientRedirectUri
+      });
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(loginHtml);
+      return true;
+    }
+  }
+
+  // Universal /token endpoint (tries all providers)
+  if (oauthPath === '/token') {
+    if (req.method === 'POST') {
+      logger.debug("Handling universal token request", {
+        path: oauthPath,
+        contentType: req.headers['content-type'],
+        grantType: req.body?.grant_type
+      });
+      await handleUniversalTokenRequest(req, res, providers);
+      return true;
+    }
+  }
+
+  // Universal OAuth 2.0 token revocation endpoint (RFC 7009)
+  if (oauthPath === '/revoke') {
+    if (req.method === 'POST') {
+      logger.debug("Handling universal token revocation", { path: oauthPath });
+      await handleUniversalRevokeRequest(req, res, providers);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Handle provider-specific OAuth routes (authorization, callback, logout)
+ */
+async function handleProviderRoutes(
+  oauthPath: string,
+  req: VercelRequest,
+  res: VercelResponse,
+  provider: OAuthProvider,
+  providerType: OAuthProviderType
+): Promise<boolean> {
+  // Authorization endpoint: /google, /github, /microsoft
+  if (oauthPath === `/${providerType}`) {
+    if (req.method === 'GET') {
+      logger.debug("Handling OAuth authorization request", { provider: providerType });
+      await handleProviderAuthorizationRequest(provider, providerType, req, res);
+      return true;
+    }
+  }
+
+  // Callback endpoint: /google/callback, /github/callback, etc.
+  if (oauthPath === `/${providerType}/callback`) {
+    if (req.method === 'GET') {
+      logger.debug("Handling OAuth callback", { provider: providerType });
+      await handleProviderAuthorizationCallback(provider, providerType, req, res);
+      return true;
+    }
+  }
+
+  // Logout endpoint: /google/logout, /github/logout, etc.
+  if (oauthPath === `/${providerType}/logout`) {
+    if (req.method === 'POST') {
+      logger.debug("Handling logout", { provider: providerType });
+      await handleProviderLogout(provider, providerType, req, res);
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Global OAuth providers map for multi-provider support
 let oauthProvidersInstance: Map<OAuthProviderType, OAuthProvider> | null = null;
 
@@ -47,7 +160,22 @@ async function initializeOAuthProviders(): Promise<Map<OAuthProviderType, OAuthP
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * Parse OAuth path from Vercel request query parameter
+ */
+function parseOAuthPath(req: VercelRequest): string {
+  if (!req.query.path) {
+    return '';
+  }
+
+  const pathArray = Array.isArray(req.query.path)
+    ? req.query.path.filter(Boolean)
+    : [req.query.path].filter(Boolean);
+
+  return '/' + pathArray.join('/');
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -72,7 +200,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //   /auth/github         → query.path = "github"
     //   /auth/github/callback → query.path = "github/callback"
 
-    if (!req.query.path) {
+    const oauthPath = parseOAuthPath(req);
+    if (!oauthPath) {
       logger.error("Missing path parameter from Vercel rewrite", {
         url: req.url,
         query: req.query
@@ -84,12 +213,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
       return;
     }
-
-    const pathArray = Array.isArray(req.query.path)
-      ? req.query.path.filter(Boolean)
-      : [req.query.path].filter(Boolean);
-
-    const oauthPath = '/' + pathArray.join('/');
 
     logger.info("OAuth request received", {
       method: req.method,
@@ -104,7 +227,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const providers = await initializeOAuthProviders();
 
     // Extract provider type from path (e.g., /google/callback -> google)
-    const providerMatch = oauthPath.match(/^\/(google|github|microsoft)(\/|$)/);
+    const providerRegex = /^\/(google|github|microsoft)(\/|$)/;
+    const providerMatch = providerRegex.exec(oauthPath);
     const providerType = providerMatch ? providerMatch[1] as OAuthProviderType : null;
     const provider = providerType ? providers.get(providerType) : null;
 
@@ -132,98 +256,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
      *   /auth/microsoft/logout    → /microsoft/logout    (Microsoft logout)
      */
 
-    // Generic auth endpoint (discovery)
-    if (oauthPath === '/') {
-      if (req.method === 'GET') {
-        logger.debug("Returning OAuth discovery information", { path: oauthPath });
-        handleOAuthDiscovery(providers, res);
-        return;
-      }
+    // Handle generic OAuth routes (discovery, login, authorize, token, revoke)
+    const genericHandled = await handleGenericRoutes(oauthPath, req, res, providers);
+    if (genericHandled) {
+      return;
     }
 
-    // Generic /authorize endpoint - redirect to /login for provider selection
-    if (oauthPath === '/authorize') {
-      if (req.method === 'GET') {
-        logger.debug("Redirecting generic authorize to login page", { path: oauthPath });
-        handleGenericAuthorize(providers, req.query as Record<string, any>, res);
-        return;
-      }
-    }
-
-    // Provider selection/login page
-    if (oauthPath === '/login') {
-      if (req.method === 'GET') {
-        logger.debug("Rendering provider selection page", { path: oauthPath });
-
-        const availableProviders = Array.from(providers.keys());
-        const clientState = req.query.state as string | undefined;
-        const clientRedirectUri = req.query.redirect_uri as string | undefined;
-
-        // Use shared login page template (ensures consistency with Express)
-        const loginHtml = generateLoginPageHTML({
-          availableProviders,
-          clientState,
-          clientRedirectUri
-        });
-
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(loginHtml);
-        return;
-      }
-    }
-
-
-    // Universal /token endpoint (tries all providers)
-    if (oauthPath === '/token') {
-      if (req.method === 'POST') {
-        logger.debug("Handling universal token request", {
-          path: oauthPath,
-          contentType: req.headers['content-type'],
-          grantType: req.body?.grant_type
-        });
-        await handleUniversalTokenRequest(req, res, providers);
-        return;
-      }
-    }
-
-    // Universal OAuth 2.0 token revocation endpoint (RFC 7009)
-    if (oauthPath === '/revoke') {
-      if (req.method === 'POST') {
-        logger.debug("Handling universal token revocation", { path: oauthPath });
-        await handleUniversalRevokeRequest(req, res, providers);
-        return;
-      }
-    }
-
-    // Provider-specific routes
+    // Handle provider-specific routes (authorization, callback, logout)
     if (provider && providerType) {
-      const endpoints = provider.getEndpoints();
-
-      // Authorization endpoint: /google, /github, /microsoft
-      if (oauthPath === `/${providerType}`) {
-        if (req.method === 'GET') {
-          logger.debug("Handling OAuth authorization request", { provider: providerType });
-          await handleProviderAuthorizationRequest(provider, providerType, req, res);
-          return;
-        }
-      }
-
-      // Callback endpoint: /google/callback, /github/callback, etc.
-      if (oauthPath === `/${providerType}/callback`) {
-        if (req.method === 'GET') {
-          logger.debug("Handling OAuth callback", { provider: providerType });
-          await handleProviderAuthorizationCallback(provider, providerType, req, res);
-          return;
-        }
-      }
-
-      // Logout endpoint: /google/logout, /github/logout, etc.
-      if (oauthPath === `/${providerType}/logout`) {
-        if (req.method === 'POST') {
-          logger.debug("Handling logout", { provider: providerType });
-          await handleProviderLogout(provider, providerType, req, res);
-          return;
-        }
+      const providerHandled = await handleProviderRoutes(oauthPath, req, res, provider, providerType);
+      if (providerHandled) {
+        return;
       }
     }
 
