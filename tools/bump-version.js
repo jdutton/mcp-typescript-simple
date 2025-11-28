@@ -131,6 +131,7 @@ if (['patch', 'minor', 'major'].includes(versionArg)) {
   newVersion = versionArg;
 
   // Validate version format (semver check - supports prerelease)
+  // eslint-disable-next-line security/detect-unsafe-regex -- Simple semver validation, input is command-line argument only
   if (!/^\d+\.\d+\.\d+(-[\w.]+)?$/.test(newVersion)) {
     log(`✗ Invalid version format: ${newVersion}`, 'red');
     log('  Expected format: X.Y.Z or X.Y.Z-prerelease', 'yellow');

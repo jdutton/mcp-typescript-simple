@@ -103,9 +103,9 @@ try {
 
       if (result.updated) {
         log(`  ✓ ${result.name}`, 'green');
-        result.changes.forEach(change => {
+        for (const change of result.changes) {
           log(`    - ${change}`, 'blue');
-        });
+        }
         updatedCount++;
         totalChanges += result.changesMade;
       } else {

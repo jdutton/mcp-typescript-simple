@@ -12,7 +12,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +23,7 @@ function convertMarkdown(md: string): string {
   let html = md;
 
   // Code blocks (fenced with ```)
+  // eslint-disable-next-line security/detect-unsafe-regex -- Simple markdown parsing, input is from local README.md file only
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
     const language = lang || 'plaintext';
     return `<pre><code class="language-${language}">${escapeHtml(code.trim())}</code></pre>`;
@@ -40,10 +41,12 @@ function convertMarkdown(md: string): string {
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
 
   // Links
+  // eslint-disable-next-line sonarjs/slow-regex -- Simple markdown parsing, input is from local README.md file only
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
   // Lists (simple unordered lists)
   html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  // eslint-disable-next-line security/detect-unsafe-regex -- Simple markdown parsing, input is from local README.md file only
   html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
 
   // Horizontal rule

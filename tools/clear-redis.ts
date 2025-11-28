@@ -67,4 +67,4 @@ async function clearRedis() {
   }
 }
 
-clearRedis().catch(console.error);
+await clearRedis();

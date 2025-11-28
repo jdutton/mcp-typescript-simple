@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable sonarjs/os-command, sonarjs/no-ignored-exceptions, no-unused-vars -- Development utility executes npm commands */
 /**
  * Verify npm Packages Script
  *

@@ -9,7 +9,7 @@
 import { execSync } from 'node:child_process';
 import { readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, URL } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const rootDir = join(__dirname, '..');
@@ -19,6 +19,7 @@ const rootDir = join(__dirname, '..');
  */
 function exec(command, options = {}) {
   try {
+    // eslint-disable-next-line sonarjs/os-command -- Build script executes npm commands for workspace compilation
     execSync(command, {
       stdio: 'inherit',
       cwd: rootDir,
@@ -50,10 +51,9 @@ function cleanBuildInfo() {
         }
       }
     }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (error) {
+  // eslint-disable-next-line sonarjs/no-ignored-exceptions -- Build cleanup handles missing directories gracefully
+  } catch (_error) {
     // packages directory doesn't exist - ignore (intentional for build script)
-    // sonarjs/no-ignored-exceptions: Disabled - build cleanup handles missing directories gracefully
   }
 }
 

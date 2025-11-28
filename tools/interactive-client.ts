@@ -1,7 +1,8 @@
 #!/usr/bin/env -S npx tsx
+/* eslint-disable unicorn/no-array-for-each, unicorn/prefer-top-level-await, no-case-declarations, no-unused-vars -- Development testing tool */
 
-import { spawn, ChildProcess } from 'child_process';
-import { createInterface } from 'readline';
+import { spawn, ChildProcess } from 'node:child_process';
+import { createInterface } from 'node:readline';
 
 interface MCPRequest {
   jsonrpc: string;
@@ -248,12 +249,12 @@ class InteractiveMCPClient {
       return;
     }
 
-    this.availableTools.forEach((tool) => {
+    for (const tool of this.availableTools) {
       const params = this.getToolParameters(tool);
       console.log(`  • ${tool.name} ${params}`);
       console.log(`    ${tool.description}`);
       console.log();
-    });
+    }
   }
 
   private async describeTool(toolName: string): Promise<void> {
@@ -316,7 +317,7 @@ class InteractiveMCPClient {
     const requiredParams = propertyNames.filter(p => required.includes(p));
 
     // Map arguments to parameters
-    requiredParams.forEach((param, index) => {
+    for (const [index, param] of requiredParams.entries()) {
       if (index < args.length) {
         const value = args[index];
         const paramSchema = properties[param] as { type?: string };
@@ -330,7 +331,7 @@ class InteractiveMCPClient {
           result[param] = value;
         }
       }
-    });
+    }
 
     // If we have remaining args and only one string parameter, join them
     if (args.length > requiredParams.length && requiredParams.length === 1) {
