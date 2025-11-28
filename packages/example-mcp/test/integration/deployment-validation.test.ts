@@ -18,6 +18,8 @@
 import { spawn, exec } from 'node:child_process';
 import { promisify } from 'node:util';
 
+
+/* eslint-disable sonarjs/no-unused-vars, sonarjs/no-ignored-exceptions */
 const execAsync = promisify(exec);
 
 interface TestResult {
@@ -353,7 +355,7 @@ class CITestRunner {
                 }
               }
             }
-          } catch (error) {
+          } catch (_error) {
             // Intentionally ignore JSON parse errors - server output may contain incomplete JSON fragments
             // that will be completed in subsequent data events (streaming output)
           }

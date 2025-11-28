@@ -1,6 +1,8 @@
-import { EnvironmentConfig, TransportMode, ConfigurationStatus } from '../src/environment.js';
+import { EnvironmentConfig, TransportMode } from '../src/environment.js';
 import { preserveEnv } from './helpers/env-helper.js';
 
+
+ 
 describe('EnvironmentConfig', () => {
   let restoreEnv: () => void;
 

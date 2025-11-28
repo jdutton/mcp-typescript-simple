@@ -8,6 +8,8 @@ import { mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('FileOAuthTokenStore', () => {
   let store: FileOAuthTokenStore;
   let testDir: string;
@@ -640,7 +642,7 @@ describe('FileOAuthTokenStore', () => {
         await store.storeToken(`access-token-${i}`, tokenInfo);
       }
 
-      const storeTime = Date.now() - startTime;
+      const _storeTime = Date.now() - startTime;
 
       // Verify count
       const count = await store.getTokenCount();

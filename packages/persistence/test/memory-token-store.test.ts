@@ -3,6 +3,8 @@
  */
 
 import { InMemoryTestTokenStore } from './helpers/memory-test-token-store.js';
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('InMemoryTestTokenStore', () => {
   let store: InMemoryTestTokenStore;
   const additionalStores: InMemoryTestTokenStore[] = [];
@@ -262,7 +264,7 @@ describe('InMemoryTestTokenStore', () => {
 
   describe('cleanup', () => {
     it('should remove expired and revoked tokens', async () => {
-      const token1 = await store.createToken({ description: 'Expired', expires_in: -1 });
+      const _token1 = await store.createToken({ description: 'Expired', expires_in: -1 });
       const token2 = await store.createToken({ description: 'Revoked' });
       await store.createToken({ description: 'Active' });
 

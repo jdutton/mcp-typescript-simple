@@ -10,6 +10,8 @@ import type {
 import { logger } from '@mcp-typescript-simple/observability';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
 
@@ -152,7 +154,7 @@ describe('GitHubOAuthProvider', () => {
       const now = Date.now();
 
       // Store a session first
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -259,7 +261,7 @@ describe('GitHubOAuthProvider', () => {
 
       const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -293,7 +295,7 @@ describe('GitHubOAuthProvider', () => {
   describe('handleTokenExchange', () => {
     it('exchanges authorization code for access token', async () => {
       const provider = createProvider();
-      const now = Date.now();
+      const _now = Date.now();
 
       const authCode = 'auth-code-123';
       const codeVerifier = 'verifier-123';
@@ -379,7 +381,7 @@ describe('GitHubOAuthProvider', () => {
         provider: 'github'
       };
 
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 28800_000,
@@ -436,7 +438,7 @@ describe('GitHubOAuthProvider', () => {
         scopes: baseConfig.scopes
       };
 
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('access-token', stored);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('access-token', stored);
 
       const res = createMockResponse();
       await provider.handleTokenRefresh({
@@ -480,7 +482,7 @@ describe('GitHubOAuthProvider', () => {
       };
 
       // Store token
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 28800_000,
@@ -559,7 +561,7 @@ describe('GitHubOAuthProvider', () => {
       };
 
       // Store token with user info
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 28800_000,

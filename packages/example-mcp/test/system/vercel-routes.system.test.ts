@@ -17,6 +17,8 @@ import axios, { AxiosInstance } from 'axios';
 import {
   createHttpClient,
   waitForServer,
+
+/* eslint-disable sonarjs/no-unused-vars */
   describeSystemTest,
   isSTDIOEnvironment,
   getCurrentEnvironment

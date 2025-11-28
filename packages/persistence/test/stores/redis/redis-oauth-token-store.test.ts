@@ -24,6 +24,8 @@ import { RedisOAuthTokenStore, StoredTokenInfo } from '../../../src/index.js';
 import { TokenEncryptionService } from '../../../src/encryption/token-encryption-service.js';
 
 // Hoist Redis mock to avoid initialization issues
+
+/* eslint-disable sonarjs/no-unused-vars */
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
 // Mock Redis for testing - Vitest requires both default and named exports

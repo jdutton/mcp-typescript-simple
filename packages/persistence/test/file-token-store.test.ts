@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestEncryptionService } from './helpers/encryption-test-helper.js';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('FileTokenStore', () => {
   let store: FileTokenStore;
   let testDir: string;
@@ -205,7 +207,7 @@ describe('FileTokenStore', () => {
 
   describe('cleanup', () => {
     it('should remove expired/revoked and persist', async () => {
-      const expired = await store.createToken({ description: 'Expired', expires_in: -1 });
+      const _expired = await store.createToken({ description: 'Expired', expires_in: -1 });
       const revoked = await store.createToken({ description: 'Revoked' });
       await store.createToken({ description: 'Active' });
 

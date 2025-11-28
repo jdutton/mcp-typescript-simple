@@ -20,6 +20,8 @@ type MockResponse = Response & {
   jsonPayload?: unknown;
 };
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 const createResponse = (): MockResponse => {
   const res: Partial<Response> & {
     statusCode?: number;
@@ -39,12 +41,12 @@ const createResponse = (): MockResponse => {
 };
 
 type SessionAccess = {
-  storeSession(state: string, session: OAuthSession): Promise<void>;
-  getSession(state: string): Promise<OAuthSession | null>;
-  removeSession(state: string): Promise<void>;
-  storeToken(token: string, info: StoredTokenInfo): Promise<void>;
-  getToken(token: string): Promise<StoredTokenInfo | null>;
-  removeToken(token: string): Promise<void>;
+  storeSession(_state: string, _session: OAuthSession): Promise<void>;
+  getSession(_state: string): Promise<OAuthSession | null>;
+  removeSession(_state: string): Promise<void>;
+  storeToken(_token: string, _info: StoredTokenInfo): Promise<void>;
+  getToken(_token: string): Promise<StoredTokenInfo | null>;
+  removeToken(_token: string): Promise<void>;
   cleanup(): Promise<void>;
   getTokenCount(): Promise<number>;
 };
@@ -207,7 +209,7 @@ describe('BaseOAuthProvider', () => {
 
     await sessionAccess.cleanup();
 
-    const tokenStore = provider as unknown as { tokens: Map<string, StoredTokenInfo> };
+    const _tokenStore = provider as unknown as { tokens: Map<string, StoredTokenInfo> };
 
     expect(await sessionAccess.getSession('expired')).toBeNull();
     expect(await sessionAccess.getSession('valid')).toBeDefined();

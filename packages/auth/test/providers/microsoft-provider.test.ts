@@ -10,6 +10,8 @@ import type {
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 let originalFetch: typeof globalThis.fetch;
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
 
@@ -153,7 +155,7 @@ describe('MicrosoftOAuthProvider', () => {
       const now = Date.now();
 
       // Store a session first
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -254,7 +256,7 @@ describe('MicrosoftOAuthProvider', () => {
 
       const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -288,7 +290,7 @@ describe('MicrosoftOAuthProvider', () => {
   describe('handleTokenExchange', () => {
     it('exchanges authorization code for access token', async () => {
       const provider = createProvider();
-      const now = Date.now();
+      const _now = Date.now();
 
       const authCode = 'auth-code-123';
       const codeVerifier = 'verifier-123';
@@ -380,7 +382,7 @@ describe('MicrosoftOAuthProvider', () => {
         scopes: baseConfig.scopes
       };
 
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('old-access', stored);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('old-access', stored);
 
       fetchMock.mockResolvedValueOnce(jsonReply({
         access_token: 'new-access',
@@ -403,10 +405,10 @@ describe('MicrosoftOAuthProvider', () => {
         refresh_token: 'new-refresh'
       }));
 
-      const newToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
+      const newToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
       expect(newToken?.refreshToken).toBe('new-refresh');
 
-      const oldToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
+      const oldToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
       expect(oldToken).toBeNull();
 
       provider.dispose();
@@ -442,7 +444,7 @@ describe('MicrosoftOAuthProvider', () => {
         provider: 'microsoft'
       };
 
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 3600_000,
@@ -499,7 +501,7 @@ describe('MicrosoftOAuthProvider', () => {
         provider: 'microsoft',
         scopes: baseConfig.scopes
       };
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('access-token', stored);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('access-token', stored);
 
       // Mock revocation failure
       fetchMock.mockResolvedValueOnce(new Response('error', {
@@ -517,7 +519,7 @@ describe('MicrosoftOAuthProvider', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({ success: true });
-      expect(await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token')).toBeNull();
+      expect(await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token')).toBeNull();
 
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -537,7 +539,7 @@ describe('MicrosoftOAuthProvider', () => {
       };
 
       // Store token
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 3600_000,
@@ -614,7 +616,7 @@ describe('MicrosoftOAuthProvider', () => {
       };
 
       // Store token with user info
-      (provider as unknown as { storeToken: (token: string, info: any) => Promise<void> })
+      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
         .storeToken(accessToken, {
           accessToken,
           expiresAt: Date.now() + 3600_000,

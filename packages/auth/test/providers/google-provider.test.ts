@@ -5,12 +5,14 @@ import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '@mcp-type
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-const mockGenerateAuthUrl = vi.fn<(options: Record<string, unknown>) => string>();
-const mockGetToken = vi.fn<(options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
-const mockVerifyIdToken = vi.fn<(options: Record<string, unknown>) => Promise<{ getPayload: () => Record<string, unknown> }>>();
+
+ 
+const mockGenerateAuthUrl = vi.fn<(_options: Record<string, unknown>) => string>();
+const mockGetToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
+const mockVerifyIdToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ getPayload: () => Record<string, unknown> }>>();
 const mockRefreshAccessToken = vi.fn<() => Promise<{ credentials: Record<string, unknown> }>>();
-const mockSetCredentials = vi.fn<(options: Record<string, unknown>) => void>();
-const mockGetTokenInfo = vi.fn<(token: string) => Promise<Record<string, unknown>>>();
+const mockSetCredentials = vi.fn<(_options: Record<string, unknown>) => void>();
+const mockGetTokenInfo = vi.fn<(_token: string) => Promise<Record<string, unknown>>>();
 
 // Mock global fetch for Google API calls
 const mockFetch = vi.fn() as MockFunction<typeof fetch>;
@@ -125,7 +127,7 @@ describe('GoogleOAuthProvider', () => {
     });
     expect(res.redirect).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth?state=state123');
 
-    const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+    const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
     expect(session).toMatchObject({
       state: 'state123',
       codeVerifier: 'verifier',
@@ -142,7 +144,7 @@ describe('GoogleOAuthProvider', () => {
     const now = 1_000_000;
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-    (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+    (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
       codeVerifier: 'verifier',
       codeChallenge: 'challenge',
@@ -191,10 +193,10 @@ describe('GoogleOAuthProvider', () => {
       user: expect.objectContaining({ email: 'user@example.com', provider: 'google' })
     }));
 
-    const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+    const sessionAfter = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
     expect(sessionAfter).toBeNull();
 
-    const storedToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
+    const storedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
     expect(storedToken).toBeDefined();
     expect(storedToken?.userInfo.email).toBe('user@example.com');
 
@@ -206,7 +208,7 @@ describe('GoogleOAuthProvider', () => {
     const provider = createProvider();
     const now = 2_000_000;
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-    (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+    (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
       state: 'state123',
       codeVerifier: 'verifier',
       codeChallenge: 'challenge',
@@ -254,7 +256,7 @@ describe('GoogleOAuthProvider', () => {
       scopes: baseConfig.scopes
     };
 
-    (provider as unknown as { storeToken: (accessToken: string, info: StoredTokenInfo) => void }).storeToken('access-token', existingToken);
+    (provider as unknown as { storeToken: (_accessToken: string, _info: StoredTokenInfo) => void }).storeToken('access-token', existingToken);
 
     mockRefreshAccessToken.mockResolvedValueOnce({
       credentials: {
@@ -277,7 +279,7 @@ describe('GoogleOAuthProvider', () => {
       refresh_token: 'new-refresh-token'
     }));
 
-    const updatedToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access-token');
+    const updatedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access-token');
     expect(updatedToken).toBeDefined();
     expect(updatedToken?.refreshToken).toBe('new-refresh-token');
 
@@ -307,7 +309,7 @@ describe('GoogleOAuthProvider', () => {
       const provider = createProvider();
 
       // Mock the setupPKCE method to use client challenge and return a server state
-      const setupPKCESpy = vi.spyOn(provider as unknown as { setupPKCE: (clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } }, 'setupPKCE')
+      const setupPKCESpy = vi.spyOn(provider as unknown as { setupPKCE: (_clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } }, 'setupPKCE')
         .mockReturnValue({ state: 'generated_state', codeVerifier: '', codeChallenge: 'client_challenge' });
 
       const res = createMockResponse();
@@ -330,7 +332,7 @@ describe('GoogleOAuthProvider', () => {
       }));
       expect(res.redirect).toHaveBeenCalled();
 
-      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
+      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
       expect(session).toMatchObject({
         state: 'generated_state',
         codeVerifier: '', // Empty because client provided challenge
@@ -362,7 +364,7 @@ describe('GoogleOAuthProvider', () => {
         state: 'generated_state'
       }));
 
-      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
+      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
       expect(session).toMatchObject({
         codeVerifier: 'generated_verifier',
         codeChallenge: 'generated_challenge'
@@ -394,7 +396,7 @@ describe('GoogleOAuthProvider', () => {
         scope: ['openid', 'email', 'profile'] // Default scopes
       }));
 
-      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(session?.scopes).toEqual(['openid', 'email', 'profile']);
 
       pkceSpy.mockRestore();
@@ -417,7 +419,7 @@ describe('GoogleOAuthProvider', () => {
 
       await provider.handleAuthorizationRequest(req, res);
 
-      const session = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(session?.expiresAt).toBe(now + 10 * 60 * 1000); // 10 minute timeout
 
       pkceSpy.mockRestore();
@@ -523,7 +525,7 @@ describe('GoogleOAuthProvider', () => {
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       // Store session with client redirect URI
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: '',
         codeChallenge: 'challenge',
@@ -544,7 +546,7 @@ describe('GoogleOAuthProvider', () => {
 
       // Session should NOT be cleaned up yet - preserved for token exchange
       // It will be cleaned up in handleTokenExchange after successful exchange
-      const sessionAfter = await (provider as unknown as { getSession: (state: string) => Promise<OAuthSession | null> }).getSession('state123');
+      const sessionAfter = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(sessionAfter).not.toBeNull();
       expect(sessionAfter?.state).toBe('state123');
 
@@ -557,7 +559,7 @@ describe('GoogleOAuthProvider', () => {
       const now = 7_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -599,7 +601,7 @@ describe('GoogleOAuthProvider', () => {
       const now = 8_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -637,7 +639,7 @@ describe('GoogleOAuthProvider', () => {
         expires_in: expect.any(Number) // Should have calculated expiry
       }));
 
-      const storedToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
+      const storedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
       expect(storedToken?.expiresAt).toBe(now + 3600 * 1000); // Default 1 hour
 
       dateSpy.mockRestore();
@@ -649,7 +651,7 @@ describe('GoogleOAuthProvider', () => {
       const now = 9_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (state: string, session: OAuthSession) => void }).storeSession('state123', {
+      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
         state: 'state123',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
@@ -828,7 +830,7 @@ describe('GoogleOAuthProvider', () => {
         scopes: ['openid', 'email']
       };
 
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('cached-token', tokenInfo);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('cached-token', tokenInfo);
 
       const authInfo = await provider.verifyAccessToken('cached-token');
 
@@ -966,7 +968,7 @@ describe('GoogleOAuthProvider', () => {
         scopes: ['openid', 'email']
       };
 
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('local-token', tokenInfo);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('local-token', tokenInfo);
 
       const userInfo = await provider.getUserInfo('local-token');
 
@@ -1040,7 +1042,7 @@ describe('GoogleOAuthProvider', () => {
         scopes: ['openid', 'email']
       };
 
-      (provider as unknown as { storeToken: (token: string, info: StoredTokenInfo) => void }).storeToken('logout-token', tokenInfo);
+      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('logout-token', tokenInfo);
 
       const res = createMockResponse();
       await provider.handleLogout({
@@ -1050,7 +1052,7 @@ describe('GoogleOAuthProvider', () => {
       expect(res.json).toHaveBeenCalledWith({ success: true });
 
       // Token should be removed
-      const removedToken = await (provider as unknown as { getToken: (token: string) => Promise<StoredTokenInfo | null> }).getToken('logout-token');
+      const removedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('logout-token');
       expect(removedToken).toBeNull();
 
       provider.dispose();

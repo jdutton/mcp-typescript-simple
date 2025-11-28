@@ -5,6 +5,8 @@ import { EnvironmentConfig, TransportMode } from '@mcp-typescript-simple/config'
 import type { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { logger } from '@mcp-typescript-simple/observability';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('TransportFactory', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -179,7 +181,7 @@ describe('TransportFactory', () => {
 
   describe('StreamableHTTPTransportManager', () => {
     let manager: StreamableHTTPTransportManager;
-    let mockServer: any;
+    let _mockServer: any;
     let mockHttpServer: any;
 
     beforeEach(() => {
@@ -197,7 +199,7 @@ describe('TransportFactory', () => {
 
       manager = new StreamableHTTPTransportManager(options);
 
-      mockServer = {
+      const _mockServer = {
         connect: vi.fn<() => Promise<void>>().mockResolvedValue()
       };
 

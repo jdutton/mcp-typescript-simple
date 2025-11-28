@@ -26,6 +26,8 @@ class TransportTestRunner {
 
     this.printSummary();
 
+
+/* eslint-disable sonarjs/no-unused-vars */
     const failedTests = this.results.filter(r => !r.passed);
     if (failedTests.length > 0) {
       process.exit(1);

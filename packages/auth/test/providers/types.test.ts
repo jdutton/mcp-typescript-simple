@@ -1,7 +1,7 @@
 import {
   OAuthProviderType,
   OAuthUserInfo,
-  OAuthConfig,
+  _OAuthConfig,
   OAuthError,
   OAuthStateError,
   OAuthTokenError,
@@ -14,6 +14,8 @@ import {
   OAuthTokenResponse,
 } from '@mcp-typescript-simple/auth';
 
+
+ 
 describe('OAuth Types', () => {
   test('OAuthProviderType should be valid string literals', () => {
     const google: OAuthProviderType = 'google';

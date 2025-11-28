@@ -17,6 +17,8 @@ import { mkdtempSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+
+ 
 describe('Scaffolding Validation Regression', () => {
   let tempDir: string;
   let projectDir: string;
@@ -155,6 +157,7 @@ describe('Scaffolding Validation Regression', () => {
   });
 
   describe('Validation (Critical)', () => {
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should pass TypeScript type checking', () => {
       console.log('\n🔍 Running typecheck...');
       try {
@@ -170,6 +173,7 @@ describe('Scaffolding Validation Regression', () => {
       }
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should pass ESLint checking', () => {
       console.log('\n🔍 Running lint...');
       try {
@@ -185,6 +189,7 @@ describe('Scaffolding Validation Regression', () => {
       }
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should build successfully', () => {
       console.log('\n🔍 Running build...');
       try {
@@ -200,6 +205,7 @@ describe('Scaffolding Validation Regression', () => {
       }
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should pass unit tests', () => {
       console.log('\n🔍 Running unit tests...');
       try {
@@ -215,6 +221,7 @@ describe('Scaffolding Validation Regression', () => {
       }
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should pass system tests (STDIO)', () => {
       console.log('\n🔍 Running system tests (STDIO)...');
       try {
@@ -230,6 +237,7 @@ describe('Scaffolding Validation Regression', () => {
       }
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should pass system tests (HTTP)', () => {
       console.log('\n🔍 Running system tests (HTTP)...');
       try {

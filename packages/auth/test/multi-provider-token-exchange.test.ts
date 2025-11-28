@@ -4,6 +4,8 @@
 
 import type { Request, Response } from 'express';
 
+
+/* eslint-disable sonarjs/no-ignored-exceptions */
 describe('Multi-Provider Token Exchange', () => {
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
@@ -226,7 +228,7 @@ describe('Multi-Provider Token Exchange', () => {
           try {
             await provider.handleTokenExchange(mockReq as Request, mockRes as Response);
             break;
-          } catch (error) {
+          } catch (_error) {
             if (mockRes.headersSent) break;
           }
         }

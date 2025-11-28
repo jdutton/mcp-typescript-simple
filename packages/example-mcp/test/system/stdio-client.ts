@@ -39,8 +39,8 @@ export class STDIOTestClient {
   private server: ChildProcess | null = null;
   private requestId = 1;
   private pendingRequests = new Map<number, {
-    resolve: (response: MCPResponse) => void;
-    reject: (error: Error) => void;
+    resolve: (_response: MCPResponse) => void;
+    reject: (_error: Error) => void;
     timer: NodeJS.Timeout;
   }>();
   private readonly options: Required<STDIOClientOptions>;
@@ -88,6 +88,8 @@ export class STDIOTestClient {
 
     // Handle server errors
     this.server.stderr.on('data', (data) => {
+
+ 
       const message = data.toString().trim();
 
       // Skip normal startup and configuration messages
