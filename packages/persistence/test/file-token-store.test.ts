@@ -4,7 +4,7 @@
 
 import { FileTokenStore } from '../src/index.js';
 import { mkdirSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestEncryptionService } from './helpers/encryption-test-helper.js';
 
@@ -290,7 +290,7 @@ describe('FileTokenStore', () => {
   describe('error handling', () => {
     it('should handle corrupt file gracefully', async () => {
       // Write corrupt JSON to file
-      const fs = await import('fs/promises');
+      const fs = await import('node:fs/promises');
       await fs.writeFile(testFilePath, 'invalid json {', 'utf8');
 
       // Create new store - should handle corrupt file

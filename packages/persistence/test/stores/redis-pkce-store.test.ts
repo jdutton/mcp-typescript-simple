@@ -10,8 +10,7 @@
  */
 
 import { vi } from 'vitest';
-import { RedisPKCEStore } from '../../src/index.js';
-import { PKCEData } from '../../src/index.js';
+import { RedisPKCEStore , PKCEData } from '../../src/index.js';
 
 // Hoist Redis mock to avoid initialization issues
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));

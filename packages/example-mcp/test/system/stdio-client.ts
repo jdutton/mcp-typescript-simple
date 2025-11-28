@@ -9,7 +9,7 @@
  * - Graceful shutdown with SIGTERM → SIGKILL cascade
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import { registerProcess } from '@mcp-typescript-simple/testing/signal-handler';
 
 export interface MCPRequest {

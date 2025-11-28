@@ -2,7 +2,7 @@
  * Unit tests for OCSF-OTEL Bridge
  */
 
-/* eslint-disable sonarjs/no-hardcoded-ip, unicorn/no-useless-undefined */
+/* eslint-disable sonarjs/no-hardcoded-ip */
 // Test files use hardcoded IPs and explicit undefined for test data
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';

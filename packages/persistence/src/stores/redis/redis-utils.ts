@@ -53,7 +53,7 @@ export function createRedisClient(redisUrl: string | undefined, connectionName: 
     lazyConnect: true,
   });
 
-  redis.on('error', (error) => {
+  redis.on('error', (error: Error) => {
     logger.error('Redis connection error', { error });
   });
 
@@ -62,7 +62,7 @@ export function createRedisClient(redisUrl: string | undefined, connectionName: 
   });
 
   // Connect immediately
-  redis.connect().catch((error) => {
+  redis.connect().catch((error: Error) => {
     logger.error('Failed to connect to Redis', { error });
   });
 

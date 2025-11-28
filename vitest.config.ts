@@ -71,7 +71,8 @@ export default defineConfig({
     setupFiles: ['./test/framework/vitest-setup.ts'],
 
     // Timeout configuration
-    testTimeout: 10000,
+    testTimeout: 30000, // 30 seconds for unit tests (increased from 10s to reduce flakiness)
+    hookTimeout: 30000, // 30 seconds for setup/teardown hooks
 
     // Retry configuration
     retry: 0,

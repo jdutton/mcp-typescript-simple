@@ -4,7 +4,7 @@
 
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'os';
+import { tmpdir } from 'node:os';
 import { FileClientStore } from '../../src/index.js';
 
 describe('FileClientStore', () => {

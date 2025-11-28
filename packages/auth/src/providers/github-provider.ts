@@ -208,7 +208,7 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
 
             const primary = emails.find((email) => email.primary && email.verified);
             const fallback = emails.find((email) => email.verified);
-            primaryEmail = primary?.email ?? fallback?.email ?? emails[0]?.email;
+            primaryEmail = primary?.email ?? fallback?.email ?? emails[0]?.email ?? null;
 
             logger.oauthInfo('Selected email', { email: primaryEmail ?? 'none' });
           } else {

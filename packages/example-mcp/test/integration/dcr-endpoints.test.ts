@@ -81,7 +81,7 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
 
     // Clean up test file to prevent state pollution
     try {
-      const fs = await import('fs/promises');
+      const fs = await import('node:fs/promises');
       await fs.unlink(testFilePath);
       await fs.unlink(`${testFilePath}.backup`).catch(() => {}); // Ignore if backup doesn't exist
       await fs.unlink(`${testFilePath}.tmp`).catch(() => {}); // Ignore if temp doesn't exist

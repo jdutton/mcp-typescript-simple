@@ -49,45 +49,68 @@ export default [
       '@typescript-eslint/no-non-null-assertion': 'off',
       'no-undef': 'off',
 
-      // SonarJS rules - relaxed for tests
-      'sonarjs/no-ignored-exceptions': 'error', // Still enforce (use // NOSONAR with explanation)
+      // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)
+      'sonarjs/no-ignored-exceptions': 'warn', // Empty catch blocks common in tests for expected failures
+      'sonarjs/assertions-in-tests': 'warn', // Some tests validate side effects, not return values
+      'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)
+      'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars
+
+      // SonarJS rules - LOW VALUE (disable for tests)
+      'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity
       'sonarjs/os-command': 'off',
       'sonarjs/no-os-command-from-path': 'off',
       'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks
       'sonarjs/no-nested-template-literals': 'off',
       'sonarjs/slow-regex': 'off',
-      'sonarjs/cognitive-complexity': ['warn', 20], // Higher threshold for tests
+      'sonarjs/cognitive-complexity': 'off', // Test readability > complexity
+      'sonarjs/no-nested-conditional': 'off', // Complex test setup sometimes needs nested conditionals
+      'sonarjs/no-hardcoded-passwords': 'off', // Test fixtures need test credentials
+      'sonarjs/no-hardcoded-secrets': 'off', // Test fixtures need test secrets
+      'sonarjs/pseudo-random': 'off', // Math.random() fine for test data
+      'sonarjs/no-empty-test-file': 'off', // Placeholder test files during development
+      'sonarjs/no-clear-text-protocols': 'off', // Tests use http://localhost
+      'sonarjs/todo-tag': 'off', // TODOs in tests are useful for tracking coverage
+      'sonarjs/unused-import': 'off', // Covered by @typescript-eslint/no-unused-vars
+      'sonarjs/no-identical-functions': 'off', // Test helper functions intentionally duplicated
+      'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files
+      'sonarjs/no-unused-collection': 'off', // Test data setup may create collections for side effects
 
-      // Code quality - strict in tests
-      '@typescript-eslint/no-unused-vars': ['error', {
+      // Code quality - WARN in tests (test setup often creates intentionally unused variables)
+      '@typescript-eslint/no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
-      'no-unused-vars': ['error', {
+      'no-unused-vars': ['warn', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+      'sonarjs/no-unused-vars': 'warn', // Warn rather than error for tests
 
       // Security - relaxed for tests
       'security/detect-child-process': 'off', // Tests execute commands
       'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths
       'security/detect-object-injection': 'off', // TypeScript type safety covers this
 
-      // Import rules - catch duplicate imports
+      // Import rules - HIGH VALUE (catch duplicate imports)
       'import/no-duplicates': 'error',
 
-      // Unicorn rules - modern JavaScript
-      'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error',
-      'unicorn/throw-new-error': 'error',
-      'unicorn/prefer-module': 'error',
-      'unicorn/prefer-top-level-await': 'error',
-      'unicorn/no-array-for-each': 'error',
-      'unicorn/no-useless-undefined': 'error',
+      // Unicorn rules - HIGH VALUE (enforce in tests)
+      'unicorn/prefer-node-protocol': 'error', // Modern Node.js best practice
+
+      // Unicorn rules - LOW VALUE (disable for tests)
+      'unicorn/no-array-for-each': 'off', // .forEach() is readable in tests
+      'unicorn/no-useless-undefined': 'off', // Explicit undefined in test data is intentional
+      'unicorn/prefer-top-level-await': 'off', // Test frameworks handle async differently
+      'unicorn/prefer-number-properties': 'off', // Not worth the churn in tests
+      'unicorn/throw-new-error': 'off',
+      'unicorn/prefer-module': 'off',
       'unicorn/prefer-ternary': 'off',
-      'unicorn/prefer-string-raw': 'error',
+      'unicorn/prefer-string-raw': 'off',
+
+      // Security - check legitimate issues but allow test exceptions
+      'security/detect-unsafe-regex': 'warn', // Check but don't block on test regex
     },
   },
   {

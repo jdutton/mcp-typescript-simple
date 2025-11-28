@@ -3,8 +3,7 @@
  */
 
 import { vi } from 'vitest';
-import { RedisClientStore } from '../../src/index.js';
-import { RedisOAuthTokenStore } from '../../src/index.js';
+import { RedisClientStore , RedisOAuthTokenStore } from '../../src/index.js';
 import { createTestEncryptionService } from '../helpers/encryption-test-helper.js';
 
 // Hoist Redis mock to avoid initialization issues

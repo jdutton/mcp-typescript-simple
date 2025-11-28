@@ -13,11 +13,10 @@
  */
 
 import { test, expect, chromium, Browser, Page } from '@playwright/test';
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess , exec } from 'node:child_process';
 import axios from 'axios';
-import { setTimeout as sleep } from 'timers/promises';
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { setTimeout as sleep } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import { getMockOAuthEnvVars, MOCK_USER_DATA } from '@mcp-typescript-simple/testing/mock-oauth-server';
 
 const execAsync = promisify(exec);

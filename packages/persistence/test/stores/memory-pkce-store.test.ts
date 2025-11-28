@@ -2,8 +2,7 @@
  * Unit tests for MemoryPKCEStore
  */
 
-import { MemoryPKCEStore } from '../../src/index.js';
-import { PKCEData } from '../../src/index.js';
+import { MemoryPKCEStore , PKCEData } from '../../src/index.js';
 
 describe('MemoryPKCEStore', () => {
   let store: MemoryPKCEStore;

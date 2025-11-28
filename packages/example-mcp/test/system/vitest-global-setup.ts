@@ -3,7 +3,7 @@
  * Manages HTTP server startup for all system tests
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 
 let globalHttpServer: ChildProcess | null = null;
 

@@ -136,7 +136,7 @@ export function buildSessionsResponse(options: SessionsResponseOptions): Session
     mode: 'serverless',
     version: process.env.npm_package_version ?? '1.0.0',
     node_version: options.deployment === 'vercel'
-      ? process.version.split('.')[0] // Major version only for Vercel
+      ? (process.version.split('.')[0] ?? process.version) // Major version only for Vercel
       : process.version,
   };
 
@@ -198,7 +198,7 @@ export function buildInfoResponse(options: InfoResponseOptions): InfoResponse {
     mode: 'serverless',
     version: process.env.npm_package_version ?? '1.0.0',
     node_version: options.deployment === 'vercel'
-      ? process.version.split('.')[0] // Major version only for Vercel
+      ? (process.version.split('.')[0] ?? process.version) // Major version only for Vercel
       : process.version,
     oauth_providers: oauthProviders,
     oauth_configured: oauthProviders.length > 0,

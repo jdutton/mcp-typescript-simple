@@ -28,13 +28,13 @@ describe('Multi-Provider Token Exchange', () => {
   describe('hasStoredCodeForProvider', () => {
     it('should find correct provider by authorization code', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(true),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(true),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -68,11 +68,11 @@ describe('Multi-Provider Token Exchange', () => {
 
     it('should return null when no provider has the code', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
       };
 
       mockProviders.set('google', googleProvider);
@@ -85,7 +85,7 @@ describe('Multi-Provider Token Exchange', () => {
 
       let correctProvider = null;
 
-      for (const [_providerType, provider] of mockProviders.entries()) {
+      for (const [, provider] of mockProviders.entries()) {
         if ('hasStoredCodeForProvider' in provider) {
           const hasCode = await provider.hasStoredCodeForProvider(mockReq.body.code);
           if (hasCode) {
@@ -104,13 +104,13 @@ describe('Multi-Provider Token Exchange', () => {
   describe('Fallback to sequential provider trial', () => {
     it('should try each provider when no stored code_verifier found', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid code')),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockRejectedValue(new Error('Invalid code')),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -153,13 +153,13 @@ describe('Multi-Provider Token Exchange', () => {
 
     it('should aggregate errors when all providers fail', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Google: Invalid code')),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockRejectedValue(new Error('Google: Invalid code')),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('GitHub: Invalid code')),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockRejectedValue(new Error('GitHub: Invalid code')),
       };
 
       mockProviders.set('google', googleProvider);
@@ -199,16 +199,16 @@ describe('Multi-Provider Token Exchange', () => {
 
     it('should stop iteration when response headers are sent', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockImplementation(async (_req, res) => {
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockImplementation(async (_req, res) => {
           (res as any).headersSent = true;
           res.status(400).json({ error: 'custom_error' });
         }),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -219,7 +219,7 @@ describe('Multi-Provider Token Exchange', () => {
         code: 'error-code-123',
       };
 
-      for (const [_providerType, provider] of mockProviders.entries()) {
+      for (const [, provider] of mockProviders.entries()) {
         if (mockRes.headersSent) break;
 
         if ('handleTokenExchange' in provider) {
@@ -240,13 +240,13 @@ describe('Multi-Provider Token Exchange', () => {
   describe('Direct provider routing', () => {
     it('should use correct provider when code_verifier found', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(true),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(true),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       const githubProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(false),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockResolvedValue(undefined),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockResolvedValue(undefined),
       };
 
       mockProviders.set('google', googleProvider);
@@ -260,7 +260,7 @@ describe('Multi-Provider Token Exchange', () => {
       // Find correct provider
       let correctProvider = null;
 
-      for (const [_providerType, provider] of mockProviders.entries()) {
+      for (const [, provider] of mockProviders.entries()) {
         if ('hasStoredCodeForProvider' in provider) {
           const hasCode = await provider.hasStoredCodeForProvider(mockReq.body.code);
           if (hasCode) {
@@ -281,8 +281,8 @@ describe('Multi-Provider Token Exchange', () => {
 
     it('should handle errors from correct provider gracefully', async () => {
       const googleProvider = {
-        hasStoredCodeForProvider: vi.fn<(code: string) => Promise<boolean>>().mockResolvedValue(true),
-        handleTokenExchange: vi.fn<(req: Request, res: Response) => Promise<void>>().mockRejectedValue(new Error('Token exchange failed')),
+        hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(true),
+        handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockRejectedValue(new Error('Token exchange failed')),
       };
 
       mockProviders.set('google', googleProvider);
@@ -295,7 +295,7 @@ describe('Multi-Provider Token Exchange', () => {
       let correctProvider = null;
       let error: Error | null = null;
 
-      for (const [_providerType, provider] of mockProviders.entries()) {
+      for (const [, provider] of mockProviders.entries()) {
         if ('hasStoredCodeForProvider' in provider) {
           const hasCode = await provider.hasStoredCodeForProvider(mockReq.body.code);
           if (hasCode) {

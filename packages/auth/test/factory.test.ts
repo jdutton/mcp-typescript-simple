@@ -1,7 +1,6 @@
 import { vi } from 'vitest';
 
-import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
-import { logger } from '@mcp-typescript-simple/auth';
+import { OAuthProviderFactory , logger } from '@mcp-typescript-simple/auth';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
@@ -84,7 +83,7 @@ describe('OAuthProviderFactory', () => {
     // Suppress disposal errors since we're using mocked providers that may not have full disposal logic
     try {
       OAuthProviderFactory.resetInstance();
-    } catch (error) {
+    } catch (_error) {
       // Intentionally ignore disposal errors in test setup - we're using mocked providers that may not have full disposal logic
       // This is test-specific behavior and doesn't indicate a problem
     }

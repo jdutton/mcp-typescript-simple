@@ -661,7 +661,7 @@ export class MCPStreamableHttpServer {
               provider: providerType,
               clientId: authInfo.clientId,
               scopes: authInfo.scopes?.join(', ') ?? 'none',
-              user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
+              user: userInfo ? (userInfo.email ?? userInfo.sub ?? 'unknown') : undefined
             });
 
             next();

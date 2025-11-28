@@ -51,19 +51,16 @@ describe('Local Scaffolding Unit Test', () => {
     }
 
     console.log('✅ Local scaffolding completed');
-  }, 120000); // 2 minute timeout for scaffolding + npm install
+  });
 
-  afterAll(
-    () => {
-      // Cleanup temporary directory
-      if (tempDir && existsSync(tempDir)) {
-        console.log(`\n🧹 Cleaning up: ${tempDir}`);
-        rmSync(tempDir, { recursive: true, force: true });
-        console.log('✅ Cleanup completed');
-      }
-    },
-    30000,
-  ); // 30 second timeout for cleanup
+  afterAll(() => {
+    // Cleanup temporary directory
+    if (tempDir && existsSync(tempDir)) {
+      console.log(`\n🧹 Cleaning up: ${tempDir}`);
+      rmSync(tempDir, { recursive: true, force: true });
+      console.log('✅ Cleanup completed');
+    }
+  });
 
   describe('Project Structure', () => {
     it('should create project directory', () => {
@@ -218,9 +215,7 @@ describe('Local Scaffolding Unit Test', () => {
             `ESLint validation failed:\nSTDOUT: ${error.stdout}\nSTDERR: ${error.stderr}`,
           );
         }
-      },
-      30000,
-    ); // 30 second timeout for ESLint
+      });
 
     it('should build successfully', () => {
       console.log('\n🔍 Running build...');
