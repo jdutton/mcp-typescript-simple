@@ -12,6 +12,8 @@
 import request from 'supertest';
 import {
   getCurrentEnvironment,
+
+ 
   describeSystemTest,
   isSTDIOEnvironment
 } from './utils.js';
@@ -21,6 +23,7 @@ describeSystemTest('OAuth Flow End-to-End', () => {
 
   // Skip HTTP tests in STDIO mode
   if (isSTDIOEnvironment(environment)) {
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should skip OAuth flow tests in STDIO mode', () => {
       console.log('ℹ️  OAuth flow tests skipped for STDIO transport mode');
     });
@@ -29,6 +32,7 @@ describeSystemTest('OAuth Flow End-to-End', () => {
 
   // Skip OAuth tests when auth is disabled (express:ci mode has MCP_DEV_SKIP_AUTH=true)
   if (environment.name === 'express:ci') {
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- Valid test: setup or teardown
     it('should skip OAuth flow tests when auth is disabled', () => {
       console.log('ℹ️  OAuth flow tests skipped - auth disabled in express:ci mode (MCP_DEV_SKIP_AUTH=true)');
     });

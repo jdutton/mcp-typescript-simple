@@ -25,7 +25,7 @@
  * TokenEncryptionService MUST be provided to constructor
  */
 
-import type Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
@@ -48,7 +48,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     this.encryptionService = encryptionService;
     this.redis = createRedisClient(redisUrl, 'OAuth tokens');
 
-    const url = redisUrl || process.env.REDIS_URL!;
+    const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
     logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
   }
 

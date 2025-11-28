@@ -6,7 +6,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import { logger } from '@mcp-typescript-simple/observability/logger';
 import { buildHealthResponse } from '@mcp-typescript-simple/http-server/responses/health-response';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
   try {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,11 +28,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const healthResponse = buildHealthResponse({
       deployment: 'vercel',
       mode: 'streamable_http',
-      region: process.env.VERCEL_REGION || 'unknown',
-      deploymentId: process.env.VERCEL_DEPLOYMENT_ID || 'local',
+      region: process.env.VERCEL_REGION ?? 'unknown',
+      deploymentId: process.env.VERCEL_DEPLOYMENT_ID ?? 'local',
       deploymentUrl: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
-      gitCommit: process.env.VERCEL_GIT_COMMIT_SHA || 'unknown',
-      gitBranch: process.env.VERCEL_GIT_COMMIT_REF || 'unknown',
+      gitCommit: process.env.VERCEL_GIT_COMMIT_SHA ?? 'unknown',
+      gitBranch: process.env.VERCEL_GIT_COMMIT_REF ?? 'unknown',
     });
 
     res.status(200).json(healthResponse);

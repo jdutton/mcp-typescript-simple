@@ -8,6 +8,8 @@ import {
   waitForServer,
   expectValidApiResponse,
   getCurrentEnvironment,
+
+/* eslint-disable sonarjs/no-unused-vars */
   describeSystemTest,
   isSTDIOEnvironment,
   isLocalEnvironment

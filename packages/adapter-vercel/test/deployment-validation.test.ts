@@ -15,8 +15,8 @@
  * deployment validation that runs independently of the test framework.
  */
 
-import { spawn, exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn, exec } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const execAsync = promisify(exec);
 
@@ -82,14 +82,14 @@ class CITestRunner {
   }
 
   private async testTypeScriptBuild(): Promise<void> {
-    const { stdout: _stdout, stderr } = await execAsync('npm run build');
+    const { stderr } = await execAsync('npm run build');
     if (stderr && !stderr.includes('warning')) {
       throw new Error(`Build failed: ${stderr}`);
     }
   }
 
   private async testTypeCheck(): Promise<void> {
-    const { stdout: _stdout, stderr } = await execAsync('npm run typecheck');
+    const { stderr } = await execAsync('npm run typecheck');
     if (stderr) {
       throw new Error(`Type check failed: ${stderr}`);
     }
@@ -97,7 +97,7 @@ class CITestRunner {
 
   private async testLinting(): Promise<void> {
     try {
-      const { stdout: _stdout, stderr: _stderr } = await execAsync('npm run lint');
+      await execAsync('npm run lint');
     } catch (error: unknown) {
       const execError = error as { code?: number; stdout?: string; stderr?: string };
       if (execError.code === 1) {
@@ -244,7 +244,7 @@ class CITestRunner {
   private async testVercelConfiguration(): Promise<void> {
     try {
       // Run Vercel configuration tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/vercel-config-test.ts');
+      const { stderr } = await execAsync('npx tsx test/integration/vercel-config-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Vercel configuration validation failed: ${stderr}`);
       }
@@ -260,7 +260,7 @@ class CITestRunner {
   private async testTransportLayer(): Promise<void> {
     try {
       // Run transport layer tests
-      const { stdout: _stdout, stderr } = await execAsync('npx tsx test/integration/transport-test.ts');
+      const { stderr } = await execAsync('npx tsx test/integration/transport-test.ts');
       if (stderr && stderr.includes('Failed tests:')) {
         throw new Error(`Transport layer validation failed: ${stderr}`);
       }

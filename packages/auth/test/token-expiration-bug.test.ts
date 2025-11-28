@@ -13,10 +13,7 @@
  */
 
 import { vi } from 'vitest';
-import { GitHubOAuthProvider } from '@mcp-typescript-simple/auth';
-import { GoogleOAuthProvider } from '@mcp-typescript-simple/auth';
-import { MicrosoftOAuthProvider } from '@mcp-typescript-simple/auth';
-import {
+import { GitHubOAuthProvider , GoogleOAuthProvider , MicrosoftOAuthProvider ,
   GitHubOAuthConfig,
   GoogleOAuthConfig,
   MicrosoftOAuthConfig,

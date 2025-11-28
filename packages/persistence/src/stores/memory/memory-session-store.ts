@@ -23,6 +23,7 @@ export class MemorySessionStore implements OAuthSessionStore {
     logger.info('MemorySessionStore initialized');
 
     // Start automatic cleanup of expired sessions
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000); // Every 5 minutes
     if (typeof this.cleanupInterval.unref === 'function') {
       this.cleanupInterval.unref();

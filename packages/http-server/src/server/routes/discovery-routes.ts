@@ -9,8 +9,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthProvider } from '@mcp-typescript-simple/auth';
-import { createOAuthDiscoveryMetadata } from '@mcp-typescript-simple/auth';
+import {
+  OAuthProvider,
+  createOAuthDiscoveryMetadata,
+} from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
 
 export interface DiscoveryRoutesOptions {
@@ -34,8 +36,8 @@ export function setupDiscoveryRoutes(
 ): void {
   // Helper function to get base URL for the current request
   const getBaseUrl = (req: Request): string => {
-    const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-    const host = req.headers['x-forwarded-host'] || req.headers.host || `${options.host}:${options.port}`;
+    const protocol = req.headers['x-forwarded-proto'] ?? (req.secure ? 'https' : 'http');
+    const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? `${options.host}:${options.port}`;
     return `${protocol}://${host}`;
   };
 
@@ -107,7 +109,11 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProviderResult = oauthProviders.values().next();
+      if (!firstProviderResult.value) {
+        throw new Error('OAuth provider iteration failed unexpectedly');
+      }
+      const firstProvider = firstProviderResult.value;
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
@@ -143,14 +149,18 @@ export function setupDiscoveryRoutes(
           supported_tool_types: ['function', 'text_generation', 'analysis'],
           scopes_supported: ['mcp:read', 'mcp:write'],
           session_management: {
-            resumability_supported: options.enableResumability || false
+            resumability_supported: options.enableResumability ?? false
           },
           message: 'OAuth provider not configured'
         });
         return;
       }
 
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProviderResult = oauthProviders.values().next();
+      if (!firstProviderResult.value) {
+        throw new Error('OAuth provider iteration failed unexpectedly');
+      }
+      const firstProvider = firstProviderResult.value;
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`
@@ -188,7 +198,11 @@ export function setupDiscoveryRoutes(
       }
 
       const baseUrl = getBaseUrl(req);
-      const firstProvider = oauthProviders.values().next().value!;
+      const firstProviderResult = oauthProviders.values().next();
+      if (!firstProviderResult.value) {
+        throw new Error('OAuth provider iteration failed unexpectedly');
+      }
+      const firstProvider = firstProviderResult.value;
       const discoveryMetadata = createOAuthDiscoveryMetadata(firstProvider, baseUrl, {
         enableResumability: options.enableResumability,
         toolDiscoveryEndpoint: `${baseUrl}${options.endpoint}`

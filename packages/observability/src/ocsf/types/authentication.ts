@@ -7,6 +7,8 @@
  * Reference: https://schema.ocsf.io/1.3.0/classes/authentication
  */
 
+/* eslint-disable no-unused-vars */ // OCSF type specification enums (used as type definitions)
+
 import type {
   BaseEvent,
   Session,

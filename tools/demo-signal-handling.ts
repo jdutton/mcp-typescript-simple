@@ -20,7 +20,7 @@
  * - No leaked ports remain
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import { registerProcess, registerCleanup, getSignalHandlerState } from '../test/helpers/signal-handler.js';
 import { TEST_PORTS, getPortDescription } from '../test/helpers/port-registry.js';
 import { isPortAvailable } from '../test/helpers/port-utils.js';
@@ -152,7 +152,9 @@ async function main() {
 }
 
 // Run the demo
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error('❌ Demo failed:', error);
   process.exit(1);
-});
+}

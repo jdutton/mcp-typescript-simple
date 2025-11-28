@@ -1,15 +1,11 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true,
-    "declarationMap": true,
-    "skipLibCheck": true,
-    "moduleResolution": "bundler"
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "test"],
+  "exclude": ["node_modules", "dist", "test"],
   "references": [
     { "path": "../tools" },
     { "path": "../tools-llm" },

@@ -16,8 +16,10 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
+import {
+  InitialAccessTokenStore,
+  OAuthRegisteredClientsStore,
+} from '@mcp-typescript-simple/persistence';
 import { requireInitialAccessToken } from '../../middleware/dcr-auth.js';
 import { logger } from '@mcp-typescript-simple/observability';
 
@@ -55,8 +57,8 @@ export function setupAdminTokenRoutes(
 
       const token = await tokenStore.createToken({
         description,
-        expires_in: expires_in || 2592000, // 30 days default
-        max_uses: max_uses || 0, // Unlimited default
+        expires_in: expires_in ?? 2592000, // 30 days default
+        max_uses: max_uses ?? null, // Unlimited default (null means no limit)
       });
 
       logger.info('Initial access token created via admin endpoint', {
@@ -71,7 +73,7 @@ export function setupAdminTokenRoutes(
         description: token.description,
         created_at: token.created_at,
         expires_at: token.expires_at,
-        max_uses: token.max_uses || null,
+        max_uses: token.max_uses,
       });
     } catch (error) {
       logger.error('Failed to create token', error);
@@ -104,7 +106,7 @@ export function setupAdminTokenRoutes(
         expires_at: t.expires_at,
         last_used_at: t.last_used_at,
         usage_count: t.usage_count,
-        max_uses: t.max_uses || null,
+        max_uses: t.max_uses,
         revoked: t.revoked,
       }));
 
@@ -155,7 +157,7 @@ export function setupAdminTokenRoutes(
         expires_at: token.expires_at,
         last_used_at: token.last_used_at,
         usage_count: token.usage_count,
-        max_uses: token.max_uses || null,
+        max_uses: token.max_uses,
         revoked: token.revoked,
       });
     } catch (error) {
@@ -280,12 +282,12 @@ export function setupAdminTokenRoutes(
 
       // Register client with extended expiration (1 year instead of 30 days)
       const client = await clientStore.registerClient({
-        client_name: req.body.client_name || 'Trusted Client',
+        client_name: req.body.client_name ?? 'Trusted Client',
         redirect_uris: req.body.redirect_uris,
-        grant_types: req.body.grant_types || ['authorization_code', 'refresh_token'],
-        response_types: req.body.response_types || ['code'],
+        grant_types: req.body.grant_types ?? ['authorization_code', 'refresh_token'],
+        response_types: req.body.response_types ?? ['code'],
         scope: req.body.scope,
-        token_endpoint_auth_method: req.body.token_endpoint_auth_method || 'client_secret_post',
+        token_endpoint_auth_method: req.body.token_endpoint_auth_method ?? 'client_secret_post',
         // Trusted clients get 1 year expiration
         client_secret_expires_at: 31536000,
       });

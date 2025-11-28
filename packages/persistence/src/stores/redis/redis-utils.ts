@@ -5,7 +5,7 @@
  * to eliminate code duplication.
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { logger } from '../../logger.js';
 
 /**
@@ -16,10 +16,12 @@ import { logger } from '../../logger.js';
  * @param url Redis connection URL
  * @returns Masked URL with password replaced by ***
  */
+
 export function maskRedisUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.password) {
+      // eslint-disable-next-line sonarjs/no-hardcoded-passwords
       parsed.password = '***';
     }
     return parsed.toString();
@@ -37,21 +39,21 @@ export function maskRedisUrl(url: string): string {
  * @returns Configured Redis client instance with event handlers
  */
 export function createRedisClient(redisUrl: string | undefined, connectionName: string): Redis {
-  const url = redisUrl || process.env.REDIS_URL;
+  const url = redisUrl ?? process.env.REDIS_URL;
   if (!url) {
     throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
   }
 
   const redis = new Redis(url, {
     maxRetriesPerRequest: 3,
-    retryStrategy: (times) => {
+    retryStrategy: (times: number) => {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },
     lazyConnect: true,
   });
 
-  redis.on('error', (error) => {
+  redis.on('error', (error: Error) => {
     logger.error('Redis connection error', { error });
   });
 
@@ -60,7 +62,7 @@ export function createRedisClient(redisUrl: string | undefined, connectionName: 
   });
 
   // Connect immediately
-  redis.connect().catch((error) => {
+  redis.connect().catch((error: Error) => {
     logger.error('Failed to connect to Redis', { error });
   });
 

@@ -3,16 +3,16 @@
  */
 
 import { vi } from 'vitest';
-import { RedisClientStore } from '../../src/index.js';
-import { RedisOAuthTokenStore } from '../../src/index.js';
+import { RedisClientStore , RedisOAuthTokenStore } from '../../src/index.js';
 import { createTestEncryptionService } from '../helpers/encryption-test-helper.js';
 
 // Hoist Redis mock to avoid initialization issues
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires default export
+// Mock Redis for testing - Vitest requires both default and named exports
 vi.mock('ioredis', () => ({
-  default: RedisMock
+  default: RedisMock,
+  Redis: RedisMock,
 }));
 
 // Create a shared Redis instance for cleanup

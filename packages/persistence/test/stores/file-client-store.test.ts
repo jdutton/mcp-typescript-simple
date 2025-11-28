@@ -4,9 +4,11 @@
 
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'os';
+import { tmpdir } from 'node:os';
 import { FileClientStore } from '../../src/index.js';
 
+
+/* eslint-disable sonarjs/no-unused-vars, sonarjs/no-ignored-exceptions */
 describe('FileClientStore', () => {
   let store: FileClientStore;
   let testFilePath: string;
@@ -30,7 +32,7 @@ describe('FileClientStore', () => {
     // Clean up test files
     try {
       await fs.rm(testDir, { recursive: true, force: true });
-    } catch (error) {
+    } catch (_error) {
       // Ignore cleanup errors
     }
   });
@@ -165,7 +167,7 @@ describe('FileClientStore', () => {
 
   describe('reload', () => {
     it('should reload clients from file', async () => {
-      const client1 = await store.registerClient({
+      const _client1 = await store.registerClient({
         redirect_uris: ['http://localhost:3000/callback'],
         client_name: 'Client 1',
       });

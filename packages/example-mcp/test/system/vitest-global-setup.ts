@@ -3,8 +3,10 @@
  * Manages HTTP server startup for all system tests
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 
+
+/* eslint-disable sonarjs/no-ignored-exceptions */
 let globalHttpServer: ChildProcess | null = null;
 
 /**
@@ -209,7 +211,7 @@ export default async function globalSetup(): Promise<void> {
             console.log(`✅ Vitest Global Setup: HTTP server ready on port ${httpPort} (health check passed after ${healthCheckAttempts} attempts)`);
             resolve();
           }
-        } catch (error) {
+        } catch (_error) {
           // Health check failed - server not ready yet, will retry
           // Only fail after max attempts to allow server startup time
           if (healthCheckAttempts >= maxHealthCheckAttempts) {

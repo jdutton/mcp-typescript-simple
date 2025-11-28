@@ -32,7 +32,13 @@
  * - FileSecretsProvider: Plaintext .env.local (simple, insecure)
  * - EncryptedFileSecretsProvider: Encrypted file (Vault-like, secure)
  * - VaultSecretsProvider: Real Vault server (production-grade)
+ *
+ * ESLint: security/detect-non-literal-fs-filename is disabled for this file
+ * because it's a legitimate file storage provider where all file paths are
+ * controlled by configuration options, not untrusted user input.
  */
+
+/* eslint-disable security/detect-non-literal-fs-filename */
 
 import { promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
@@ -77,11 +83,11 @@ export class EncryptedFileSecretsProvider extends BaseSecretsProvider {
   constructor(options: EncryptedFileSecretsProviderOptions = {}) {
     super(options);
 
-    this.filePath = options.filePath || '.secrets.encrypted';
+    this.filePath = options.filePath ?? '.secrets.encrypted';
     this.backupPath = `${this.filePath}.backup`;
 
     // Get master key
-    const masterKeyB64 = options.masterKey || process.env.SECRETS_MASTER_KEY;
+    const masterKeyB64 = options.masterKey ?? process.env.SECRETS_MASTER_KEY;
     if (!masterKeyB64) {
       throw new Error(
         'Master encryption key not configured. Set SECRETS_MASTER_KEY environment variable.\n' +

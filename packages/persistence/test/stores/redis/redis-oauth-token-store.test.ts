@@ -24,11 +24,14 @@ import { RedisOAuthTokenStore, StoredTokenInfo } from '../../../src/index.js';
 import { TokenEncryptionService } from '../../../src/encryption/token-encryption-service.js';
 
 // Hoist Redis mock to avoid initialization issues
+
+/* eslint-disable sonarjs/no-unused-vars */
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires default export
+// Mock Redis for testing - Vitest requires both default and named exports
 vi.mock('ioredis', () => ({
-  default: RedisMock
+  default: RedisMock,
+  Redis: RedisMock,
 }));
 
 // Create a shared Redis instance for direct inspection
@@ -78,7 +81,7 @@ describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
       // CRITICAL: Constructor should throw if encryption service not provided
       // Zero-tolerance security stance - no silent fallback to unencrypted storage
       expect(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         
         const _store = new RedisOAuthTokenStore('redis://localhost:6379', undefined as any);
       }).toThrow(/TokenEncryptionService is REQUIRED/);
     });

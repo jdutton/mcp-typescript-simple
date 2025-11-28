@@ -9,18 +9,15 @@
  * 5. Optional parameters (system_prompt, temperature)
  * 6. Error handling (provider unavailable, invalid model)
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createChatTool, type ChatToolInput } from '../src/chat.js';
+import { describe, it, expect, vi } from 'vitest';
+import { createChatTool } from '../src/chat.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
-import type { AnyModel } from '@mcp-typescript-simple/tools-llm';
-
-type ToolResponse = {
-  content: Array<{ type: string; text?: string }>;
-};
 
 /**
  * Create a mock LLM manager for testing
  */
+
+/* eslint-disable sonarjs/no-unused-vars */
 const createMockManager = (options: {
   defaultProvider?: string;
   defaultModel?: string;
@@ -36,12 +33,12 @@ const createMockManager = (options: {
     completeError
   } = options;
 
-  const completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
+  const _completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
 
   if (completeError) {
-    completeMock.mockRejectedValue(completeError);
+    _completeMock.mockRejectedValue(completeError);
   } else {
-    completeMock.mockResolvedValue({
+    _completeMock.mockResolvedValue({
       content: completeResponse,
       provider: defaultProvider as any,
       model: defaultModel as any,
@@ -55,7 +52,7 @@ const createMockManager = (options: {
       model: defaultModel
     }),
     getAvailableProviders: vi.fn().mockReturnValue(availableProviders),
-    complete: completeMock,
+    complete: _completeMock,
     clearCache: vi.fn(),
     getCacheStats: vi.fn(),
     initialize: vi.fn(),
@@ -64,7 +61,7 @@ const createMockManager = (options: {
     )
   } as unknown as LLMManager;
 
-  return { manager, completeMock };
+  return { manager, _completeMock };
 };
 
 describe('Chat Tool', () => {
@@ -80,7 +77,7 @@ describe('Chat Tool', () => {
     });
 
     it('should successfully handle a basic chat message', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeResponse: 'Hello! How can I help you?'
       });
       const tool = createChatTool(manager);
@@ -92,7 +89,7 @@ describe('Chat Tool', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toBe('Hello! How can I help you?');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Hello, AI!',
           provider: 'claude',
@@ -104,7 +101,7 @@ describe('Chat Tool', () => {
 
   describe('Default Provider/Model Behavior', () => {
     it('should use default provider and model when none specified', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -112,7 +109,7 @@ describe('Chat Tool', () => {
       });
 
       expect(manager.getProviderForTool).toHaveBeenCalledWith('chat');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-haiku-20240307'
@@ -121,7 +118,7 @@ describe('Chat Tool', () => {
     });
 
     it('should use OpenAI as default if configured', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'openai',
         defaultModel: 'gpt-4o-mini'
       });
@@ -131,7 +128,7 @@ describe('Chat Tool', () => {
         message: 'Test message'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai',
           model: 'gpt-4o-mini'
@@ -140,7 +137,7 @@ describe('Chat Tool', () => {
     });
 
     it('should use Gemini as default if configured', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'gemini',
         defaultModel: 'gemini-2.5-flash'
       });
@@ -150,7 +147,7 @@ describe('Chat Tool', () => {
         message: 'Test message'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
@@ -161,7 +158,7 @@ describe('Chat Tool', () => {
 
   describe('Explicit Provider Selection', () => {
     it('should use explicitly specified Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -169,7 +166,7 @@ describe('Chat Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude'
         })
@@ -177,7 +174,7 @@ describe('Chat Tool', () => {
     });
 
     it('should use explicitly specified OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -185,7 +182,7 @@ describe('Chat Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai'
         })
@@ -193,7 +190,7 @@ describe('Chat Tool', () => {
     });
 
     it('should use explicitly specified Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -201,7 +198,7 @@ describe('Chat Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini'
         })
@@ -211,7 +208,7 @@ describe('Chat Tool', () => {
 
   describe('Model Selection and Validation', () => {
     it('should use explicitly specified model', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -220,7 +217,7 @@ describe('Chat Tool', () => {
         model: 'claude-3-5-haiku-20241022'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-5-haiku-20241022'
@@ -229,7 +226,7 @@ describe('Chat Tool', () => {
     });
 
     it('should return error for invalid model/provider combination', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       const result = await tool.handler({
@@ -242,11 +239,11 @@ describe('Chat Tool', () => {
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toContain('Chat failed');
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject OpenAI model with Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       const result = await tool.handler({
@@ -256,11 +253,11 @@ describe('Chat Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject Gemini model with Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       const result = await tool.handler({
@@ -270,13 +267,13 @@ describe('Chat Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
   });
 
   describe('Optional Parameters', () => {
     it('should pass system_prompt to LLM manager', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -284,7 +281,7 @@ describe('Chat Tool', () => {
         system_prompt: 'You are a helpful coding assistant'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Test message',
           systemPrompt: 'You are a helpful coding assistant'
@@ -293,7 +290,7 @@ describe('Chat Tool', () => {
     });
 
     it('should pass temperature to LLM manager', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -301,7 +298,7 @@ describe('Chat Tool', () => {
         temperature: 0.9
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Test message',
           temperature: 0.9
@@ -310,7 +307,7 @@ describe('Chat Tool', () => {
     });
 
     it('should pass all optional parameters together', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createChatTool(manager);
 
       await tool.handler({
@@ -321,7 +318,7 @@ describe('Chat Tool', () => {
         model: 'gpt-4o'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Test message',
           systemPrompt: 'You are a helpful assistant',
@@ -335,7 +332,7 @@ describe('Chat Tool', () => {
 
   describe('Error Handling', () => {
     it('should return structured error when LLM provider fails', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeError: new Error("LLM provider 'claude' not available")
       });
       const tool = createChatTool(manager);
@@ -352,7 +349,7 @@ describe('Chat Tool', () => {
     });
 
     it('should return structured error when LLM request fails', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeError: new Error('LLM request failed: Timeout')
       });
       const tool = createChatTool(manager);
@@ -369,7 +366,7 @@ describe('Chat Tool', () => {
     });
 
     it('should return structured error for network failures', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeError: new Error('Network error: Connection refused')
       });
       const tool = createChatTool(manager);
@@ -384,8 +381,8 @@ describe('Chat Tool', () => {
 
     it('should handle non-Error exceptions gracefully', async () => {
       const { manager } = createMockManager();
-      const completeMock = vi.fn().mockRejectedValue('String error');
-      manager.complete = completeMock as any;
+      const _completeMock = vi.fn().mockRejectedValue('String error');
+      manager.complete = _completeMock as any;
 
       const tool = createChatTool(manager);
 
@@ -400,7 +397,7 @@ describe('Chat Tool', () => {
 
   describe('Provider Availability', () => {
     it('should work when only Claude is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         availableProviders: ['claude']
       });
       const tool = createChatTool(manager);
@@ -410,11 +407,11 @@ describe('Chat Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only OpenAI is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'openai',
         defaultModel: 'gpt-4o-mini',
         availableProviders: ['openai']
@@ -426,11 +423,11 @@ describe('Chat Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only Gemini is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'gemini',
         defaultModel: 'gemini-2.5-flash',
         availableProviders: ['gemini']
@@ -442,13 +439,13 @@ describe('Chat Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
   });
 
   describe('Integration with ToolRegistry', () => {
     it('should be callable through tool registry interface', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeResponse: 'Registry test response'
       });
       const tool = createChatTool(manager);
@@ -459,7 +456,7 @@ describe('Chat Tool', () => {
       });
 
       expect(result.content[0]?.text).toBe('Registry test response');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Test via registry'
         })

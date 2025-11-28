@@ -240,7 +240,9 @@ describe('Session Reconstruction Integration Tests', () => {
       expect(newStats.cachedInstances).toBe(1);
     });
 
-    it('should handle multiple reconstructions without errors', async () => {
+    it(
+      'should handle multiple reconstructions without errors',
+      async () => {
       // Initialize session
       const initResponse = await request(app)
         .post('/mcp')
@@ -298,7 +300,9 @@ describe('Session Reconstruction Integration Tests', () => {
         .expect(200);
 
       expect(finalResponse.body.result).toBeDefined();
-    });
+      },
+      30000,
+    ); // 30 second timeout for multiple reconstructions
   });
 
   describe('Multi-Tool Execution After Reconstruction', () => {

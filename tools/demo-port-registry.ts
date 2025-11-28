@@ -11,7 +11,7 @@
  * 4. Port status monitoring
  */
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 import {
   getAllTestPorts,
   getHeadlessPorts,
@@ -215,7 +215,9 @@ async function main() {
 }
 
 // Run the demo
-main().catch((error) => {
+try {
+  await main();
+} catch (error) {
   console.error('❌ Demo failed:', error);
   process.exit(1);
-});
+}

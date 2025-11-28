@@ -10,12 +10,14 @@
  * 6. Error handling
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createExplainTool, type ExplainToolInput } from '../src/explain.js';
+import { createExplainTool } from '../src/explain.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 /**
  * Create a mock LLM manager for testing
  */
+
+ 
 const createMockManager = (options: {
   defaultProvider?: string;
   defaultModel?: string;
@@ -31,12 +33,12 @@ const createMockManager = (options: {
     completeError
   } = options;
 
-  const completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
+  const _completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
 
   if (completeError) {
-    completeMock.mockRejectedValue(completeError);
+    _completeMock.mockRejectedValue(completeError);
   } else {
-    completeMock.mockResolvedValue({
+    _completeMock.mockResolvedValue({
       content: completeResponse,
       provider: defaultProvider as any,
       model: defaultModel as any,
@@ -50,7 +52,7 @@ const createMockManager = (options: {
       model: defaultModel
     }),
     getAvailableProviders: vi.fn().mockReturnValue(availableProviders),
-    complete: completeMock,
+    complete: _completeMock,
     clearCache: vi.fn(),
     getCacheStats: vi.fn(),
     initialize: vi.fn(),
@@ -59,7 +61,7 @@ const createMockManager = (options: {
     )
   } as unknown as LLMManager;
 
-  return { manager, completeMock };
+  return { manager, _completeMock };
 };
 
 describe('Explain Tool', () => {
@@ -75,7 +77,7 @@ describe('Explain Tool', () => {
     });
 
     it('should successfully explain a topic with default settings', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeResponse: 'Clear explanation of the topic...'
       });
       const tool = createExplainTool(manager);
@@ -87,7 +89,7 @@ describe('Explain Tool', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toBe('Clear explanation of the topic...');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Please explain: async/await in JavaScript',
           provider: 'claude',
@@ -100,7 +102,7 @@ describe('Explain Tool', () => {
 
   describe('Default Provider/Model Behavior', () => {
     it('should use default provider and model when none specified', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -108,7 +110,7 @@ describe('Explain Tool', () => {
       });
 
       expect(manager.getProviderForTool).toHaveBeenCalledWith('explain');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-haiku-20240307'
@@ -117,7 +119,7 @@ describe('Explain Tool', () => {
     });
 
     it('should use Claude as default if configured', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'claude',
         defaultModel: 'claude-3-5-haiku-20241022'
       });
@@ -127,7 +129,7 @@ describe('Explain Tool', () => {
         topic: 'Test topic'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-5-haiku-20241022'
@@ -138,7 +140,7 @@ describe('Explain Tool', () => {
 
   describe('Audience Level Adaptation', () => {
     it('should handle beginner level', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -146,14 +148,14 @@ describe('Explain Tool', () => {
         level: 'beginner'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('simple terms');
       expect(callArgs?.systemPrompt).toContain('minimal prior knowledge');
     });
 
     it('should handle intermediate level', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -161,14 +163,14 @@ describe('Explain Tool', () => {
         level: 'intermediate'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('balanced explanation');
       expect(callArgs?.systemPrompt).toContain('foundational knowledge');
     });
 
     it('should handle advanced level', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -176,40 +178,40 @@ describe('Explain Tool', () => {
         level: 'advanced'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('technical precision');
       expect(callArgs?.systemPrompt).toContain('strong foundational knowledge');
     });
 
     it('should use intermediate level as default', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
         topic: 'Test topic'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('balanced explanation');
     });
   });
 
   describe('Example Inclusion Control', () => {
     it('should include examples by default', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
         topic: 'Test topic'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('examples');
     });
 
     it('should include examples when explicitly set to true', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -217,12 +219,12 @@ describe('Explain Tool', () => {
         include_examples: true
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('examples');
     });
 
     it('should exclude examples when set to false', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -230,14 +232,14 @@ describe('Explain Tool', () => {
         include_examples: false
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).not.toContain('examples');
     });
   });
 
   describe('Context Specification', () => {
     it('should include context in system prompt when specified', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -245,23 +247,23 @@ describe('Explain Tool', () => {
         context: 'web development'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('web development');
     });
 
     it('should work without context', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
         topic: 'Test topic'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should combine context with level and examples', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -271,7 +273,7 @@ describe('Explain Tool', () => {
         include_examples: true
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('simple terms');
       expect(callArgs?.systemPrompt).toContain('machine learning');
       expect(callArgs?.systemPrompt).toContain('examples');
@@ -280,7 +282,7 @@ describe('Explain Tool', () => {
 
   describe('Explicit Provider Selection', () => {
     it('should use explicitly specified Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -288,7 +290,7 @@ describe('Explain Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude'
         })
@@ -296,7 +298,7 @@ describe('Explain Tool', () => {
     });
 
     it('should use explicitly specified OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -304,7 +306,7 @@ describe('Explain Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai'
         })
@@ -312,7 +314,7 @@ describe('Explain Tool', () => {
     });
 
     it('should use explicitly specified Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -320,7 +322,7 @@ describe('Explain Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini'
         })
@@ -330,7 +332,7 @@ describe('Explain Tool', () => {
 
   describe('Model Selection and Validation', () => {
     it('should use explicitly specified model', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -339,7 +341,7 @@ describe('Explain Tool', () => {
         model: 'claude-3-5-haiku-20241022'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-5-haiku-20241022'
@@ -348,7 +350,7 @@ describe('Explain Tool', () => {
     });
 
     it('should return error for invalid model/provider combination', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       const result = await tool.handler({
@@ -361,11 +363,11 @@ describe('Explain Tool', () => {
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toContain('Explanation failed');
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject Gemini model with OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       const result = await tool.handler({
@@ -375,11 +377,11 @@ describe('Explain Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject OpenAI model with Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       const result = await tool.handler({
@@ -389,11 +391,11 @@ describe('Explain Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should accept valid Claude model with Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -402,7 +404,7 @@ describe('Explain Tool', () => {
         model: 'claude-3-haiku-20240307'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-haiku-20240307'
@@ -411,7 +413,7 @@ describe('Explain Tool', () => {
     });
 
     it('should accept valid OpenAI model with OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -420,7 +422,7 @@ describe('Explain Tool', () => {
         model: 'gpt-4o'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai',
           model: 'gpt-4o'
@@ -429,7 +431,7 @@ describe('Explain Tool', () => {
     });
 
     it('should accept valid Gemini model with Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
@@ -438,7 +440,7 @@ describe('Explain Tool', () => {
         model: 'gemini-2.5-flash'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
@@ -449,14 +451,14 @@ describe('Explain Tool', () => {
 
   describe('Temperature Control', () => {
     it('should use temperature of 0.4 for balanced creativity', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createExplainTool(manager);
 
       await tool.handler({
         topic: 'Test topic'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           temperature: 0.4
         })
@@ -499,8 +501,8 @@ describe('Explain Tool', () => {
 
     it('should handle non-Error exceptions gracefully', async () => {
       const { manager } = createMockManager();
-      const completeMock = vi.fn().mockRejectedValue('String error');
-      manager.complete = completeMock as any;
+      const _completeMock = vi.fn().mockRejectedValue('String error');
+      manager.complete = _completeMock as any;
 
       const tool = createExplainTool(manager);
 
@@ -547,7 +549,7 @@ describe('Explain Tool', () => {
 
   describe('Provider Availability', () => {
     it('should work when only Claude is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         availableProviders: ['claude']
       });
       const tool = createExplainTool(manager);
@@ -557,11 +559,11 @@ describe('Explain Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only OpenAI is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'openai',
         defaultModel: 'gpt-4o',
         availableProviders: ['openai']
@@ -573,11 +575,11 @@ describe('Explain Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only Gemini is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'gemini',
         defaultModel: 'gemini-2.5-flash',
         availableProviders: ['gemini']
@@ -589,7 +591,7 @@ describe('Explain Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
   });
 });

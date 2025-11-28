@@ -15,9 +15,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore } from '@mcp-typescript-simple/persistence';
-import { OAuthTokenStore } from '@mcp-typescript-simple/persistence';
-import { PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore, OAuthTokenStore, PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Generic OAuth provider implementation
@@ -72,7 +70,7 @@ export class GenericOAuthProvider extends BaseOAuthProvider {
 
       // Create OAuth session
       const session = this.createOAuthSession(state, codeVerifier, codeChallenge, clientRedirectUri, undefined, clientState);
-      this.storeSession(state, session);
+      void this.storeSession(state, session);
 
       // Build authorization URL
       const authUrl = new URL(this.config.authorizationUrl);
@@ -82,7 +80,7 @@ export class GenericOAuthProvider extends BaseOAuthProvider {
       authUrl.searchParams.set('scope', session.scopes.join(' '));
       authUrl.searchParams.set('state', state);
       authUrl.searchParams.set('code_challenge', codeChallenge);
-      authUrl.searchParams.set('code_challenge_method', clientCodeChallengeMethod || 'S256');
+      authUrl.searchParams.set('code_challenge_method', clientCodeChallengeMethod ?? 'S256');
 
       logger.oauthInfo(`Redirecting to ${this.config.providerName}`, { provider: 'generic' });
       this.setAntiCachingHeaders(res);

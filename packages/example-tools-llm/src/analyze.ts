@@ -10,8 +10,12 @@
 
 import { defineTool } from '@mcp-typescript-simple/tools';
 import { z } from 'zod';
-import { LLMManager } from '@mcp-typescript-simple/tools-llm';
-import { AnyModel, isValidModelForProvider, getDefaultModelForProvider } from '@mcp-typescript-simple/tools-llm';
+import {
+  LLMManager,
+  AnyModel,
+  isValidModelForProvider,
+  getDefaultModelForProvider
+} from '@mcp-typescript-simple/tools-llm';
 
 const AnalyzeToolZodSchema = z.object({
   text: z.string().describe('The text to analyze'),
@@ -27,14 +31,14 @@ export type AnalyzeToolInput = z.infer<typeof AnalyzeToolZodSchema>;
 /**
  * Create analyze tool with injected LLM manager
  */
-export function createAnalyzeTool(llmManager: LLMManager) {
+export function createAnalyzeTool(llmManager: LLMManager): ReturnType<typeof defineTool<AnalyzeToolInput>> {
   return defineTool({
     name: 'analyze',
     description: 'Deep text analysis with flexible analytical approaches',
     inputSchema: AnalyzeToolZodSchema,
     handler: async (input: AnalyzeToolInput) => {
       try {
-        const analysisType = input.analysis_type || 'comprehensive';
+        const analysisType = input.analysis_type ?? 'comprehensive';
 
         const systemPrompts = {
           sentiment: 'You are an expert sentiment analyzer. Analyze the emotional tone, sentiment, and underlying feelings in the text. Provide specific examples and confidence levels.',

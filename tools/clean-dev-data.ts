@@ -17,7 +17,6 @@
  */
 
 import { promises as fs, existsSync } from 'node:fs';
-import * as path from 'node:path';
 
 // Define all data files
 const DATA_FILES = {
@@ -175,10 +174,12 @@ function parseArgs(): CleanupOptions {
 // Main execution
 if (require.main === module) {
   const options = parseArgs();
-  cleanupData(options).catch(error => {
+  try {
+    await cleanupData(options);
+  } catch (error) {
     console.error('\n❌ Cleanup failed:', error);
     process.exit(1);
-  });
+  }
 }
 
 export { cleanupData, DATA_FILES };

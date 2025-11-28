@@ -5,6 +5,8 @@ import type { LLMConfig } from '@mcp-typescript-simple/tools-llm';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
 import { logger } from '@mcp-typescript-simple/observability';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('LLMConfigManager', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -120,7 +122,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('throws when requesting a model that does not exist for the provider', async () => {
-    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const _envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',
@@ -134,7 +136,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('throws when the selected model is marked unavailable even if defined', async () => {
-    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const _envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',
@@ -153,7 +155,7 @@ describe('LLMConfigManager', () => {
   });
 
   it('should not include deprecated Claude 3 models (claude-3-sonnet-20240229, claude-3-opus-20240229)', async () => {
-    const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
+    const _envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'key',
       OPENAI_API_KEY: 'key',
       GOOGLE_API_KEY: 'key',

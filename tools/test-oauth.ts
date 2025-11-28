@@ -1,5 +1,6 @@
 #!/usr/bin/env -S npx tsx
 
+/* eslint-disable sonarjs/updated-loop-counter, sonarjs/no-ignored-exceptions, no-unused-vars, @typescript-eslint/no-unused-vars, unicorn/prefer-top-level-await -- Development testing tool */
 /**
  * OAuth connectivity and authentication flow testing tool
  */
@@ -76,7 +77,7 @@ Examples:
   process.exit(0);
 }
 
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, ChildProcess } from 'node:child_process';
 
 interface ServerHealthData {
   auth?: string;

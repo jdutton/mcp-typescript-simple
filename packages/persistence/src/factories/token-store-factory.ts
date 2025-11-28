@@ -60,7 +60,7 @@ export class TokenStoreFactory {
    */
   static async create(options: TokenStoreFactoryOptions = {}): Promise<InitialAccessTokenStore> {
     console.log('[TokenStoreFactory.create] ENTRY POINT - method called');
-    const storeType = options.type || 'auto';
+    const storeType = options.type ?? 'auto';
 
     console.log('[TokenStoreFactory.create] Starting creation', {
       storeType,

@@ -3,15 +3,16 @@
  * Tests the safety logic for self-healing port cleanup
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   isTestProcess,
   ProcessInfo,
-  getProcessUsingPort,
   terminateProcess,
   cleanupLeakedTestPorts,
 } from '@mcp-typescript-simple/testing/port-utils';
 
+
+ 
 describe('Port Utilities - Safety Logic', () => {
   describe('isTestProcess', () => {
     it('should identify tsx processes as test processes', () => {

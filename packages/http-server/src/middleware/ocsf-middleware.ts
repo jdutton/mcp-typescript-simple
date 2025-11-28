@@ -40,7 +40,7 @@ export function emitAPIActivityEvent(
   }
 ): void {
   try {
-    const startTime = options?.startTime || Date.now();
+    const startTime = options?.startTime ?? Date.now();
     const duration = Date.now() - startTime;
 
     // Determine status from HTTP status code
@@ -48,15 +48,15 @@ export function emitAPIActivityEvent(
     const statusId = statusCode >= 200 && statusCode < 300 ? 1 : 2; // 1 = Success, 2 = Failure
 
     // Construct full URL string (required by OCSF HTTPRequest)
-    const protocol = req.protocol || 'http';
-    const host = req.get('host') || req.hostname;
+    const protocol = req.protocol ?? 'http';
+    const host = req.get('host') ?? req.hostname;
     const urlString = `${protocol}://${host}${req.url}`;
 
     // Build OCSF API Activity event using builder pattern
     const event = apiActivityEvent(1) // 1 = Create (API Activity default)
       .actor({
         user: {
-          name: req.get('x-user-name') || 'anonymous',
+          name: req.get('x-user-name') ?? 'anonymous',
           uid: req.get('x-user-id'),
         },
       })
@@ -67,7 +67,7 @@ export function emitAPIActivityEvent(
         },
         response: {
           code: statusCode,
-          message: res.statusMessage || (statusCode >= 200 && statusCode < 300 ? 'OK' : 'Error'),
+          message: res.statusMessage ?? (statusCode >= 200 && statusCode < 300 ? 'OK' : 'Error'),
           // Response body size from Content-Length header (bytes sent)
           // Note: Express auto-sets Content-Length for res.json() and res.send()
           length: res.getHeader('content-length')
@@ -85,12 +85,12 @@ export function emitAPIActivityEvent(
           scheme: protocol,
           query_string: req.url.includes('?') ? req.url.split('?')[1] : undefined,
         },
-        user_agent: req.get('user-agent') || 'unknown',
+        user_agent: req.get('user-agent') ?? 'unknown',
         // Request body size from Content-Length header (bytes received)
         length: req.get('content-length') ? Number.parseInt(req.get('content-length') as string, 10) : undefined,
       })
       .srcEndpoint({
-        ip: sanitizeIP(req.ip || req.socket?.remoteAddress),
+        ip: sanitizeIP(req.ip ?? req.socket?.remoteAddress),
         port: req.socket?.remotePort,
       })
       .duration(duration)
@@ -115,8 +115,8 @@ export function emitAPIActivityEvent(
  *
  * Uses Express 'finish' event to capture all response methods (json, send, end, etc.)
  */
-export function ocsfMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
-  return (req: Request, res: Response, next: NextFunction) => {
+export function ocsfMiddleware(): (_req: Request, _res: Response, _next: NextFunction) => void {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const startTime = Date.now();
 
     // Listen for response finish event (works with all response methods)

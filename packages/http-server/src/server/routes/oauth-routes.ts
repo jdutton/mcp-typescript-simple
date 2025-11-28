@@ -9,21 +9,20 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { OAuthProvider, OAuthProviderType } from '@mcp-typescript-simple/auth';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
-import { setupDCRRoutes } from './dcr-routes.js';
-import { logger } from '@mcp-typescript-simple/observability';
-import { generateLoginPageHTML } from '@mcp-typescript-simple/auth';
-import { setOAuthAntiCachingHeaders } from '@mcp-typescript-simple/auth';
-import { handleUniversalTokenRequest } from '@mcp-typescript-simple/auth';
-import { handleUniversalRevokeRequest } from '@mcp-typescript-simple/auth';
 import {
+  OAuthProvider,
+  generateLoginPageHTML,
+  setOAuthAntiCachingHeaders,
+  handleUniversalTokenRequest,
+  handleUniversalRevokeRequest,
   handleProviderAuthorizationRequest,
   handleProviderAuthorizationCallback,
   handleProviderLogout,
   handleOAuthDiscovery,
-  handleGenericAuthorize
+  handleGenericAuthorize,
 } from '@mcp-typescript-simple/auth';
+import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
+import { setupDCRRoutes } from './dcr-routes.js';
 
 /**
  * Setup OAuth 2.0 authentication routes with multi-provider support
@@ -82,7 +81,7 @@ export function setupOAuthRoutes(
 
   // Generic OAuth 2.0 authorize endpoint (redirects to login page)
   router.get('/auth/authorize', (req: Request, res: Response) => {
-    handleGenericAuthorize(providers, req.query as Record<string, any>, res);
+    handleGenericAuthorize(providers, req.query as Record<string, unknown>, res);
   });
 
   // Universal OAuth 2.0 token handler (works with any provider)

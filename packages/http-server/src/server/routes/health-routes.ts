@@ -101,7 +101,7 @@ export function setupHealthRoutes(
           headers: Object.fromEntries(emailResponse.headers.entries()),
           data: emailData
         },
-        oauth_providers_info: oauthProviders ? Array.from(oauthProviders.entries()).map(([type, provider]) => ({
+        oauth_providers_info: oauthProviders ? Array.from(oauthProviders.entries()).map(([_type, provider]) => ({
           type: provider.getProviderType(),
           name: provider.getProviderName(),
           endpoints: provider.getEndpoints()

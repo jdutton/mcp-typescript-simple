@@ -14,6 +14,7 @@
  */
 
 import { logger } from '@mcp-typescript-simple/observability';
+import type { MCPSessionMetadataStore } from '@mcp-typescript-simple/persistence';
 import type { MCPInstanceManager } from '../server/mcp-instance-manager.js';
 import type { SessionManager } from './session-manager.js';
 import { MemorySessionManager } from './memory-session-manager.js';
@@ -27,7 +28,9 @@ import { RedisSessionManager } from './redis-session-manager.js';
  */
 export function createSessionManager(instanceManager: MCPInstanceManager): SessionManager {
   // Check if instanceManager has metadataStore (Redis mode)
-  const metadataStore = (instanceManager as any).metadataStore;
+  const metadataStore = (instanceManager as unknown as Record<string, unknown>).metadataStore as
+    | MCPSessionMetadataStore
+    | undefined;
 
   if (metadataStore) {
     // Redis mode - metadataStore is available (RedisMCPMetadataStore or CachingMCPMetadataStore)
@@ -51,7 +54,7 @@ export function createSessionManager(instanceManager: MCPInstanceManager): Sessi
  * @param metadataStore - MCPSessionMetadataStore instance (or undefined for memory)
  * @returns SessionManager implementation (Memory or Redis)
  */
-export function createSessionManagerFromStore(metadataStore?: any): SessionManager {
+export function createSessionManagerFromStore(metadataStore?: MCPSessionMetadataStore): SessionManager {
   if (metadataStore) {
     logger.info('Creating RedisSessionManager', {
       storeType: metadataStore.constructor.name,

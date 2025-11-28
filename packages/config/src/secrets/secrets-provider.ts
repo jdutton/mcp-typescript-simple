@@ -27,7 +27,7 @@ export interface SecretsProvider {
    * @param key Secret identifier (e.g., 'TOKEN_ENCRYPTION_KEY', 'GOOGLE_CLIENT_SECRET')
    * @returns Secret value or undefined if not found
    */
-  getSecret<T = string>(key: string): Promise<T | undefined>;
+  getSecret<T = string>(_key: string): Promise<T | undefined>;
 
   /**
    * Store a secret (not supported by all providers)
@@ -35,13 +35,13 @@ export interface SecretsProvider {
    * @param value Secret value
    * @throws Error if provider is read-only (e.g., Vercel)
    */
-  setSecret<T = string>(key: string, value: T): Promise<void>;
+  setSecret<T = string>(_key: string, _value: T): Promise<void>;
 
   /**
    * Check if a secret exists
    * @param key Secret identifier
    */
-  hasSecret(key: string): Promise<boolean>;
+  hasSecret(_key: string): Promise<boolean>;
 
   /**
    * Dispose of resources (close connections, clear caches)
@@ -80,9 +80,9 @@ export interface SecretsProviderOptions {
    * Custom logger for audit events
    */
   logger?: {
-    info: (message: string, meta?: Record<string, unknown>) => void;
-    warn: (message: string, meta?: Record<string, unknown>) => void;
-    error: (message: string, meta?: Record<string, unknown>) => void;
+    info: (_message: string, _meta?: Record<string, unknown>) => void;
+    warn: (_message: string, _meta?: Record<string, unknown>) => void;
+    error: (_message: string, _meta?: Record<string, unknown>) => void;
   };
 }
 
@@ -102,23 +102,36 @@ export interface SecretsFactoryOptions extends SecretsProviderOptions {
  */
 export enum SecretKey {
   // Encryption
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   TOKEN_ENCRYPTION_KEY = 'TOKEN_ENCRYPTION_KEY',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   OAUTH_TOKEN_ENCRYPTION_KEY = 'OAUTH_TOKEN_ENCRYPTION_KEY',
 
   // OAuth Providers
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   GOOGLE_CLIENT_ID = 'GOOGLE_CLIENT_ID',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   GOOGLE_CLIENT_SECRET = 'GOOGLE_CLIENT_SECRET',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   GITHUB_CLIENT_ID = 'GITHUB_CLIENT_ID',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   GITHUB_CLIENT_SECRET = 'GITHUB_CLIENT_SECRET',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   MICROSOFT_CLIENT_ID = 'MICROSOFT_CLIENT_ID',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   MICROSOFT_CLIENT_SECRET = 'MICROSOFT_CLIENT_SECRET',
 
   // Redis
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   REDIS_URL = 'REDIS_URL',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   REDIS_TLS_CA_CERT = 'REDIS_TLS_CA_CERT',
 
   // LLM API Keys
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   OPENAI_API_KEY = 'OPENAI_API_KEY',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   GOOGLE_API_KEY = 'GOOGLE_API_KEY',
 }

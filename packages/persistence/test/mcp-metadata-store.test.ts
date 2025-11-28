@@ -7,10 +7,7 @@
  * - MCPMetadataStoreFactory (auto-detection and creation)
  */
 
-import { MemoryMCPMetadataStore } from '../src/index.js';
-import { CachingMCPMetadataStore } from '../src/index.js';
-import { MCPSessionMetadata } from '../src/index.js';
-import { MCPMetadataStoreFactory } from '../src/index.js';
+import { MemoryMCPMetadataStore , CachingMCPMetadataStore , MCPSessionMetadata , MCPMetadataStoreFactory } from '../src/index.js';
 import { preserveEnv } from '@mcp-typescript-simple/testing/env-helper';
 
 describe('MemoryMCPMetadataStore', () => {

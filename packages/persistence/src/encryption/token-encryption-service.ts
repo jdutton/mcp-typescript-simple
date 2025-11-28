@@ -135,9 +135,11 @@ export class TokenEncryptionService {
       ]);
 
       return plaintext.toString('utf8');
-    } catch (error) {
-      // Security: Intentionally don't log or include original error details
-      // Cryptographic failure details could leak information to attackers
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions
+    } catch (_error) {
+      // Security: Intentionally ignoring error details - cryptographic failure
+      // details could leak information to attackers. Error is re-thrown with
+      // generic message to prevent information disclosure.
       throw new Error(
         'Decryption failed: invalid key, corrupted data, or tampering detected'
       );
@@ -166,8 +168,10 @@ export class TokenEncryptionService {
     const json = this.decrypt(encrypted);
     try {
       return JSON.parse(json) as T;
-    } catch (error) {
-      // Decryption succeeded but data is not valid JSON - data corruption or format mismatch
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions
+    } catch (_error) {
+      // Intentionally ignoring parse error details - decryption succeeded but
+      // data is not valid JSON (data corruption or format mismatch)
       throw new Error('Decrypted data is not valid JSON');
     }
   }

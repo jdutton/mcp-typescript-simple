@@ -54,10 +54,10 @@ export interface ConfigurationStatus {
  * Logger interface for optional logging
  */
 export interface ConfigLogger {
-  debug(message: string, data?: unknown): void;
-  info(message: string, data?: unknown): void;
-  warn(message: string, data?: unknown): void;
-  error(message: string, error?: Error | unknown): void;
+  debug(_message: string, _data?: unknown): void;
+  info(_message: string, _data?: unknown): void;
+  warn(_message: string, _data?: unknown): void;
+  error(_message: string, _error?: Error | unknown): void;
 }
 
 /**
@@ -86,11 +86,11 @@ export class EnvironmentConfig {
     // Parse environment variables with type conversion
     const env = {
       // Base configuration
-      MCP_MODE: process.env.MCP_MODE || 'stdio',
+      MCP_MODE: process.env.MCP_MODE ?? 'stdio',
       MCP_DEV_SKIP_AUTH: process.env.MCP_DEV_SKIP_AUTH === 'true',
       OAUTH_MOCK_MODE: process.env.OAUTH_MOCK_MODE === 'true',
-      HTTP_PORT: parseInt(process.env.HTTP_PORT || '3000', 10),
-      HTTP_HOST: process.env.HTTP_HOST || 'localhost',
+      HTTP_PORT: Number.parseInt(process.env.HTTP_PORT ?? '3000', 10),
+      HTTP_HOST: process.env.HTTP_HOST ?? 'localhost',
       MCP_LEGACY_CLIENT_SUPPORT: process.env.MCP_LEGACY_CLIENT_SUPPORT !== 'false',
 
       // Google OAuth
@@ -124,8 +124,8 @@ export class EnvironmentConfig {
       REQUIRE_HTTPS: process.env.REQUIRE_HTTPS === 'true',
       ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
       ALLOWED_HOSTS: process.env.ALLOWED_HOSTS,
-      SESSION_SECRET: process.env.SESSION_SECRET || 'dev-session-secret-change-in-production',
-      NODE_ENV: process.env.NODE_ENV || 'development',
+      SESSION_SECRET: process.env.SESSION_SECRET ?? 'dev-session-secret-change-in-production',
+      NODE_ENV: process.env.NODE_ENV ?? 'development',
 
       // LLM Provider API keys
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
@@ -167,7 +167,7 @@ export class EnvironmentConfig {
     const configured: string[] = [];
     const missing: string[] = [];
 
-    secretKeys.forEach(key => {
+    for (const key of secretKeys) {
       const value = env[key];
       // Special handling for SESSION_SECRET which has a default value
       if (key === 'SESSION_SECRET') {
@@ -184,7 +184,7 @@ export class EnvironmentConfig {
           missing.push(key);
         }
       }
-    });
+    }
 
     return {
       configuration,
@@ -210,7 +210,10 @@ export class EnvironmentConfig {
     if (!this._configStatus) {
       this.load();
     }
-    return this._configStatus!;
+    if (!this._configStatus) {
+      throw new Error('Failed to load configuration status');
+    }
+    return this._configStatus;
   }
 
   /**
@@ -218,7 +221,6 @@ export class EnvironmentConfig {
    */
   static logConfiguration(): void {
     if (!this._logger) {
-      // eslint-disable-next-line no-console
       console.warn('EnvironmentConfig: Logger not set, skipping configuration logging');
       return;
     }
@@ -333,12 +335,10 @@ export class EnvironmentConfig {
    */
   static getTransportMode(): TransportMode {
     const mode = this.get().MCP_MODE;
-    switch (mode) {
-      case 'streamable_http':
-        return TransportMode.STREAMABLE_HTTP;
-      default:
-        return TransportMode.STDIO;
+    if (mode === 'streamable_http') {
+      return TransportMode.STREAMABLE_HTTP;
     }
+    return TransportMode.STDIO;
   }
 
   /**
@@ -351,7 +351,12 @@ export class EnvironmentConfig {
   /**
    * Get security configuration
    */
-  static getSecurityConfig() {
+  static getSecurityConfig(): {
+    requireHttps: boolean;
+    allowedOrigins: string[] | undefined;
+    allowedHosts: string[] | undefined;
+    sessionSecret: string;
+  } {
     const env = this.get();
 
     return {
@@ -365,7 +370,11 @@ export class EnvironmentConfig {
   /**
    * Get server configuration
    */
-  static getServerConfig() {
+  static getServerConfig(): {
+    port: number;
+    host: string;
+    mode: TransportMode;
+  } {
     const env = this.get();
 
     return {

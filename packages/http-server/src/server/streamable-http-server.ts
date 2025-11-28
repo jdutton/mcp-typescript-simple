@@ -3,7 +3,7 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { createServer, Server as HttpServer } from 'http';
+import { createServer, Server as HttpServer } from 'node:http';
 import helmet from 'helmet';
 import cors from 'cors';
 import * as OpenApiValidator from 'express-openapi-validator';
@@ -11,21 +11,26 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 import { EnvironmentConfig } from '@mcp-typescript-simple/config';
-import { OAuthProviderFactory } from '@mcp-typescript-simple/auth';
-import { OAuthProvider, OAuthUserInfo } from '@mcp-typescript-simple/auth';
+import {
+  OAuthProviderFactory,
+  OAuthProvider,
+  OAuthUserInfo,
+  OAuthProviderType,
+} from '@mcp-typescript-simple/auth';
 import { generateSessionId } from '../session/session-utils.js';
 import { createSessionManager, type SessionManager } from '../session/index.js';
-import { EventStoreFactory } from '@mcp-typescript-simple/persistence';
-import { ClientStoreFactory } from '@mcp-typescript-simple/persistence';
-import { OAuthRegisteredClientsStore } from '@mcp-typescript-simple/persistence';
-import { TokenStoreFactory } from '@mcp-typescript-simple/persistence';
-import { InitialAccessTokenStore } from '@mcp-typescript-simple/persistence';
+import {
+  EventStoreFactory,
+  ClientStoreFactory,
+  OAuthRegisteredClientsStore,
+  TokenStoreFactory,
+  InitialAccessTokenStore,
+} from '@mcp-typescript-simple/persistence';
 import { MCPInstanceManager } from './mcp-instance-manager.js';
 import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { setupDiscoveryRoutes } from './routes/discovery-routes.js';
 import { setupOAuthRoutes } from './routes/oauth-routes.js';
-import { OAuthProviderType } from '@mcp-typescript-simple/auth';
 import { setupHealthRoutes } from './routes/health-routes.js';
 import { setupAdminRoutes } from './routes/admin-routes.js';
 import { setupAdminTokenRoutes } from './routes/admin-token-routes.js';
@@ -33,7 +38,7 @@ import { setupDocsRoutes } from './routes/docs-routes.js';
 import { logger } from '@mcp-typescript-simple/observability';
 import { ocsfMiddleware } from '../middleware/ocsf-middleware.js';
 import { createSecurityValidationMiddleware } from '../middleware/security-validation.js';
-import { validateProductionStorage, getStorageBackendStatus } from './production-storage-validator.js';
+import { validateProductionStorage } from './production-storage-validator.js';
 
 export interface StreamableHttpServerOptions {
   port: number;
@@ -63,7 +68,7 @@ export class MCPStreamableHttpServer {
   private toolRegistry: ToolRegistry;
   private instanceManager!: MCPInstanceManager; // Initialized in initialize() method
   private sessionManager!: SessionManager; // Initialized in initialize() method
-  private streamableTransportHandler?: (transport: StreamableHTTPServerTransport) => Promise<void>;
+  private streamableTransportHandler?: (_transport: StreamableHTTPServerTransport) => Promise<void>;
 
   constructor(private options: StreamableHttpServerOptions) {
     this.app = express();
@@ -74,7 +79,7 @@ export class MCPStreamableHttpServer {
     // Use provided tool registry or create empty one
     // Users should register tools before creating server (via options.toolRegistry)
     // or via the toolRegistry property after creation
-    this.toolRegistry = options.toolRegistry || new ToolRegistry();
+    this.toolRegistry = options.toolRegistry ?? new ToolRegistry();
 
     // MCP instance manager created in initialize() method (async factory needed for Redis auto-detection)
 
@@ -99,7 +104,7 @@ export class MCPStreamableHttpServer {
     // CRITICAL: Must use createAsync() to enable Redis-backed session storage
     this.instanceManager = await MCPInstanceManager.createAsync(this.toolRegistry);
     logger.info('MCP instance manager initialized', {
-      storeType: (this.instanceManager as any).metadataStore?.constructor.name || 'Unknown'
+      storeType: (this.instanceManager as unknown as Record<string, unknown>).metadataStore?.constructor.name ?? 'Unknown'
     });
 
     // Create session manager (auto-detects Memory vs Redis based on instanceManager)
@@ -230,7 +235,7 @@ export class MCPStreamableHttpServer {
         }
 
         // Check against allowed origins
-        const allowedOrigins = this.options.allowedOrigins || defaultOrigins;
+        const allowedOrigins = this.options.allowedOrigins ?? defaultOrigins;
         if (allowedOrigins.indexOf(origin) !== -1) {
           return callback(null, true);
         }
@@ -339,6 +344,8 @@ export class MCPStreamableHttpServer {
 
     // Comprehensive request logging middleware
     this.app.use((req: Request, res: Response, next: NextFunction) => {
+      // Using Math.random() for non-cryptographic request ID generation (acceptable for logging)
+      // eslint-disable-next-line sonarjs/pseudo-random
       const requestId = Math.random().toString(36).substring(2, 15);
       const startTime = Date.now();
 
@@ -347,11 +354,14 @@ export class MCPStreamableHttpServer {
 
       // Sanitize auth header for logging
       const authHeader = req.headers.authorization;
-      const sanitizedAuth = authHeader
-        ? authHeader.startsWith('Bearer ')
-          ? `Bearer ${authHeader.substring(7, 15)}...${authHeader.substring(authHeader.length - 8)}`
-          : authHeader.substring(0, 20) + '...'
-        : 'none';
+      let sanitizedAuth = 'none';
+      if (authHeader) {
+        if (authHeader.startsWith('Bearer ')) {
+          sanitizedAuth = `Bearer ${authHeader.substring(7, 15)}...${authHeader.substring(authHeader.length - 8)}`;
+        } else {
+          sanitizedAuth = authHeader.substring(0, 20) + '...';
+        }
+      }
 
       // Log incoming request
       logger.debug("Incoming request", {
@@ -360,10 +370,10 @@ export class MCPStreamableHttpServer {
         method: req.method,
         path: req.path,
         client: req.ip,
-        userAgent: req.headers['user-agent'] || 'unknown',
+        userAgent: req.headers['user-agent'] ?? 'unknown',
         auth: sanitizedAuth,
-        contentType: req.headers['content-type'] || 'none',
-        bodySize: req.headers['content-length'] || 'unknown',
+        contentType: req.headers['content-type'] ?? 'none',
+        bodySize: req.headers['content-length'] ?? 'unknown',
         accept: req.headers.accept
       });
 
@@ -422,7 +432,7 @@ export class MCPStreamableHttpServer {
 
       // Hook res.write() for streaming responses
       const originalWrite = res.write;
-      res.write = function(chunk: unknown, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) {
+      res.write = function(chunk: unknown, encoding?: BufferEncoding | ((_error?: Error | null) => void), callback?: (_error?: Error | null) => void) {
         if (req.path === mcpEndpoint) {
           const chunkStr = chunk ? chunk.toString() : 'empty';
           logger.debug("Streaming chunk written", {
@@ -449,8 +459,8 @@ export class MCPStreamableHttpServer {
           const contentLength = res.getHeader('content-length');
           logger.debug("Final response headers", {
             requestId,
-            contentType: contentType || 'none',
-            contentLength: contentLength || 'none'
+            contentType: contentType ?? 'none',
+            contentLength: contentLength ?? 'none'
           });
 
           if (chunk && req.path === mcpEndpoint) {
@@ -489,9 +499,9 @@ export class MCPStreamableHttpServer {
     setupAdminRoutes(this.app, this.tokenStore, { devMode });
 
     // Catch-all error handler with enhanced logging
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    this.app.use((error: Error, req: Request, res: Response, next: NextFunction) => {
-      const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+    // eslint-disable-next-line sonarjs/cognitive-complexity
+    this.app.use((error: Error, req: Request, res: Response, _next: NextFunction) => {
+      const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
       logger.error("Express error handler caught error", {
         requestId,
@@ -583,7 +593,7 @@ export class MCPStreamableHttpServer {
     // Create custom auth middleware with multi-provider support
     const authMiddleware = this.options.requireAuth && this.oauthProviders
       ? async (req: Request, res: Response, next: NextFunction) => {
-          const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+          const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
           // Allow OPTIONS requests without authentication (CORS preflight)
           if (req.method === 'OPTIONS') {
@@ -595,7 +605,7 @@ export class MCPStreamableHttpServer {
 
           // Extract Bearer token from Authorization header
           const authHeader = req.headers.authorization;
-          if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          if (!authHeader?.startsWith('Bearer ')) {
             logger.warn("Auth failed: Missing or invalid Authorization header", { requestId });
             this.sendUnauthorizedResponse(res, requestId, 'Missing or invalid Authorization header');
             return;
@@ -609,7 +619,10 @@ export class MCPStreamableHttpServer {
             let providerType: OAuthProviderType | undefined;
             let correctProvider: OAuthProvider | undefined;
 
-            for (const [type, provider] of this.oauthProviders!.entries()) {
+            if (!this.oauthProviders) {
+              throw new Error('OAuth providers not initialized');
+            }
+            for (const [type, provider] of this.oauthProviders.entries()) {
               // Check if this provider's token store has this token
               // This calls hasToken() which is a local store lookup, NOT an API call
               try {
@@ -647,8 +660,8 @@ export class MCPStreamableHttpServer {
               requestId,
               provider: providerType,
               clientId: authInfo.clientId,
-              scopes: authInfo.scopes?.join(', ') || 'none',
-              user: userInfo ? (userInfo.email || userInfo.sub || 'unknown') : undefined
+              scopes: authInfo.scopes?.join(', ') ?? 'none',
+              user: userInfo ? (userInfo.email ?? userInfo.sub ?? 'unknown') : undefined
             });
 
             next();
@@ -662,14 +675,14 @@ export class MCPStreamableHttpServer {
           }
         }
       : (req: Request, res: Response, next: NextFunction) => {
-          const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+          const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
           logger.debug("Auth middleware bypassed (auth not required)", { requestId });
           next();
         };
 
     // Streamable HTTP endpoint (GET, POST, DELETE)
     const mcpHandler = async (req: Request, res: Response): Promise<void> => {
-      const requestId = (req as Request & { requestId?: string }).requestId || 'unknown';
+      const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
 
       try {
         logger.debug("MCP handler starting Streamable HTTP processing", {
@@ -733,7 +746,7 @@ export class MCPStreamableHttpServer {
         });
 
         if (!res.headersSent) {
-          const statusCode = (error as Error & { statusCode?: number }).statusCode || 500;
+          const statusCode = (error as Error & { statusCode?: number }).statusCode ?? 500;
           logger.debug("Sending error response", { requestId, statusCode });
 
           if (statusCode === 503) {
@@ -773,7 +786,7 @@ export class MCPStreamableHttpServer {
     logger.info("Session cleanup requested", { requestId, sessionId });
 
     // Check if session exists in metadata store (authoritative source)
-    const metadataStore = (this.instanceManager as any).metadataStore;
+    const metadataStore = (this.instanceManager as unknown as Record<string, unknown>).metadataStore as { getSession: (_sessionId: string) => Promise<unknown>; deleteSession: (_sessionId: string) => Promise<void> };
     const metadata = await metadataStore.getSession(sessionId);
     if (!metadata) {
       logger.warn("Session not found for cleanup", { requestId, sessionId });
@@ -808,6 +821,7 @@ export class MCPStreamableHttpServer {
   /**
    * Log JSON-RPC request details for debugging
    */
+  // eslint-disable-next-line sonarjs/cognitive-complexity
   private logJsonRpcRequest(req: Request, requestId: string): void {
     if (req.method === 'POST' && req.body) {
       try {
@@ -937,7 +951,7 @@ export class MCPStreamableHttpServer {
         : undefined,
       allowedHosts: this.options.allowedHosts,
       allowedOrigins: this.options.allowedOrigins,
-      enableDnsRebindingProtection: !!(this.options.allowedHosts || this.options.allowedOrigins),
+      enableDnsRebindingProtection: !!(this.options.allowedHosts ?? this.options.allowedOrigins),
     });
 
     return transport;
@@ -959,14 +973,14 @@ export class MCPStreamableHttpServer {
       logger.debug("Session auth details", {
         requestId,
         clientId: authInfo.clientId,
-        scopes: authInfo.scopes?.join(', ') || 'none'
+        scopes: authInfo.scopes?.join(', ') ?? 'none'
       });
     }
 
     try {
       // Store session metadata in instance manager for horizontal scalability
       await this.instanceManager.storeSessionMetadata(sessionId, authInfo ? {
-        provider: authInfo.extra?.provider as string || 'unknown',
+        provider: authInfo.extra?.provider as string ?? 'unknown',
         userId: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).sub : undefined,
         email: authInfo.extra?.userInfo ? (authInfo.extra.userInfo as OAuthUserInfo).email : undefined,
       } : undefined);
@@ -999,7 +1013,7 @@ export class MCPStreamableHttpServer {
     const originalWrite = res.write;
     const originalEnd = res.end;
 
-    res.write = function(chunk: unknown, encodingOrCallback?: BufferEncoding | ((error: Error | null | undefined) => void), cb?: (error: Error | null | undefined) => void): boolean {
+    res.write = function(chunk: unknown, encodingOrCallback?: BufferEncoding | ((_error: Error | null | undefined) => void), cb?: (_error: Error | null | undefined) => void): boolean {
       const chunkStr = chunk ? chunk.toString() : 'empty';
       logger.debug("Transport writing to response", {
         requestId,
@@ -1100,14 +1114,14 @@ export class MCPStreamableHttpServer {
     logger.debug("After transport.handleRequest", {
       requestId,
       headersSent: res.headersSent,
-      responseFinished: res.finished
+      responseFinished: res.writableEnded
     });
   }
 
   /**
    * Register callback for Streamable HTTP transport events
    */
-  onStreamableHTTPTransport(handler: (transport: StreamableHTTPServerTransport) => Promise<void>): void {
+  onStreamableHTTPTransport(handler: (_transport: StreamableHTTPServerTransport) => Promise<void>): void {
     this.streamableTransportHandler = handler;
   }
 
@@ -1152,6 +1166,7 @@ export class MCPStreamableHttpServer {
         return;
       }
 
+      // eslint-disable-next-line sonarjs/cognitive-complexity, @typescript-eslint/no-misused-promises
       this.server.close(async (error?: Error) => {
         if (error) {
           reject(error);

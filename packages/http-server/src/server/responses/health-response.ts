@@ -79,9 +79,9 @@ export function buildHealthResponse(options: HealthResponseOptions): HealthRespo
     auth: oauthProviders.length > 0 ? 'enabled' : 'disabled',
     oauth_providers: oauthProviders,
     llm_providers: llmProviders,
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version ?? '1.0.0',
     node_version: process.version,
-    environment: process.env.NODE_ENV || 'development',
+    environment: process.env.NODE_ENV ?? 'development',
     performance: {
       uptime_seconds: process.uptime(),
       memory_usage: process.memoryUsage(),
@@ -97,8 +97,8 @@ export function buildHealthResponse(options: HealthResponseOptions): HealthRespo
   // Add feature flags if provided (Express deployment)
   if (options.enableResumability !== undefined || options.enableJsonResponse !== undefined) {
     response.features = {
-      resumability: options.enableResumability || false,
-      jsonResponse: options.enableJsonResponse || false,
+      resumability: options.enableResumability ?? false,
+      jsonResponse: options.enableJsonResponse ?? false,
     };
   }
 

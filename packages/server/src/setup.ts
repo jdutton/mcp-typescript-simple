@@ -13,8 +13,8 @@ import type { ToolRegistry } from "@mcp-typescript-simple/tools";
  * Optional logger interface for server operations
  */
 export interface ServerLogger {
-  debug(message: string, data?: unknown): void;
-  error(message: string, error?: unknown): void;
+  debug(_message: string, _data?: unknown): void;
+  error(_message: string, _error?: unknown): void;
 }
 
 /**
@@ -23,7 +23,6 @@ export interface ServerLogger {
 const defaultLogger: ServerLogger = {
   debug: () => {}, // Silent by default
   error: (message: string, error?: unknown) => {
-    // eslint-disable-next-line no-console
     console.error(message, error);
   },
 };

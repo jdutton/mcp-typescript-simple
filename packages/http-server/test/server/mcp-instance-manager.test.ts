@@ -10,8 +10,9 @@ import { LLMManager } from '@mcp-typescript-simple/tools-llm';
 import { ToolRegistry } from '@mcp-typescript-simple/tools';
 import { basicTools } from '@mcp-typescript-simple/example-tools-basic';
 import { createLLMTools } from '@mcp-typescript-simple/example-tools-llm';
-import { MCPSessionMetadata } from '@mcp-typescript-simple/persistence';
 
+
+/* eslint-disable sonarjs/no-ignored-exceptions */
 describe('MCPInstanceManager', () => {
   let manager: MCPInstanceManager;
   let metadataStore: MemoryMCPMetadataStore;
@@ -29,7 +30,7 @@ describe('MCPInstanceManager', () => {
       const llmManager = new LLMManager();
       await llmManager.initialize();
       toolRegistry.merge(createLLMTools(llmManager));
-    } catch (error) {
+    } catch (_error) {
       // Ignore - LLM tools will be unavailable but basic tools still work
     }
 

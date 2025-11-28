@@ -177,8 +177,8 @@ class VercelConfigTestRunner {
 
   private async testApiFilesSyntax(): Promise<void> {
     await this.runTest('API Files TypeScript Syntax', async () => {
-      const { exec } = await import('child_process');
-      const { promisify } = await import('util');
+      const { exec } = await import('node:child_process');
+      const { promisify } = await import('node:util');
       const execAsync = promisify(exec);
 
       try {

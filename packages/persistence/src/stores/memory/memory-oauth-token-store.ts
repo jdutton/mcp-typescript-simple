@@ -23,6 +23,7 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
     logger.info('MemoryOAuthTokenStore initialized');
 
     // Start automatic cleanup of expired tokens every hour
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 60 * 1000);
     if (typeof this.cleanupInterval.unref === 'function') {
       this.cleanupInterval.unref();

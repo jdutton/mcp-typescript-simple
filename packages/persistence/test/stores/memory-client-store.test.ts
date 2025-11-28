@@ -3,8 +3,9 @@
  */
 
 import { InMemoryClientStore } from '../../src/index.js';
-import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 
+
+ 
 describe('InMemoryClientStore', () => {
   let store: InMemoryClientStore;
 

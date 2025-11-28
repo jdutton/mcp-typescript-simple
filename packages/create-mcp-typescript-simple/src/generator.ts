@@ -107,7 +107,7 @@ function generateTemplateData(config: ProjectConfig): TemplateData {
     otlpGrpcPort,
     otlpHttpPort,
     prometheusPort,
-    currentDate: new Date().toISOString().split('T')[0]!,
+    currentDate: new Date().toISOString().split('T')[0] ?? '',
     frameworkVersion: FRAMEWORK_VERSION,
   };
 }

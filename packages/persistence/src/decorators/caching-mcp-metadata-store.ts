@@ -44,7 +44,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
   private exitHandler?: () => void;
 
   constructor(
-    private primaryStore: MCPSessionMetadataStore,
+    private primaryStore: MCPSessionMetadataStore, // eslint-disable-line no-unused-vars
     private secondaryStore?: MCPSessionMetadataStore,
     options: CachingMCPMetadataStoreOptions = {}
   ) {
@@ -58,6 +58,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
 
     // Warm primary cache from secondary store on startup (if configured)
     if (this.secondaryStore) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises, sonarjs/no-async-constructor
       this.warmCache();
     }
 
@@ -90,6 +91,7 @@ export class CachingMCPMetadataStore implements MCPSessionMetadataStore {
    * Start periodic cleanup for both stores
    */
   private startPeriodicCleanup(intervalMs: number): void {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.syncTimer = setInterval(async () => {
       try {
         const cleanupTasks = [this.primaryStore.cleanup()];

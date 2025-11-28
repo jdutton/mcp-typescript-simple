@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 const baseSigintListeners = [...process.listeners('SIGINT')];
 const baseSigtermListeners = [...process.listeners('SIGTERM')];
 
@@ -28,7 +30,7 @@ describe('MCP server bootstrap', () => {
     const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
     const serverSetRequestHandlerSpy = vi.spyOn(Server.prototype, 'setRequestHandler');
 
-    const typesModule = await import('@modelcontextprotocol/sdk/types.js');
+    const _typesModule = await import('@modelcontextprotocol/sdk/types.js');
 
     const envModule = await import('@mcp-typescript-simple/config');
     const transportMode = envModule.TransportMode.STDIO;

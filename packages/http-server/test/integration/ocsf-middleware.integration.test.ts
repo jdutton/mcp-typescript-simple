@@ -4,7 +4,7 @@
  * Tests that verify OCSF API Activity events are emitted for HTTP requests through the middleware.
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import express, { type Express } from 'express';
 import request from 'supertest';
 import { ocsfMiddleware } from '../../src/middleware/ocsf-middleware.js';
@@ -20,6 +20,8 @@ function waitForEvent(): Promise<void> {
   return new Promise(resolve => setImmediate(resolve));
 }
 
+
+ 
 describe('OCSF Middleware Integration', () => {
   let app: Express;
   let emitSpy: ReturnType<typeof vi.spyOn>;

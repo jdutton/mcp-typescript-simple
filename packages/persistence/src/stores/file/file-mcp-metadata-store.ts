@@ -19,6 +19,8 @@
  * - Performance degrades with many sessions (full file read/write)
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename -- File store requires dynamic file paths for persistence */
+
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -55,7 +57,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
       this.filePath = options;
       this.ttl = DEFAULT_TTL;
     } else {
-      this.filePath = options.filePath || './data/mcp-sessions.json';
+      this.filePath = options.filePath ?? './data/mcp-sessions.json';
       this.ttl = options.ttl ?? DEFAULT_TTL;
     }
 
@@ -94,7 +96,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         logger.info('No existing session file found, starting fresh');
       } else {
-        logger.error('Failed to load sessions from file', error as Record<string, any>);
+        logger.error('Failed to load sessions from file', error as Record<string, unknown>);
         throw error;
       }
     }
@@ -144,7 +146,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
         filePath: this.filePath,
       });
     } catch (error) {
-      logger.error('Failed to save sessions to file', error as Record<string, any>);
+      logger.error('Failed to save sessions to file', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -233,7 +235,7 @@ export class FileMCPMetadataStore implements MCPSessionMetadataStore {
         updatedAt: parsed.updatedAt,
       });
     } catch (error) {
-      logger.error('Failed to reload sessions from file', error as Record<string, any>);
+      logger.error('Failed to reload sessions from file', error as Record<string, unknown>);
       throw error;
     }
   }

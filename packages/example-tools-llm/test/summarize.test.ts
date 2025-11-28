@@ -10,12 +10,14 @@
  * 6. Error handling
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createSummarizeTool, type SummarizeToolInput } from '../src/summarize.js';
+import { createSummarizeTool } from '../src/summarize.js';
 import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 /**
  * Create a mock LLM manager for testing
  */
+
+ 
 const createMockManager = (options: {
   defaultProvider?: string;
   defaultModel?: string;
@@ -31,12 +33,12 @@ const createMockManager = (options: {
     completeError
   } = options;
 
-  const completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
+  const _completeMock = vi.fn<Parameters<LLMManager['complete']>, ReturnType<LLMManager['complete']>>();
 
   if (completeError) {
-    completeMock.mockRejectedValue(completeError);
+    _completeMock.mockRejectedValue(completeError);
   } else {
-    completeMock.mockResolvedValue({
+    _completeMock.mockResolvedValue({
       content: completeResponse,
       provider: defaultProvider as any,
       model: defaultModel as any,
@@ -50,7 +52,7 @@ const createMockManager = (options: {
       model: defaultModel
     }),
     getAvailableProviders: vi.fn().mockReturnValue(availableProviders),
-    complete: completeMock,
+    complete: _completeMock,
     clearCache: vi.fn(),
     getCacheStats: vi.fn(),
     initialize: vi.fn(),
@@ -59,7 +61,7 @@ const createMockManager = (options: {
     )
   } as unknown as LLMManager;
 
-  return { manager, completeMock };
+  return { manager, _completeMock };
 };
 
 describe('Summarize Tool', () => {
@@ -75,7 +77,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should successfully summarize text with default settings', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         completeResponse: 'Concise summary of the text...'
       });
       const tool = createSummarizeTool(manager);
@@ -87,7 +89,7 @@ describe('Summarize Tool', () => {
       expect(result.content).toHaveLength(1);
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toBe('Concise summary of the text...');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('Long text to summarize'),
           provider: 'gemini',
@@ -100,7 +102,7 @@ describe('Summarize Tool', () => {
 
   describe('Default Provider/Model Behavior', () => {
     it('should use default provider and model when none specified', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -108,7 +110,7 @@ describe('Summarize Tool', () => {
       });
 
       expect(manager.getProviderForTool).toHaveBeenCalledWith('summarize');
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
@@ -117,7 +119,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should use Gemini as default if configured', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'gemini',
         defaultModel: 'gemini-2.0-flash'
       });
@@ -127,7 +129,7 @@ describe('Summarize Tool', () => {
         text: 'Test text'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.0-flash'
@@ -138,7 +140,7 @@ describe('Summarize Tool', () => {
 
   describe('Length Customization', () => {
     it('should handle brief length', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -146,13 +148,13 @@ describe('Summarize Tool', () => {
         length: 'brief'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('1-2 sentences');
     });
 
     it('should handle medium length', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -160,13 +162,13 @@ describe('Summarize Tool', () => {
         length: 'medium'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('2-4 sentences');
     });
 
     it('should handle detailed length', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -174,27 +176,27 @@ describe('Summarize Tool', () => {
         length: 'detailed'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('multiple paragraphs');
     });
 
     it('should use medium length as default', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
         text: 'Test text'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('2-4 sentences');
     });
   });
 
   describe('Format Customization', () => {
     it('should handle paragraph format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -202,13 +204,13 @@ describe('Summarize Tool', () => {
         format: 'paragraph'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('prose paragraphs');
     });
 
     it('should handle bullets format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -216,13 +218,13 @@ describe('Summarize Tool', () => {
         format: 'bullets'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('bullet points');
     });
 
     it('should handle outline format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -230,27 +232,27 @@ describe('Summarize Tool', () => {
         format: 'outline'
       });
 
-      expect(completeMock).toHaveBeenCalled();
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      expect(_completeMock).toHaveBeenCalled();
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('structured outline');
     });
 
     it('should use paragraph format as default', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
         text: 'Test text'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('prose paragraphs');
     });
   });
 
   describe('Combined Length and Format Options', () => {
     it('should combine brief length with bullets format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -259,13 +261,13 @@ describe('Summarize Tool', () => {
         format: 'bullets'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('1-2 sentences');
       expect(callArgs?.systemPrompt).toContain('bullet points');
     });
 
     it('should combine detailed length with outline format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -274,7 +276,7 @@ describe('Summarize Tool', () => {
         format: 'outline'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('multiple paragraphs');
       expect(callArgs?.systemPrompt).toContain('structured outline');
     });
@@ -282,7 +284,7 @@ describe('Summarize Tool', () => {
 
   describe('Focus Area Specification', () => {
     it('should include focus area in system prompt when specified', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -290,23 +292,23 @@ describe('Summarize Tool', () => {
         focus: 'key findings'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('key findings');
     });
 
     it('should work without focus area', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
         text: 'Test text'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should combine focus with length and format', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -316,7 +318,7 @@ describe('Summarize Tool', () => {
         focus: 'technical details'
       });
 
-      const callArgs = completeMock.mock.calls[0]?.[0];
+      const callArgs = _completeMock.mock.calls[0]?.[0];
       expect(callArgs?.systemPrompt).toContain('1-2 sentences');
       expect(callArgs?.systemPrompt).toContain('bullet points');
       expect(callArgs?.systemPrompt).toContain('technical details');
@@ -325,7 +327,7 @@ describe('Summarize Tool', () => {
 
   describe('Explicit Provider Selection', () => {
     it('should use explicitly specified Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -333,7 +335,7 @@ describe('Summarize Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude'
         })
@@ -341,7 +343,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should use explicitly specified OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -349,7 +351,7 @@ describe('Summarize Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai'
         })
@@ -357,7 +359,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should use explicitly specified Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -365,7 +367,7 @@ describe('Summarize Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini'
         })
@@ -375,7 +377,7 @@ describe('Summarize Tool', () => {
 
   describe('Model Selection and Validation', () => {
     it('should use explicitly specified model', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -384,7 +386,7 @@ describe('Summarize Tool', () => {
         model: 'gemini-2.0-flash'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.0-flash'
@@ -393,7 +395,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should return error for invalid model/provider combination', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       const result = await tool.handler({
@@ -406,11 +408,11 @@ describe('Summarize Tool', () => {
       expect(result.content[0]?.type).toBe('text');
       expect(result.content[0]?.text).toContain('Summarization failed');
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject Claude model with OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       const result = await tool.handler({
@@ -420,11 +422,11 @@ describe('Summarize Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should reject OpenAI model with Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       const result = await tool.handler({
@@ -434,11 +436,11 @@ describe('Summarize Tool', () => {
       });
 
       expect(result.content[0]?.text).toContain('not valid for provider');
-      expect(completeMock).not.toHaveBeenCalled();
+      expect(_completeMock).not.toHaveBeenCalled();
     });
 
     it('should accept valid Claude model with Claude provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -447,7 +449,7 @@ describe('Summarize Tool', () => {
         model: 'claude-3-5-haiku-20241022'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'claude',
           model: 'claude-3-5-haiku-20241022'
@@ -456,7 +458,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should accept valid OpenAI model with OpenAI provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -465,7 +467,7 @@ describe('Summarize Tool', () => {
         model: 'gpt-4o-mini'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'openai',
           model: 'gpt-4o-mini'
@@ -474,7 +476,7 @@ describe('Summarize Tool', () => {
     });
 
     it('should accept valid Gemini model with Gemini provider', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
@@ -483,7 +485,7 @@ describe('Summarize Tool', () => {
         model: 'gemini-2.5-flash'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           provider: 'gemini',
           model: 'gemini-2.5-flash'
@@ -494,14 +496,14 @@ describe('Summarize Tool', () => {
 
   describe('Temperature Control', () => {
     it('should use temperature of 0.3 for consistent summarization', async () => {
-      const { manager, completeMock } = createMockManager();
+      const { manager, _completeMock } = createMockManager();
       const tool = createSummarizeTool(manager);
 
       await tool.handler({
         text: 'Test text'
       });
 
-      expect(completeMock).toHaveBeenCalledWith(
+      expect(_completeMock).toHaveBeenCalledWith(
         expect.objectContaining({
           temperature: 0.3
         })
@@ -544,8 +546,8 @@ describe('Summarize Tool', () => {
 
     it('should handle non-Error exceptions gracefully', async () => {
       const { manager } = createMockManager();
-      const completeMock = vi.fn().mockRejectedValue('String error');
-      manager.complete = completeMock as any;
+      const _completeMock = vi.fn().mockRejectedValue('String error');
+      manager.complete = _completeMock as any;
 
       const tool = createSummarizeTool(manager);
 
@@ -592,7 +594,7 @@ describe('Summarize Tool', () => {
 
   describe('Provider Availability', () => {
     it('should work when only Gemini is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         availableProviders: ['gemini']
       });
       const tool = createSummarizeTool(manager);
@@ -602,11 +604,11 @@ describe('Summarize Tool', () => {
         provider: 'gemini'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only Claude is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'claude',
         defaultModel: 'claude-3-haiku-20240307',
         availableProviders: ['claude']
@@ -618,11 +620,11 @@ describe('Summarize Tool', () => {
         provider: 'claude'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
 
     it('should work when only OpenAI is available', async () => {
-      const { manager, completeMock } = createMockManager({
+      const { manager, _completeMock } = createMockManager({
         defaultProvider: 'openai',
         defaultModel: 'gpt-4o-mini',
         availableProviders: ['openai']
@@ -634,7 +636,7 @@ describe('Summarize Tool', () => {
         provider: 'openai'
       });
 
-      expect(completeMock).toHaveBeenCalled();
+      expect(_completeMock).toHaveBeenCalled();
     });
   });
 });

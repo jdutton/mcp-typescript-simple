@@ -43,7 +43,7 @@ export async function createMockOAuthServer(): Promise<OAuth2Server> {
   await server.issuer.keys.generate('RS256');
 
   // Configure the server to return mock user data
-  server.service.once('beforeUserinfo', (userInfoResponse, req) => {
+  server.service.once('beforeUserinfo', (userInfoResponse, _req) => {
     // Set custom user data in the userinfo response
     userInfoResponse.body = {
       ...MOCK_USER_DATA,
@@ -54,7 +54,7 @@ export async function createMockOAuthServer(): Promise<OAuth2Server> {
   });
 
   // Configure token response
-  server.service.on('beforeTokenSigning', (token, req) => {
+  server.service.on('beforeTokenSigning', (token, _req) => {
     // Add custom claims to ID token
     token.payload = {
       ...token.payload,

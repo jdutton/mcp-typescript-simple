@@ -32,6 +32,8 @@
  * - Performance degrades with many tokens (full file read/write)
  */
 
+/* eslint-disable security/detect-non-literal-fs-filename -- File store requires dynamic file paths for persistence */
+
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import {
@@ -82,7 +84,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       );
     }
 
-    this.filePath = options.filePath || './data/access-tokens.json.enc';
+    this.filePath = options.filePath ?? './data/access-tokens.json.enc';
     this.backupPath = `${this.filePath}.backup`;
     this.debounceMs = options.debounceMs ?? 1000;
     this.encryptionService = options.encryptionService;
@@ -129,7 +131,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
     } catch (error) {
       logger.error('Failed to set file permissions', {
         filePath,
-        error: error as Record<string, any>,
+        error: error as Record<string, unknown>,
       });
     }
   }
@@ -160,7 +162,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
         // File doesn't exist yet, that's fine
         logger.info('No existing token file found, starting fresh');
       } else {
-        logger.error('Failed to load tokens from file', error as Record<string, any>);
+        logger.error('Failed to load tokens from file', error as Record<string, unknown>);
       }
     }
   }
@@ -218,7 +220,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
         permissions: '0600',
       });
     } catch (error) {
-      logger.error('Failed to save tokens to file', error as Record<string, any>);
+      logger.error('Failed to save tokens to file', error as Record<string, unknown>);
       throw error;
     }
   }
@@ -235,7 +237,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
-      maxUses: options.max_uses || 'unlimited',
+      maxUses: options.max_uses ?? 'unlimited',
     });
 
     return tokenData;
@@ -257,7 +259,7 @@ export class FileTokenStore implements InitialAccessTokenStore {
       logger.info('Token validated and used', {
         tokenId: result.token.id,
         usageCount: result.token.usage_count,
-        maxUses: result.token.max_uses || 'unlimited',
+        maxUses: result.token.max_uses ?? 'unlimited',
       });
     }
 

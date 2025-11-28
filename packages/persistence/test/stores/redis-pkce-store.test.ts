@@ -10,15 +10,17 @@
  */
 
 import { vi } from 'vitest';
-import { RedisPKCEStore } from '../../src/index.js';
-import { PKCEData } from '../../src/index.js';
+import { RedisPKCEStore , PKCEData } from '../../src/index.js';
 
 // Hoist Redis mock to avoid initialization issues
+
+ 
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires default export
+// Mock Redis for testing - Vitest requires both default and named exports
 vi.mock('ioredis', () => ({
-  default: RedisMock
+  default: RedisMock,
+  Redis: RedisMock,
 }));
 
 // Create a shared Redis instance for cleanup
@@ -464,7 +466,7 @@ describe('RedisPKCEStore', () => {
 
       // Each code should be exchanged exactly once despite concurrent attempts
       const allResults = await Promise.all(
-        codes.flatMap((code, i) => [
+        codes.flatMap((code) => [
           store.getAndDeleteCodeVerifier(code),
           store.getAndDeleteCodeVerifier(code),
           store.getAndDeleteCodeVerifier(code)

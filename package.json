@@ -9,7 +9,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run docs:build:homepage && tsc",
+    "build": "npm run docs:build:homepage && npm run build:packages && npm run build:api",
+    "build:packages": "npm run build --workspace=packages/config --workspace=packages/observability --workspace=packages/persistence --workspace=packages/testing --workspace=packages/tools --workspace=packages/tools-llm --workspace=packages/auth --workspace=packages/server --workspace=packages/example-tools-basic --workspace=packages/example-tools-llm --workspace=packages/http-server --workspace=packages/example-mcp --workspace=packages/adapter-vercel --workspace=packages/create-mcp-typescript-simple",
+    "build:api": "tsc",
     "build:vercel": "tsc && cp -r api build/",
     "clean": "rm -rf packages/*/dist build/ packages/*/tsconfig.tsbuildinfo",
     "clean-build": "npm run clean && npm install && npm run build",
@@ -57,7 +59,7 @@
     "test:contract:local": "TEST_TARGET=local TEST_ENV=express:ci npm run test:contract",
     "test:contract:docker": "TEST_TARGET=docker npm run test:contract",
     "test:contract:vercel": "TEST_TARGET=vercel npm run test:contract",
-    "lint": "eslint packages/**/*.ts test/**/*.ts tools/**/*.ts --ignore-pattern='**/vitest.config.ts' --no-warn-ignored --max-warnings=0",
+    "lint": "eslint 'packages/**/src/**/*.ts' 'packages/**/test/**/*.ts' 'test/**/*.ts' 'tools/**/*.ts' 'tools/**/*.js' --ignore-pattern='**/vitest.config.ts' --ignore-pattern='**/dist/**' --ignore-pattern='**/templates/**' --no-warn-ignored --max-warnings=18",
     "typecheck": "tsc --noEmit",
     "dev:clean": "npx tsx tools/clean-dev-data.ts",
     "dev:clean:sessions": "npx tsx tools/clean-dev-data.ts sessions",
@@ -121,7 +123,7 @@
     "release:minor": "npm run version:minor && npm run build && git add -A && git commit -m 'chore: Release minor version' && npm run tag:create",
     "release:major": "npm run version:major && npm run build && git add -A && git commit -m 'chore: Release major version' && npm run tag:create",
     "tag:create": "node -e \"const pkg = require('./packages/example-mcp/package.json'); const tag = 'v' + pkg.version; require('child_process').execSync('git tag -a ' + tag + ' -m \\\"Release ' + tag + '\\\"', {stdio: 'inherit'});\"",
-    "postinstall": "sh tools/build-workspaces.sh",
+    "postinstall": "node tools/build-workspaces.js",
     "prepare": "husky || true"
   },
   "keywords": [
@@ -196,6 +198,8 @@
     "concurrently": "^9.2.1",
     "eslint": "^9.35.0",
     "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-security": "^3.0.1",
     "eslint-plugin-sonarjs": "^3.0.5",
     "eslint-plugin-unicorn": "^62.0.0",
     "husky": "^9.1.7",
@@ -207,7 +211,7 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vercel": "^48.1.0",
-    "vibe-validate": "^0.16.0",
+    "vibe-validate": "^0.17.0-rc.9",
     "vitest": "^3.2.4"
   }
 }

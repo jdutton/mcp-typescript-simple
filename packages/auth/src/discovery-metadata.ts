@@ -69,27 +69,27 @@ export interface OpenIDConnectConfiguration extends AuthorizationServerMetadata 
  */
 export class OAuthDiscoveryMetadata {
   constructor(
-    private provider: OAuthProvider,
-    private baseUrl: string,
-    private options: {
+    private readonly _provider: OAuthProvider,
+    private readonly _baseUrl: string,
+    private readonly _options: {
       enableResumability?: boolean;
       sessionTimeoutSeconds?: number;
       toolDiscoveryEndpoint?: string;
-    } = {}
+    } = {},
   ) {}
 
   /**
    * Generate OAuth 2.0 Authorization Server Metadata (RFC 8414)
    */
   generateAuthorizationServerMetadata(): AuthorizationServerMetadata {
-    const endpoints = this.provider.getEndpoints();
-    const providerType = this.provider.getProviderType();
+    const endpoints = this._provider.getEndpoints();
+    const providerType = this._provider.getProviderType();
 
     const metadata: AuthorizationServerMetadata = {
-      issuer: this.baseUrl,
-      authorization_endpoint: `${this.baseUrl}/auth/authorize`, // Generic authorize endpoint redirects to provider selection
-      token_endpoint: `${this.baseUrl}/auth/token`, // Universal token endpoint (handles all providers)
-      registration_endpoint: `${this.baseUrl}/register`, // RFC 7591 Dynamic Client Registration
+      issuer: this._baseUrl,
+      authorization_endpoint: `${this._baseUrl}/auth/authorize`, // Generic authorize endpoint redirects to provider selection
+      token_endpoint: `${this._baseUrl}/auth/token`, // Universal token endpoint (handles all providers)
+      registration_endpoint: `${this._baseUrl}/register`, // RFC 7591 Dynamic Client Registration
       token_endpoint_auth_methods_supported: [
         'client_secret_post',
         'client_secret_basic'
@@ -108,7 +108,7 @@ export class OAuthDiscoveryMetadata {
 
     // Add optional endpoints if available
     if (endpoints.logoutEndpoint) {
-      metadata.revocation_endpoint = `${this.baseUrl}${endpoints.logoutEndpoint}`;
+      metadata.revocation_endpoint = `${this._baseUrl}${endpoints.logoutEndpoint}`;
     }
 
     return metadata;
@@ -119,9 +119,9 @@ export class OAuthDiscoveryMetadata {
    */
   generateProtectedResourceMetadata(): ProtectedResourceMetadata {
     return {
-      resource: this.baseUrl,
-      authorization_servers: [this.baseUrl],
-      resource_documentation: `${this.baseUrl}/docs`,
+      resource: this._baseUrl,
+      authorization_servers: [this._baseUrl],
+      resource_documentation: `${this._baseUrl}/docs`,
       bearer_methods_supported: ['header', 'body'],
       authorization_data_types_supported: [
         'application/json',
@@ -143,7 +143,7 @@ export class OAuthDiscoveryMetadata {
         'stdio',
         'streamable_http'
       ],
-      tool_discovery_endpoint: this.options.toolDiscoveryEndpoint || `${this.baseUrl}/mcp`,
+      tool_discovery_endpoint: this._options.toolDiscoveryEndpoint ?? `${this._baseUrl}/mcp`,
       supported_tool_types: [
         'function',
         'text_generation',
@@ -151,8 +151,8 @@ export class OAuthDiscoveryMetadata {
       ],
       scopes_supported: ['mcp:read', 'mcp:write'],
       session_management: {
-        resumability_supported: this.options.enableResumability || false,
-        session_timeout_seconds: this.options.sessionTimeoutSeconds
+        resumability_supported: this._options.enableResumability ?? false,
+        session_timeout_seconds: this._options.sessionTimeoutSeconds
       }
     };
   }
@@ -162,7 +162,7 @@ export class OAuthDiscoveryMetadata {
    */
   generateOpenIDConnectConfiguration(): OpenIDConnectConfiguration {
     const authServerMetadata = this.generateAuthorizationServerMetadata();
-    const providerType = this.provider.getProviderType();
+    const providerType = this._provider.getProviderType();
 
     const config: OpenIDConnectConfiguration = {
       ...authServerMetadata,
@@ -280,7 +280,12 @@ export class OAuthDiscoveryMetadata {
   /**
    * Generate all discovery metadata
    */
-  generateAllMetadata() {
+  generateAllMetadata(): {
+    authorizationServer: AuthorizationServerMetadata;
+    protectedResource: ProtectedResourceMetadata;
+    mcpProtectedResource: MCPProtectedResourceMetadata;
+    openidConfiguration: OpenIDConnectConfiguration;
+  } {
     return {
       authorizationServer: this.generateAuthorizationServerMetadata(),
       protectedResource: this.generateProtectedResourceMetadata(),

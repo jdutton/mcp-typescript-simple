@@ -4,7 +4,7 @@
  * Provides reliable process group cleanup for spawned child processes
  */
 
-import { ChildProcess } from 'child_process';
+import { ChildProcess } from 'node:child_process';
 
 /**
  * Stop a child process and its entire process group

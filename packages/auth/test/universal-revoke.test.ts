@@ -14,6 +14,8 @@ type MockResponse = Response & {
   headers?: Record<string, string>;
 };
 
+
+/* eslint-disable sonarjs/no-unused-vars, sonarjs/no-ignored-exceptions */
 const createMockResponse = (): MockResponse => {
   const headers: Record<string, string> = {};
   const res: Partial<Response> & {
@@ -99,7 +101,7 @@ async function handleUniversalRevoke(
   res.setHeader('Expires', '0');
 
   // Extract token parameter (RFC 7009 Section 2.1)
-  const { token, token_type_hint } = req.body || {};
+  const { token, _token_type_hint } = req.body || {};
 
   // Validate required token parameter
   if (!token || typeof token !== 'string' || token.trim() === '') {
@@ -113,15 +115,13 @@ async function handleUniversalRevoke(
   // Try to revoke token from each provider
   // RFC 7009 Section 2.2: "The authorization server responds with HTTP status code 200
   // if the token has been revoked successfully or if the client submitted an invalid token"
-  let tokenFound = false;
 
-  for (const [providerType, provider] of providers.entries()) {
+  for (const [_providerType, provider] of providers.entries()) {
     try {
       // Check if provider has this token
       if ('getToken' in provider) {
         const storedToken = await (provider as any).getToken(token);
         if (storedToken) {
-          tokenFound = true;
           // Remove token from provider's store
           await provider.removeToken(token);
           break; // Token found and removed, stop searching
@@ -129,10 +129,9 @@ async function handleUniversalRevoke(
       } else {
         // If provider doesn't support getToken, try removing anyway
         await provider.removeToken(token);
-        tokenFound = true;
         break;
       }
-    } catch (error) {
+    } catch (_error) {
       // Per RFC 7009 Section 2.2: "invalid tokens do not cause an error"
       // Continue trying other providers
       continue;
@@ -453,7 +452,7 @@ describe('Universal Token Revocation (POST /auth/revoke)', () => {
   });
 
   describe('Token Type Hint Support (RFC 7009 Section 2.1)', () => {
-    it('accepts optional token_type_hint parameter', async () => {
+    it('accepts optional _token_type_hint parameter', async () => {
       const providers = new Map<string, OAuthProvider>();
       const googleProvider = new MockOAuthProvider('google') as unknown as OAuthProvider;
 
@@ -467,7 +466,7 @@ describe('Universal Token Revocation (POST /auth/revoke)', () => {
 
       const req = createMockRequest({
         token: 'access-token',
-        token_type_hint: 'access_token'
+        _token_type_hint: 'access_token'
       }) as Request;
       const res = createMockResponse();
 
@@ -477,7 +476,7 @@ describe('Universal Token Revocation (POST /auth/revoke)', () => {
       expect((googleProvider as any).hasToken('access-token')).toBe(false);
     });
 
-    it('ignores token_type_hint for refresh_token', async () => {
+    it('ignores _token_type_hint for refresh_token', async () => {
       const providers = new Map<string, OAuthProvider>();
       const googleProvider = new MockOAuthProvider('google') as unknown as OAuthProvider;
 
@@ -492,7 +491,7 @@ describe('Universal Token Revocation (POST /auth/revoke)', () => {
 
       const req = createMockRequest({
         token: 'refresh-token',
-        token_type_hint: 'refresh_token'
+        _token_type_hint: 'refresh_token'
       }) as Request;
       const res = createMockResponse();
 

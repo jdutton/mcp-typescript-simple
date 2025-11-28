@@ -22,7 +22,6 @@ import { logger } from '@mcp-typescript-simple/observability';
  * Extend Express Request to include validated token
  */
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       initialAccessToken?: InitialAccessToken;
@@ -51,9 +50,9 @@ export function requireInitialAccessToken(tokenStore: InitialAccessTokenStore) {
       return;
     }
 
-    // Parse Bearer token
-    const match = authHeader.match(/^Bearer\s+(.+)$/i);
-    if (!match || !match[1]) {
+    // Parse Bearer token (use explicit character class to avoid ReDoS)
+    const match = /^Bearer\s+([\w=+/-]+)$/i.exec(authHeader);
+    if (!match?.[1]) {
       logger.warn('DCR auth failed: invalid Authorization header format', {
         path: req.path,
         method: req.method,
@@ -83,7 +82,7 @@ export function requireInitialAccessToken(tokenStore: InitialAccessTokenStore) {
 
         res.status(401).json({
           error: 'invalid_token',
-          error_description: result.reason || 'Token validation failed',
+          error_description: result.reason ?? 'Token validation failed',
         });
         return;
       }
@@ -124,23 +123,29 @@ export function requireAdminToken(tokenStore: InitialAccessTokenStore) {
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     // First validate the token
-    await new Promise<void>((resolve, reject) => {
-      tokenMiddleware(req, res, (err?: unknown) => {
-        if (err) reject(err);
-        else resolve();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        void tokenMiddleware(req, res, (err?: unknown) => {
+          if (err) reject(err);
+          else resolve();
+        });
       });
-    });
 
-    // Check if token has admin scope (future enhancement)
-    // For now, any valid initial access token grants admin access
-    if (!req.initialAccessToken) {
-      res.status(403).json({
-        error: 'insufficient_scope',
-        error_description: 'Token does not have admin permissions',
-      });
+      // Check if token has admin scope (future enhancement)
+      // For now, any valid initial access token grants admin access
+      if (!req.initialAccessToken) {
+        res.status(403).json({
+          error: 'insufficient_scope',
+          error_description: 'Token does not have admin permissions',
+        });
+        return;
+      }
+
+      next();
+      // eslint-disable-next-line sonarjs/no-ignored-exceptions
+    } catch (_error) {
+      // Error already handled by tokenMiddleware - intentionally ignoring
       return;
     }
-
-    next();
   };
 }

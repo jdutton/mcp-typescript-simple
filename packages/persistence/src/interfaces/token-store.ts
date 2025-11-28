@@ -90,10 +90,10 @@ export interface InitialAccessTokenStore {
   /**
    * Create a new initial access token
    *
-   * @param options Token creation options
+   * @param _options Token creation options
    * @returns The created token with all metadata
    */
-  createToken(options: CreateTokenOptions): Promise<InitialAccessToken>;
+  createToken(_options: CreateTokenOptions): Promise<InitialAccessToken>;
 
   /**
    * Validate a token and mark it as used
@@ -106,34 +106,34 @@ export interface InitialAccessTokenStore {
    * 5. Increments usage count
    * 6. Updates last_used_at timestamp
    *
-   * @param token The token value to validate
+   * @param _token The token value to validate
    * @returns Validation result with token metadata if valid
    */
-  validateAndUseToken(token: string): Promise<TokenValidationResult>;
+  validateAndUseToken(_token: string): Promise<TokenValidationResult>;
 
   /**
    * Get token metadata by ID (without marking as used)
    *
-   * @param id Token ID
+   * @param _id Token ID
    * @returns Token metadata or undefined if not found
    */
-  getToken(id: string): Promise<InitialAccessToken | undefined>;
+  getToken(_id: string): Promise<InitialAccessToken | undefined>;
 
   /**
    * Get token metadata by token value (without marking as used)
    *
-   * @param token Token value
+   * @param _token Token value
    * @returns Token metadata or undefined if not found
    */
-  getTokenByValue(token: string): Promise<InitialAccessToken | undefined>;
+  getTokenByValue(_token: string): Promise<InitialAccessToken | undefined>;
 
   /**
    * List all tokens (optionally filtered)
    *
-   * @param options Filter options
+   * @param _options Filter options
    * @returns Array of token metadata
    */
-  listTokens(options?: {
+  listTokens(_options?: {
     includeRevoked?: boolean;
     includeExpired?: boolean;
   }): Promise<InitialAccessToken[]>;
@@ -141,18 +141,18 @@ export interface InitialAccessTokenStore {
   /**
    * Revoke a token by ID
    *
-   * @param id Token ID
+   * @param _id Token ID
    * @returns True if token was revoked, false if not found
    */
-  revokeToken(id: string): Promise<boolean>;
+  revokeToken(_id: string): Promise<boolean>;
 
   /**
    * Delete a token by ID (permanent removal)
    *
-   * @param id Token ID
+   * @param _id Token ID
    * @returns True if token was deleted, false if not found
    */
-  deleteToken(id: string): Promise<boolean>;
+  deleteToken(_id: string): Promise<boolean>;
 
   /**
    * Clean up expired and revoked tokens

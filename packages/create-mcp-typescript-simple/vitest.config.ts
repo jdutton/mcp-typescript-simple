@@ -6,8 +6,8 @@ export default defineConfig({
     environment: 'node',
 
     // Test timeouts (scaffolding validation is slow)
-    testTimeout: 300000, // 5 minutes for full scaffolding + validation
-    hookTimeout: 60000, // 1 minute for setup/teardown
+    testTimeout: 90000, // 90 seconds for scaffolding + npm install + validation
+    hookTimeout: 30000, // 30 seconds for setup/teardown
 
     // Sequential execution (scaffolding creates temp dirs, safer to run one at a time)
     threads: false,

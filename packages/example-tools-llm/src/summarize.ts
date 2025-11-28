@@ -10,8 +10,12 @@
 
 import { defineTool } from '@mcp-typescript-simple/tools';
 import { z } from 'zod';
-import { LLMManager } from '@mcp-typescript-simple/tools-llm';
-import { AnyModel, isValidModelForProvider, getDefaultModelForProvider } from '@mcp-typescript-simple/tools-llm';
+import {
+  LLMManager,
+  AnyModel,
+  isValidModelForProvider,
+  getDefaultModelForProvider
+} from '@mcp-typescript-simple/tools-llm';
 
 const SummarizeToolZodSchema = z.object({
   text: z.string().describe('The text to summarize'),
@@ -29,15 +33,15 @@ export type SummarizeToolInput = z.infer<typeof SummarizeToolZodSchema>;
 /**
  * Create summarize tool with injected LLM manager
  */
-export function createSummarizeTool(llmManager: LLMManager) {
+export function createSummarizeTool(llmManager: LLMManager): ReturnType<typeof defineTool<SummarizeToolInput>> {
   return defineTool({
     name: 'summarize',
     description: 'Text summarization with flexible length and format options',
     inputSchema: SummarizeToolZodSchema,
     handler: async (input: SummarizeToolInput) => {
       try {
-        const length = input.length || 'medium';
-        const format = input.format || 'paragraph';
+        const length = input.length ?? 'medium';
+        const format = input.format ?? 'paragraph';
 
         const lengthInstructions = {
           brief: 'Create a very concise summary in 1-2 sentences.',

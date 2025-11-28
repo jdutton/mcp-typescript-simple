@@ -8,9 +8,10 @@ import { RedisSessionStore, OAuthSession } from '../../src/index.js';
 // Hoist Redis mock to avoid initialization issues
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires default export
+// Mock Redis for testing - Vitest requires both default and named exports
 vi.mock('ioredis', () => ({
-  default: RedisMock
+  default: RedisMock,
+  Redis: RedisMock,
 }));
 
 // Create a shared Redis instance for cleanup

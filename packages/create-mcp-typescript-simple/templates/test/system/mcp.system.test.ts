@@ -274,14 +274,14 @@ describeSystemTest('MCP Protocol System', () => {
         expect(response.result.tools.length).toBeGreaterThan(0);
 
         // Validate tool structure
-        response.result.tools.forEach((tool: MCPTool) => {
+        for (const tool of response.result.tools) {
           expect(tool.name).toBeDefined();
           expect(tool.description).toBeDefined();
           expect(tool.inputSchema).toBeDefined();
           expect(tool.inputSchema.type).toBeDefined();
 
           console.log(`🔧 Available tool: ${tool.name} - ${tool.description}`);
-        });
+        }
       }
     });
 
@@ -598,10 +598,10 @@ describeSystemTest('MCP Protocol System', () => {
       }
 
       // All valid requests should succeed
-      validResponses.forEach((response) => {
+      for (const response of validResponses) {
         expect(response.jsonrpc).toBe('2.0');
         expect(response.result).toBeDefined();
-      });
+      }
 
       console.log(`🔄 Concurrent tool calls: ${responses.length} completed successfully`);
     });

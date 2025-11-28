@@ -6,7 +6,9 @@
 import { z } from 'zod';
 
 export enum TransportMode {
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers in http-server and tests
   STDIO = 'stdio',
+  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers in http-server and tests
   STREAMABLE_HTTP = 'streamable_http'
 }
 

@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy package files and npm configuration
 COPY package*.json .npmrc ./
-COPY tsconfig.json ./
+COPY tsconfig*.json ./
 
 # Copy workspace packages for build
 COPY packages/ ./packages/

@@ -26,6 +26,8 @@ class TransportTestRunner {
 
     this.printSummary();
 
+
+/* eslint-disable sonarjs/no-unused-vars */
     const failedTests = this.results.filter(r => !r.passed);
     if (failedTests.length > 0) {
       process.exit(1);
@@ -52,7 +54,7 @@ class TransportTestRunner {
       // Test that our API correctly handles content-type negotiation
       // This addresses the 406 error we found in local testing
 
-      const { createServer: _createServer } = await import('http');
+      const { createServer: _createServer } = await import('node:http');
       const { Server } = await import('@modelcontextprotocol/sdk/server/index.js');
       const { StreamableHTTPServerTransport } = await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
 
@@ -111,7 +113,7 @@ class TransportTestRunner {
   private async testCORSConfiguration(): Promise<void> {
     await this.runTest('CORS Configuration', async () => {
       // Verify CORS headers are properly configured in API functions
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
 
       const apiFiles = [
         'packages/adapter-vercel/src/mcp.ts',
@@ -147,7 +149,7 @@ class TransportTestRunner {
   private async testStreamingHeaders(): Promise<void> {
     await this.runTest('Streaming Headers Configuration', async () => {
       // Verify that MCP API function has proper streaming headers
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
       const mcpContent = readFileSync('packages/adapter-vercel/src/mcp.ts', 'utf8');
 
       // Check for streaming-related headers
@@ -171,7 +173,7 @@ class TransportTestRunner {
 
   private async testErrorHandling(): Promise<void> {
     await this.runTest('Error Handling in API Functions', async () => {
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
 
       const apiFiles = [
         'packages/adapter-vercel/src/mcp.ts',
@@ -204,7 +206,7 @@ class TransportTestRunner {
   private async testEnvironmentModeSelection(): Promise<void> {
     await this.runTest('Environment Mode Selection', async () => {
       // Test that environment variables properly control transport mode
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
 
       // Check example-mcp package for environment-based transport selection
       // (src/index.ts is now a thin wrapper that delegates to example-mcp)
@@ -234,7 +236,7 @@ class TransportTestRunner {
   private async testAPIFunctionInterface(): Promise<void> {
     await this.runTest('API Function Interface Compatibility', async () => {
       // Test that API functions properly implement VercelRequest/VercelResponse interface
-      const { readFileSync } = await import('fs');
+      const { readFileSync } = await import('node:fs');
 
       const apiFiles = [
         'packages/adapter-vercel/src/mcp.ts',

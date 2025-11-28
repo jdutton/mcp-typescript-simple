@@ -10,8 +10,12 @@
 
 import { defineTool } from '@mcp-typescript-simple/tools';
 import { z } from 'zod';
-import { LLMManager } from '@mcp-typescript-simple/tools-llm';
-import { AnyModel, isValidModelForProvider, getDefaultModelForProvider } from '@mcp-typescript-simple/tools-llm';
+import {
+  LLMManager,
+  AnyModel,
+  isValidModelForProvider,
+  getDefaultModelForProvider
+} from '@mcp-typescript-simple/tools-llm';
 
 const ExplainToolZodSchema = z.object({
   topic: z.string().describe('The topic, concept, or code to explain'),
@@ -28,14 +32,14 @@ export type ExplainToolInput = z.infer<typeof ExplainToolZodSchema>;
 /**
  * Create explain tool with injected LLM manager
  */
-export function createExplainTool(llmManager: LLMManager) {
+export function createExplainTool(llmManager: LLMManager): ReturnType<typeof defineTool<ExplainToolInput>> {
   return defineTool({
     name: 'explain',
     description: 'Clear, educational explanations adapted to audience level',
     inputSchema: ExplainToolZodSchema,
     handler: async (input: ExplainToolInput) => {
       try {
-        const level = input.level || 'intermediate';
+        const level = input.level ?? 'intermediate';
         const includeExamples = input.include_examples !== false;
 
         const levelInstructions = {

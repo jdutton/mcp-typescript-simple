@@ -4,10 +4,12 @@
 
 import { FileTokenStore } from '../src/index.js';
 import { mkdirSync, rmSync, existsSync } from 'node:fs';
-import { tmpdir } from 'os';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createTestEncryptionService } from './helpers/encryption-test-helper.js';
 
+
+/* eslint-disable sonarjs/no-unused-vars */
 describe('FileTokenStore', () => {
   let store: FileTokenStore;
   let testDir: string;
@@ -205,7 +207,7 @@ describe('FileTokenStore', () => {
 
   describe('cleanup', () => {
     it('should remove expired/revoked and persist', async () => {
-      const expired = await store.createToken({ description: 'Expired', expires_in: -1 });
+      const _expired = await store.createToken({ description: 'Expired', expires_in: -1 });
       const revoked = await store.createToken({ description: 'Revoked' });
       await store.createToken({ description: 'Active' });
 
@@ -290,7 +292,7 @@ describe('FileTokenStore', () => {
   describe('error handling', () => {
     it('should handle corrupt file gracefully', async () => {
       // Write corrupt JSON to file
-      const fs = await import('fs/promises');
+      const fs = await import('node:fs/promises');
       await fs.writeFile(testFilePath, 'invalid json {', 'utf8');
 
       // Create new store - should handle corrupt file

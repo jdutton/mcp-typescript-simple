@@ -25,7 +25,7 @@
  * Set TOKEN_ENCRYPTION_KEY environment variable (32-byte base64 string)
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,
@@ -52,7 +52,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
   private readonly encryptionService: TokenEncryptionService;
 
   constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService) {
-    const url = redisUrl || process.env.REDIS_URL;
+    const url = redisUrl ?? process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
@@ -63,14 +63,14 @@ export class RedisTokenStore implements InitialAccessTokenStore {
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: true,
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: Error) => {
       logger.error('Redis connection error', { error });
     });
 
@@ -79,7 +79,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     });
 
     // Connect immediately
-    this.redis.connect().catch((error) => {
+    // eslint-disable-next-line sonarjs/no-async-constructor
+    this.redis.connect().catch((error: Error) => {
       logger.error('Failed to connect to Redis', { error });
     });
 
@@ -171,7 +172,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       tokenId: tokenData.id,
       description: options.description,
       expiresAt: tokenData.expires_at === 0 ? 'never' : new Date(tokenData.expires_at * 1000).toISOString(),
-      maxUses: options.max_uses || 'unlimited',
+      maxUses: options.max_uses ?? 'unlimited',
       ttl: ttlSeconds ? `${ttlSeconds}s` : 'none',
     });
 
@@ -223,7 +224,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       logger.info('Token validated and used', {
         tokenId: result.token.id,
         usageCount: result.token.usage_count,
-        maxUses: result.token.max_uses || 'unlimited',
+        maxUses: result.token.max_uses ?? 'unlimited',
       });
     }
 
@@ -265,8 +266,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     }
 
     // Fetch all tokens in parallel
-    const tokenPromises = ids.map((id) => this.getToken(id));
-    const tokens = (await Promise.all(tokenPromises)).filter((t): t is InitialAccessToken => t !== undefined);
+    const tokenPromises = ids.map((id: string) => this.getToken(id));
+    const tokens = (await Promise.all(tokenPromises)).filter((t: InitialAccessToken | undefined): t is InitialAccessToken => t !== undefined);
 
     return filterTokens(tokens, options);
   }

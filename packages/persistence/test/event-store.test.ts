@@ -61,7 +61,7 @@ describe('MemoryEventStore', () => {
     const total = 1005;
     const ids: string[] = [];
     for (let i = 0; i < total; i++) {
-      // eslint-disable-next-line no-await-in-loop
+       
       ids.push(await store.storeEvent('stream-x', createMessage(String(i))));
     }
 

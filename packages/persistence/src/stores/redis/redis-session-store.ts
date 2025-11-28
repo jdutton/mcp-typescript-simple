@@ -14,7 +14,7 @@
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import type Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { OAuthSessionStore } from '../../interfaces/session-store.js';
 import { OAuthSession } from '../../types.js';
 import { logger } from '../../logger.js';
@@ -32,7 +32,7 @@ export class RedisSessionStore implements OAuthSessionStore {
   constructor(redisUrl?: string) {
     this.redis = createRedisClient(redisUrl, 'OAuth sessions');
 
-    const url = redisUrl || process.env.REDIS_URL!;
+    const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
     logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url) });
   }
 
