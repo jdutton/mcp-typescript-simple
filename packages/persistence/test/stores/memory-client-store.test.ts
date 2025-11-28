@@ -3,7 +3,6 @@
  */
 
 import { InMemoryClientStore } from '../../src/index.js';
-import type { _OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 
 
  

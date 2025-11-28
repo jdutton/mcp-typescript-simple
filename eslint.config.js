@@ -75,13 +75,13 @@ export default [
       'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files
       'sonarjs/no-unused-collection': 'off', // Test data setup may create collections for side effects
 
-      // Code quality - WARN in tests (test setup often creates intentionally unused variables)
-      '@typescript-eslint/no-unused-vars': ['warn', {
+      // Code quality - ERROR in tests (autofix removes unused imports)
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
-      'no-unused-vars': ['warn', {
+      'no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',

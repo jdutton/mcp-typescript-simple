@@ -4,7 +4,7 @@
  * Tests that verify OCSF API Activity events are emitted for HTTP requests through the middleware.
  */
 
-import { describe, it, expect, _beforeAll, _afterAll, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import express, { type Express } from 'express';
 import request from 'supertest';
 import { ocsfMiddleware } from '../../src/middleware/ocsf-middleware.js';

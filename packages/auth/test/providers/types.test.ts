@@ -1,7 +1,6 @@
 import {
   OAuthProviderType,
   OAuthUserInfo,
-  _OAuthConfig,
   OAuthError,
   OAuthStateError,
   OAuthTokenError,
