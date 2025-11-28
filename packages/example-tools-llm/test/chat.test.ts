@@ -11,7 +11,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createChatTool, type ChatToolInput } from '../src/chat.js';
-import type { LLMManager , AnyModel } from '@mcp-typescript-simple/tools-llm';
+import type { LLMManager } from '@mcp-typescript-simple/tools-llm';
 
 type ToolResponse = {
   content: Array<{ type: string; text?: string }>;

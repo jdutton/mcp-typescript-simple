@@ -86,7 +86,6 @@ export default [
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
-      'sonarjs/no-unused-vars': 'warn', // Warn rather than error for tests
 
       // Security - relaxed for tests
       'security/detect-child-process': 'off', // Tests execute commands

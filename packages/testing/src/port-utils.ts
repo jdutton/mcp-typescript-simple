@@ -218,33 +218,34 @@ export async function getProcessUsingPort(port: number): Promise<ProcessInfo | n
       if (code === 0 && pidOutput.trim()) {
         const firstLine = pidOutput.trim().split('\n')[0] ?? '';
         const pid = Number.parseInt(firstLine, 10);
-        if (!Number.isNaN(pid)) {
-          // Get process command
-          const psResult = await new Promise<string>((psResolve) => {
-            // eslint-disable-next-line sonarjs/no-os-command-from-path -- ps is a standard system utility, PATH is from test environment
-            const ps = spawn('ps', ['-p', pid.toString(), '-o', 'comm='], { stdio: 'pipe' });
-            let command = '';
+        if (Number.isNaN(pid)) {
+          resolve(null);
+          return;
+        }
 
-            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps output
-            ps.stdout?.on('data', (data) => {
-              command += data.toString();
-            });
+        // Get process command
+        const psResult = await new Promise<string>((psResolve) => {
+          // eslint-disable-next-line sonarjs/no-os-command-from-path -- ps is a standard system utility, PATH is from test environment
+          const ps = spawn('ps', ['-p', pid.toString(), '-o', 'comm='], { stdio: 'pipe' });
+          let command = '';
 
-            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps completion
-            ps.on('close', () => {
-              psResolve(command.trim() || 'unknown');
-            });
-
-            // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps errors
-            ps.on('error', () => {
-              psResolve('unknown');
-            });
+          // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps output
+          ps.stdout?.on('data', (data) => {
+            command += data.toString();
           });
 
-          resolve({ pid, command: psResult, port });
-        } else {
-          resolve(null);
-        }
+          // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps completion
+          ps.on('close', () => {
+            psResolve(command.trim() || 'unknown');
+          });
+
+          // eslint-disable-next-line sonarjs/no-nested-functions -- Event handlers required for ps errors
+          ps.on('error', () => {
+            psResolve('unknown');
+          });
+        });
+
+        resolve({ pid, command: psResult, port });
       } else {
         resolve(null);
       }

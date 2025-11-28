@@ -50,8 +50,10 @@ function cleanBuildInfo() {
         }
       }
     }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    // packages directory doesn't exist - ignore
+    // packages directory doesn't exist - ignore (intentional for build script)
+    // sonarjs/no-ignored-exceptions: Disabled - build cleanup handles missing directories gracefully
   }
 }
 

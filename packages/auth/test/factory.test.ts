@@ -83,9 +83,11 @@ describe('OAuthProviderFactory', () => {
     // Suppress disposal errors since we're using mocked providers that may not have full disposal logic
     try {
       OAuthProviderFactory.resetInstance();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (_error) {
       // Intentionally ignore disposal errors in test setup - we're using mocked providers that may not have full disposal logic
       // This is test-specific behavior and doesn't indicate a problem
+      // sonarjs/no-ignored-exceptions: Disabled - test cleanup with mocked providers
     }
 
     // Clear OAuth credentials from environment
