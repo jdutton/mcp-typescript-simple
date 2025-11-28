@@ -105,7 +105,7 @@ export function setupDCRRoutes(
     try {
       setAntiCachingHeaders(res);
       // Support both path param and query param for flexibility
-      const clientId = req.params.client_id || req.query.client_id as string;
+      const clientId = req.params.client_id ?? req.query.client_id as string;
       if (!clientId) {
         logger.warn('Client ID missing in request');
         res.status(400).json({
@@ -150,7 +150,7 @@ export function setupDCRRoutes(
     try {
       setAntiCachingHeaders(res);
       // Support both path param and query param for flexibility
-      const clientId = req.params.client_id || req.query.client_id as string;
+      const clientId = req.params.client_id ?? req.query.client_id as string;
       if (!clientId) {
         logger.warn('Client ID missing in request');
         res.status(400).json({

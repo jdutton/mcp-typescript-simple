@@ -25,7 +25,7 @@
  * Set TOKEN_ENCRYPTION_KEY environment variable (32-byte base64 string)
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import {
   InitialAccessTokenStore,
   InitialAccessToken,
@@ -63,14 +63,14 @@ export class RedisTokenStore implements InitialAccessTokenStore {
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: true,
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: Error) => {
       logger.error('Redis connection error', { error });
     });
 
@@ -80,7 +80,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
 
     // Connect immediately
     // eslint-disable-next-line sonarjs/no-async-constructor
-    this.redis.connect().catch((error) => {
+    this.redis.connect().catch((error: Error) => {
       logger.error('Failed to connect to Redis', { error });
     });
 
@@ -266,8 +266,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     }
 
     // Fetch all tokens in parallel
-    const tokenPromises = ids.map((id) => this.getToken(id));
-    const tokens = (await Promise.all(tokenPromises)).filter((t): t is InitialAccessToken => t !== undefined);
+    const tokenPromises = ids.map((id: string) => this.getToken(id));
+    const tokens = (await Promise.all(tokenPromises)).filter((t: InitialAccessToken | undefined): t is InitialAccessToken => t !== undefined);
 
     return filterTokens(tokens, options);
   }

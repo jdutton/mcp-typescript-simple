@@ -5,7 +5,7 @@
  * Required for multi-instance deployments (Vercel, Kubernetes, AWS Lambda, etc.)
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { PKCEStore, PKCEData } from '../../interfaces/pkce-store.js';
 import { logger } from '../../logger.js';
 
@@ -23,14 +23,14 @@ export class RedisPKCEStore implements PKCEStore {
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
       connectTimeout: 5000, // 5 second timeout for initial connection
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: false, // Connect immediately to detect issues early
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: Error) => {
       logger.error('Redis PKCE store error', error as unknown as Record<string, unknown>);
     });
 

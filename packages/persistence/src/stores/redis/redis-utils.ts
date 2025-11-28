@@ -5,7 +5,7 @@
  * to eliminate code duplication.
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { logger } from '../../logger.js';
 
 /**
@@ -16,7 +16,7 @@ import { logger } from '../../logger.js';
  * @param url Redis connection URL
  * @returns Masked URL with password replaced by ***
  */
- 
+
 export function maskRedisUrl(url: string): string {
   try {
     const parsed = new URL(url);
@@ -46,7 +46,7 @@ export function createRedisClient(redisUrl: string | undefined, connectionName: 
 
   const redis = new Redis(url, {
     maxRetriesPerRequest: 3,
-    retryStrategy: (times) => {
+    retryStrategy: (times: number) => {
       const delay = Math.min(times * 50, 2000);
       return delay;
     },

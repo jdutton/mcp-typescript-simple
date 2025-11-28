@@ -16,7 +16,7 @@
  * - No plaintext session data in Redis
  */
 
-import type Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import {
   MCPSessionMetadataStore,
   MCPSessionMetadata,

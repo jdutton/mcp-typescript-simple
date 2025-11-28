@@ -25,7 +25,7 @@
  * TokenEncryptionService MUST be provided to constructor
  */
 
-import type Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';

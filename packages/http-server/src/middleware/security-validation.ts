@@ -61,7 +61,7 @@ export function createSecurityValidationMiddleware() {
     }
 
     // Defense 2: Query string length limit
-    const queryString = req.url.split('?')[1] || '';
+    const queryString = req.url.split('?')[1] ?? '';
     if (queryString.length > MAX_QUERY_LENGTH) {
       res.status(414).json({
         error: 'URI Too Long',

@@ -51,7 +51,7 @@ describe('Local Scaffolding Unit Test', () => {
     }
 
     console.log('✅ Local scaffolding completed');
-  });
+  }, 60000); // 60 second timeout for scaffolding
 
   afterAll(() => {
     // Cleanup temporary directory

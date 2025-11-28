@@ -16,7 +16,7 @@
  * Set REDIS_URL environment variable (e.g., redis://localhost:6379)
  */
 
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
 import {
@@ -42,14 +42,14 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
-      retryStrategy: (times) => {
+      retryStrategy: (times: number) => {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
       lazyConnect: true,
     });
 
-    this.redis.on('error', (error) => {
+    this.redis.on('error', (error: Error) => {
       logger.error('Redis connection error', { error });
     });
 
@@ -59,7 +59,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
     // Connect immediately
     // eslint-disable-next-line sonarjs/no-async-constructor
-    this.redis.connect().catch((error) => {
+    this.redis.connect().catch((error: Error) => {
       logger.error('Failed to connect to Redis', { error });
     });
 
