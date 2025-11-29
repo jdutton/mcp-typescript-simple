@@ -13,6 +13,7 @@ import { PKCEStore } from '../interfaces/pkce-store.js';
 import { MemoryPKCEStore } from '../stores/memory/memory-pkce-store.js';
 import { RedisPKCEStore } from '../stores/redis/redis-pkce-store.js';
 import { logger } from '../logger.js';
+import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
 
 export type PKCEStoreType = 'memory' | 'redis' | 'auto';
 
@@ -106,7 +107,9 @@ export class PKCEStoreFactory {
       );
     }
 
-    return new RedisPKCEStore();
+    const keyPrefix = getRedisKeyPrefix();
+
+    return new RedisPKCEStore(process.env.REDIS_URL, keyPrefix);
   }
 }
 

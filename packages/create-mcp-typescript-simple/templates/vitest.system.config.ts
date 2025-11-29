@@ -10,6 +10,15 @@ export default defineConfig({
       'test/system/**/*.test.ts'
     ],
 
+    // Port configuration note:
+    // System tests use BASE_PORT defined in test/system/utils.ts
+    // Default is 3000 (configured during project scaffolding)
+    // If port 3000 conflicts with other services, you can:
+    //   1. Edit BASE_PORT in test/system/utils.ts
+    //   2. Use environment variable: HTTP_TEST_PORT=3010 npm run test:system
+    // The framework includes self-healing port management that automatically
+    // cleans up leaked processes from previous test runs.
+
     // Exclude patterns
     exclude: [
       '**/node_modules/**',

@@ -18,6 +18,7 @@ import { FileClientStore } from '../stores/file/file-client-store.js';
 import { RedisClientStore } from '../stores/redis/redis-client-store.js';
 import { logger } from '../logger.js';
 import { getDataPath } from '../utils/data-paths.js';
+import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
 
 export interface ClientStoreFactoryOptions {
   /** Explicit store type (overrides auto-detection) */
@@ -130,10 +131,12 @@ export class ClientStoreFactory {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
 
+    const keyPrefix = getRedisKeyPrefix();
+
     return new RedisClientStore(undefined, {
       defaultSecretExpirySeconds: options.defaultSecretExpirySeconds,
       maxClients: options.maxClients,
-    });
+    }, keyPrefix);
   }
 
   /**
