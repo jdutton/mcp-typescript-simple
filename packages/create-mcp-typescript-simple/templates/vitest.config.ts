@@ -1,5 +1,4 @@
 import { defineConfig } from 'vitest/config';
-import { resolve } from 'node:path';
 
 export default defineConfig({
   test: {
@@ -18,16 +17,7 @@ export default defineConfig({
       ],
     },
   },
-  resolve: {
-    alias: {
-      '@mcp-typescript-simple/tools': resolve(__dirname, '../tools/src'),
-      '@mcp-typescript-simple/tools-llm': resolve(__dirname, '../tools-llm/src'),
-      '@mcp-typescript-simple/example-tools-basic': resolve(__dirname, '../example-tools-basic/src'),
-      '@mcp-typescript-simple/example-tools-llm': resolve(__dirname, '../example-tools-llm/src'),
-      '@mcp-typescript-simple/server': resolve(__dirname, '../server/src'),
-      '@mcp-typescript-simple/http-server': resolve(__dirname, '../http-server/src'),
-      '@mcp-typescript-simple/config': resolve(__dirname, '../config/src'),
-      '@mcp-typescript-simple/observability': resolve(__dirname, '../observability/src'),
-    },
-  },
+  // Note: No path aliases needed - packages resolve from node_modules
+  // Workspace-style aliases like '@mcp-typescript-simple/tools': '../tools/src'
+  // only work in monorepo setups and break standalone project installations
 });

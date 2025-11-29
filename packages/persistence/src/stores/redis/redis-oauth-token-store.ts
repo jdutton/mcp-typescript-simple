@@ -30,16 +30,15 @@ import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl, createRedisClient } from './redis-utils.js';
-
-const KEY_PREFIX = 'oauth:token:';
-const REFRESH_INDEX_PREFIX = 'oauth:refresh:';
+import { maskRedisUrl, createRedisClient, normalizeKeyPrefix } from './redis-utils.js';
 
 export class RedisOAuthTokenStore implements OAuthTokenStore {
   private redis: Redis;
   private readonly encryptionService: TokenEncryptionService;
+  private readonly KEY_PREFIX: string;
+  private readonly REFRESH_INDEX_PREFIX: string;
 
-  constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
+  constructor(redisUrl: string, encryptionService: TokenEncryptionService, keyPrefix: string = '') {
     // Enterprise security: encryption is MANDATORY
     if (!encryptionService) {
       throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
@@ -48,8 +47,13 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     this.encryptionService = encryptionService;
     this.redis = createRedisClient(redisUrl, 'OAuth tokens');
 
+    // Normalize key prefix (adds trailing colon if needed)
+    const normalized = normalizeKeyPrefix(keyPrefix);
+    this.KEY_PREFIX = `${normalized}oauth:token:`;
+    this.REFRESH_INDEX_PREFIX = `${normalized}oauth:refresh:`;
+
     const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
-    logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url) });
+    logger.info('RedisOAuthTokenStore initialized', { url: maskRedisUrl(url), keyPrefix: this.KEY_PREFIX });
   }
 
   /**
@@ -61,7 +65,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
    */
   private getTokenKey(accessToken: string): string {
     const hashedToken = this.encryptionService.hashKey(accessToken);
-    return `${KEY_PREFIX}${hashedToken}`;
+    return `${this.KEY_PREFIX}${hashedToken}`;
   }
 
   /**
@@ -72,7 +76,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
    */
   private getRefreshIndexKey(refreshToken: string): string {
     const hashedToken = this.encryptionService.hashKey(refreshToken);
-    return `${REFRESH_INDEX_PREFIX}${hashedToken}`;
+    return `${this.REFRESH_INDEX_PREFIX}${hashedToken}`;
   }
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
@@ -227,7 +231,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     let count = 0;
 
     do {
-      const result = await this.redis.scan(cursor, 'MATCH', `${KEY_PREFIX}*`, 'COUNT', 100);
+      const result = await this.redis.scan(cursor, 'MATCH', `${this.KEY_PREFIX}*`, 'COUNT', 100);
       cursor = result[0];
       count += result[1].length;
     } while (cursor !== '0');

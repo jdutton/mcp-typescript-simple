@@ -18,29 +18,33 @@ import { Redis } from 'ioredis';
 import { OAuthSessionStore } from '../../interfaces/session-store.js';
 import { OAuthSession } from '../../types.js';
 import { logger } from '../../logger.js';
-import { maskRedisUrl, createRedisClient } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient, normalizeKeyPrefix } from './redis-utils.js';
 
 /**
- * Redis key prefix for namespacing
+ * Session timeout for OAuth flows
  */
-const KEY_PREFIX = 'oauth:session:';
 const SESSION_TIMEOUT = 10 * 60; // 10 minutes in seconds
 
 export class RedisSessionStore implements OAuthSessionStore {
   private redis: Redis;
+  private readonly KEY_PREFIX: string;
 
-  constructor(redisUrl?: string) {
+  constructor(redisUrl?: string, keyPrefix: string = '') {
     this.redis = createRedisClient(redisUrl, 'OAuth sessions');
 
+    // Normalize key prefix (adds trailing colon if needed)
+    const normalized = normalizeKeyPrefix(keyPrefix);
+    this.KEY_PREFIX = `${normalized}oauth:session:`;
+
     const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
-    logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url) });
+    logger.info('RedisSessionStore initialized', { url: maskRedisUrl(url), keyPrefix: this.KEY_PREFIX });
   }
 
   /**
    * Generate Redis key for session state
    */
   private getSessionKey(state: string): string {
-    return `${KEY_PREFIX}${state}`;
+    return `${this.KEY_PREFIX}${state}`;
   }
 
   async storeSession(state: string, session: OAuthSession): Promise<void> {
@@ -132,7 +136,7 @@ export class RedisSessionStore implements OAuthSessionStore {
   async getSessionCount(): Promise<number> {
     try {
       // Scan for all session keys
-      const keys = await this.redis.keys(`${KEY_PREFIX}*`);
+      const keys = await this.redis.keys(`${this.KEY_PREFIX}*`);
       return keys.length;
     } catch (error) {
       logger.error('Failed to get session count', { error });

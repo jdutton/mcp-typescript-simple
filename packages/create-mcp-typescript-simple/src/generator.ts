@@ -139,15 +139,17 @@ function generatePackageJson(config: ProjectConfig): object {
  */
 export async function generateProject(config: ProjectConfig, targetDir: string): Promise<void> {
   const projectPath = path.resolve(process.cwd(), targetDir);
+  const isCurrentDir = targetDir === '.';
 
   console.log(chalk.cyan('\n📦 Generating project structure...\n'));
 
   // Check if directory exists and is not empty
-  if (await isDirNonEmpty(projectPath)) {
+  // Allow scaffolding into current directory (targetDir === ".")
+  if (!isCurrentDir && await isDirNonEmpty(projectPath)) {
     throw new Error(`Directory ${projectPath} already exists and is not empty`);
   }
 
-  // Ensure project directory exists
+  // Ensure project directory exists (no-op if current directory)
   await ensureDir(projectPath);
 
   // Generate template data

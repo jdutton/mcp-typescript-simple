@@ -23,15 +23,15 @@ import {
 } from '../../interfaces/mcp-metadata-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl, createRedisClient } from './redis-utils.js';
+import { maskRedisUrl, createRedisClient, normalizeKeyPrefix } from './redis-utils.js';
 
 export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
   private redis: Redis;
   private readonly encryptionService: TokenEncryptionService;
-  private readonly keyPrefix = 'mcp:session:';
+  private readonly keyPrefix: string;
   private readonly DEFAULT_TTL = 30 * 60; // 30 minutes in seconds
 
-  constructor(redisUrl: string, encryptionService: TokenEncryptionService) {
+  constructor(redisUrl: string, encryptionService: TokenEncryptionService, keyPrefix: string = '') {
     // Enterprise security: encryption is MANDATORY
     if (!encryptionService) {
       throw new Error('TokenEncryptionService is REQUIRED. Encryption at rest is mandatory for SOC-2, ISO 27001, GDPR, HIPAA compliance.');
@@ -40,8 +40,12 @@ export class RedisMCPMetadataStore implements MCPSessionMetadataStore {
     this.encryptionService = encryptionService;
     this.redis = createRedisClient(redisUrl, 'MCP sessions');
 
+    // Normalize key prefix (adds trailing colon if needed)
+    const normalized = normalizeKeyPrefix(keyPrefix);
+    this.keyPrefix = `${normalized}mcp:session:`;
+
     const url = redisUrl ?? process.env.REDIS_URL ?? 'redis://localhost:6379';
-    logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url) });
+    logger.info('RedisMCPMetadataStore initialized with encryption', { url: maskRedisUrl(url), keyPrefix: this.keyPrefix });
   }
 
   /**

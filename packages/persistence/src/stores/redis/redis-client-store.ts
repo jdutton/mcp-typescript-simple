@@ -25,20 +25,26 @@ import {
   ClientStoreOptions,
 } from '../../interfaces/client-store.js';
 import { logger } from '../../logger.js';
-import { maskRedisUrl } from './redis-utils.js';
-
-const KEY_PREFIX = 'oauth:client:';
-const INDEX_KEY = 'oauth:clients:index';
+import { maskRedisUrl, normalizeKeyPrefix } from './redis-utils.js';
 
 export class RedisClientStore implements OAuthRegisteredClientsStore {
   private redis: Redis;
   private options: ClientStoreOptions;
+  private readonly keyPrefix: string;
+  private readonly KEY_PREFIX: string;
+  private readonly INDEX_KEY: string;
 
-  constructor(redisUrl?: string, options: ClientStoreOptions = {}) {
+  constructor(redisUrl?: string, options: ClientStoreOptions = {}, keyPrefix: string = '') {
     const url = redisUrl ?? process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
     }
+
+    // Store key prefix for multi-app isolation (empty string for backward compatibility)
+    // Auto-add colon separator if prefix provided (e.g., 'mcp-main' → 'mcp-main:')
+    this.keyPrefix = normalizeKeyPrefix(keyPrefix);
+    this.KEY_PREFIX = `${this.keyPrefix}oauth:client:`;
+    this.INDEX_KEY = `${this.keyPrefix}oauth:clients:index`;
 
     this.redis = new Redis(url, {
       maxRetriesPerRequest: 3,
@@ -81,7 +87,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
   ): Promise<OAuthClientInformationFull> {
     try {
       // Check max clients limit
-      const currentCount = await this.redis.scard(INDEX_KEY);
+      const currentCount = await this.redis.scard(this.INDEX_KEY);
       const maxClients = this.options.maxClients ?? 10000;
       if (currentCount >= maxClients) {
         logger.warn('Client registration failed: max clients limit reached', {
@@ -116,7 +122,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       };
 
       // Store in Redis
-      const key = `${KEY_PREFIX}${clientId}`;
+      const key = `${this.KEY_PREFIX}${clientId}`;
 
       if (expiresAt) {
         // Set with TTL (automatic expiration)
@@ -128,7 +134,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       }
 
       // Add to index set for listing
-      await this.redis.sadd(INDEX_KEY, clientId);
+      await this.redis.sadd(this.INDEX_KEY, clientId);
 
       logger.info('Client registered in Redis', {
         clientId,
@@ -147,7 +153,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
     try {
-      const key = `${KEY_PREFIX}${clientId}`;
+      const key = `${this.KEY_PREFIX}${clientId}`;
       const data = await this.redis.get(key);
 
       if (!data) {
@@ -171,7 +177,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
   async deleteClient(clientId: string): Promise<boolean> {
     try {
-      const key = `${KEY_PREFIX}${clientId}`;
+      const key = `${this.KEY_PREFIX}${clientId}`;
 
       // Check if client exists
       const exists = await this.redis.exists(key);
@@ -183,7 +189,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
       // Delete from Redis and index
       await Promise.all([
         this.redis.del(key),
-        this.redis.srem(INDEX_KEY, clientId),
+        this.redis.srem(this.INDEX_KEY, clientId),
       ]);
 
       logger.info('Client deleted from Redis', { clientId });
@@ -197,14 +203,14 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
   async listClients(): Promise<OAuthClientInformationFull[]> {
     try {
       // Get all client IDs from index
-      const clientIds = await this.redis.smembers(INDEX_KEY);
+      const clientIds = await this.redis.smembers(this.INDEX_KEY);
 
       if (clientIds?.length === 0) {
         return [];
       }
 
       // Fetch all clients in parallel
-      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
+      const keys = clientIds.map((id: string) => `${this.KEY_PREFIX}${id}`);
       const results = await this.redis.mget(...keys);
 
       // Filter out null values (expired clients) and parse
@@ -224,7 +230,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       // Clean up expired client IDs from index
       if (expiredIds.length > 0) {
-        await this.redis.srem(INDEX_KEY, ...expiredIds);
+        await this.redis.srem(this.INDEX_KEY, ...expiredIds);
         logger.debug('Removed expired clients from index', {
           count: expiredIds.length,
         });
@@ -245,14 +251,14 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
   async cleanupExpired(): Promise<number> {
     try {
       // Get all client IDs from index
-      const clientIds = await this.redis.smembers(INDEX_KEY);
+      const clientIds = await this.redis.smembers(this.INDEX_KEY);
 
       if (clientIds?.length === 0) {
         return 0;
       }
 
       // Check which clients still exist (non-expired)
-      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
+      const keys = clientIds.map((id: string) => `${this.KEY_PREFIX}${id}`);
       const exists = await Promise.all(keys.map((key: string) => this.redis.exists(key)));
 
       // Find expired clients (in index but not in Redis)
@@ -266,7 +272,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
 
       // Remove expired client IDs from index
       if (expiredIds.length > 0) {
-        await this.redis.srem(INDEX_KEY, ...expiredIds);
+        await this.redis.srem(this.INDEX_KEY, ...expiredIds);
         logger.info('Expired clients cleaned up from Redis', {
           count: expiredIds.length,
         });
@@ -284,7 +290,7 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
    */
   async getClientCount(): Promise<number> {
     try {
-      return await this.redis.scard(INDEX_KEY);
+      return await this.redis.scard(this.INDEX_KEY);
     } catch (error) {
       logger.error('Failed to get client count from Redis', error as Record<string, unknown>);
       return 0;
@@ -296,15 +302,15 @@ export class RedisClientStore implements OAuthRegisteredClientsStore {
    */
   async clear(): Promise<void> {
     try {
-      const clientIds = await this.redis.smembers(INDEX_KEY);
+      const clientIds = await this.redis.smembers(this.INDEX_KEY);
 
       if (clientIds?.length === 0) {
         return;
       }
 
       // Delete all client keys
-      const keys = clientIds.map((id: string) => `${KEY_PREFIX}${id}`);
-      await this.redis.del(...keys, INDEX_KEY);
+      const keys = clientIds.map((id: string) => `${this.KEY_PREFIX}${id}`);
+      await this.redis.del(...keys, this.INDEX_KEY);
 
       logger.warn('All clients cleared from Redis', { count: clientIds.length });
     } catch (error) {

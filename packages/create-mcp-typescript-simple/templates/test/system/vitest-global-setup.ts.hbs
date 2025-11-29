@@ -160,12 +160,13 @@ export default async function globalSetup(): Promise<void> {
     globalHttpServer = spawn('npx', ['tsx', 'src/index.ts'], {
       env: {
         ...process.env,
-        NODE_ENV: 'development',  // Use development to show error details in test logs
+        NODE_ENV: 'test',  // Use test environment to enable InMemoryTestTokenStore (no encryption needed)
         MCP_MODE: 'streamable_http',
         HTTP_PORT: httpPort,
         MCP_DEV_SKIP_AUTH: 'true',
         TOKEN_ENCRYPTION_KEY: 'Wp3suOcV+clee' + 'wUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=',  // Test key (split to avoid false positive secret detection)
-        ALLOWED_ORIGINS: `http://localhost:{{basePort}},http://localhost:{{add basePort 1}}`,  // Allow CORS from test client ports
+        // Note: No ALLOWED_ORIGINS set - allows all origins for local testing
+        // Production deployments should set ALLOWED_ORIGINS explicitly in .env
       },
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,

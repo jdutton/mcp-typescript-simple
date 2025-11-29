@@ -13,6 +13,7 @@ import { OAuthSessionStore } from '../interfaces/session-store.js';
 import { MemorySessionStore } from '../stores/memory/memory-session-store.js';
 import { RedisSessionStore } from '../stores/redis/redis-session-store.js';
 import { logger } from '../logger.js';
+import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
 
 export type SessionStoreType = 'memory' | 'redis' | 'auto';
 
@@ -84,7 +85,9 @@ export class SessionStoreFactory {
       );
     }
 
-    return new RedisSessionStore();
+    const keyPrefix = getRedisKeyPrefix();
+
+    return new RedisSessionStore(process.env.REDIS_URL, keyPrefix);
   }
 
   /**

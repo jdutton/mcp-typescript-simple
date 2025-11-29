@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 import path, { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import fs from 'fs-extra';
 import { promptForConfig, getDefaultConfig } from './prompts.js';
 import { generateProject } from './generator.js';
 import type { CliOptions, ProjectConfig } from './types.js';
@@ -54,6 +55,61 @@ async function installDependencies(projectPath: string): Promise<void> {
 }
 
 /**
+ * Validate and normalize project name
+ */
+function validateAndNormalizeProjectName(projectName: string | undefined): { targetDir: string; effectiveProjectName: string } {
+  // Handle special case: "." means current directory
+  if (projectName === '.') {
+    const effectiveProjectName = path.basename(process.cwd());
+
+    // Validate the derived name
+    if (!/^[a-z0-9-_]+$/.test(effectiveProjectName)) {
+      console.error(chalk.red('\n❌ Invalid directory name for project'));
+      console.error(chalk.yellow(`   Current directory name "${effectiveProjectName}" must be lowercase with only letters, numbers, dashes, and underscores`));
+      console.error(chalk.yellow('   Please rename the directory or create a new project with a valid name\n'));
+      process.exit(1);
+    }
+
+    return { targetDir: '.', effectiveProjectName };
+  }
+
+  // Validate project name if provided
+  if (projectName && !/^[a-z0-9-_]+$/.test(projectName)) {
+    console.error(chalk.red('\n❌ Invalid project name'));
+    console.error(chalk.yellow('   Project name must be lowercase with only letters, numbers, dashes, and underscores\n'));
+    process.exit(1);
+  }
+
+  return {
+    targetDir: projectName ?? '',
+    effectiveProjectName: projectName ?? ''
+  };
+}
+
+/**
+ * Get project configuration from user or defaults
+ */
+async function getProjectConfig(effectiveProjectName: string, projectName: string | undefined, options: CliOptions): Promise<ProjectConfig> {
+  if (options.yes) {
+    if (!effectiveProjectName) {
+      console.error(chalk.red('\n❌ Project name is required with --yes flag\n'));
+      process.exit(1);
+    }
+
+    const config = await getDefaultConfig(effectiveProjectName);
+    if (projectName === '.') {
+      console.log(chalk.cyan(`\n✨ Scaffolding into current directory with project name "${effectiveProjectName}"\n`));
+    } else {
+      console.log(chalk.cyan(`\n✨ Creating ${effectiveProjectName} with default configuration\n`));
+    }
+    return config;
+  }
+
+  // Interactive prompts
+  return await promptForConfig(effectiveProjectName);
+}
+
+/**
  * Display next steps for the user
  */
 function displayNextSteps(config: ProjectConfig, projectPath: string): void {
@@ -98,40 +154,31 @@ program
   .option('-y, --yes', 'Skip prompts and use defaults')
   .action(async (projectName: string | undefined, options: CliOptions) => {
     try {
-      // Validate project name if provided
-      if (projectName && !/^[a-z0-9-_]+$/.test(projectName)) {
-        console.error(chalk.red('\n❌ Invalid project name'));
-        console.error(chalk.yellow('   Project name must be lowercase with only letters, numbers, dashes, and underscores\n'));
-        process.exit(1);
-      }
+      // Validate and normalize project name
+      const { targetDir, effectiveProjectName } = validateAndNormalizeProjectName(projectName);
 
-      let config: ProjectConfig;
+      // Get project configuration (interactive or defaults)
+      const config = await getProjectConfig(effectiveProjectName, projectName, options);
 
-      // Get configuration
-      if (options.yes) {
-        if (!projectName) {
-          console.error(chalk.red('\n❌ Project name is required with --yes flag\n'));
-          process.exit(1);
-        }
+      // Generate project (pass targetDir which may be ".")
+      const projectTargetDir = targetDir || config.name;
+      await generateProject(config, projectTargetDir);
 
-        config = await getDefaultConfig(projectName);
-        console.log(chalk.cyan(`\n✨ Creating ${projectName} with default configuration\n`));
+      const projectPath = path.resolve(process.cwd(), projectTargetDir);
+
+      // Initialize git only if not already a git repository
+      const isGitRepo = await fs.pathExists(path.join(projectPath, '.git'));
+      if (!isGitRepo) {
+        await initGit(projectPath);
       } else {
-        // Interactive prompts
-        config = await promptForConfig(projectName);
+        console.log(chalk.cyan('ℹ️  Git repository already exists, skipping initialization\n'));
       }
-
-      // Generate project
-      await generateProject(config, config.name);
-
-      // Always initialize git
-      await initGit(path.resolve(process.cwd(), config.name));
 
       // Always install dependencies
-      await installDependencies(path.resolve(process.cwd(), config.name));
+      await installDependencies(projectPath);
 
       // Display next steps
-      displayNextSteps(config, config.name);
+      displayNextSteps(config, projectTargetDir);
     } catch (error) {
       console.error(chalk.red('\n❌ Error creating project:'));
       console.error(chalk.gray(`  ${error instanceof Error ? error.message : String(error)}\n`));

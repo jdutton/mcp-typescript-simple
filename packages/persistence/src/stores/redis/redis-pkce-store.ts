@@ -8,13 +8,14 @@
 import { Redis } from 'ioredis';
 import { PKCEStore, PKCEData } from '../../interfaces/pkce-store.js';
 import { logger } from '../../logger.js';
+import { normalizeKeyPrefix } from './redis-utils.js';
 
 export class RedisPKCEStore implements PKCEStore {
-  private readonly keyPrefix = 'oauth:pkce:';
+  private readonly keyPrefix: string;
   private readonly defaultTTL = 600; // 10 minutes in seconds
   private redis: Redis;
 
-  constructor(redisUrl?: string) {
+  constructor(redisUrl?: string, keyPrefix: string = '') {
     const url = redisUrl ?? process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
@@ -30,12 +31,16 @@ export class RedisPKCEStore implements PKCEStore {
       lazyConnect: false, // Connect immediately to detect issues early
     });
 
+    // Normalize key prefix (adds trailing colon if needed)
+    const normalized = normalizeKeyPrefix(keyPrefix);
+    this.keyPrefix = `${normalized}oauth:pkce:`;
+
     this.redis.on('error', (error: Error) => {
       logger.error('Redis PKCE store error', error as unknown as Record<string, unknown>);
     });
 
     this.redis.on('connect', () => {
-      logger.info('Redis PKCE store connected');
+      logger.info('Redis PKCE store connected', { keyPrefix: this.keyPrefix });
     });
   }
 

@@ -16,6 +16,7 @@ import { RedisTokenStore } from '../stores/redis/redis-token-store.js';
 import { TokenEncryptionService } from '../encryption/token-encryption-service.js';
 import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
+import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
 
 export type TokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
 
@@ -194,7 +195,9 @@ export class TokenStoreFactory {
     // Create encryption service
     const encryptionService = new TokenEncryptionService({ encryptionKey });
 
-    return new RedisTokenStore(process.env.REDIS_URL, encryptionService);
+    const keyPrefix = getRedisKeyPrefix();
+
+    return new RedisTokenStore(process.env.REDIS_URL, encryptionService, keyPrefix);
   }
 
   /**
