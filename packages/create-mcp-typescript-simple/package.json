@@ -1,6 +1,6 @@
 {
   "name": "create-mcp-typescript-simple",
-  "version": "0.9.1-rc.1",
+  "version": "0.9.1-rc.2",
   "description": "Scaffolding tool for creating production-ready MCP TypeScript Simple servers",
   "type": "module",
   "bin": {

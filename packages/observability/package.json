@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/observability",
-  "version": "0.9.1-rc.1",
+  "version": "0.9.1-rc.2",
   "description": "Production-ready OpenTelemetry observability for MCP servers",
   "type": "module",
   "main": "./dist/index.js",
