@@ -9,6 +9,33 @@ import { Redis } from 'ioredis';
 import { logger } from '../../logger.js';
 
 /**
+ * Get Redis key prefix from environment variable
+ *
+ * @returns Key prefix from REDIS_KEY_PREFIX env var (empty string if not set)
+ */
+export function getRedisKeyPrefix(): string {
+  return process.env.REDIS_KEY_PREFIX ?? '';
+}
+
+/**
+ * Normalize Redis key prefix by ensuring it ends with a colon separator
+ *
+ * Converts:
+ * - 'mcp-main' → 'mcp-main:'
+ * - 'mcp-main:' → 'mcp-main:' (no change)
+ * - '' → '' (empty string stays empty for backward compatibility)
+ *
+ * @param prefix User-provided key prefix (may or may not include trailing colon)
+ * @returns Normalized prefix with trailing colon (or empty string if no prefix)
+ */
+export function normalizeKeyPrefix(prefix: string): string {
+  if (!prefix) {
+    return ''; // Empty prefix for backward compatibility
+  }
+  return prefix.endsWith(':') ? prefix : `${prefix}:`;
+}
+
+/**
  * Mask sensitive parts of Redis URL for logging
  *
  * Hides password in Redis URLs to prevent credential leakage in logs.

@@ -38,20 +38,16 @@ import {
 } from '../../interfaces/token-store.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { maskRedisUrl } from './redis-utils.js';
-
-/**
- * Redis key prefixes for namespacing
- */
-const KEY_PREFIX = 'dcr:token:';
-const VALUE_PREFIX = 'dcr:value:';
-const INDEX_KEY = 'dcr:tokens:all';
+import { maskRedisUrl, normalizeKeyPrefix } from './redis-utils.js';
 
 export class RedisTokenStore implements InitialAccessTokenStore {
   private redis: Redis;
   private readonly encryptionService: TokenEncryptionService;
+  private readonly KEY_PREFIX: string;
+  private readonly VALUE_PREFIX: string;
+  private readonly INDEX_KEY: string;
 
-  constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService) {
+  constructor(redisUrl: string | undefined, encryptionService: TokenEncryptionService, keyPrefix: string = '') {
     const url = redisUrl ?? process.env.REDIS_URL;
     if (!url) {
       throw new Error('Redis URL not configured. Set REDIS_URL environment variable.');
@@ -70,12 +66,18 @@ export class RedisTokenStore implements InitialAccessTokenStore {
       lazyConnect: true,
     });
 
+    // Normalize key prefix (adds trailing colon if needed)
+    const normalized = normalizeKeyPrefix(keyPrefix);
+    this.KEY_PREFIX = `${normalized}dcr:token:`;
+    this.VALUE_PREFIX = `${normalized}dcr:value:`;
+    this.INDEX_KEY = `${normalized}dcr:tokens:all`;
+
     this.redis.on('error', (error: Error) => {
       logger.error('Redis connection error', { error });
     });
 
     this.redis.on('connect', () => {
-      logger.info('Redis connected successfully for DCR tokens');
+      logger.info('Redis connected successfully for DCR tokens', { keyPrefix: this.KEY_PREFIX });
     });
 
     // Connect immediately
@@ -89,7 +91,8 @@ export class RedisTokenStore implements InitialAccessTokenStore {
 
     logger.info('RedisTokenStore initialized', {
       url: maskRedisUrl(url),
-      encryption: 'enabled (required)'
+      encryption: 'enabled (required)',
+      keyPrefix: this.KEY_PREFIX
     });
   }
 
@@ -127,7 +130,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
    * NOTE: IDs are UUIDs (not sensitive), but we hash for consistency
    */
   private getTokenKey(id: string): string {
-    return `${KEY_PREFIX}${id}`;
+    return `${this.KEY_PREFIX}${id}`;
   }
 
   /**
@@ -139,7 +142,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
    */
   private getValueKey(token: string): string {
     const hashedToken = this.encryptionService.hashKey(token);
-    return `${VALUE_PREFIX}${hashedToken}`;
+    return `${this.VALUE_PREFIX}${hashedToken}`;
   }
 
   async createToken(options: CreateTokenOptions): Promise<InitialAccessToken> {
@@ -166,7 +169,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     }
 
     // Add to index (for listing)
-    await this.redis.sadd(INDEX_KEY, tokenData.id);
+    await this.redis.sadd(this.INDEX_KEY, tokenData.id);
 
     logger.info('Initial access token created in Redis', {
       tokenId: tokenData.id,
@@ -259,7 +262,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     includeExpired?: boolean;
   }): Promise<InitialAccessToken[]> {
     // Get all token IDs from index
-    const ids = await this.redis.smembers(INDEX_KEY);
+    const ids = await this.redis.smembers(this.INDEX_KEY);
 
     if (ids.length === 0) {
       return [];
@@ -303,7 +306,7 @@ export class RedisTokenStore implements InitialAccessTokenStore {
     await this.redis.del(valueKey);
 
     // Remove from index
-    await this.redis.srem(INDEX_KEY, id);
+    await this.redis.srem(this.INDEX_KEY, id);
 
     logger.info('Token deleted', { tokenId: id });
     return true;

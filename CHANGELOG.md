@@ -14,6 +14,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.1-rc.2] - 2025-11-28
+
+### Added
+
+- **Redis key prefix support for multi-tenant deployments** (addresses Vercel canary deployment needs)
+  - **Problem**: Multiple MCP apps sharing the same Redis instance had key conflicts (e.g., both writing to `oauth:client:abc123`)
+  - **Solution**: Added `REDIS_KEY_PREFIX` environment variable with automatic colon separator normalization
+  - **Impact**: Can now run multiple MCP apps on same Redis: `REDIS_KEY_PREFIX=mcp-main` creates `mcp-main:oauth:client:`, `mcp-canary` creates `mcp-canary:oauth:client:`
+  - Backward compatible: Empty prefix by default (existing deployments unaffected)
+  - Documented in all .env templates with default value `mcp-persistence`
+  - DRY implementation: Single `getRedisKeyPrefix()` utility used across all 6 factories
+
+### Fixed
+
+- **Fixed system tests failing after scaffolding** (Issue discovered in canary project testing)
+  - **Problem**: Scaffolded projects had system tests failing with CORS errors and module resolution issues
+  - **Solution**: Removed ALLOWED_ORIGINS from test environment (allows all origins for local testing) and fixed NODE_ENV to use 'test' mode
+  - **Impact**: Scaffolded projects now have passing system tests out-of-the-box (16/16 tests pass)
+
+- **Fixed module resolution in scaffolded projects** (CRITICAL)
+  - **Problem**: Vitest configuration included workspace-style path aliases (`@mcp-typescript-simple/tools: '../tools/src'`) that only work in monorepo environments
+  - **Solution**: Removed `resolve.alias` configuration from vitest.config.ts template - packages now resolve from node_modules
+  - **Impact**: Tests and builds work correctly in standalone scaffolded projects
+
+- **Added current directory scaffolding support**
+  - **Problem**: Cannot scaffold into existing directory - common workflow blocked (clone GitHub repo → scaffold into it)
+  - **Solution**: Accept "." as special case to scaffold into current directory, using directory name as project name
+  - **Impact**: Developers can now scaffold directly into cloned repositories: `npx create-mcp-typescript-simple@next . --yes`
+
+- **Added port configuration documentation**
+  - **Problem**: Port conflicts can cause test failures, but users don't know how to change ports
+  - **Solution**: Added helpful comments in vitest.system.config.ts explaining port configuration and alternatives
+  - **Impact**: Users understand how to resolve port conflicts when they occur
+
+### Changed
+
+- System test environment now uses `NODE_ENV=test` instead of `NODE_ENV=development` for consistency with framework
+- CORS policy in test environment now allows all origins (no ALLOWED_ORIGINS restriction) for local testing
+- Added clarifying comments about production CORS configuration in test setup files
+
+---
+
 ## [0.9.0] - 2025-11-18
 
 ### First Public Release

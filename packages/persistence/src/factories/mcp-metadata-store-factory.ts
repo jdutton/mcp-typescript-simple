@@ -17,6 +17,7 @@ import { TokenEncryptionService } from '../encryption/token-encryption-service.j
 import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 import { getDataPath } from '../utils/data-paths.js';
+import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
 
 export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'redis' | 'auto';
 
@@ -186,7 +187,9 @@ export class MCPMetadataStoreFactory {
 
     const encryptionService = new TokenEncryptionService({ encryptionKey });
 
-    return new RedisMCPMetadataStore(redisUrl, encryptionService);
+    const keyPrefix = getRedisKeyPrefix();
+
+    return new RedisMCPMetadataStore(redisUrl, encryptionService, keyPrefix);
   }
 
   /**
