@@ -1,6 +1,6 @@
 {
   "name": "@mcp-typescript-simple/http-server",
-  "version": "0.9.1-rc.1",
+  "version": "0.9.1-rc.2",
   "description": "HTTP server infrastructure for MCP with session management, middleware, and transport layers",
   "type": "module",
   "main": "./dist/index.js",

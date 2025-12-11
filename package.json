@@ -1,6 +1,6 @@
 {
   "name": "mcp-typescript-simple",
-  "version": "0.9.1-rc.1",
+  "version": "0.9.1-rc.2",
   "description": "A framework for building TypeScript MCP servers",
   "main": "packages/example-mcp/dist/index.js",
   "type": "module",
@@ -211,7 +211,7 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vercel": "^48.1.0",
-    "vibe-validate": "^0.17.0-rc.9",
+    "vibe-validate": "^0.17.4",
     "vitest": "^3.2.4"
   }
 }
