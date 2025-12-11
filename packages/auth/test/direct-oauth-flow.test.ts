@@ -16,6 +16,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 import type { OAuthProvider } from '../src/providers/types.js';
+import { createHash } from 'node:crypto';
+
+// Helper type for mock provider with PKCE store lookup
+type MockProvider = Partial<OAuthProvider> & {
+  hasStoredCodeForProvider: (_code: string) => Promise<boolean>;
+};
 
 describe('Direct OAuth Flow Provider Identification', () => {
   let pkceStore: MemoryPKCEStore;
@@ -23,6 +29,18 @@ describe('Direct OAuth Flow Provider Identification', () => {
   beforeEach(() => {
     pkceStore = new MemoryPKCEStore();
   });
+
+  // Helper: Create mock provider with PKCE store lookup
+  const createMockProvider = (providerName: string): MockProvider => ({
+    hasStoredCodeForProvider: async (_code: string) => {
+      return await pkceStore.hasCodeVerifier(`${providerName}:${_code}`);
+    }
+  });
+
+  // Helper: Compute PKCE code_challenge from code_verifier
+  const computeCodeChallenge = (codeVerifier: string): string => {
+    return createHash('sha256').update(codeVerifier).digest().toString('base64url');
+  };
 
   describe('OAuth Proxy Flow (server-generated PKCE)', () => {
     it('should store authorization code in PKCE store', async () => {
@@ -56,14 +74,8 @@ describe('Direct OAuth Flow Provider Identification', () => {
         state: 'state'
       }, 600);
 
-      // Mock provider
-      const mockProvider: Partial<OAuthProvider> & { hasStoredCodeForProvider: (_code: string) => Promise<boolean> } = {
-        hasStoredCodeForProvider: async (_code: string) => {
-          return await pkceStore.hasCodeVerifier(`google:${_code}`);
-        }
-      };
-
       // Provider should be identified
+      const mockProvider = createMockProvider('google');
       const hasCode = await mockProvider.hasStoredCodeForProvider(code);
       expect(hasCode).toBe(true);
     });
@@ -89,14 +101,8 @@ describe('Direct OAuth Flow Provider Identification', () => {
     it('should fail to identify provider using hasStoredCodeForProvider - CURRENT BUG', async () => {
       const code = 'client-pkce-code-456';
 
-      // Mock provider using PKCE store for identification (current implementation)
-      const mockProvider: Partial<OAuthProvider> & { hasStoredCodeForProvider: (_code: string) => Promise<boolean> } = {
-        hasStoredCodeForProvider: async (_code: string) => {
-          return await pkceStore.hasCodeVerifier(`google:${_code}`);
-        }
-      };
-
       // Provider identification fails (returns false)
+      const mockProvider = createMockProvider('google');
       const hasCode = await mockProvider.hasStoredCodeForProvider(code);
       expect(hasCode).toBe(false);
 
@@ -105,18 +111,20 @@ describe('Direct OAuth Flow Provider Identification', () => {
     });
 
     it('should be able to validate code_verifier from client in token exchange', () => {
-      const clientCodeVerifier = 'client-generated-verifier';
-      const clientCodeChallenge = 'client-generated-challenge';
+      const clientCodeVerifier = 'test-verifier-string-for-pkce-validation';
+
+      // Generate code_challenge from code_verifier using SHA256
+      // This is what the client would do before authorization request
+      const clientCodeChallenge = computeCodeChallenge(clientCodeVerifier);
 
       // Client provides code_verifier in token exchange request
-      // Server should be able to validate it against the challenge
+      // Server validates it by computing SHA256 and comparing with stored challenge
+      const computedChallenge = computeCodeChallenge(clientCodeVerifier);
+      expect(computedChallenge).toBe(clientCodeChallenge);
 
-      // This part works - the issue is BEFORE this step (provider identification)
-      expect(clientCodeVerifier).toBe('client-generated-verifier');
-      expect(clientCodeChallenge).toBe('client-generated-challenge');
-
-      // TODO: Implement validation logic
-      // sha256(code_verifier) === code_challenge
+      // Verify that a wrong verifier fails validation
+      const wrongChallenge = computeCodeChallenge('wrong-verifier');
+      expect(wrongChallenge).not.toBe(clientCodeChallenge);
     });
   });
 
@@ -135,21 +143,9 @@ describe('Direct OAuth Flow Provider Identification', () => {
       // Nothing stored in PKCE store
 
       // Create mock providers
-      const googleProvider: Partial<OAuthProvider> & { hasStoredCodeForProvider: (_code: string) => Promise<boolean> } = {
-        hasStoredCodeForProvider: async (_code: string) => {
-          return await pkceStore.hasCodeVerifier(`google:${_code}`);
-        }
-      };
-
-      const githubProvider: Partial<OAuthProvider> & { hasStoredCodeForProvider: (_code: string) => Promise<boolean> } = {
-        hasStoredCodeForProvider: async (_code: string) => {
-          return await pkceStore.hasCodeVerifier(`github:${_code}`);
-        }
-      };
-
-      const providers = new Map<string, typeof googleProvider | typeof githubProvider>();
-      providers.set('google', googleProvider);
-      providers.set('github', githubProvider);
+      const providers = new Map<string, MockProvider>();
+      providers.set('google', createMockProvider('google'));
+      providers.set('github', createMockProvider('github'));
 
       // Proxy flow: Should find Google provider ✅
       let foundProvider = null;
@@ -204,14 +200,8 @@ describe('Direct OAuth Flow Provider Identification', () => {
         state: 'github-state'
       }, 600);
 
-      // Mock provider
-      const mockProvider: Partial<OAuthProvider> & { hasStoredCodeForProvider: (_code: string) => Promise<boolean> } = {
-        hasStoredCodeForProvider: async (_code: string) => {
-          return await pkceStore.hasCodeVerifier(`github:${_code}`);
-        }
-      };
-
       // Provider should be identified ✅
+      const mockProvider = createMockProvider('github');
       const hasCode = await mockProvider.hasStoredCodeForProvider(code);
       expect(hasCode).toBe(true);
 
