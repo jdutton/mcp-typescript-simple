@@ -240,8 +240,6 @@ Generic OAuth provider support is planned but not yet implemented. Currently sup
 
 ```bash
 NODE_ENV=production
-SESSION_SECRET=random-secret-at-least-32-chars
-SESSION_TIMEOUT_MINUTES=60
 REQUIRE_HTTPS=true
 ```
 

@@ -60,7 +60,6 @@ describe('Session Reconstruction Integration Tests', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: false, // Skip OAuth for testing
-      sessionSecret: 'test-secret',
       enableResumability: true, // REQUIRED for session reconstruction tests
       enableJsonResponse: true,
       toolRegistry: toolRegistry, // Pass pre-populated tool registry for session reconstruction

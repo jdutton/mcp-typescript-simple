@@ -77,7 +77,6 @@ describe('MCPStreamableHttpServer', () => {
       host: '127.0.0.1',
       endpoint: '/stream',
       requireAuth: false,
-      sessionSecret: 'secret',
       enableResumability: false,
       enableJsonResponse: false,
       ...options

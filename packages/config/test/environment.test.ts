@@ -25,7 +25,6 @@ describe('EnvironmentConfig', () => {
     delete process.env.REQUIRE_HTTPS;
     delete process.env.ALLOWED_ORIGINS;
     delete process.env.ALLOWED_HOSTS;
-    delete process.env.SESSION_SECRET;
     delete process.env.NODE_ENV;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
@@ -47,7 +46,6 @@ describe('EnvironmentConfig', () => {
     expect(security.requireHttps).toBe(false);
     expect(security.allowedOrigins).toBeUndefined();
     expect(security.allowedHosts).toBeUndefined();
-    expect(security.sessionSecret).toBe('dev-session-secret-change-in-production');
   });
 
   test('parses provided environment variables into strongly typed configuration', () => {
@@ -58,7 +56,6 @@ describe('EnvironmentConfig', () => {
     process.env.REQUIRE_HTTPS = 'true';
     process.env.ALLOWED_ORIGINS = 'https://one.example,https://two.example';
     process.env.ALLOWED_HOSTS = 'one.example,two.example';
-    process.env.SESSION_SECRET = 'super-secret';
     process.env.NODE_ENV = 'production';
 
     EnvironmentConfig.reset();
@@ -86,7 +83,6 @@ describe('EnvironmentConfig', () => {
       'one.example',
       'two.example'
     ]);
-    expect(security.sessionSecret).toBe('super-secret');
   });
 
   describe('Secret Status Reporting', () => {
@@ -123,22 +119,6 @@ describe('EnvironmentConfig', () => {
       expect(status.secrets.configured).not.toContain('GOOGLE_CLIENT_SECRET');
       expect(status.secrets.missing).toContain('GOOGLE_CLIENT_ID');
       expect(status.secrets.missing).toContain('GOOGLE_CLIENT_SECRET');
-    });
-
-    it('correctly reports SESSION_SECRET as missing only when using default value', () => {
-      // Test with default value - should be missing
-      delete process.env.SESSION_SECRET;
-      EnvironmentConfig.reset();
-      let status = EnvironmentConfig.getConfigurationStatus();
-      expect(status.secrets.missing).toContain('SESSION_SECRET');
-      expect(status.secrets.configured).not.toContain('SESSION_SECRET');
-
-      // Test with custom value - should be configured
-      process.env.SESSION_SECRET = 'my-custom-secret';
-      EnvironmentConfig.reset();
-      status = EnvironmentConfig.getConfigurationStatus();
-      expect(status.secrets.configured).toContain('SESSION_SECRET');
-      expect(status.secrets.missing).not.toContain('SESSION_SECRET');
     });
   });
 });

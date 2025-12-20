@@ -55,7 +55,6 @@ describe('Health Routes Integration', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: true,
-      sessionSecret: 'test-secret',
       enableResumability: true,
       enableJsonResponse: true,
     });
@@ -298,7 +297,6 @@ describe('Health Routes Integration', () => {
         host: 'localhost',
         endpoint: '/mcp',
         requireAuth: false,
-        sessionSecret: 'test-secret',
         enableResumability: false,
         enableJsonResponse: false,
       });

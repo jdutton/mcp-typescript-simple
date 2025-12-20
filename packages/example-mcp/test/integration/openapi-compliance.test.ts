@@ -43,7 +43,6 @@ describe('OpenAPI Compliance Integration Tests', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: false, // No auth for compliance testing
-      sessionSecret: 'test-secret',
     });
 
     await server.initialize();

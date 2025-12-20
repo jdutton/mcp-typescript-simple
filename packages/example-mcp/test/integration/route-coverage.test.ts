@@ -28,7 +28,6 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: false,
-      sessionSecret: 'test-secret',
     });
 
     await server.initialize();

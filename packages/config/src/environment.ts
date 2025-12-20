@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { BaseConfigSchema, SessionSecretSchema, TransportMode } from './base-config.js';
+import { BaseConfigSchema, TransportMode } from './base-config.js';
 import { OAuthConfigSchema, OAuthSecretsSchema } from './oauth-config.js';
 import { LLMSecretsSchema } from './llm-config.js';
 import { StorageConfigSchema } from './storage-config.js';
@@ -25,8 +25,7 @@ export const ConfigurationSchema = BaseConfigSchema
 /**
  * Secret configuration schema (never log)
  */
-export const SecretsSchema = SessionSecretSchema
-  .merge(OAuthSecretsSchema)
+export const SecretsSchema = OAuthSecretsSchema
   .merge(LLMSecretsSchema);
 
 /**
@@ -124,7 +123,6 @@ export class EnvironmentConfig {
       REQUIRE_HTTPS: process.env.REQUIRE_HTTPS === 'true',
       ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS,
       ALLOWED_HOSTS: process.env.ALLOWED_HOSTS,
-      SESSION_SECRET: process.env.SESSION_SECRET ?? 'dev-session-secret-change-in-production',
       NODE_ENV: process.env.NODE_ENV ?? 'development',
 
       // LLM Provider API keys
@@ -169,20 +167,11 @@ export class EnvironmentConfig {
 
     for (const key of secretKeys) {
       const value = env[key];
-      // Special handling for SESSION_SECRET which has a default value
-      if (key === 'SESSION_SECRET') {
-        if (value && value !== 'dev-session-secret-change-in-production') {
-          configured.push(key);
-        } else {
-          missing.push(key);
-        }
+      // Check if secret has a value
+      if (value) {
+        configured.push(key);
       } else {
-        // For all other secrets, just check if they have a value
-        if (value) {
-          configured.push(key);
-        } else {
-          missing.push(key);
-        }
+        missing.push(key);
       }
     }
 
@@ -355,7 +344,6 @@ export class EnvironmentConfig {
     requireHttps: boolean;
     allowedOrigins: string[] | undefined;
     allowedHosts: string[] | undefined;
-    sessionSecret: string;
   } {
     const env = this.get();
 
@@ -363,7 +351,6 @@ export class EnvironmentConfig {
       requireHttps: env.REQUIRE_HTTPS || this.isProduction(),
       allowedOrigins: env.ALLOWED_ORIGINS ? env.ALLOWED_ORIGINS.split(',') : undefined,
       allowedHosts: env.ALLOWED_HOSTS ? env.ALLOWED_HOSTS.split(',') : undefined,
-      sessionSecret: env.SESSION_SECRET,
     };
   }
 

@@ -65,7 +65,6 @@ describe('OAuth 2.0 Dynamic Client Registration (DCR) Endpoints', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: true,
-      sessionSecret: 'test-secret-dcr',
       enableResumability: true,
       enableJsonResponse: true,
     });

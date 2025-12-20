@@ -193,7 +193,6 @@ EXPOSE 8080
 - [ ] Configure real Google OAuth credentials
 - [ ] Set `REQUIRE_HTTPS=true`
 - [ ] Configure `ALLOWED_ORIGINS`
-- [ ] Set secure `SESSION_SECRET`
 - [ ] Configure SSL/TLS certificates
 - [ ] Set up reverse proxy (nginx, etc.)
 - [ ] Configure monitoring and logging
