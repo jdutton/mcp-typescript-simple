@@ -58,24 +58,32 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
-   * Get stored code_verifier for an authorization code (OAuth proxy PKCE)
-   * Returns the server's code_verifier if it was stored, undefined otherwise
+   * Get stored code_verifier for an authorization code
+   *
+   * Returns:
+   * - Non-empty string: OAuth Proxy Flow (server-generated PKCE)
+   * - Empty string '': Direct OAuth Flow (client-provided PKCE)
+   * - undefined: Code not found (expired, used, or wrong provider)
    */
   protected async getStoredCodeVerifier(code: string): Promise<string | undefined> {
     const data = await this.pkceStore.getCodeVerifier(this.getProviderCodeKey(code));
     if (data) {
-      logger.oauthDebug('Retrieved stored code_verifier', {
+      const flowType = data.codeVerifier ? 'OAuth Proxy' : 'Direct OAuth';
+      logger.oauthDebug(`Retrieved stored authorization code data (${flowType} flow)`, {
         provider: this.getProviderName(),
         codePrefix: this.getSafePrefix(code),
-        verifierPrefix: this.getSafePrefix(data.codeVerifier)
+        verifierPrefix: data.codeVerifier ? this.getSafePrefix(data.codeVerifier) : '(client-provided)',
+        flowType
       });
       return data.codeVerifier;
     }
 
-    // Warning: PKCE lookup failed - could indicate multi-instance issue or code reuse
-    logger.oauthWarn('PKCE lookup failed - code_verifier not found', {
+    // Debug: PKCE lookup failed - code not in store
+    // This is not always an error - could be checking wrong provider in multi-provider setup
+    logger.oauthDebug('Authorization code not found in PKCE store for this provider', {
       provider: this.getProviderName(),
-      codePrefix: this.getSafePrefix(code)
+      codePrefix: this.getSafePrefix(code),
+      message: 'This is expected when checking multiple providers - not necessarily an error'
     });
 
     return undefined;
@@ -100,9 +108,10 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   protected async resolveCodeVerifierForTokenExchange(code: string, clientCodeVerifier?: string): Promise<string | undefined> {
     const storedCodeVerifier = await this.getStoredCodeVerifier(code);
 
-    // OAuth Proxy Flow: Server generated PKCE and stored it
+    // OAuth Proxy Flow: Server generated and stored non-empty code_verifier
     // Client MUST NOT provide code_verifier (they don't have it)
-    if (storedCodeVerifier) {
+    // Security: Ignore any client-provided verifier to prevent PKCE bypass attacks
+    if (storedCodeVerifier && storedCodeVerifier !== '') {
       if (clientCodeVerifier) {
         logger.oauthWarn('OAuth Proxy Flow: Client attempted to provide code_verifier when server already stored one', {
           provider: this.getProviderType(),
@@ -115,25 +124,46 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       return storedCodeVerifier;
     }
 
-    // Direct OAuth Flow: Client generated PKCE (sent code_challenge)
-    // Client MUST provide code_verifier
-    if (clientCodeVerifier) {
-      logger.oauthDebug('Direct OAuth Flow: Using client-provided code_verifier', {
+    // Direct OAuth Flow: Server stored empty code_verifier (client provided code_challenge)
+    // Client MUST provide code_verifier in token exchange request
+    if (storedCodeVerifier === '') {
+      if (clientCodeVerifier) {
+        logger.oauthDebug('Direct OAuth Flow: Using client-provided code_verifier', {
+          provider: this.getProviderType(),
+          codePrefix: this.getSafePrefix(code),
+          verifierPrefix: this.getSafePrefix(clientCodeVerifier)
+        });
+        return clientCodeVerifier;
+      }
+
+      // Error: Direct OAuth Flow but client didn't provide verifier
+      logger.oauthError('Direct OAuth Flow: Client must provide code_verifier but none provided', {
         provider: this.getProviderType(),
         codePrefix: this.getSafePrefix(code),
-        verifierPrefix: this.getSafePrefix(clientCodeVerifier)
+        message: 'Client initiated Direct OAuth Flow (provided code_challenge) but failed to provide code_verifier in token exchange'
       });
-      return clientCodeVerifier;
+      return undefined;
     }
 
-    // Invalid: No code_verifier available from either source
-    logger.oauthError('Token exchange failed: No code_verifier available', {
-      provider: this.getProviderType(),
-      codePrefix: this.getSafePrefix(code),
-      hasStored: !!storedCodeVerifier,
-      hasClient: !!clientCodeVerifier,
-      message: 'Authorization code may have expired or been used already'
-    });
+    // Code not found in PKCE store (storedCodeVerifier === undefined)
+    // This could be:
+    // 1. Authorization code expired or already used
+    // 2. Wrong provider (code issued by different provider in multi-provider setup)
+    // 3. Client provided code_verifier without prior authorization (security violation)
+    if (clientCodeVerifier) {
+      logger.oauthWarn('Code not found in PKCE store but client provided code_verifier', {
+        provider: this.getProviderType(),
+        codePrefix: this.getSafePrefix(code),
+        clientVerifierPrefix: this.getSafePrefix(clientCodeVerifier),
+        message: 'Rejecting - authorization code may have expired, been used, or issued by different provider'
+      });
+    } else {
+      logger.oauthError('Token exchange failed: No code_verifier available from any source', {
+        provider: this.getProviderType(),
+        codePrefix: this.getSafePrefix(code),
+        message: 'Authorization code not found in PKCE store and client did not provide code_verifier'
+      });
+    }
 
     return undefined;
   }
@@ -883,23 +913,30 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
       // - Periodic cleanup task (runs every 5 minutes via cleanup() method)
       // This prevents memory leaks and session ID exhaustion in high-traffic scenarios
 
-      // CRITICAL: Store authorization code → { code_verifier, state } mapping for PKCE
-      // This is needed when server generated PKCE (client didn't provide code_challenge)
-      // but client will perform the token exchange with the code
+      // CRITICAL: Store authorization code → { code_verifier, state } mapping for provider identification
+      //
+      // OAuth Proxy Flow: Server generated PKCE → store code_verifier for token exchange
+      // Direct OAuth Flow: Client generated PKCE → store empty code_verifier (client will provide it)
+      //
+      // Provider identification requires this mapping to route token exchange requests
+      // to the correct provider in multi-provider deployments. Without this mapping,
+      // Direct OAuth Flow fails with "invalid_grant" error.
+      //
       // Also stores state for session cleanup after successful token exchange
-      if (session.codeVerifier) {
-        await this.pkceStore.storeCodeVerifier(this.getProviderCodeKey(code), {
-          codeVerifier: session.codeVerifier,
-          state: state
-        }, this.PKCE_TTL_SECONDS);
-        logger.oauthDebug('Stored code_verifier and state for OAuth proxy flow', {
-          provider: providerName,
-          codePrefix: code.substring(0, 10),
-          codeVerifierPrefix: session.codeVerifier.substring(0, 10),
-          statePrefix: state.substring(0, 8),
-          ttlSeconds: this.PKCE_TTL_SECONDS
-        });
-      }
+      await this.pkceStore.storeCodeVerifier(this.getProviderCodeKey(code), {
+        codeVerifier: session.codeVerifier || '', // Empty string for Direct OAuth Flow
+        state: state
+      }, this.PKCE_TTL_SECONDS);
+
+      const flowType = session.codeVerifier ? 'OAuth Proxy' : 'Direct OAuth';
+      logger.oauthDebug(`Stored authorization code mapping for ${flowType} flow`, {
+        provider: providerName,
+        codePrefix: code.substring(0, 10),
+        codeVerifierPrefix: session.codeVerifier ? session.codeVerifier.substring(0, 10) : '(client-provided)',
+        statePrefix: state.substring(0, 8),
+        ttlSeconds: this.PKCE_TTL_SECONDS,
+        flowType
+      });
 
       logger.oauthDebug('Preserving session for client token exchange', {
         provider: providerName,

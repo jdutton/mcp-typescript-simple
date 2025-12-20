@@ -211,7 +211,7 @@
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",
     "vercel": "^48.1.0",
-    "vibe-validate": "^0.17.0-rc.9",
+    "vibe-validate": "^0.17.4",
     "vitest": "^3.2.4"
   }
 }

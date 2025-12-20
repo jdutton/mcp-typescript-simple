@@ -14,6 +14,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.2] - 2025-12-11
+
+### Fixed
+
+- **Fixed Direct OAuth Flow failing with 'invalid_grant' error** (Issue #107)
+  - **Problem**: OAuth clients providing their own PKCE parameters (e.g., Claude Code, MCP Inspector) failed during token exchange because the server wasn't storing authorization code mappings
+  - **Root Cause**: In Direct OAuth Flow, the server wasn't storing the authorization code in the PKCE store, causing provider identification to fail in multi-provider deployments
+  - **Solution**: Always store authorization code mappings using empty string `''` as sentinel value for Direct OAuth Flow, allowing provider identification while maintaining security
+  - **Impact**: Claude Code and MCP Inspector OAuth integrations now work correctly; multi-provider routing works as expected
+
+### Added
+
+- **Comprehensive getting-started documentation**
+  - `docs/getting-started/01-overview.md` - Framework overview and architecture
+  - `docs/getting-started/02-http-session-management.md` - HTTP session management patterns
+  - `docs/getting-started/03-tool-registry-http-mode.md` - Tool registry for HTTP mode
+
+### Improved
+
+- **Test coverage for Direct OAuth Flow** - Added 11 comprehensive test cases validating authorization, token exchange, and provider identification
+- **Reduced code duplication** - Refactored test helpers to eliminate 42 lines of duplicated code (14.3% reduction)
+- **PKCE validation** - Implemented proper SHA256 code_challenge verification in tests
+
+---
+
 ## [0.9.1-rc.2] - 2025-11-28
 
 ### Added

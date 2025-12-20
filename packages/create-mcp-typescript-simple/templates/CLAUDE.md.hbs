@@ -9,6 +9,25 @@ Production-ready MCP server built with `@mcp-typescript-simple` framework.
 **Framework Version:** {{frameworkVersion}}
 **Generated:** {{currentDate}}
 
+## Framework Source Code
+
+**GitHub Repository:** https://github.com/jdutton/mcp-typescript-simple
+
+**Local Development:** Framework source may be in `../mcp-typescript-simple` for debugging/reference
+
+**Key Packages Used:**
+- `@mcp-typescript-simple/http-server` - HTTP transport, OAuth routes, session management
+- `@mcp-typescript-simple/config` - Environment configuration with Zod validation
+- `@mcp-typescript-simple/auth` - OAuth providers (Google, GitHub, Microsoft)
+- `@mcp-typescript-simple/tools` - Tool registry and definitions
+- `@mcp-typescript-simple/persistence` - Redis/file/memory storage backends
+- `@mcp-typescript-simple/observability` - OpenTelemetry integration
+
+**Quick Reference:**
+- Source code: `node_modules/@mcp-typescript-simple/<package>/dist/`
+- Package READMEs: `node_modules/@mcp-typescript-simple/<package>/README.md`
+- TypeScript types: `node_modules/@mcp-typescript-simple/<package>/dist/**/*.d.ts`
+
 ## Features
 
 - ✅ Basic MCP tools (hello, echo, current-time)
