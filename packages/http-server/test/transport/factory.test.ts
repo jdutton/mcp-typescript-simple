@@ -30,7 +30,7 @@ describe('TransportFactory', () => {
   it('creates streamable HTTP transport with resumability enabled', () => {
     vi.spyOn(EnvironmentConfig, 'getTransportMode').mockReturnValue(TransportMode.STREAMABLE_HTTP);
     vi.spyOn(EnvironmentConfig, 'getServerConfig').mockReturnValue({ port: 3000, host: 'localhost', mode: TransportMode.STREAMABLE_HTTP });
-    vi.spyOn(EnvironmentConfig, 'getSecurityConfig').mockReturnValue({ allowedOrigins: undefined, allowedHosts: undefined, sessionSecret: 'secret', requireHttps: false });
+    vi.spyOn(EnvironmentConfig, 'getSecurityConfig').mockReturnValue({ allowedOrigins: undefined, allowedHosts: undefined, requireHttps: false });
     vi.spyOn(EnvironmentConfig, 'shouldSkipAuth').mockReturnValue(true);
 
     const transport = TransportFactory.createFromEnvironment();
@@ -50,7 +50,6 @@ describe('TransportFactory', () => {
       requireAuth: false,
       allowedOrigins: [],
       allowedHosts: [],
-      sessionSecret: 'secret',
       enableResumability: false,
       enableJsonResponse: false
     });
@@ -92,7 +91,6 @@ describe('TransportFactory', () => {
         requireAuth: true,
         allowedOrigins: ['http://example.com'],
         allowedHosts: ['example.com'],
-        sessionSecret: 'test-secret',
         enableResumability: true,
         enableJsonResponse: true
       };
@@ -192,7 +190,6 @@ describe('TransportFactory', () => {
         requireAuth: false,
         allowedOrigins: ['*'],
         allowedHosts: ['localhost'],
-        sessionSecret: 'test-session-secret',
         enableResumability: true,
         enableJsonResponse: false
       };
@@ -224,7 +221,6 @@ describe('TransportFactory', () => {
         requireAuth: true,
         allowedOrigins: [],
         allowedHosts: [],
-        sessionSecret: 'secure-secret',
         enableResumability: true,
         enableJsonResponse: true
       });

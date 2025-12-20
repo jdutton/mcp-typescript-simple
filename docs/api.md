@@ -301,7 +301,6 @@ The following environment variables affect API behavior:
   - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET` for Microsoft OAuth
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
 - `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
-- `SESSION_SECRET`: Secret key for session management
 
 ## Security Considerations
 

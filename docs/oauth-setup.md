@@ -403,7 +403,6 @@ export NODE_ENV=production
 export MCP_MODE=streamable_http
 export REQUIRE_HTTPS=true
 export ALLOWED_ORIGINS=https://yourdomain.com
-export SESSION_SECRET=your-secure-session-secret
 # Set provider-specific credentials
 ```
 

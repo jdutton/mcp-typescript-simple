@@ -58,7 +58,6 @@ describe('OAuth Discovery Endpoints Integration', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: true,
-      sessionSecret: 'test-secret',
       enableResumability: true,
       enableJsonResponse: true,
     });
@@ -105,7 +104,6 @@ describe('OAuth Discovery Endpoints Integration', () => {
         host: 'localhost',
         endpoint: '/mcp',
         requireAuth: false,
-        sessionSecret: 'test-secret',
       });
 
       await serverNoAuth.initialize();
@@ -155,7 +153,6 @@ describe('OAuth Discovery Endpoints Integration', () => {
         host: 'localhost',
         endpoint: '/mcp',
         requireAuth: false,
-        sessionSecret: 'test-secret',
       });
 
       await serverNoAuth.initialize();
@@ -206,7 +203,6 @@ describe('OAuth Discovery Endpoints Integration', () => {
         host: 'localhost',
         endpoint: '/mcp',
         requireAuth: false,
-        sessionSecret: 'test-secret',
         enableResumability: false,
       });
 
@@ -262,7 +258,6 @@ describe('OAuth Discovery Endpoints Integration', () => {
         host: 'localhost',
         endpoint: '/mcp',
         requireAuth: false,
-        sessionSecret: 'test-secret',
       });
 
       await serverNoAuth.initialize();

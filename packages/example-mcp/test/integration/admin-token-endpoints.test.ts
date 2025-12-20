@@ -65,7 +65,6 @@ describe('Admin Token Management Endpoints Integration', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: true,
-      sessionSecret: 'test-secret',
       enableResumability: true,
       enableJsonResponse: true,
     });

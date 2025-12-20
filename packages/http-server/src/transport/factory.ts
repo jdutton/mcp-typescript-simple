@@ -86,7 +86,6 @@ export class StreamableHTTPTransportManager implements TransportManager {
       requireAuth: this.options.requireAuth,
       allowedOrigins: this.options.allowedOrigins,
       allowedHosts: this.options.allowedHosts,
-      sessionSecret: this.options.sessionSecret,
       enableResumability: this.options.enableResumability,
       enableJsonResponse: this.options.enableJsonResponse,
       toolRegistry: this.toolRegistry, // Pass the tool registry for session reconstruction
@@ -276,7 +275,6 @@ export class TransportFactory implements ITransportFactory {
           requireAuth: !EnvironmentConfig.shouldSkipAuth(),
           allowedOrigins: streamableSecurityConfig.allowedOrigins,
           allowedHosts: streamableSecurityConfig.allowedHosts,
-          sessionSecret: streamableSecurityConfig.sessionSecret,
           enableResumability: true, // Enable resumability by default
           enableJsonResponse: true, // Use JSON responses for HTTP clients
         });

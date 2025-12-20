@@ -40,12 +40,3 @@ export const BaseConfigSchema = z.object({
 });
 
 export type BaseConfig = z.infer<typeof BaseConfigSchema>;
-
-/**
- * Session secret schema (separate for security)
- */
-export const SessionSecretSchema = z.object({
-  SESSION_SECRET: z.string().default('dev-session-secret-change-in-production'),
-});
-
-export type SessionSecret = z.infer<typeof SessionSecretSchema>;

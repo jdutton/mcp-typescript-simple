@@ -22,7 +22,6 @@ export interface StreamableHTTPTransportOptions {
   requireAuth: boolean;
   allowedOrigins?: string[];
   allowedHosts?: string[];
-  sessionSecret: string;
   enableResumability?: boolean;
   enableJsonResponse?: boolean;
 }

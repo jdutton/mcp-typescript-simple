@@ -47,7 +47,6 @@ export interface StreamableHttpServerOptions {
   requireAuth: boolean;
   allowedOrigins?: string[];
   allowedHosts?: string[];
-  sessionSecret: string;
   enableResumability?: boolean;
   enableJsonResponse?: boolean;
   toolRegistry?: ToolRegistry;

@@ -58,7 +58,6 @@ describe('Admin Routes Integration', () => {
       host: 'localhost',
       endpoint: '/mcp',
       requireAuth: true,
-      sessionSecret: 'test-secret',
       enableResumability: true,
       enableJsonResponse: true,
     });
