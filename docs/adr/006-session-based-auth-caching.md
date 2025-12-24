@@ -1,6 +1,6 @@
-# ADR 004: Session-Based Authentication Caching
+# ADR 006: Session-Based Authentication Caching
 
-**Status**: Proposed
+**Status**: Accepted
 
 **Date**: 2025-01-11
 
@@ -163,6 +163,13 @@ interface SessionAuthCache {
 
 #### 2. Subsequent MCP Requests (JWT Tokens)
 
+**CRITICAL:** JWT tokens are NEVER stored on the server. The server performs:
+1. Local signature verification using provider's public key
+2. Expiry validation from JWT `exp` claim
+3. Returns cached AuthInfo from session
+
+This approach eliminates the need for token storage and encryption entirely.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ JWT Token Validation (Google, Microsoft)                    │
@@ -304,13 +311,95 @@ interface SessionAuthCache {
 - Server **re-validates once** to establish new binding
 - Subsequent requests **use cached AuthInfo**
 
+## Redis Key Prefixing for Multi-Tenancy
+
+### Problem
+
+The current Redis implementation lacks key prefixing, preventing multiple MCP servers from coexisting on the same Redis instance.
+
+**Issues:**
+1. **Key collisions**: Multiple MCP servers overwrite each other's data
+2. **No isolation**: Cannot run dev/staging/prod on same Redis
+3. **Deployment limitation**: Requires separate Redis instance per server
+4. **Cost inefficiency**: Redis cluster proliferation
+
+### Solution
+
+**Environment variable:**
+```bash
+# Both forms work (trailing colon is normalized automatically)
+REDIS_KEY_PREFIX=mcp-server-1   # Becomes: "mcp-server-1:"
+REDIS_KEY_PREFIX=mcp-server-1:  # Becomes: "mcp-server-1:"
+
+# Default if not set
+# REDIS_KEY_PREFIX=mcp          # Becomes: "mcp:"
+```
+
+**Implementation:**
+```typescript
+class RedisSessionStore {
+  private keyPrefix: string;
+
+  constructor(redisClient: Redis, keyPrefix?: string) {
+    // Normalize prefix: ensure single trailing colon
+    const prefix = keyPrefix ?? process.env.REDIS_KEY_PREFIX ?? 'mcp';
+    this.keyPrefix = this.normalizePrefix(prefix);
+  }
+
+  private normalizePrefix(prefix: string): string {
+    // Remove all trailing colons, then add exactly one
+    return prefix.replace(/:+$/, '') + ':';
+  }
+
+  private buildKey(key: string): string {
+    return `${this.keyPrefix}${key}`;
+  }
+
+  async setSession(sessionId: string, data: SessionMetadata): Promise<void> {
+    await this.redis.set(
+      this.buildKey(`session:${sessionId}`),
+      JSON.stringify(data)
+    );
+  }
+}
+```
+
+**Prefix normalization examples:**
+```typescript
+normalizePrefix('mcp')           // → 'mcp:'
+normalizePrefix('mcp:')          // → 'mcp:'
+normalizePrefix('mcp::')         // → 'mcp:'
+normalizePrefix('mcp-server-1')  // → 'mcp-server-1:'
+normalizePrefix('mcp-server-1:') // → 'mcp-server-1:'
+```
+
+**Key patterns with prefixes:**
+```
+# MCP Server 1
+mcp-server-1:session:abc123
+mcp-server-1:oauth:client:xyz789
+
+# MCP Server 2
+mcp-server-2:session:def456
+mcp-server-2:oauth:client:uvw012
+
+# Development environment
+mcp-dev:session:ghi789
+```
+
+**Use cases enabled:**
+- Multiple MCP servers on shared Redis
+- Multi-environment (dev/staging/prod) isolation
+- Testing isolation (integration tests don't interfere)
+- Cost optimization (single Redis cluster)
+
 ## Implementation
 
-### Phase 1: Add Session Auth Cache (Backwards Compatible)
+### Phase 1: Add Session Auth Cache + Redis Key Prefixing
 
 **Duration**: 1 week
 
-**Goal**: Add session-based auth caching alongside existing token storage (parallel systems).
+**Goal**: Implement session-based auth caching and Redis key prefixing for multi-tenancy.
 
 ```typescript
 // packages/persistence/src/types.ts
@@ -338,10 +427,27 @@ export interface SessionInfo {
 ```
 
 **Changes:**
-1. Extend `SessionMetadata` with optional `auth` field
+
+**Session Auth Cache:**
+1. Extend `SessionMetadata` with `auth` field
 2. Update `handleSessionInitialized()` to populate `auth` cache
 3. Add `updateSessionTokenBinding()` helper for refresh detection
-4. Add feature flag: `MCP_USE_SESSION_AUTH_CACHE=true`
+
+**Redis Key Prefixing:**
+4. Add `keyPrefix` parameter to all Redis store constructors:
+   - `RedisSessionStore`
+   - `RedisOAuthClientStore`
+   - `RedisTokenStore`
+5. Add `normalizePrefix(prefix: string)` private method to ensure single trailing colon
+6. Add `buildKey(key: string)` private method to all stores
+7. Update all Redis operations to use `buildKey()`
+8. Add `REDIS_KEY_PREFIX` environment variable (default: `'mcp'` - will be normalized to `'mcp:'`)
+9. Update factory functions to pass prefix from config
+10. Add unit tests for prefix normalization (with/without colons, multiple colons)
+11. Add integration tests for key isolation between different prefixes
+
+**Deployment:**
+- Delete all existing sessions (force client reconnect with new session structure)
 
 ### Phase 2: Implement Provider-Specific Validation
 
@@ -413,75 +519,104 @@ async verifyAccessTokenWithSession(
 3. Implement JWT signature verification (Google, Microsoft)
 4. Implement TTL-based caching (GitHub)
 
-### Phase 3: Remove Token Storage
+### Phase 3: Remove Token Storage and Encryption Infrastructure
 
 **Duration**: 1 week
 
-**Goal**: Delete deprecated token storage code and migrate existing sessions.
-
-```typescript
-// Migration script
-async function migrateTokenStorageToSessionCache() {
-  // 1. Find all sessions
-  const sessions = await sessionManager.getAllSessions();
-
-  for (const session of sessions) {
-    // 2. Skip if already migrated
-    if (session.auth) continue;
-
-    // 3. Skip if no auth info
-    if (!session.authInfo) continue;
-
-    // 4. Find token in provider stores (last time we use this)
-    let accessToken: string | undefined;
-    for (const provider of providers.values()) {
-      const tokens = await provider.findTokensByUserId(session.userId);
-      if (tokens.length > 0) {
-        accessToken = tokens[0];
-        break;
-      }
-    }
-
-    if (!accessToken) {
-      console.warn(`No token found for session ${session.sessionId}`);
-      continue;
-    }
-
-    // 5. Create session auth cache
-    const tokenHash = crypto.createHash('sha256')
-      .update(accessToken)
-      .digest('hex');
-
-    session.auth = {
-      provider: session.authInfo.extra?.provider as OAuthProviderType,
-      userId: session.authInfo.extra?.userInfo?.sub ?? session.userId,
-      email: session.authInfo.extra?.userInfo?.email,
-      scopes: session.authInfo.scopes ?? [],
-      authInfo: session.authInfo,
-      tokenHash,
-      tokenBindingTime: Date.now(),
-      lastValidated: Date.now(),
-      validationTTL: 300000
-    };
-
-    // 6. Update session
-    await sessionManager.updateSession(session);
-
-    console.log(`Migrated session ${session.sessionId}`);
-  }
-
-  console.log('Migration complete - token stores can now be deleted');
-}
-```
+**Goal**: Delete deprecated token storage code and encryption infrastructure.
 
 **Deleted code:**
 - `packages/persistence/src/redis/token-store.ts` (entire file)
 - `packages/persistence/src/memory/token-store.ts` (entire file)
+- `packages/persistence/src/encryption/` (entire directory - no longer needed)
+- `packages/config/src/secrets/` - Remove TOKEN_ENCRYPTION_KEY references
 - `packages/auth/src/providers/base-provider.ts` - Remove `tokenStore` field
 - `packages/auth/src/providers/base-provider.ts` - Delete `storeToken()`, `getToken()`, `hasToken()`
 - `packages/http-server/src/server/streamable-http-server.ts:625-642` - Delete provider loop
 
-**Result**: ~500 lines of code deleted, architecture simplified.
+**Environment variable cleanup:**
+- Remove TOKEN_ENCRYPTION_KEY from all .env examples
+- Update deployment documentation
+- Remove from Vercel environment variable requirements
+
+**Documentation updates:**
+- Mark ADR 004 as "Partially Superseded by ADR 006"
+- Update deployment guides
+- Remove key rotation procedures for TOKEN_ENCRYPTION_KEY
+
+**Deployment:**
+- Delete all existing sessions (force client reconnect)
+
+**Result**: ~800 lines of code deleted (including encryption infrastructure), architecture simplified.
+
+## Deprecation of TOKEN_ENCRYPTION_KEY
+
+### Current Usage (ADR 004)
+
+ADR 004 implemented `TOKEN_ENCRYPTION_KEY` to encrypt bearer tokens stored in Redis. This key is currently:
+- Required for production deployments
+- Used to encrypt OAuth access tokens and refresh tokens
+- Subject to 90-day rotation procedures
+- A critical security dependency
+
+### Elimination in ADR 006
+
+**This ADR eliminates the need for TOKEN_ENCRYPTION_KEY entirely.**
+
+**Rationale:**
+- No bearer tokens are stored (only SHA-256 hashes)
+- Session metadata contains only non-sensitive data (user IDs, public OAuth claims, cached AuthInfo)
+- Token hashes are one-way functions (cannot be reversed to obtain tokens)
+- Client-managed token lifecycle means server never possesses tokens after initial OAuth flow
+
+### Migration Impact
+
+**Phase 1-2:**
+- TOKEN_ENCRYPTION_KEY still required (old token storage code still present)
+
+**Phase 3:**
+- TOKEN_ENCRYPTION_KEY no longer required
+- Remove from environment variable documentation
+- Remove from Vercel deployment requirements
+- Remove from key rotation procedures
+- Delete all sessions on deployment (force client reconnect)
+
+### Deployment Simplification
+
+**Before (ADR 004):**
+```bash
+# Required environment variables
+TOKEN_ENCRYPTION_KEY=Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=  # 32-byte base64
+REDIS_URL=redis://localhost:6379
+REDIS_KEY_PREFIX=mcp-server-1:  # NEW: Multi-tenancy support
+```
+
+**After (ADR 006):**
+```bash
+# Required environment variables
+REDIS_URL=redis://localhost:6379
+REDIS_KEY_PREFIX=mcp-server-1:  # Multi-tenancy support
+# TOKEN_ENCRYPTION_KEY no longer needed ✅
+```
+
+### Security Implications
+
+**Positive:**
+1. ✅ **Reduced attack surface** - no encryption key to compromise
+2. ✅ **Simpler key management** - one less secret to rotate
+3. ✅ **Reduced operational complexity** - fewer failure modes
+4. ✅ **Compliance maintained** - no bearer credentials at rest = no encryption requirement
+
+**No negatives:** Eliminating encryption key when you eliminate encrypted data is architecturally correct.
+
+### Documentation Updates Required
+
+1. **docs/vercel-deployment.md** - Remove TOKEN_ENCRYPTION_KEY setup instructions
+2. **docs/security/key-rotation-procedures.md** - Remove TOKEN_ENCRYPTION_KEY rotation
+3. **docs/security/implementation-status.md** - Update encryption requirements
+4. **CHANGELOG.md** - Document TOKEN_ENCRYPTION_KEY deprecation
+5. **.env.example files** - Remove TOKEN_ENCRYPTION_KEY
+6. **CLAUDE.md** - Update deployment requirements
 
 ## Security Considerations
 
@@ -560,11 +695,16 @@ Token hashes are useless without original token (SHA-256 is one-way function).
 ### Positive
 
 1. **Security**: No centralized bearer token storage
-2. **Performance**: ~99% reduction in provider API calls (opaque tokens)
-3. **Simplicity**: Single source of truth for session state
-4. **Correctness**: Client manages refresh, server validates current state
-5. **Scalability**: Lighter Redis memory usage
-6. **OAuth Compliance**: Follows RFC 6749 client-managed token lifecycle
+2. **Security**: TOKEN_ENCRYPTION_KEY no longer required (reduced attack surface)
+3. **Performance**: ~99% reduction in provider API calls (opaque tokens)
+4. **Simplicity**: Single source of truth for session state
+5. **Simplicity**: Eliminated encryption key management and rotation
+6. **Correctness**: Client manages refresh, server validates current state
+7. **Scalability**: Lighter Redis memory usage (no encrypted token blobs)
+8. **Scalability**: Redis key prefixing enables multi-server deployments
+9. **Deployment**: Simpler environment configuration (one less secret)
+10. **Deployment**: Multiple MCP servers on shared Redis (cost optimization)
+11. **OAuth Compliance**: Follows RFC 6749 client-managed token lifecycle
 
 ### Negative
 
@@ -611,6 +751,7 @@ Token hashes are useless without original token (SHA-256 is one-way function).
 - [Google OAuth JWT Validation](https://developers.google.com/identity/protocols/oauth2/openid-connect#validatinganidtoken)
 - ADR 002: OAuth Client State Preservation
 - ADR 003: Remove Server-Side Token Storage (superseded by this ADR)
+- **ADR 004: Encryption Infrastructure (partially superseded - TOKEN_ENCRYPTION_KEY no longer needed)**
 
 ## Related Issues
 
