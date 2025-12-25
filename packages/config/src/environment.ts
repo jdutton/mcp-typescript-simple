@@ -133,6 +133,7 @@ export class EnvironmentConfig {
 
       // Storage configuration
       REDIS_URL: process.env.REDIS_URL,
+      REDIS_KEY_PREFIX: process.env.REDIS_KEY_PREFIX ?? 'mcp',
       STORAGE_TYPE: process.env.STORAGE_TYPE,
       SESSION_STORE_TYPE: process.env.SESSION_STORE_TYPE,
       TOKEN_STORE_TYPE: process.env.TOKEN_STORE_TYPE,

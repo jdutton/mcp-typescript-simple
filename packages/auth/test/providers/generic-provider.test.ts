@@ -3,8 +3,7 @@ import { vi } from 'vitest';
 import type { Request, Response } from 'express';
 import type {
   GenericOAuthConfig,
-  OAuthSession,
-  OAuthUserInfo
+  OAuthSession
 } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
@@ -107,7 +106,7 @@ describe('GenericOAuthProvider', () => {
   });
 
   const createProvider = () => {
-    return new GenericOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new GenericOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
@@ -314,26 +313,9 @@ describe('GenericOAuthProvider', () => {
   });
 
   describe('handleLogout', () => {
-    it('removes token on logout', async () => {
+    it('successfully logs out user', async () => {
       const provider = createProvider();
       const accessToken = 'token-to-remove';
-
-      // Store a token first
-      const userInfo: OAuthUserInfo = {
-        sub: 'user123',
-        email: 'test@example.com',
-        name: 'Test User',
-        provider: 'generic'
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'generic',
-          scopes: baseConfig.scopes
-        });
 
       const res = createMockResponse();
       const req = {
@@ -342,6 +324,7 @@ describe('GenericOAuthProvider', () => {
         }
       } as unknown as Request;
 
+      // ADR 006: Tokens are not stored server-side, logout succeeds regardless
       await provider.handleLogout(req, res);
 
       expect(res.json).toHaveBeenCalledWith({ success: true });
@@ -351,25 +334,17 @@ describe('GenericOAuthProvider', () => {
   });
 
   describe('verifyAccessToken', () => {
-    it('verifies valid token from cache', async () => {
+    it('verifies valid token by fetching user info', async () => {
       const provider = createProvider();
       const accessToken = 'valid-token';
-      const userInfo: OAuthUserInfo = {
+
+      // ADR 006: Tokens are not cached, always fetched from API
+      // Mock userinfo response
+      fetchMock.mockResolvedValueOnce(jsonReply({
         sub: 'user789',
         email: 'verified@example.com',
-        name: 'Verified User',
-        provider: 'generic'
-      };
-
-      // Store token
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'generic',
-          scopes: baseConfig.scopes
-        });
+        name: 'Verified User'
+      }));
 
       const authInfo = await provider.verifyAccessToken(accessToken);
 
@@ -386,9 +361,9 @@ describe('GenericOAuthProvider', () => {
       provider.dispose();
     });
 
-    it('fetches user info if token not in cache', async () => {
+    it('fetches user info from API', async () => {
       const provider = createProvider();
-      const accessToken = 'uncached-token';
+      const accessToken = 'access-token';
 
       // Mock userinfo response
       fetchMock.mockResolvedValueOnce(jsonReply({
@@ -428,34 +403,31 @@ describe('GenericOAuthProvider', () => {
   });
 
   describe('getUserInfo', () => {
-    it('returns cached user info', async () => {
+    it('fetches user info from API', async () => {
       const provider = createProvider();
-      const accessToken = 'cached-info-token';
-      const userInfo: OAuthUserInfo = {
+      const accessToken = 'info-token';
+
+      // ADR 006: User info is not cached, always fetched from API
+      // Mock userinfo response
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        sub: 'user101',
+        email: 'cached@example.com',
+        name: 'Cached User'
+      }));
+
+      const result = await provider.getUserInfo(accessToken);
+
+      expect(result).toMatchObject({
         sub: 'user101',
         email: 'cached@example.com',
         name: 'Cached User',
         provider: 'generic'
-      };
-
-      // Store token with user info
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'generic',
-          scopes: baseConfig.scopes
-        });
-
-      const result = await provider.getUserInfo(accessToken);
-
-      expect(result).toEqual(userInfo);
+      });
 
       provider.dispose();
     });
 
-    it('fetches user info from API if not cached', async () => {
+    it('fetches user info with additional fields', async () => {
       const provider = createProvider();
       const accessToken = 'api-fetch-token';
 

@@ -174,13 +174,6 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   handleAuthorizationCallback(_req: Request, _res: Response): Promise<void>;
 
   /**
-   * Check if this provider has a token in its local store (no external API call)
-   * Returns true if the token exists in this provider's token store
-   * This is a fast, local-only lookup to identify which provider owns a token
-   */
-  hasToken(_accessToken: string): Promise<boolean>;
-
-  /**
    * Handle token refresh requests
    * Refreshes an expired access token using the refresh token
    */
@@ -199,29 +192,26 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   verifyAccessToken(_token: string): Promise<AuthInfo>;
 
   /**
+   * Verify an access token using session-based authentication caching (ADR 006)
+   *
+   * Provides O(1) provider lookup, token binding verification, JWT validation,
+   * and TTL-based caching for opaque tokens.
+   *
+   * @param token - Bearer access token from Authorization header
+   * @param sessionId - Session ID from mcp-session-id header
+   * @returns AuthInfo with user identity and scopes
+   */
+  verifyAccessTokenWithSession(_token: string, _sessionId: string): Promise<AuthInfo>;
+
+  /**
    * Get user information from an access token
    */
   getUserInfo(_accessToken: string): Promise<OAuthUserInfo>;
 
   /**
-   * Check if a token is valid and not expired
-   */
-  isTokenValid(_token: string): Promise<boolean>;
-
-  /**
    * Get the current session count for monitoring
    */
   getSessionCount(): Promise<number>;
-
-  /**
-   * Get the current token count for monitoring
-   */
-  getTokenCount(): Promise<number>;
-
-  /**
-   * Remove a token from the provider's token store (RFC 7009 token revocation)
-   */
-  removeToken(_token: string): Promise<void>;
 
   /**
    * Clean up expired sessions and tokens

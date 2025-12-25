@@ -160,43 +160,49 @@ async function validateBearerToken(
     throw new Error('Unauthorized: Bearer token required');
   }
 
-  // Look up token in token stores to find which provider issued it (secure - local lookup only)
+  // ADR 006: Try to verify token with each provider (O(N) lookup)
+  // Note: Session-based auth (O(1) lookup) requires mcp-session-id header
   const token = authHeader.substring(7);
-  let providerType: string | undefined;
-  let correctProvider: OAuthProvider | undefined;
+  const sessionId = req.headers['mcp-session-id'] as string | undefined;
 
-  for (const [type, provider] of oauthProviders.entries()) {
-    try {
-      const hasToken = await provider.hasToken(token);
-      if (hasToken) {
+  let providerType: string | undefined;
+  let authResult;
+
+  // If session ID is provided, try session-based auth first (O(1) lookup)
+  if (sessionId) {
+    logger.debug("Attempting session-based authentication", { requestId, sessionId: sessionId.substring(0, 8) });
+    for (const [type, provider] of oauthProviders.entries()) {
+      try {
+        authResult = await provider.verifyAccessTokenWithSession(token, sessionId);
         providerType = type;
-        correctProvider = provider;
-        logger.debug("Token belongs to provider", { provider: type, requestId });
+        logger.debug("Session-based auth successful", { provider: type, requestId });
         break;
+      } catch {
+        logger.debug("Session-based auth failed for provider", { provider: type, requestId });
+        continue;
       }
-    } catch (error) {
-      logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
-      continue;
     }
   }
 
-  if (!correctProvider || !providerType) {
-    logger.warn("Token not found in any provider token store", { requestId });
-    throw new Error('Unauthorized: Invalid or expired access token');
+  // Fall back to O(N) provider verification if session auth failed or no session ID
+  if (!authResult) {
+    logger.debug("Falling back to O(N) provider verification", { requestId });
+    for (const [type, provider] of oauthProviders.entries()) {
+      try {
+        authResult = await provider.verifyAccessToken(token);
+        providerType = type;
+        logger.debug("Token verified with provider", { provider: type, requestId });
+        break;
+      } catch {
+        logger.debug("Token verification failed for provider", { provider: type, requestId });
+        continue;
+      }
+    }
   }
 
-  // Verify token with the correct provider
-  logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
-  let authResult;
-  try {
-    authResult = await correctProvider.verifyAccessToken(token);
-  } catch (error) {
-    logger.warn("Token verification failed", {
-      requestId,
-      provider: providerType,
-      error: error instanceof Error ? error.message : error
-    });
-    throw new Error('Unauthorized: Token verification failed');
+  if (!authResult || !providerType) {
+    logger.warn("Token verification failed with all providers", { requestId });
+    throw new Error('Unauthorized: Invalid or expired access token');
   }
 
   // Extract auth info for metadata

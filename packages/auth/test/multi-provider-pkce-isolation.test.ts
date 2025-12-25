@@ -12,22 +12,21 @@
  */
 
 import { GoogleOAuthProvider , GitHubOAuthProvider , MicrosoftOAuthProvider } from '@mcp-typescript-simple/auth';
-import { MemoryPKCEStore , MemorySessionStore , MemoryOAuthTokenStore } from '@mcp-typescript-simple/persistence';
+import { MemoryPKCEStore , MemorySessionStore } from '@mcp-typescript-simple/persistence';
 import type { GoogleOAuthConfig, GitHubOAuthConfig, MicrosoftOAuthConfig, OAuthProvider } from '@mcp-typescript-simple/auth';
 
 describe('Multi-Provider PKCE Isolation', () => {
   let sharedPKCEStore: MemoryPKCEStore;
   let sharedSessionStore: MemorySessionStore;
-  let sharedTokenStore: MemoryOAuthTokenStore;
   let googleProvider: GoogleOAuthProvider;
   let githubProvider: GitHubOAuthProvider;
   let microsoftProvider: MicrosoftOAuthProvider;
 
   beforeEach(() => {
     // Create shared stores (simulates production configuration)
+    // ADR 006: Token storage removed - tokens are client-managed
     sharedPKCEStore = new MemoryPKCEStore();
     sharedSessionStore = new MemorySessionStore();
-    sharedTokenStore = new MemoryOAuthTokenStore();
 
     // Create Google provider
     const googleConfig: GoogleOAuthConfig = {
@@ -40,7 +39,6 @@ describe('Multi-Provider PKCE Isolation', () => {
     googleProvider = new GoogleOAuthProvider(
       googleConfig,
       sharedSessionStore,
-      sharedTokenStore,
       sharedPKCEStore
     );
 
@@ -55,7 +53,6 @@ describe('Multi-Provider PKCE Isolation', () => {
     githubProvider = new GitHubOAuthProvider(
       githubConfig,
       sharedSessionStore,
-      sharedTokenStore,
       sharedPKCEStore
     );
 
@@ -71,7 +68,6 @@ describe('Multi-Provider PKCE Isolation', () => {
     microsoftProvider = new MicrosoftOAuthProvider(
       microsoftConfig,
       sharedSessionStore,
-      sharedTokenStore,
       sharedPKCEStore
     );
   });

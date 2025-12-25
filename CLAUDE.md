@@ -156,6 +156,10 @@ Configure one or more: Google, GitHub, Microsoft
 
 ### Redis (Required for Production)
 - `REDIS_URL` - Standard Redis connection (use ioredis, NOT Vercel KV)
+- `REDIS_KEY_PREFIX` - Key prefix for multi-tenancy (default: `mcp`)
+  - Run multiple MCP servers on same Redis instance without key conflicts
+  - Example values: `mcp-dev`, `mcp-staging`, `mcp-prod`, `mcp-server-1`
+  - Trailing colon added automatically (e.g., `mcp-dev` → `mcp-dev:`)
 
 **See `.env.example` for complete environment variable documentation.**
 

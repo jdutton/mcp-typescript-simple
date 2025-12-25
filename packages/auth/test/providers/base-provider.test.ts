@@ -2,26 +2,25 @@ import { vi } from 'vitest';
 
 import type { Request, Response } from 'express';
 import {
-  BaseOAuthProvider
-, OAuthTokenError , OAuthSessionStore , OAuthTokenStore } from '@mcp-typescript-simple/auth';
+  BaseOAuthProvider,
+  OAuthTokenError,
+  OAuthSessionStore
+} from '@mcp-typescript-simple/auth';
 import type {
   OAuthConfig,
   OAuthEndpoints,
   OAuthProviderType,
   OAuthSession,
   OAuthUserInfo,
-  ProviderTokenResponse,
-  StoredTokenInfo
+  ProviderTokenResponse
 } from '@mcp-typescript-simple/auth';
-import { PKCEStore , MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
+import { PKCEStore, MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
 type MockResponse = Response & {
   statusCode?: number;
   jsonPayload?: unknown;
 };
 
-
-/* eslint-disable sonarjs/no-unused-vars */
 const createResponse = (): MockResponse => {
   const res: Partial<Response> & {
     statusCode?: number;
@@ -44,16 +43,12 @@ type SessionAccess = {
   storeSession(_state: string, _session: OAuthSession): Promise<void>;
   getSession(_state: string): Promise<OAuthSession | null>;
   removeSession(_state: string): Promise<void>;
-  storeToken(_token: string, _info: StoredTokenInfo): Promise<void>;
-  getToken(_token: string): Promise<StoredTokenInfo | null>;
-  removeToken(_token: string): Promise<void>;
   cleanup(): Promise<void>;
-  getTokenCount(): Promise<number>;
 };
 
 class TestOAuthProvider extends BaseOAuthProvider {
-  constructor(config: OAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
+  constructor(config: OAuthConfig, sessionStore?: OAuthSessionStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, pkceStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -148,7 +143,7 @@ describe('BaseOAuthProvider', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     fetchMock.mockReset();
-    provider = new TestOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    provider = new TestOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
     sessionAccess = provider as unknown as SessionAccess;
   });
 
@@ -166,7 +161,7 @@ describe('BaseOAuthProvider', () => {
     });
   };
 
-  it('cleans up expired sessions and tokens', async () => {
+  it('cleans up expired sessions', async () => {
     const now = Date.now();
     const expiredSession: OAuthSession = {
       state: 'expired',
@@ -178,63 +173,14 @@ describe('BaseOAuthProvider', () => {
       expiresAt: now - 10
     };
 
-    sessionAccess.storeSession('expired', expiredSession);
-    sessionAccess.storeSession('valid', { ...expiredSession, state: 'valid', expiresAt: now + 5000 });
-
-    sessionAccess.storeToken('expired-token', {
-      accessToken: 'expired-token',
-      expiresAt: now - 10,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
-
-    sessionAccess.storeToken('valid-token', {
-      accessToken: 'valid-token',
-      expiresAt: now + 60_000,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
+    await sessionAccess.storeSession('expired', expiredSession);
+    await sessionAccess.storeSession('valid', { ...expiredSession, state: 'valid', expiresAt: now + 5000 });
 
     await sessionAccess.cleanup();
 
-    const _tokenStore = provider as unknown as { tokens: Map<string, StoredTokenInfo> };
-
+    // ADR 006: Only sessions are stored, tokens are client-managed
     expect(await sessionAccess.getSession('expired')).toBeNull();
     expect(await sessionAccess.getSession('valid')).toBeDefined();
-    expect(await sessionAccess.getToken('expired-token')).toBeNull();
-    expect(await sessionAccess.getToken('valid-token')).toBeDefined();
-  });
-
-  it('removes tokens that are expiring within buffer during validation', async () => {
-    const now = Date.now();
-    sessionAccess.storeToken('token', {
-      accessToken: 'token',
-      expiresAt: now + 500,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
-
-    const result = await provider.isTokenValid('token');
-    expect(result).toBe(false);
-    expect(await sessionAccess.getToken('token')).toBeNull();
   });
 
   it('exchanges authorization code for tokens and returns JSON response', async () => {
@@ -506,20 +452,7 @@ describe('BaseOAuthProvider', () => {
 
         const res = createResponse();
 
-        // Store token
-        await sessionAccess.storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600000,
-          provider: 'google',
-          scopes: ['scope'],
-          userInfo: {
-            sub: '123',
-            provider: 'google',
-            email: 'user@example.com',
-            name: 'User'
-          }
-        });
-
+        // ADR 006: Tokens are not stored server-side, logout succeeds regardless
         // Execute logout - should complete without throwing
         await expect(provider.handleLogout(req, res)).resolves.not.toThrow();
       });

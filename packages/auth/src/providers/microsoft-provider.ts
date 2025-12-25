@@ -10,15 +10,14 @@ import {
   OAuthProviderType,
   OAuthUserInfo,
   OAuthTokenResponse,
-  StoredTokenInfo,
   OAuthTokenError,
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
 import {
   OAuthSessionStore,
-  OAuthTokenStore,
-  PKCEStore
+  PKCEStore,
+  SessionAuthCache
 } from '@mcp-typescript-simple/persistence';
 
 /**
@@ -30,8 +29,8 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
   private readonly MICROSOFT_TOKEN_URL: string;
   private readonly MICROSOFT_USER_URL = 'https://graph.microsoft.com/v1.0/me';
 
-  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
+  constructor(config: MicrosoftOAuthConfig, sessionStore?: OAuthSessionStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, pkceStore);
 
     this.tenantId = config.tenantId ?? 'common';
     this.MICROSOFT_AUTH_URL = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize`;
@@ -95,6 +94,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
 
   /**
    * Handle token refresh requests
+   * ADR 006: Tokens are not stored - client is responsible for managing tokens
    */
   async handleTokenRefresh(req: Request, res: Response): Promise<void> {
     try {
@@ -103,14 +103,6 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       if (!refresh_token || typeof refresh_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
-        return;
-      }
-
-      // Find token info by refresh token
-      const tokenData = await this.findTokenByRefreshToken(refresh_token);
-      if (!tokenData) {
-        this.setAntiCachingHeaders(res);
-        res.status(401).json({ error: 'Invalid refresh token' });
         return;
       }
 
@@ -124,21 +116,9 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         throw new OAuthTokenError('Failed to refresh access token', 'microsoft');
       }
 
-      // Update stored token information
-      const newTokenInfo: StoredTokenInfo = {
-        ...tokenData.tokenInfo,
-        accessToken: refreshedToken.access_token,
-        refreshToken: refreshedToken.refresh_token ?? tokenData.tokenInfo.refreshToken,
-        expiresAt: Date.now() + (refreshedToken.expires_in ?? 3600) * 1000,
-      };
-
-      // Remove old token and store new one
-      await this.removeToken(tokenData.accessToken);
-      await this.storeToken(refreshedToken.access_token, newTokenInfo);
-
       const response: Pick<OAuthTokenResponse, 'access_token' | 'refresh_token' | 'expires_in' | 'token_type'> = {
         access_token: refreshedToken.access_token,
-        refresh_token: newTokenInfo.refreshToken,
+        refresh_token: refreshedToken.refresh_token ?? refresh_token,
         expires_in: refreshedToken.expires_in ?? 3600,
         token_type: 'Bearer',
       };
@@ -153,6 +133,94 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
         error: 'Failed to refresh token',
         message: error instanceof Error ? error.message : String(error)
       });
+    }
+  }
+
+  /**
+   * Override canUseCachedAuthentication for Microsoft JWT validation (ADR 006)
+   *
+   * Microsoft provides ID tokens (JWTs) that can be verified locally without API calls.
+   * This method validates the JWT expiry claim.
+   *
+   * Note: Full JWT signature verification would require fetching Microsoft's JWKS
+   * and verifying the signature. For now, we perform expiry validation and rely
+   * on HTTPS security + token binding for authentication.
+   *
+   * Performance: ~1ms (local validation) vs ~200ms (API call)
+   *
+   * @param authCache - Session authentication cache
+   * @returns true if JWT is valid, false if expired or invalid
+   */
+  protected async canUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {
+    // Check if we have an ID token to validate
+    const extra = authCache.authInfo.extra as Record<string, unknown> | undefined;
+    const idToken = extra?.idToken as string | undefined;
+
+    if (!idToken) {
+      // No ID token available - fall back to opaque token validation
+      logger.oauthDebug('No ID token available for JWT validation, using TTL-based caching', {
+        provider: 'microsoft'
+      });
+      return super.canUseCachedAuthentication(authCache);
+    }
+
+    try {
+      // Decode JWT payload (base64url decode of middle part)
+      const parts = idToken.split('.');
+      if (parts.length !== 3) {
+        logger.oauthDebug('Invalid JWT format', { provider: 'microsoft' });
+        return false;
+      }
+
+      // Decode payload (second part of JWT)
+      const payloadB64 = parts[1];
+      if (!payloadB64) {
+        logger.oauthDebug('JWT missing payload', { provider: 'microsoft' });
+        return false;
+      }
+      const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');
+      const payload = JSON.parse(payloadJson) as {
+        exp?: number;
+        sub?: string;
+        aud?: string;
+      };
+
+      // Check expiry (payload.exp is in seconds, Date.now() is in milliseconds)
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        logger.oauthDebug('Microsoft ID token expired', {
+          provider: 'microsoft',
+          exp: payload.exp,
+          now
+        });
+        return false;
+      }
+
+      // Verify audience matches our client ID
+      if (payload.aud && payload.aud !== this._config.clientId) {
+        logger.oauthDebug('Microsoft ID token audience mismatch', {
+          provider: 'microsoft',
+          expected: this._config.clientId,
+          actual: payload.aud
+        });
+        return false;
+      }
+
+      // JWT is valid (expiry + audience) - use cached auth
+      // Note: Full signature verification would require JWKS validation
+      logger.oauthDebug('Microsoft ID token validated locally (expiry + audience check)', {
+        provider: 'microsoft',
+        userId: payload.sub
+      });
+      return true;
+
+    } catch (error) {
+      // JWT validation failed - need re-validation with provider
+      logger.oauthDebug('Microsoft ID token validation failed', {
+        provider: 'microsoft',
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return false;
     }
   }
 

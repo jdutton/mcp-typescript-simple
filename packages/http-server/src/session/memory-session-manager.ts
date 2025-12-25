@@ -20,7 +20,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { logger } from '@mcp-typescript-simple/observability';
-import type { AuthInfo } from '@mcp-typescript-simple/persistence';
+import type { AuthInfo, SessionAuthCache } from '@mcp-typescript-simple/persistence';
 import type { SessionManager, SessionInfo, SessionStats } from './session-manager.js';
 
 export class MemorySessionManager implements SessionManager {
@@ -52,12 +52,20 @@ export class MemorySessionManager implements SessionManager {
     const id = sessionId ?? randomUUID();
     const now = Date.now();
 
+    // ADR 006: Extract auth from metadata if present
+    const auth = metadata?.auth as SessionAuthCache | undefined;
+    const cleanMetadata = metadata ? { ...metadata } : undefined;
+    if (cleanMetadata) {
+      delete cleanMetadata.auth;
+    }
+
     const sessionInfo: SessionInfo = {
       sessionId: id,
       createdAt: now,
       expiresAt: now + this.SESSION_TIMEOUT,
       authInfo,
-      metadata,
+      auth, // ADR 006: Session-based authentication cache
+      metadata: Object.keys(cleanMetadata ?? {}).length > 0 ? cleanMetadata : undefined,
     };
 
     this.sessions.set(id, sessionInfo);

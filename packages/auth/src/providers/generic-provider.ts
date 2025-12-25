@@ -15,7 +15,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore, OAuthTokenStore, PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore, PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * Generic OAuth provider implementation
@@ -23,8 +23,8 @@ import { OAuthSessionStore, OAuthTokenStore, PKCEStore } from '@mcp-typescript-s
 export class GenericOAuthProvider extends BaseOAuthProvider {
   protected config: GenericOAuthConfig;
 
-  constructor(config: GenericOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
+  constructor(config: GenericOAuthConfig, sessionStore?: OAuthSessionStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, pkceStore);
     this.config = config;
   }
 

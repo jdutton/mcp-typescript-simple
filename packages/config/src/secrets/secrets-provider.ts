@@ -103,8 +103,6 @@ export interface SecretsFactoryOptions extends SecretsProviderOptions {
 export enum SecretKey {
   // Encryption
   // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
-  TOKEN_ENCRYPTION_KEY = 'TOKEN_ENCRYPTION_KEY',
-  // eslint-disable-next-line no-unused-vars -- Public API: used by consumers
   OAUTH_TOKEN_ENCRYPTION_KEY = 'OAUTH_TOKEN_ENCRYPTION_KEY',
 
   // OAuth Providers

@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 
 import type { Request, Response } from 'express';
-import type { GoogleOAuthConfig, OAuthSession, StoredTokenInfo } from '@mcp-typescript-simple/auth';
+import type { GoogleOAuthConfig, OAuthSession } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
@@ -95,7 +95,7 @@ const createMockResponse = (): MockResponse => {
 
 describe('GoogleOAuthProvider', () => {
   const createProvider = () => {
-    return new GoogleOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   beforeEach(() => {
@@ -196,9 +196,7 @@ describe('GoogleOAuthProvider', () => {
     const sessionAfter = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
     expect(sessionAfter).toBeNull();
 
-    const storedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
-    expect(storedToken).toBeDefined();
-    expect(storedToken?.userInfo.email).toBe('user@example.com');
+    // ADR 006: Tokens are not stored server-side
 
     dateSpy.mockRestore();
     provider.dispose();
@@ -241,23 +239,7 @@ describe('GoogleOAuthProvider', () => {
     const now = 3_000_000;
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-    const existingToken: StoredTokenInfo = {
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
-      idToken: 'id-token',
-      expiresAt: now + 1_000,
-      userInfo: {
-        sub: '123',
-        email: 'user@example.com',
-        name: 'Test User',
-        provider: 'google'
-      },
-      provider: 'google',
-      scopes: baseConfig.scopes
-    };
-
-    (provider as unknown as { storeToken: (_accessToken: string, _info: StoredTokenInfo) => void }).storeToken('access-token', existingToken);
-
+    // ADR 006: Tokens are not stored server-side
     mockRefreshAccessToken.mockResolvedValueOnce({
       credentials: {
         access_token: 'new-access-token',
@@ -279,10 +261,6 @@ describe('GoogleOAuthProvider', () => {
       refresh_token: 'new-refresh-token'
     }));
 
-    const updatedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access-token');
-    expect(updatedToken).toBeDefined();
-    expect(updatedToken?.refreshToken).toBe('new-refresh-token');
-
     dateSpy.mockRestore();
     provider.dispose();
   });
@@ -298,7 +276,9 @@ describe('GoogleOAuthProvider', () => {
     } as unknown as Request, res);
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      error: 'Failed to refresh token'
+    }));
 
     provider.dispose();
   });
@@ -380,7 +360,7 @@ describe('GoogleOAuthProvider', () => {
         ...baseConfig,
         scopes: []
       };
-      const provider = new GoogleOAuthProvider(configWithEmptyScopes, undefined, undefined, new MemoryPKCEStore());
+      const provider = new GoogleOAuthProvider(configWithEmptyScopes, undefined, new MemoryPKCEStore());
 
       const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
         .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
@@ -639,8 +619,7 @@ describe('GoogleOAuthProvider', () => {
         expires_in: expect.any(Number) // Should have calculated expiry
       }));
 
-      const storedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token');
-      expect(storedToken?.expiresAt).toBe(now + 3600 * 1000); // Default 1 hour
+      // ADR 006: Tokens are not stored server-side
 
       dateSpy.mockRestore();
       provider.dispose();
@@ -810,49 +789,7 @@ describe('GoogleOAuthProvider', () => {
 
   // Token Verification Flow Tests
   describe('Token Verification Flow', () => {
-    it('returns cached token info when found in local store', async () => {
-      const provider = createProvider();
-      const now = 11_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-
-      const tokenInfo: StoredTokenInfo = {
-        accessToken: 'cached-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: now + 3_600_000,
-        userInfo: {
-          sub: '123',
-          email: 'cached@example.com',
-          name: 'Cached User',
-          provider: 'google'
-        },
-        provider: 'google',
-        scopes: ['openid', 'email']
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('cached-token', tokenInfo);
-
-      const authInfo = await provider.verifyAccessToken('cached-token');
-
-      expect(authInfo).toMatchObject({
-        token: 'cached-token',
-        clientId: baseConfig.clientId,
-        scopes: ['openid', 'email'],
-        extra: {
-          userInfo: tokenInfo.userInfo,
-          provider: 'google'
-        }
-      });
-
-      // Should not call Google API
-      expect(mockGetTokenInfo).not.toHaveBeenCalled();
-      expect(mockFetch).not.toHaveBeenCalled();
-
-      dateSpy.mockRestore();
-      provider.dispose();
-    });
-
-    it('verifies token with Google TokenInfo API when not in cache', async () => {
+    it('verifies token with Google TokenInfo API', async () => {
       const provider = createProvider();
       const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
 
@@ -951,34 +888,7 @@ describe('GoogleOAuthProvider', () => {
 
   // Additional Coverage Tests
   describe('Additional Coverage Tests', () => {
-    it('returns user info from local token store', async () => {
-      const provider = createProvider();
-      const tokenInfo: StoredTokenInfo = {
-        accessToken: 'local-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: Date.now() + 3_600_000,
-        userInfo: {
-          sub: '123',
-          email: 'local@example.com',
-          name: 'Local User',
-          provider: 'google'
-        },
-        provider: 'google',
-        scopes: ['openid', 'email']
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('local-token', tokenInfo);
-
-      const userInfo = await provider.getUserInfo('local-token');
-
-      expect(userInfo).toEqual(tokenInfo.userInfo);
-      expect(mockFetch).not.toHaveBeenCalled();
-
-      provider.dispose();
-    });
-
-    it('fetches user info from Google API when not in local store', async () => {
+    it('fetches user info from Google API', async () => {
       const provider = createProvider();
 
       mockFetch.mockResolvedValueOnce({
@@ -1027,33 +937,14 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles logout with authorization header', async () => {
       const provider = createProvider();
-      const tokenInfo: StoredTokenInfo = {
-        accessToken: 'logout-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: Date.now() + 3_600_000,
-        userInfo: {
-          sub: '123',
-          email: 'logout@example.com',
-          name: 'Logout User',
-          provider: 'google'
-        },
-        provider: 'google',
-        scopes: ['openid', 'email']
-      };
 
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('logout-token', tokenInfo);
-
+      // ADR 006: Tokens are not stored server-side
       const res = createMockResponse();
       await provider.handleLogout({
         headers: { authorization: 'Bearer logout-token' }
       } as Request, res);
 
       expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      // Token should be removed
-      const removedToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('logout-token');
-      expect(removedToken).toBeNull();
 
       provider.dispose();
     });
@@ -1083,6 +974,242 @@ describe('GoogleOAuthProvider', () => {
         logoutEndpoint: '/auth/google/logout'
       });
       expect(provider.getDefaultScopes()).toEqual(['openid', 'email', 'profile']);
+
+      provider.dispose();
+    });
+  });
+
+  describe('JWT Validation (ADR 006)', () => {
+    it('should validate ID token locally using JWT signature verification', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      // Mock verifyIdToken to return valid token
+      mockVerifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({
+          sub: 'user-123',
+          email: 'test@example.com',
+          exp: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour
+        })
+      });
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: 'valid-jwt-token',
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(true);
+      expect(mockVerifyIdToken).toHaveBeenCalledWith({
+        idToken: 'valid-jwt-token',
+        audience: 'client-id'
+      });
+
+      provider.dispose();
+    });
+
+    it('should reject expired ID tokens', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      // Mock verifyIdToken to return expired token
+      mockVerifyIdToken.mockResolvedValueOnce({
+        getPayload: () => ({
+          sub: 'user-123',
+          email: 'test@example.com',
+          exp: Math.floor(Date.now() / 1000) - 3600 // Expired 1 hour ago
+        })
+      });
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: 'expired-jwt-token',
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should reject invalid JWT tokens', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      // Mock verifyIdToken to throw error
+      mockVerifyIdToken.mockRejectedValueOnce(new Error('Invalid token signature'));
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: 'invalid-jwt-token',
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should reject tokens with invalid payload', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      // Mock verifyIdToken to return null payload
+      mockVerifyIdToken.mockResolvedValueOnce({
+        getPayload: () => null as any
+      });
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: 'jwt-token-with-null-payload',
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching when no ID token available', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000, // 5 minutes
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            // No idToken field
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return true because within TTL
+      expect(result).toBe(true);
+      // Should NOT call verifyIdToken
+      expect(mockVerifyIdToken).not.toHaveBeenCalled();
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching and return false when TTL expired', async () => {
+      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+
+      const authCache = {
+        provider: 'google' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
+        validationTTL: 300000, // 5 minutes
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: 'client-id',
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            // No idToken field
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return false because TTL expired
+      expect(result).toBe(false);
+      // Should NOT call verifyIdToken
+      expect(mockVerifyIdToken).not.toHaveBeenCalled();
 
       provider.dispose();
     });

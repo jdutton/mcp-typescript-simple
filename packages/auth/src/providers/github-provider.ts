@@ -12,7 +12,7 @@ import {
   OAuthProviderError
 } from './types.js';
 import { logger } from '../utils/logger.js';
-import { OAuthSessionStore, OAuthTokenStore, PKCEStore } from '@mcp-typescript-simple/persistence';
+import { OAuthSessionStore, PKCEStore } from '@mcp-typescript-simple/persistence';
 
 /**
  * GitHub OAuth provider implementation
@@ -23,8 +23,8 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   private readonly GITHUB_USER_URL = 'https://api.github.com/user';
   private readonly GITHUB_USER_EMAIL_URL = 'https://api.github.com/user/emails';
 
-  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
+  constructor(config: GitHubOAuthConfig, sessionStore?: OAuthSessionStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, pkceStore);
   }
 
   getProviderType(): OAuthProviderType {
@@ -85,11 +85,12 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
   /**
    * Handle token refresh requests
    * Note: GitHub doesn't support refresh tokens in the traditional sense
+   * ADR 006: Tokens are not stored - verify token validity with GitHub API
    */
   async handleTokenRefresh(req: Request, res: Response): Promise<void> {
     try {
       // GitHub access tokens don't expire, so we don't need to refresh them
-      // However, we can check if the token is still valid
+      // Verify the token is still valid by calling GitHub API
       const { access_token } = req.body;
 
       if (!access_token || typeof access_token !== 'string') {
@@ -98,25 +99,21 @@ export class GitHubOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      const isValid = await this.isTokenValid(access_token);
-      if (!isValid) {
+      // Verify token validity by fetching user info
+      try {
+        await this.fetchUserInfo(access_token);
+      } catch {
         this.setAntiCachingHeaders(res);
         res.status(401).json({ error: 'Token is no longer valid' });
         return;
       }
 
-      const tokenInfo = await this.getToken(access_token);
-      if (!tokenInfo) {
-        this.setAntiCachingHeaders(res);
-        res.status(401).json({ error: 'Token not found' });
-        return;
-      }
-
+      // GitHub tokens don't expire, return the same token
       this.setAntiCachingHeaders(res);
       res.json({
         access_token: access_token,
-        expires_in: Math.floor((tokenInfo.expiresAt - Date.now()) / 1000),
         token_type: 'Bearer',
+        // GitHub tokens don't have expiration
       });
 
     } catch (error) {

@@ -4,7 +4,6 @@ import type { Request, Response } from 'express';
 import type {
   GitHubOAuthConfig,
   OAuthSession,
-  StoredTokenInfo,
   OAuthUserInfo
 } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/observability';
@@ -104,7 +103,7 @@ describe('GitHubOAuthProvider', () => {
   });
 
   const createProvider = () => {
-    return new GitHubOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new GitHubOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
@@ -373,23 +372,6 @@ describe('GitHubOAuthProvider', () => {
       const provider = createProvider();
       const accessToken = 'token-to-remove';
 
-      // Store a token first
-      const userInfo: OAuthUserInfo = {
-        sub: 'user123',
-        email: 'test@example.com',
-        name: 'Test User',
-        provider: 'github'
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 28800_000,
-          userInfo,
-          provider: 'github',
-          scopes: baseConfig.scopes
-        });
-
       const res = createMockResponse();
       const req = {
         headers: {
@@ -420,25 +402,18 @@ describe('GitHubOAuthProvider', () => {
   });
 
   describe('handleTokenRefresh', () => {
-    it('returns cached token information when refreshing an existing token', async () => {
+    it('verifies token validity and returns the token', async () => {
       const provider = createProvider();
-      const future = Date.now() + 28800_000;
-      const stored: StoredTokenInfo = {
-        accessToken: 'access-token',
-        refreshToken: undefined,
-        expiresAt: future,
-        userInfo: {
-          sub: '42',
-          email: 'octo@example.com',
-          name: 'The Octocat',
-          provider: 'github',
-          providerData: {}
-        },
-        provider: 'github',
-        scopes: baseConfig.scopes
-      };
 
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('access-token', stored);
+      // ADR 006: Tokens are not cached, verified via GitHub API
+      // Mock GitHub user response for token verification
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        id: 42,
+        login: 'octocat',
+        name: 'The Octocat',
+        email: 'octo@example.com',
+        avatar_url: 'https://avatars.githubusercontent.com/u/42'
+      }));
 
       const res = createMockResponse();
       await provider.handleTokenRefresh({
@@ -453,12 +428,15 @@ describe('GitHubOAuthProvider', () => {
       provider.dispose();
     });
 
-    it('rejects refresh requests for unknown tokens', async () => {
+    it('rejects refresh requests for invalid tokens', async () => {
       const provider = createProvider();
       const res = createMockResponse();
 
+      // Mock failed GitHub API response for invalid token
+      fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
+
       await provider.handleTokenRefresh({
-        body: { access_token: 'missing-token' },
+        body: { access_token: 'invalid-token' },
         headers: { host: 'localhost:3000' },
         secure: false
       } as unknown as Request, res);
@@ -471,25 +449,19 @@ describe('GitHubOAuthProvider', () => {
   });
 
   describe('verifyAccessToken', () => {
-    it('verifies valid token from cache', async () => {
+    it('verifies valid token by fetching user info', async () => {
       const provider = createProvider();
       const accessToken = 'valid-token';
-      const userInfo: OAuthUserInfo = {
-        sub: 'user789',
-        email: 'verified@example.com',
-        name: 'Verified User',
-        provider: 'github'
-      };
 
-      // Store token
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 28800_000,
-          userInfo,
-          provider: 'github',
-          scopes: baseConfig.scopes
-        });
+      // ADR 006: Tokens are not cached, always verified via GitHub API
+      // Mock GitHub user response
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        id: 789,
+        login: 'verified',
+        name: 'Verified User',
+        email: 'verified@example.com',
+        avatar_url: 'https://avatars.githubusercontent.com/u/789'
+      }));
 
       const authInfo = await provider.verifyAccessToken(accessToken);
 
@@ -506,9 +478,9 @@ describe('GitHubOAuthProvider', () => {
       provider.dispose();
     });
 
-    it('fetches user info if token not in cache', async () => {
+    it('fetches user info from API', async () => {
       const provider = createProvider();
-      const accessToken = 'uncached-token';
+      const accessToken = 'access-token';
 
       // Mock GitHub user response
       fetchMock.mockResolvedValueOnce(jsonReply({
@@ -554,25 +526,24 @@ describe('GitHubOAuthProvider', () => {
       const provider = createProvider();
       const accessToken = 'cached-info-token';
       const userInfo: OAuthUserInfo = {
-        sub: 'user101',
+        sub: '101',
         email: 'cached@example.com',
         name: 'Cached User',
         provider: 'github'
       };
 
-      // Store token with user info
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 28800_000,
-          userInfo,
-          provider: 'github',
-          scopes: baseConfig.scopes
-        });
+      // ADR 006: Always fetch from GitHub API (no server-side caching)
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        id: 101,
+        login: 'cacheduser',
+        name: 'Cached User',
+        email: 'cached@example.com',
+        avatar_url: 'https://avatars.githubusercontent.com/u/101'
+      }));
 
       const result = await provider.getUserInfo(accessToken);
 
-      expect(result).toEqual(userInfo);
+      expect(result).toMatchObject(userInfo);
 
       provider.dispose();
     });

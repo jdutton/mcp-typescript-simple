@@ -55,7 +55,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('GitHub Provider', () => {
     it('should return valid expiresAt when token not in local store', async () => {
-      const provider = new GitHubOAuthProvider(githubConfig, undefined, undefined, new MemoryPKCEStore());
+      const provider = new GitHubOAuthProvider(githubConfig, undefined, new MemoryPKCEStore());
 
       // Mock GitHub user API response (token not in local store scenario)
       vi.mocked(global.fetch).mockResolvedValueOnce({
@@ -101,7 +101,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('Microsoft Provider', () => {
     it('should return valid expiresAt when token not in local store', async () => {
-      const provider = new MicrosoftOAuthProvider(microsoftConfig, undefined, undefined, new MemoryPKCEStore());
+      const provider = new MicrosoftOAuthProvider(microsoftConfig, undefined, new MemoryPKCEStore());
 
       // Mock Microsoft Graph API response (token not in local store scenario)
       vi.mocked(global.fetch).mockResolvedValueOnce({
@@ -135,7 +135,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('Google Provider', () => {
     it('should return valid expiresAt when expiry_date unavailable', async () => {
-      const provider = new GoogleOAuthProvider(googleConfig, undefined, undefined, new MemoryPKCEStore());
+      const provider = new GoogleOAuthProvider(googleConfig, undefined, new MemoryPKCEStore());
 
       // Mock Google userinfo endpoint (fallback when tokeninfo fails)
       // This scenario returns no expiry_date
@@ -168,7 +168,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
     });
 
     it('should use provider expiry_date when available', async () => {
-      const provider = new GoogleOAuthProvider(googleConfig, undefined, undefined, new MemoryPKCEStore());
+      const provider = new GoogleOAuthProvider(googleConfig, undefined, new MemoryPKCEStore());
 
       // Mock expiry_date 30 minutes from now (in milliseconds)
       const expiryDateMs = Date.now() + (30 * 60 * 1000);
@@ -195,7 +195,7 @@ describe('Token Expiration Bug - Provider verifyAccessToken', () => {
 
   describe('MCP SDK Compatibility', () => {
     it('should pass MCP SDK bearerAuth middleware validation check', async () => {
-      const provider = new GitHubOAuthProvider(githubConfig, undefined, undefined, new MemoryPKCEStore());
+      const provider = new GitHubOAuthProvider(githubConfig, undefined, new MemoryPKCEStore());
 
       // Mock GitHub API responses
       vi.mocked(global.fetch).mockResolvedValueOnce({

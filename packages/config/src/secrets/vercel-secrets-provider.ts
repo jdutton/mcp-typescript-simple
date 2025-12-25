@@ -14,7 +14,6 @@
  *
  * Environment Variable Configuration:
  * Set environment variables in Vercel dashboard or via vercel env command:
- * - TOKEN_ENCRYPTION_KEY
  * - GOOGLE_CLIENT_SECRET
  * - REDIS_URL
  * - etc.

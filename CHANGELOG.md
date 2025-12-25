@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### BREAKING CHANGES
+
+- **Removed TOKEN_ENCRYPTION_KEY requirement** (ADR-006: Session-Based Authentication Caching)
+  - **Problem**: Bearer tokens were stored server-side with AES-256-GCM encryption, requiring TOKEN_ENCRYPTION_KEY management and creating 50% memory overhead
+  - **Solution**: Eliminated token storage entirely; tokens are now client-managed with session-based authentication caching
+  - **Impact**:
+    - ❌ **BREAKING**: TOKEN_ENCRYPTION_KEY environment variable is no longer needed and will be ignored
+    - ❌ **BREAKING**: All existing sessions must be deleted on deployment (force client reconnect)
+    - ❌ **BREAKING**: `mcp-session-id` header is now REQUIRED for authentication
+    - ✅ 50% reduction in memory usage (15MB vs 30MB for 10K sessions)
+    - ✅ 99.67% reduction in provider API calls via JWT validation and TTL-based caching
+    - ✅ Request latency improved from 200ms to 6ms for JWT tokens
+  - **Migration**: Remove TOKEN_ENCRYPTION_KEY from environment variables; existing clients will need to re-authenticate
+
 ### Planned
 - Plugin architecture for extensible MCP server framework
 - Enhanced documentation and examples

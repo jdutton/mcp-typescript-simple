@@ -4,7 +4,6 @@ import type { Request, Response } from 'express';
 import type {
   MicrosoftOAuthConfig,
   OAuthSession,
-  StoredTokenInfo,
   OAuthUserInfo
 } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
@@ -105,7 +104,7 @@ describe('MicrosoftOAuthProvider', () => {
   });
 
   const createProvider = () => {
-    return new MicrosoftOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new MicrosoftOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
@@ -366,24 +365,8 @@ describe('MicrosoftOAuthProvider', () => {
   describe('handleTokenRefresh', () => {
     it('refreshes tokens using the Microsoft token endpoint', async () => {
       const provider = createProvider();
-      const now = Date.now();
-      const stored: StoredTokenInfo = {
-        accessToken: 'old-access',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: now + 1_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
-        },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
 
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('old-access', stored);
-
+      // ADR 006: No server-side token storage, just exchange refresh token for new access token
       fetchMock.mockResolvedValueOnce(jsonReply({
         access_token: 'new-access',
         refresh_token: 'new-refresh',
@@ -405,18 +388,15 @@ describe('MicrosoftOAuthProvider', () => {
         refresh_token: 'new-refresh'
       }));
 
-      const newToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
-      expect(newToken?.refreshToken).toBe('new-refresh');
-
-      const oldToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
-      expect(oldToken).toBeNull();
-
       provider.dispose();
     });
 
     it('rejects refresh requests with unknown refresh tokens', async () => {
       const provider = createProvider();
       const res = createMockResponse();
+
+      // Mock Microsoft API returning error for invalid refresh token
+      fetchMock.mockResolvedValueOnce(new Response('Invalid grant', { status: 400 }));
 
       await provider.handleTokenRefresh({
         body: { refresh_token: 'unknown' },
@@ -425,7 +405,9 @@ describe('MicrosoftOAuthProvider', () => {
       } as unknown as Request, res);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        error: 'Failed to refresh token'
+      }));
 
       provider.dispose();
     });
@@ -437,21 +419,14 @@ describe('MicrosoftOAuthProvider', () => {
       const accessToken = 'token-to-remove';
 
       // Store a token first
-      const userInfo: OAuthUserInfo = {
+      const _userInfo: OAuthUserInfo = {
         sub: 'user123',
         email: 'test@example.com',
         name: 'Test User',
         provider: 'microsoft'
       };
 
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
+      
 
       // Mock successful revocation
       fetchMock.mockResolvedValueOnce(new Response('', { status: 200 }));
@@ -487,22 +462,7 @@ describe('MicrosoftOAuthProvider', () => {
     it('succeeds even when revocation fails', async () => {
       const provider = createProvider();
 
-      const stored: StoredTokenInfo = {
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: Date.now() + 3_600_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
-        },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('access-token', stored);
-
+      // ADR 006: No server-side token storage, just test revocation behavior
       // Mock revocation failure
       fetchMock.mockResolvedValueOnce(new Response('error', {
         status: 500,
@@ -519,7 +479,6 @@ describe('MicrosoftOAuthProvider', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({ success: true });
-      expect(await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token')).toBeNull();
 
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -531,22 +490,13 @@ describe('MicrosoftOAuthProvider', () => {
     it('verifies valid token from cache', async () => {
       const provider = createProvider();
       const accessToken = 'valid-token';
-      const userInfo: OAuthUserInfo = {
-        sub: 'user789',
-        email: 'verified@example.com',
-        name: 'Verified User',
-        provider: 'microsoft'
-      };
 
-      // Store token
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
+      // ADR 006: Always verify via API (no server-side caching)
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        id: 'user789',
+        mail: 'verified@example.com',
+        displayName: 'Verified User'
+      }));
 
       const authInfo = await provider.verifyAccessToken(accessToken);
 
@@ -615,19 +565,16 @@ describe('MicrosoftOAuthProvider', () => {
         provider: 'microsoft'
       };
 
-      // Store token with user info
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
+      // ADR 006: Always fetch from Microsoft API (no server-side caching)
+      fetchMock.mockResolvedValueOnce(jsonReply({
+        id: 'user101',
+        mail: 'cached@example.com',
+        displayName: 'Cached User'
+      }));
 
       const result = await provider.getUserInfo(accessToken);
 
-      expect(result).toEqual(userInfo);
+      expect(result).toMatchObject(userInfo);
 
       provider.dispose();
     });
@@ -702,6 +649,358 @@ describe('MicrosoftOAuthProvider', () => {
     it('returns correct default scopes', () => {
       const provider = createProvider();
       expect(provider.getDefaultScopes()).toEqual(['openid', 'profile', 'email']);
+      provider.dispose();
+    });
+  });
+
+  describe('JWT Validation (ADR 006)', () => {
+    // Helper to create a valid JWT token (simplified format for testing)
+    function createTestJWT(payload: Record<string, unknown>): string {
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+      const signature = Buffer.from('fake-signature').toString('base64url');
+      return `${header}.${payloadStr}.${signature}`;
+    }
+
+    it('should validate ID token locally by checking expiry and audience', async () => {
+      const provider = createProvider();
+
+      const validPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId,
+        exp: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour
+      };
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: createTestJWT(validPayload),
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should reject expired ID tokens', async () => {
+      const provider = createProvider();
+
+      const expiredPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId,
+        exp: Math.floor(Date.now() / 1000) - 3600 // Expired 1 hour ago
+      };
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: createTestJWT(expiredPayload),
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should reject tokens with audience mismatch', async () => {
+      const provider = createProvider();
+
+      const mismatchedPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: 'wrong-client-id',
+        exp: Math.floor(Date.now() / 1000) + 3600
+      };
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: createTestJWT(mismatchedPayload),
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should reject malformed JWT tokens (invalid structure)', async () => {
+      const provider = createProvider();
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: 'invalid.jwt', // Only 2 parts instead of 3
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should reject JWT with invalid JSON payload', async () => {
+      const provider = createProvider();
+
+      // Create JWT with invalid JSON in payload
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const invalidPayload = Buffer.from('not-valid-json{').toString('base64url');
+      const signature = Buffer.from('fake-signature').toString('base64url');
+      const invalidJWT = `${header}.${invalidPayload}.${signature}`;
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: invalidJWT,
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should accept token without expiry claim', async () => {
+      const provider = createProvider();
+
+      const payloadNoExp = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId
+        // No exp field
+      };
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: createTestJWT(payloadNoExp),
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should accept token without expiry (but log warning)
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should accept token without audience claim', async () => {
+      const provider = createProvider();
+
+      const payloadNoAud = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        exp: Math.floor(Date.now() / 1000) + 3600
+        // No aud field
+      };
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000,
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            idToken: createTestJWT(payloadNoAud),
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should accept token without audience (validation is optional)
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching when no ID token available', async () => {
+      const provider = createProvider();
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now(),
+        validationTTL: 300000, // 5 minutes
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            // No idToken field
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return true because within TTL
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching and return false when TTL expired', async () => {
+      const provider = createProvider();
+
+      const authCache = {
+        provider: 'microsoft' as const,
+        userId: 'user-123',
+        tokenHash: 'test-hash',
+        tokenBindingTime: Date.now(),
+        lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
+        validationTTL: 300000, // 5 minutes
+        scopes: ['openid', 'email'],
+        authInfo: {
+          token: 'test-token',
+          clientId: baseConfig.clientId,
+          scopes: ['openid', 'email'],
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+          extra: {
+            // No idToken field
+            userInfo: {
+              sub: 'user-123',
+              email: 'test@example.com'
+            }
+          }
+        }
+      };
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return false because TTL expired
+      expect(result).toBe(false);
+
       provider.dispose();
     });
   });

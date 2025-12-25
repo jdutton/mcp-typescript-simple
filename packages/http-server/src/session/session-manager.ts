@@ -15,7 +15,7 @@
  * - RedisSessionManager: Multi-node deployment (production, load-balanced, Vercel)
  */
 
-import type { AuthInfo } from '@mcp-typescript-simple/persistence';
+import type { AuthInfo, SessionAuthCache } from '@mcp-typescript-simple/persistence';
 
 /**
  * Session information
@@ -24,7 +24,8 @@ export interface SessionInfo {
   sessionId: string;
   createdAt: number;
   expiresAt: number;
-  authInfo?: AuthInfo;
+  authInfo?: AuthInfo; // Deprecated - use auth.authInfo (kept for backward compatibility during migration)
+  auth?: SessionAuthCache; // NEW: Session-based authentication cache (ADR 006)
   metadata?: Record<string, unknown>;
 }
 
