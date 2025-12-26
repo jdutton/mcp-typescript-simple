@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { Request, Response } from 'express';
 import {
   BaseOAuthProvider,
@@ -144,7 +144,7 @@ function createMockSessionManager(): SessionManager {
 
   return {
     async createSession(metadata: any) {
-      const sessionId = `session-${Date.now()}-${Math.random()}`;
+      const sessionId = randomUUID();
       sessions.set(sessionId, { id: sessionId, ...metadata });
       return sessionId;
     },

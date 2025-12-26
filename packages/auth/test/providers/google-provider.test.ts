@@ -1,12 +1,12 @@
 import { vi } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import type { GoogleOAuthConfig, OAuthSession } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
+import { createMockResponse } from './test-helpers.js';
 
- 
 const mockGenerateAuthUrl = vi.fn<(_options: Record<string, unknown>) => string>();
 const mockGetToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
 const mockVerifyIdToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ getPayload: () => Record<string, unknown> }>>();
@@ -41,56 +41,6 @@ const baseConfig: GoogleOAuthConfig = {
   clientSecret: 'client-secret',
   redirectUri: 'https://example.com/callback',
   scopes: ['openid', 'email']
-};
-
-type MockResponse = Response & {
-  statusCode?: number;
-  jsonPayload?: unknown;
-  redirectUrl?: string;
-  headers?: Record<string, string>;
-};
-
-const createMockResponse = (): MockResponse => {
-  const data: Partial<Response> & {
-    statusCode?: number;
-    jsonPayload?: unknown;
-    redirectUrl?: string;
-    headers?: Record<string, string>;
-  } = {
-    headers: {}
-  };
-
-  data.status = vi.fn((code: number) => {
-    data.statusCode = code;
-    return data as Response;
-  });
-  data.json = vi.fn((payload: unknown) => {
-    data.jsonPayload = payload;
-    return data as Response;
-  });
-  data.redirect = vi.fn((statusOrUrl: number | string, maybeUrl?: string) => {
-    if (typeof statusOrUrl === 'number') {
-      data.statusCode = statusOrUrl;
-      data.redirectUrl = maybeUrl ?? '';
-    } else {
-      data.redirectUrl = statusOrUrl;
-    }
-    return data as Response;
-  });
-  data.set = vi.fn((name: string, value?: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-  data.setHeader = vi.fn((name: string, value: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-
-  return data as MockResponse;
 };
 
 describe('GoogleOAuthProvider', () => {

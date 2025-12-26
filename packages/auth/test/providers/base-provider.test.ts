@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import {
   BaseOAuthProvider,
   OAuthTokenError,
@@ -16,28 +16,7 @@ import type {
 } from '@mcp-typescript-simple/auth';
 import { PKCEStore, MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-type MockResponse = Response & {
-  statusCode?: number;
-  jsonPayload?: unknown;
-};
-
-const createResponse = (): MockResponse => {
-  const res: Partial<Response> & {
-    statusCode?: number;
-    jsonPayload?: unknown;
-  } = {};
-  res.status = vi.fn((code: number) => {
-    res.statusCode = code;
-    return res as Response;
-  });
-  res.json = vi.fn((payload: unknown) => {
-    res.jsonPayload = payload;
-    return res as Response;
-  });
-  res.redirect = vi.fn(() => res as Response);
-  res.setHeader = vi.fn(() => res as Response);
-  return res as MockResponse;
-};
+import { createMockResponse as createResponse, jsonReply } from './test-helpers.js';
 
 type SessionAccess = {
   storeSession(_state: string, _session: OAuthSession): Promise<void>;
@@ -151,15 +130,6 @@ describe('BaseOAuthProvider', () => {
     provider.dispose();
     vi.useRealTimers();
   });
-
-  const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) => {
-    const payload = typeof body === 'string' ? body : JSON.stringify(body);
-    return new Response(payload, {
-      status: init?.status ?? 200,
-      statusText: init?.statusText,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  };
 
   it('cleans up expired sessions', async () => {
     const now = Date.now();

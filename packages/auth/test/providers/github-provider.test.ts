@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import type {
   GitHubOAuthConfig,
   OAuthSession,
@@ -9,6 +9,7 @@ import type {
 import { logger } from '@mcp-typescript-simple/observability';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
+import { createMockResponse, jsonReply } from './test-helpers.js';
 
 /* eslint-disable sonarjs/no-unused-vars */
 let originalFetch: typeof globalThis.fetch;
@@ -20,65 +21,6 @@ const baseConfig: GitHubOAuthConfig = {
   clientSecret: 'client-secret',
   redirectUri: 'https://example.com/callback',
   scopes: ['read:user', 'user:email']
-};
-
-type MockResponse = Response & {
-  statusCode?: number;
-  jsonPayload?: unknown;
-  redirectUrl?: string;
-  headers?: Record<string, string>;
-};
-
-const createMockResponse = (): MockResponse => {
-  const data: Partial<Response> & {
-    statusCode?: number;
-    jsonPayload?: unknown;
-    redirectUrl?: string;
-    headers?: Record<string, string>;
-  } = {
-    headers: {}
-  };
-
-  data.status = vi.fn((code: number) => {
-    data.statusCode = code;
-    return data as Response;
-  });
-  data.json = vi.fn((payload: unknown) => {
-    data.jsonPayload = payload;
-    return data as Response;
-  });
-  data.redirect = vi.fn((statusOrUrl: number | string, maybeUrl?: string) => {
-    if (typeof statusOrUrl === 'number') {
-      data.statusCode = statusOrUrl;
-      data.redirectUrl = maybeUrl ?? '';
-    } else {
-      data.redirectUrl = statusOrUrl;
-    }
-    return data as Response;
-  });
-  data.set = vi.fn((name: string, value?: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-  data.setHeader = vi.fn((name: string, value: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-
-  return data as MockResponse;
-};
-
-const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) => {
-  const payload = typeof body === 'string' ? body : JSON.stringify(body);
-  return new Response(payload, {
-    status: init?.status ?? 200,
-    statusText: init?.statusText,
-    headers: { 'Content-Type': 'application/json' }
-  });
 };
 
 let GitHubOAuthProvider: typeof import('@mcp-typescript-simple/auth').GitHubOAuthProvider;
