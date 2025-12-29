@@ -2414,6 +2414,42 @@
     },
     {
       "format": "typescript",
+      "lines": 11,
+      "fragment": ";\n        process.env.REDIS_URL = 'redis://localhost:6379';\n\n        // Validate function extracted to reduce callback nesting depth (max 4 levels)\n        const validate = () => validateProductionStorage();\n        expect(validate).not.toThrow();\n        expect(process.exit).not.toHaveBeenCalled();\n      });\n    });\n\n    describe('Production Environment - VERCEL_ENV=production'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/http-server/test/server/production-storage-validator.test.ts",
+        "start": 91,
+        "end": 101,
+        "startLoc": {
+          "line": 91,
+          "column": 13,
+          "position": 732
+        },
+        "endLoc": {
+          "line": 101,
+          "column": 49,
+          "position": 809
+        }
+      },
+      "secondFile": {
+        "name": "packages/http-server/test/server/production-storage-validator.test.ts",
+        "start": 69,
+        "end": 79,
+        "startLoc": {
+          "line": 69,
+          "column": 14,
+          "position": 556
+        },
+        "endLoc": {
+          "line": 79,
+          "column": 47,
+          "position": 633
+        }
+      }
+    },
+    {
+      "format": "typescript",
       "lines": 8,
       "fragment": "const middleware = requireInitialAccessToken(mockTokenStore);\n\n      await middleware(mockRequest as Request, mockResponse as Response, nextFunction);\n\n      expect(mockResponse.status).toHaveBeenCalledWith(401);\n      expect(mockResponse.json).toHaveBeenCalledWith({\n        error: 'invalid_token',\n        error_description: 'Invalid Authorization header format. Use: Authorization: Bearer <token>'",
       "tokens": 0,
@@ -3139,32 +3175,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/stdio.system.test.ts",
-        "start": 95,
-        "end": 101,
+        "start": 98,
+        "end": 104,
         "startLoc": {
-          "line": 95,
+          "line": 98,
           "column": 2,
-          "position": 842
+          "position": 868
         },
         "endLoc": {
-          "line": 101,
+          "line": 104,
           "column": 8,
-          "position": 922
+          "position": 948
         }
       },
       "secondFile": {
         "name": "packages/example-mcp/test/system/stdio.system.test.ts",
-        "start": 83,
-        "end": 89,
+        "start": 86,
+        "end": 92,
         "startLoc": {
-          "line": 83,
+          "line": 86,
           "column": 2,
-          "position": 708
+          "position": 734
         },
         "endLoc": {
-          "line": 89,
+          "line": 92,
           "column": 10,
-          "position": 788
+          "position": 814
         }
       }
     },
@@ -11110,17 +11146,17 @@
       },
       "secondFile": {
         "name": "packages/example-mcp/test/integration/deployment-validation.test.ts",
-        "start": 401,
-        "end": 409,
+        "start": 412,
+        "end": 420,
         "startLoc": {
-          "line": 401,
+          "line": 412,
           "column": 4,
-          "position": 3851
+          "position": 3938
         },
         "endLoc": {
-          "line": 409,
+          "line": 420,
           "column": 2,
-          "position": 3932
+          "position": 4019
         }
       }
     },
@@ -11270,73 +11306,37 @@
     },
     {
       "format": "typescript",
-      "lines": 54,
-      "fragment": ");\n      if (stderr && stderr.includes('Failed tests:')) {\n        throw new Error(`Transport layer validation failed: ${stderr}`);\n      }\n    } catch (error: unknown) {\n      const execError = error as { code?: number; stdout?: string; stderr?: string };\n      if (execError.code !== 0) {\n        throw new Error(`Transport layer tests failed: ${execError.stdout || execError.stderr}`);\n      }\n      throw error;\n    }\n  }\n\n  private async testDockerBuild(): Promise<void> {\n    try {\n      // Check if Docker is available\n      await execAsync('docker --version');\n\n      // Build the Docker image\n      // Note: Docker buildkit outputs to stderr, which is normal\n      const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {\n        timeout: 300000 // 5 minutes timeout (uncached builds can take longer)\n      });\n\n      // Check for success indicators in either stdout or stderr (buildkit uses stderr)\n      const output = stdout + stderr;\n      const hasSuccess = output.includes('writing image') ||\n                        output.includes('Successfully built') ||\n                        output.includes('Successfully tagged') ||\n                        output.includes('naming to docker.io');\n\n      if (!hasSuccess) {\n        throw new Error(`Docker build failed: no success indicators found\\n${output.substring(output.length - 500)}`);\n      }\n\n      // Clean up test image\n      await execAsync('docker rmi mcp-typescript-simple-test').catch(() => {\n        // Ignore cleanup errors\n      });\n\n    } catch (error: unknown) {\n      const execError = error as { message?: string };\n      if (execError.message?.includes('docker: command not found') ||\n          execError.message?.includes('Cannot connect to the Docker daemon')) {\n        console.log('   ⚠️  Docker not available, skipping Docker build test');\n        return;\n      }\n      throw error;\n    }\n  }\n\n  private async sendMCPRequest(request: unknown): Promise<unknown> {\n    return new Promise((resolve, reject) => {\n      const child = spawn('npx', ['tsx', 'src/index.ts'",
+      "lines": 52,
+      "fragment": ");\n      if (stderr && stderr.includes('Failed tests:')) {\n        throw new Error(`Transport layer validation failed: ${stderr}`);\n      }\n    } catch (error: unknown) {\n      const execError = error as { code?: number; stdout?: string; stderr?: string };\n      if (execError.code !== 0) {\n        throw new Error(`Transport layer tests failed: ${execError.stdout || execError.stderr}`);\n      }\n      throw error;\n    }\n  }\n\n  private async testDockerBuild(): Promise<void> {\n    try {\n      // Check if Docker is available\n      await execAsync('docker --version');\n\n      // Build the Docker image\n      // Note: Docker buildkit outputs to stderr, which is normal\n      const { stdout, stderr } = await execAsync('docker build -t mcp-typescript-simple-test .', {\n        timeout: 300000 // 5 minutes timeout (uncached builds can take longer)\n      });\n\n      // Check for success indicators in either stdout or stderr (buildkit uses stderr)\n      const output = stdout + stderr;\n      const hasSuccess = output.includes('writing image') ||\n                        output.includes('Successfully built') ||\n                        output.includes('Successfully tagged') ||\n                        output.includes('naming to docker.io');\n\n      if (!hasSuccess) {\n        throw new Error(`Docker build failed: no success indicators found\\n${output.substring(output.length - 500)}`);\n      }\n\n      // Clean up test image\n      await execAsync('docker rmi mcp-typescript-simple-test').catch(() => {\n        // Ignore cleanup errors\n      });\n\n    } catch (error: unknown) {\n      const execError = error as { message?: string };\n      if (execError.message?.includes('docker: command not found') ||\n          execError.message?.includes('Cannot connect to the Docker daemon')) {\n        console.log('   ⚠️  Docker not available, skipping Docker build test');\n        return;\n      }\n      throw error;\n    }\n  }\n\n  private async",
       "tokens": 0,
       "firstFile": {
         "name": "packages/adapter-vercel/test/deployment-validation.test.ts",
         "start": 263,
-        "end": 316,
+        "end": 314,
         "startLoc": {
           "line": 263,
           "column": 45,
           "position": 2564
         },
         "endLoc": {
-          "line": 316,
-          "column": 15,
-          "position": 3064
+          "line": 314,
+          "column": 6,
+          "position": 3012
         }
       },
       "secondFile": {
         "name": "packages/example-mcp/test/integration/deployment-validation.test.ts",
         "start": 277,
-        "end": 330,
+        "end": 328,
         "startLoc": {
           "line": 277,
           "column": 66,
           "position": 2712
         },
         "endLoc": {
-          "line": 330,
-          "column": 36,
-          "position": 3212
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 6,
-      "fragment": "try {\n          const lines = stdout.trim().split('\\n');\n          for (const line of lines) {\n            if (line.trim().startsWith('{')) {\n              const response = JSON.parse(line);\n              if (response.id === request",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/adapter-vercel/test/deployment-validation.test.ts",
-        "start": 338,
-        "end": 343,
-        "startLoc": {
-          "line": 338,
-          "column": 9,
-          "position": 3251
-        },
-        "endLoc": {
-          "line": 343,
-          "column": 8,
-          "position": 3332
-        }
-      },
-      "secondFile": {
-        "name": "packages/example-mcp/test/integration/deployment-validation.test.ts",
-        "start": 344,
-        "end": 349,
-        "startLoc": {
-          "line": 344,
-          "column": 11,
-          "position": 3317
-        },
-        "endLoc": {
-          "line": 349,
-          "column": 2,
-          "position": 3398
+          "line": 328,
+          "column": 24,
+          "position": 3160
         }
       }
     },
@@ -11362,17 +11362,17 @@
       },
       "secondFile": {
         "name": "packages/example-mcp/test/integration/deployment-validation.test.ts",
-        "start": 381,
-        "end": 417,
+        "start": 392,
+        "end": 428,
         "startLoc": {
-          "line": 381,
+          "line": 392,
           "column": 7,
-          "position": 3625
+          "position": 3712
         },
         "endLoc": {
-          "line": 417,
+          "line": 428,
           "column": 2,
-          "position": 3991
+          "position": 4078
         }
       }
     },
@@ -13178,109 +13178,37 @@
     },
     {
       "format": "javascript",
-      "lines": 52,
-      "fragment": "import eslint from '@eslint/js';\nimport typescriptEslint from '@typescript-eslint/eslint-plugin';\nimport typescriptParser from '@typescript-eslint/parser';\nimport sonarjs from 'eslint-plugin-sonarjs';\nimport unicorn from 'eslint-plugin-unicorn';\nimport importPlugin from 'eslint-plugin-import';\nimport security from 'eslint-plugin-security';\nimport pluginNode from 'eslint-plugin-n';\n\nexport default [\n  eslint.configs.recommended,\n  sonarjs.configs.recommended,\n  security.configs.recommended,\n  {\n    // Test files - disable type-aware linting (test files excluded from tsconfig)\n    files: ['**/*.test.ts', '**/test/**/*.ts', '**/test-*.ts', '**/tests/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // Test files excluded from tsconfig\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules for test files\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      // Relaxed rules for test files\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      '@typescript-eslint/no-non-null-assertion': 'off',\n      'no-undef': 'off',\n\n      // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)",
+      "lines": 348,
+      "fragment": "import eslint from '@eslint/js';\nimport typescriptEslint from '@typescript-eslint/eslint-plugin';\nimport typescriptParser from '@typescript-eslint/parser';\nimport sonarjs from 'eslint-plugin-sonarjs';\nimport unicorn from 'eslint-plugin-unicorn';\nimport importPlugin from 'eslint-plugin-import';\nimport security from 'eslint-plugin-security';\nimport pluginNode from 'eslint-plugin-n';\n\nexport default [\n  eslint.configs.recommended,\n  sonarjs.configs.recommended,\n  security.configs.recommended,\n  {\n    // Test files - disable type-aware linting (test files excluded from tsconfig)\n    files: ['**/*.test.ts', '**/test/**/*.ts', '**/test-*.ts', '**/tests/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // Test files excluded from tsconfig\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules for test files\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      // Relaxed rules for test files\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      '@typescript-eslint/no-non-null-assertion': 'off',\n      'no-undef': 'off',\n\n      // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)\n      'sonarjs/no-ignored-exceptions': 'warn', // Empty catch blocks common in tests for expected failures\n      'sonarjs/assertions-in-tests': 'warn', // Some tests validate side effects, not return values\n      'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)\n      'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars\n\n      // Callback nesting depth (catch SonarQube brain-overload issues)\n      'max-nested-callbacks': ['error', { max: 4 }], // Limit callback nesting to 4 levels (SonarQube threshold)\n      'max-depth': ['warn', { max: 4 }], // Warn on deep block nesting\n\n      // SonarJS rules - LOW VALUE (disable for tests)\n      'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity\n      'sonarjs/os-command': 'off',\n      'sonarjs/no-os-command-from-path': 'off',\n      'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks\n      'sonarjs/no-nested-template-literals': 'off',\n      'sonarjs/slow-regex': 'off',\n      'sonarjs/cognitive-complexity': 'off', // Test readability > complexity\n      'sonarjs/no-nested-conditional': 'off', // Complex test setup sometimes needs nested conditionals\n      'sonarjs/no-hardcoded-passwords': 'off', // Test fixtures need test credentials\n      'sonarjs/no-hardcoded-secrets': 'off', // Test fixtures need test secrets\n      'sonarjs/pseudo-random': 'off', // Math.random() fine for test data\n      'sonarjs/no-empty-test-file': 'off', // Placeholder test files during development\n      'sonarjs/no-clear-text-protocols': 'off', // Tests use http://localhost\n      'sonarjs/todo-tag': 'off', // TODOs in tests are useful for tracking coverage\n      'sonarjs/unused-import': 'off', // Covered by @typescript-eslint/no-unused-vars\n      'sonarjs/no-identical-functions': 'off', // Test helper functions intentionally duplicated\n      'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files\n      'sonarjs/no-unused-collection': 'off', // Test data setup may create collections for side effects\n\n      // Code quality - ERROR in tests (autofix removes unused imports)\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - relaxed for tests\n      'security/detect-child-process': 'off', // Tests execute commands\n      'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Import rules - HIGH VALUE (catch duplicate imports)\n      'import/no-duplicates': 'error',\n\n      // Unicorn rules - HIGH VALUE (enforce in tests)\n      'unicorn/prefer-node-protocol': 'error', // Modern Node.js best practice\n\n      // Unicorn rules - LOW VALUE (disable for tests)\n      'unicorn/no-array-for-each': 'off', // .forEach() is readable in tests\n      'unicorn/no-useless-undefined': 'off', // Explicit undefined in test data is intentional\n      'unicorn/prefer-top-level-await': 'off', // Test frameworks handle async differently\n      'unicorn/prefer-number-properties': 'off', // Not worth the churn in tests\n      'unicorn/throw-new-error': 'off',\n      'unicorn/prefer-module': 'off',\n      'unicorn/prefer-ternary': 'off',\n      'unicorn/prefer-string-raw': 'off',\n\n      // Security - check legitimate issues but allow test exceptions\n      'security/detect-unsafe-regex': 'warn', // Check but don't block on test regex\n    },\n  },\n  {\n    // Production TypeScript files (type-aware linting enabled)\n    files: ['**/*.ts', '**/*.tsx'],\n    ignores: ['**/*.test.ts', '**/test/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: true, // Enable type-aware linting\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // TypeScript core rules - STRICT\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'error',\n      '@typescript-eslint/explicit-module-boundary-types': 'error',\n      '@typescript-eslint/no-non-null-assertion': 'error',\n\n      // TypeScript async/promise safety - STRICT\n      '@typescript-eslint/no-floating-promises': 'error',\n      '@typescript-eslint/await-thenable': 'error',\n      '@typescript-eslint/no-misused-promises': 'error',\n\n      // Modern JavaScript patterns\n      '@typescript-eslint/prefer-nullish-coalescing': 'error',\n      '@typescript-eslint/prefer-optional-chain': 'error',\n\n      // General rules\n      'no-console': 'off', // Allow console in production code (used by tools)\n      'no-undef': 'off', // TypeScript handles this\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - CRITICAL vulnerability detection\n      'security/detect-child-process': 'error',\n      'security/detect-non-literal-fs-filename': 'warn', // Can be noisy but important\n      'security/detect-non-literal-regexp': 'warn',\n      'security/detect-unsafe-regex': 'error', // CRITICAL: ReDoS vulnerability\n      'security/detect-buffer-noassert': 'error',\n      'security/detect-eval-with-expression': 'error',\n      'security/detect-no-csrf-before-method-override': 'error',\n      'security/detect-possible-timing-attacks': 'warn',\n      'security/detect-pseudoRandomBytes': 'error',\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Node.js best practices\n      'n/no-path-concat': 'error', // Prevents path.join issues\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - STRICT enforcement\n      'sonarjs/no-ignored-exceptions': 'error',\n      'sonarjs/no-control-regex': 'error',\n      'sonarjs/no-redundant-jump': 'error',\n      'sonarjs/updated-loop-counter': 'error',\n      'sonarjs/no-nested-template-literals': 'error',\n      'sonarjs/no-nested-functions': 'error',\n      'sonarjs/no-nested-conditional': 'error',\n      'sonarjs/cognitive-complexity': ['error', 15],\n      'sonarjs/slow-regex': 'warn',\n      'sonarjs/duplicates-in-character-class': 'error',\n      'sonarjs/prefer-single-boolean-return': 'error',\n      'sonarjs/no-unused-vars': 'warn',\n\n      // Unicorn rules - modern JavaScript best practices\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/throw-new-error': 'error',\n      'unicorn/prefer-module': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/no-useless-undefined': 'error',\n      'unicorn/prefer-ternary': 'off', // Can reduce readability\n      'unicorn/prefer-string-raw': 'error',\n    },\n  },\n  {\n    // Tools scripts - relaxed linting (MUST disable type-aware rules)\n    files: ['tools/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // No type-aware linting for tools\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules inherited from sonarjs.configs.recommended\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - more lenient for tools\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling\n      '@typescript-eslint/no-unsafe-function-type': 'off',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules for tools\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n    },\n  },\n  {\n    // Tools JavaScript files - same rules as TypeScript tools\n    files: ['tools/**/*.js'],\n    languageOptions: {\n      ecmaVersion: 2022,\n      sourceType: 'module',\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Core JavaScript rules\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - catch issues\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/throw-new-error': 'error',\n    },\n  },\n  {\n    ignores: [\n      'build/**',\n      'dist/**',\n      'coverage/**',\n      'node_modules/**',\n      '*.config.js', // Root config files (vitest, eslint, etc)\n      '**/*.d.ts'",
       "tokens": 0,
       "firstFile": {
         "name": "eslint.config.js",
         "start": 1,
-        "end": 52,
+        "end": 348,
         "startLoc": {
           "line": 1,
           "column": 1,
           "position": 0
         },
         "endLoc": {
-          "line": 52,
-          "column": 78,
-          "position": 332
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/eslint.config.js",
-        "start": 1,
-        "end": 52,
-        "startLoc": {
-          "line": 1,
-          "column": 1,
-          "position": 0
-        },
-        "endLoc": {
-          "line": 52,
-          "column": 37,
-          "position": 332
-        }
-      }
-    },
-    {
-      "format": "javascript",
-      "lines": 17,
-      "fragment": "'@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - relaxed for tests\n      'security/detect-child-process': 'off', // Tests execute commands\n      'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Import rules - HIGH VALUE (catch duplicate imports)",
-      "tokens": 0,
-      "firstFile": {
-        "name": "eslint.config.js",
-        "start": 79,
-        "end": 95,
-        "startLoc": {
-          "line": 79,
-          "column": 7,
-          "position": 533
-        },
-        "endLoc": {
-          "line": 95,
-          "column": 55,
-          "position": 637
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/eslint.config.js",
-        "start": 62,
-        "end": 78,
-        "startLoc": {
-          "line": 62,
-          "column": 7,
-          "position": 399
-        },
-        "endLoc": {
-          "line": 78,
-          "column": 42,
-          "position": 503
-        }
-      }
-    },
-    {
-      "format": "javascript",
-      "lines": 232,
-      "fragment": "},\n  },\n  {\n    // Production TypeScript files (type-aware linting enabled)\n    files: ['**/*.ts', '**/*.tsx'],\n    ignores: ['**/*.test.ts', '**/test/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: true, // Enable type-aware linting\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // TypeScript core rules - STRICT\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'error',\n      '@typescript-eslint/explicit-module-boundary-types': 'error',\n      '@typescript-eslint/no-non-null-assertion': 'error',\n\n      // TypeScript async/promise safety - STRICT\n      '@typescript-eslint/no-floating-promises': 'error',\n      '@typescript-eslint/await-thenable': 'error',\n      '@typescript-eslint/no-misused-promises': 'error',\n\n      // Modern JavaScript patterns\n      '@typescript-eslint/prefer-nullish-coalescing': 'error',\n      '@typescript-eslint/prefer-optional-chain': 'error',\n\n      // General rules\n      'no-console': 'off', // Allow console in production code (used by tools)\n      'no-undef': 'off', // TypeScript handles this\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - CRITICAL vulnerability detection\n      'security/detect-child-process': 'error',\n      'security/detect-non-literal-fs-filename': 'warn', // Can be noisy but important\n      'security/detect-non-literal-regexp': 'warn',\n      'security/detect-unsafe-regex': 'error', // CRITICAL: ReDoS vulnerability\n      'security/detect-buffer-noassert': 'error',\n      'security/detect-eval-with-expression': 'error',\n      'security/detect-no-csrf-before-method-override': 'error',\n      'security/detect-possible-timing-attacks': 'warn',\n      'security/detect-pseudoRandomBytes': 'error',\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Node.js best practices\n      'n/no-path-concat': 'error', // Prevents path.join issues\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - STRICT enforcement\n      'sonarjs/no-ignored-exceptions': 'error',\n      'sonarjs/no-control-regex': 'error',\n      'sonarjs/no-redundant-jump': 'error',\n      'sonarjs/updated-loop-counter': 'error',\n      'sonarjs/no-nested-template-literals': 'error',\n      'sonarjs/no-nested-functions': 'error',\n      'sonarjs/no-nested-conditional': 'error',\n      'sonarjs/cognitive-complexity': ['error', 15],\n      'sonarjs/slow-regex': 'warn',\n      'sonarjs/duplicates-in-character-class': 'error',\n      'sonarjs/prefer-single-boolean-return': 'error',\n      'sonarjs/no-unused-vars': 'warn',\n\n      // Unicorn rules - modern JavaScript best practices\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/throw-new-error': 'error',\n      'unicorn/prefer-module': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/no-useless-undefined': 'error',\n      'unicorn/prefer-ternary': 'off', // Can reduce readability\n      'unicorn/prefer-string-raw': 'error',\n    },\n  },\n  {\n    // Tools scripts - relaxed linting (MUST disable type-aware rules)\n    files: ['tools/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // No type-aware linting for tools\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules inherited from sonarjs.configs.recommended\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - more lenient for tools\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling\n      '@typescript-eslint/no-unsafe-function-type': 'off',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules for tools\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n    },\n  },\n  {\n    // Tools JavaScript files - same rules as TypeScript tools\n    files: ['tools/**/*.js'],\n    languageOptions: {\n      ecmaVersion: 2022,\n      sourceType: 'module',\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Core JavaScript rules\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - catch issues\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/throw-new-error': 'error',\n    },\n  },\n  {\n    ignores: [\n      'build/**',\n      'dist/**',\n      'coverage/**',\n      'node_modules/**',\n      '*.config.js', // Root config files (vitest, eslint, etc)\n      '**/*.d.ts'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "eslint.config.js",
-        "start": 113,
-        "end": 344,
-        "startLoc": {
-          "line": 113,
-          "column": 5,
-          "position": 741
-        },
-        "endLoc": {
-          "line": 344,
+          "line": 348,
           "column": 12,
-          "position": 2098
+          "position": 2144
         }
       },
       "secondFile": {
         "name": "packages/create-mcp-typescript-simple/templates/eslint.config.js",
-        "start": 91,
-        "end": 322,
+        "start": 1,
+        "end": 348,
         "startLoc": {
-          "line": 91,
-          "column": 5,
-          "position": 580
+          "line": 1,
+          "column": 1,
+          "position": 0
         },
         "endLoc": {
-          "line": 322,
+          "line": 348,
           "column": 14,
-          "position": 1937
+          "position": 2144
         }
       }
     }

@@ -325,6 +325,25 @@ class CITestRunner {
     }
   }
 
+  private parseResponseFromOutput(stdout: string, requestId: number): unknown | null {
+    const lines = stdout.trim().split('\n');
+    for (const line of lines) {
+      if (!line.trim().startsWith('{')) {
+        continue;
+      }
+      try {
+        const response = JSON.parse(line);
+        if (response.id === requestId) {
+          return response;
+        }
+      } catch (_error) {
+        // Intentionally ignore JSON parse errors - server output may contain incomplete JSON fragments
+        // that will be completed in subsequent data events (streaming output)
+      }
+    }
+    return null;
+  }
+
   private async sendMCPRequest(request: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const child = spawn('npx', ['tsx', 'packages/example-mcp/src/index.ts'], {
@@ -334,31 +353,23 @@ class CITestRunner {
       let stdout = '';
       let _stderr = '';
       let resolved = false;
+      const requestId = (request as any).id;
 
       // Parse response as soon as we receive it (don't wait for process to close)
       child.stdout.on('data', (data) => {
         stdout += data.toString();
 
         // Try to parse response from accumulated stdout
-        if (!resolved) {
-          try {
-            const lines = stdout.trim().split('\n');
-            for (const line of lines) {
-              if (line.trim().startsWith('{')) {
-                const response = JSON.parse(line);
-                if (response.id === (request as any).id) {
-                  resolved = true;
-                  clearTimeout(timeout);
-                  child.kill(); // Kill process after getting response
-                  resolve(response);
-                  return;
-                }
-              }
-            }
-          } catch (_error) {
-            // Intentionally ignore JSON parse errors - server output may contain incomplete JSON fragments
-            // that will be completed in subsequent data events (streaming output)
-          }
+        if (resolved) {
+          return;
+        }
+
+        const response = this.parseResponseFromOutput(stdout, requestId);
+        if (response) {
+          resolved = true;
+          clearTimeout(timeout);
+          child.kill(); // Kill process after getting response
+          resolve(response);
         }
       });
 

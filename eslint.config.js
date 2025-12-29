@@ -55,6 +55,10 @@ export default [
       'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)
       'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars
 
+      // Callback nesting depth (catch SonarQube brain-overload issues)
+      'max-nested-callbacks': ['error', { max: 4 }], // Limit callback nesting to 4 levels (SonarQube threshold)
+      'max-depth': ['warn', { max: 4 }], // Warn on deep block nesting
+
       // SonarJS rules - LOW VALUE (disable for tests)
       'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity
       'sonarjs/os-command': 'off',

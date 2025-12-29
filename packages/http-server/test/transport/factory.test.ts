@@ -123,8 +123,9 @@ describe('TransportFactory', () => {
       };
 
       // Mock the StdioServerTransport constructor
+      const mockTransportFactory = vi.fn(() => mockTransport);
       vi.doMock('@modelcontextprotocol/sdk/server/stdio.js', () => ({
-        StdioServerTransport: vi.fn(() => mockTransport)
+        StdioServerTransport: mockTransportFactory
       }));
     });
 

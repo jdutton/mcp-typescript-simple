@@ -285,23 +285,24 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles error during authorization URL generation', async () => {
-      await withGoogleProvider(createProvider, async (provider, res) => {
-        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      try {
+        await withGoogleProvider(createProvider, async (provider, res) => {
+          // Make generateAuthUrl throw an error
+          mockGenerateAuthUrl.mockImplementation(() => {
+            throw new Error('Auth URL generation failed');
+          });
 
-        // Make generateAuthUrl throw an error
-        mockGenerateAuthUrl.mockImplementation(() => {
-          throw new Error('Auth URL generation failed');
+          const req = { query: {} } as Request;
+          await provider.handleAuthorizationRequest(req, res);
+
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({ error: 'Failed to initiate authorization' });
+          expect(consoleSpy).toHaveBeenCalled();
         });
-
-        const req = { query: {} } as Request;
-        await provider.handleAuthorizationRequest(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({ error: 'Failed to initiate authorization' });
-        expect(consoleSpy).toHaveBeenCalled();
-
+      } finally {
         consoleSpy.mockRestore();
-      });
+      }
     });
   });
 
@@ -319,58 +320,60 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('returns error if OAuth provider returns error', async () => {
-      await withGoogleProvider(createProvider, async (provider, res) => {
-        const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      try {
+        await withGoogleProvider(createProvider, async (provider, res) => {
+          await provider.handleAuthorizationCallback({
+            query: { error: 'access_denied', error_description: 'User denied access' }
+          } as unknown as Request, res);
 
-        await provider.handleAuthorizationCallback({
-          query: { error: 'access_denied', error_description: 'User denied access' }
-        } as unknown as Request, res);
-
-        expect(res.status).toHaveBeenCalledWith(400);
-        expect(res.json).toHaveBeenCalledWith({
-          error: 'Authorization failed',
-          details: 'access_denied'
+          expect(res.status).toHaveBeenCalledWith(400);
+          expect(res.json).toHaveBeenCalledWith({
+            error: 'Authorization failed',
+            details: 'access_denied'
+          });
         });
-
+      } finally {
         loggerErrorSpy.mockRestore();
-      });
+      }
     });
 
     it('returns error when token exchange does not provide access token', async () => {
-      await withGoogleProvider(createProvider, async (provider, res) => {
-        const now = 9_000_000;
-        const dateSpy = mockDateNow(now);
-        const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const now = 9_000_000;
+      const dateSpy = mockDateNow(now);
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      try {
+        await withGoogleProvider(createProvider, async (provider, res) => {
+          createAndStoreSession(provider, 'state123', {
+            redirectUri: baseConfig.redirectUri,
+            scopes: baseConfig.scopes,
+            expiresAt: now + 5_000
+          });
 
-        createAndStoreSession(provider, 'state123', {
-          redirectUri: baseConfig.redirectUri,
-          scopes: baseConfig.scopes,
-          expiresAt: now + 5_000
+          // Mock Google's getToken to return empty tokens
+          mockGetToken.mockResolvedValueOnce({
+            tokens: {} // No access_token
+          });
+
+          const req = {
+            query: {
+              code: 'auth-code',
+              state: 'state123'
+            }
+          } as unknown as Request;
+
+          await provider.handleAuthorizationCallback(req, res);
+
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({
+            error: 'Authorization failed',
+            details: 'No access token received'
+          });
         });
-
-        // Mock Google's getToken to return empty tokens
-        mockGetToken.mockResolvedValueOnce({
-          tokens: {} // No access_token
-        });
-
-        const req = {
-          query: {
-            code: 'auth-code',
-            state: 'state123'
-          }
-        } as unknown as Request;
-
-        await provider.handleAuthorizationCallback(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({
-          error: 'Authorization failed',
-          details: 'No access token received'
-        });
-
+      } finally {
         dateSpy.mockRestore();
         loggerErrorSpy.mockRestore();
-      });
+      }
     });
   });
 
@@ -421,6 +424,7 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles ID token verification failure', async () => {
+      const invalidPayload = { sub: null, email: null };
       await withGoogleProvider(createProvider, async (provider, res) => {
         const now = 7_000_000;
         const { dateSpy } = setupGoogleCallbackTest(provider, {
@@ -436,7 +440,7 @@ describe('GoogleOAuthProvider', () => {
 
         // Mock verifyIdToken to return invalid payload
         mockVerifyIdToken.mockResolvedValueOnce({
-          getPayload: () => ({ sub: null, email: null }) // Invalid payload
+          getPayload: () => invalidPayload
         });
 
         await testAuthorizationCallbackFailure(provider, res);
@@ -483,6 +487,11 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles user info with fallback name from email', async () => {
+      const payloadWithoutName = {
+        sub: '123',
+        email: 'user@example.com'
+        // Missing name - should fallback to email
+      };
       await withGoogleProvider(createProvider, async (provider, res) => {
         const now = 9_000_000;
         const { dateSpy } = setupGoogleCallbackTest(provider, {
@@ -498,11 +507,7 @@ describe('GoogleOAuthProvider', () => {
         });
 
         mockVerifyIdToken.mockResolvedValueOnce({
-          getPayload: () => ({
-            sub: '123',
-            email: 'user@example.com'
-            // Missing name - should fallback to email
-          })
+          getPayload: () => payloadWithoutName
         });
 
         await provider.handleAuthorizationCallback({
@@ -552,29 +557,30 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles Google API failure during token exchange', async () => {
-      await withGoogleProvider(createProvider, async (provider, res) => {
-        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      try {
+        await withGoogleProvider(createProvider, async (provider, res) => {
+          // Mock getToken to throw error
+          mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
 
-        // Mock getToken to throw error
-        mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
+          await provider.handleTokenExchange({
+            body: {
+              grant_type: 'authorization_code',
+              code: 'invalid_code',
+              code_verifier: 'verifier'
+            }
+          } as unknown as Request, res);
 
-        await provider.handleTokenExchange({
-          body: {
-            grant_type: 'authorization_code',
-            code: 'invalid_code',
-            code_verifier: 'verifier'
-          }
-        } as unknown as Request, res);
-
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.json).toHaveBeenCalledWith({
-          error: 'server_error',
-          error_description: 'Invalid authorization code'
+          expect(res.status).toHaveBeenCalledWith(500);
+          expect(res.json).toHaveBeenCalledWith({
+            error: 'server_error',
+            error_description: 'Invalid authorization code'
+          });
+          expect(consoleSpy).toHaveBeenCalled();
         });
-        expect(consoleSpy).toHaveBeenCalled();
-
+      } finally {
         consoleSpy.mockRestore();
-      });
+      }
     });
 
     it('removes undefined fields from token response', async () => {
@@ -725,15 +731,16 @@ describe('GoogleOAuthProvider', () => {
   // Additional Coverage Tests
   describe('Additional Coverage Tests', () => {
     it('fetches user info from Google API', async () => {
+      const mockUserData = {
+        id: '456',
+        email: 'remote@example.com',
+        name: 'Remote User',
+        picture: 'remote-avatar.jpg'
+      };
       await withGoogleProvider(createProvider, async (provider) => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve({
-            id: '456',
-            email: 'remote@example.com',
-            name: 'Remote User',
-            picture: 'remote-avatar.jpg'
-          })
+          json: () => Promise.resolve(mockUserData)
         } as any);
 
         const userInfo = await provider.getUserInfo('remote-token');
@@ -752,21 +759,22 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles getUserInfo API failure', async () => {
-      await withGoogleProvider(createProvider, async (provider) => {
-        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      try {
+        await withGoogleProvider(createProvider, async (provider) => {
+          mockFetch.mockResolvedValueOnce({
+            ok: false,
+            status: 403,
+            statusText: 'Forbidden'
+          } as any);
 
-        mockFetch.mockResolvedValueOnce({
-          ok: false,
-          status: 403,
-          statusText: 'Forbidden'
-        } as any);
-
-        await expect(provider.getUserInfo('invalid-token'))
-          .rejects
-          .toThrow('Failed to get user information');
-
+          await expect(provider.getUserInfo('invalid-token'))
+            .rejects
+            .toThrow('Failed to get user information');
+        });
+      } finally {
         consoleSpy.mockRestore();
-      });
+      }
     });
 
     it('handles logout with authorization header', async () => {

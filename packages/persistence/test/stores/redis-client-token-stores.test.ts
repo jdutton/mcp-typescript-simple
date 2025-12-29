@@ -163,8 +163,11 @@ describe('Redis Client and OAuth Token Stores', () => {
 
         const clients = await store.listClients();
         expect(clients).toHaveLength(2);
-        expect(clients.map((c) => c.client_name)).toContain('Client 1');
-        expect(clients.map((c) => c.client_name)).toContain('Client 2');
+
+        const getClientName = (c: { client_name?: string }) => c.client_name;
+        const clientNames = clients.map(getClientName);
+        expect(clientNames).toContain('Client 1');
+        expect(clientNames).toContain('Client 2');
       });
 
       it('should return empty array when no clients', async () => {
