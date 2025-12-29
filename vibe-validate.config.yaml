@@ -39,6 +39,8 @@ validation:
           command: npm run typecheck
         - name: ESLint
           command: npm run lint
+        - name: Code Duplication Check
+          command: npm run duplication-check
         - name: OpenAPI Validation
           command: npm run test:openapi
         - name: Security Check

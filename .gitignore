@@ -66,3 +66,6 @@ playwright-report/
 test-adoption-project/
 test-port-custom/
 test-*-project/
+
+# jscpd code duplication reports
+jscpd-report/
