@@ -2,17 +2,27 @@ import { vi } from 'vitest';
 
 import type { Request } from 'express';
 import type {
-  GenericOAuthConfig,
-  OAuthSession
+  GenericOAuthConfig
 } from '@mcp-typescript-simple/auth';
-import { logger } from '@mcp-typescript-simple/observability';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-import { createMockResponse, jsonReply } from './test-helpers.js';
+import {
+  createMockResponse,
+  setupFetchMocking,
+  testAuthorizationRequestParams,
+  testAntiCachingHeaders,
+  testAuthorizationCallbackSuccess,
+  testOAuthCallbackErrors,
+  testTokenExchangeSuccess,
+  testVerifyAccessTokenValid,
+  testVerifyAccessTokenFetchesUserInfo,
+  testVerifyAccessTokenInvalid,
+  testGetUserInfoSuccess,
+  testGetUserInfoFromAPI
+} from './test-helpers.js';
 
-/* eslint-disable sonarjs/no-unused-vars */
-let originalFetch: typeof globalThis.fetch;
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
+const { setupFetchBeforeAll, restoreFetchAfterAll, resetMocksBeforeEach } = setupFetchMocking(fetchMock);
 
 const baseConfig: GenericOAuthConfig = {
   type: 'generic',
@@ -33,225 +43,98 @@ beforeAll(async () => {
 });
 
 describe('GenericOAuthProvider', () => {
-  beforeAll(() => {
-    originalFetch = globalThis.fetch;
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-  });
-
-  afterAll(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.clearAllMocks();
-  });
+  beforeAll(setupFetchBeforeAll);
+  afterAll(restoreFetchAfterAll);
+  beforeEach(resetMocksBeforeEach);
 
   const createProvider = () => {
     return new GenericOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
+    // eslint-disable-next-line sonarjs/assertions-in-tests
     it('redirects to authorization URL with correct parameters', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      // Check if error path was taken
-      if (res.statusCode === 500) {
-        console.error('handleAuthorizationRequest failed:', res.jsonPayload);
-      }
-
-      expect(res.redirect).toHaveBeenCalledTimes(1);
-      const redirectUrl = res.redirectUrl;
-
-      expect(redirectUrl).toContain(baseConfig.authorizationUrl);
-      expect(redirectUrl).toContain('client_id=client-id');
-      expect(redirectUrl).toContain('redirect_uri=');
-      expect(redirectUrl).toContain('response_type=code');
-      expect(redirectUrl).toContain('scope=');
-      expect(redirectUrl).toContain('state=');
-      expect(redirectUrl).toContain('code_challenge=');
-      expect(redirectUrl).toContain('code_challenge_method=S256');
-
-      loggerInfoSpy.mockRestore();
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
+      await testAuthorizationRequestParams(createProvider, baseConfig.authorizationUrl);
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests
     it('sets anti-caching headers', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      // Anti-caching headers should be set
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));
-
-      loggerInfoSpy.mockRestore();
-      provider.dispose();
+      await testAntiCachingHeaders(createProvider);
     });
   });
 
   describe('handleAuthorizationCallback', () => {
-    it('exchanges code for tokens and fetches user info', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-
-      // Store a session first
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+    it('exchanges code for tokens and fetches user info', testAuthorizationCallbackSuccess(
+      createProvider,
+      {
+        provider: 'generic',
         redirectUri: baseConfig.redirectUri,
         scopes: baseConfig.scopes,
-        provider: 'generic',
-        expiresAt: now + 5_000
-      });
-
-      // Mock token exchange response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'access-token',
-        token_type: 'Bearer',
-        expires_in: 3600
-      }));
-
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user123',
-        email: 'test@example.com',
-        name: 'Test User',
-        picture: 'https://example.com/avatar.png'
-      }));
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          code: 'auth-code',
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.json).toHaveBeenCalledTimes(1);
-      expect(res.jsonPayload).toMatchObject({
-        access_token: 'access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        user: {
+        mockTokenResponse: {
+          access_token: 'access-token',
+          token_type: 'Bearer',
+          expires_in: 3600
+        },
+        mockUserResponses: [
+          {
+            sub: 'user123',
+            email: 'test@example.com',
+            name: 'Test User',
+            picture: 'https://example.com/avatar.png'
+          }
+        ],
+        expectedUser: {
           sub: 'user123',
           email: 'test@example.com',
           name: 'Test User',
           provider: 'generic'
+        },
+        expectedTokenResponse: {
+          access_token: 'access-token',
+          token_type: 'Bearer',
+          expires_in: 3600
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('returns error if code is missing', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        query: {
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Missing authorization code or state'
-      });
-
-      provider.dispose();
-    });
-
-    it('returns error if OAuth provider returns error', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        query: {
-          error: 'access_denied',
-          error_description: 'User denied access'
-        }
-      } as unknown as Request;
-
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Authorization failed',
-        details: 'access_denied'
-      });
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
+    describe('OAuth callback error handling', testOAuthCallbackErrors(
+      createProvider,
+      {
+        redirectUri: baseConfig.redirectUri,
+        scopes: baseConfig.scopes,
+        provider: 'generic'
+      }
+    ));
   });
 
   describe('handleTokenExchange', () => {
-    it('exchanges authorization code for access token', async () => {
-      const provider = createProvider();
-      const _now = Date.now();
-
-      const authCode = 'auth-code-123';
-      const codeVerifier = 'verifier-123';
-
-      // Store PKCE mapping using pkceStore
-      const pkceStore = (provider as any).pkceStore;
-      await pkceStore.storeCodeVerifier(`generic:${authCode}`, {
-        codeVerifier,
-        state: 'test-state'
-      }, 600);
-
-      // Mock token exchange response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'new-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
-      }));
-
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user456',
-        email: 'user@example.com',
-        name: 'User Name'
-      }));
-
-      const res = createMockResponse();
-      const req = {
-        body: {
-          grant_type: 'authorization_code',
-          code: authCode,
-          code_verifier: codeVerifier,
-          redirect_uri: baseConfig.redirectUri
+    it('exchanges authorization code for access token', testTokenExchangeSuccess(
+      createProvider,
+      {
+        authCode: 'auth-code-123',
+        codeVerifier: 'verifier-123',
+        redirectUri: baseConfig.redirectUri,
+        provider: 'generic',
+        tokenResponse: {
+          access_token: 'new-access-token',
+          token_type: 'Bearer',
+          expires_in: 3600,
+          refresh_token: 'refresh-token'
+        },
+        userInfoResponse: {
+          sub: 'user456',
+          email: 'user@example.com',
+          name: 'User Name'
+        },
+        setupCodeVerifier: async (provider, authCode, codeVerifier) => {
+          const pkceStore = (provider as any).pkceStore;
+          await pkceStore.storeCodeVerifier(`generic:${authCode}`, {
+            codeVerifier,
+            state: 'test-state'
+          }, 600);
         }
-      } as unknown as Request;
-
-      await provider.handleTokenExchange(req, res);
-
-      expect(res.json).toHaveBeenCalledTimes(1);
-      expect(res.jsonPayload).toMatchObject({
-        access_token: 'new-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
-      });
-
-      provider.dispose();
-    });
+      }
+    ));
   });
 
   describe('handleLogout', () => {
@@ -276,122 +159,82 @@ describe('GenericOAuthProvider', () => {
   });
 
   describe('verifyAccessToken', () => {
-    it('verifies valid token by fetching user info', async () => {
-      const provider = createProvider();
-      const accessToken = 'valid-token';
-
-      // ADR 006: Tokens are not cached, always fetched from API
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user789',
-        email: 'verified@example.com',
-        name: 'Verified User'
-      }));
-
-      const authInfo = await provider.verifyAccessToken(accessToken);
-
-      expect(authInfo).toMatchObject({
-        scopes: baseConfig.scopes,
-        extra: {
-          userInfo: {
-            email: 'verified@example.com',
-            name: 'Verified User'
-          }
+    it('verifies valid token by fetching user info', testVerifyAccessTokenValid(
+      createProvider,
+      {
+        accessToken: 'valid-token',
+        mockUserResponse: {
+          sub: 'user789',
+          email: 'verified@example.com',
+          name: 'Verified User'
+        },
+        expectedScopes: baseConfig.scopes,
+        expectedUserInfo: {
+          email: 'verified@example.com',
+          name: 'Verified User'
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('fetches user info from API', async () => {
-      const provider = createProvider();
-      const accessToken = 'access-token';
-
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user999',
-        email: 'fetched@example.com',
-        name: 'Fetched User'
-      }));
-
-      const authInfo = await provider.verifyAccessToken(accessToken);
-
-      expect(authInfo).toMatchObject({
-        extra: {
-          userInfo: {
-            email: 'fetched@example.com',
-            name: 'Fetched User'
-          }
+    it('fetches user info from API', testVerifyAccessTokenFetchesUserInfo(
+      createProvider,
+      {
+        accessToken: 'access-token',
+        mockUserResponse: {
+          sub: 'user999',
+          email: 'fetched@example.com',
+          name: 'Fetched User'
+        },
+        expectedUserInfo: {
+          email: 'fetched@example.com',
+          name: 'Fetched User'
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('throws error for invalid token', async () => {
-      const provider = createProvider();
-      const invalidToken = 'invalid-token';
-
-      // Mock failed userinfo response
-      fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
-
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await expect(provider.verifyAccessToken(invalidToken)).rejects.toThrow();
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
+    it('throws error for invalid token', testVerifyAccessTokenInvalid(
+      createProvider,
+      'invalid-token'
+    ));
   });
 
   describe('getUserInfo', () => {
-    it('fetches user info from API', async () => {
-      const provider = createProvider();
-      const accessToken = 'info-token';
+    it('fetches user info from API', testGetUserInfoSuccess(
+      createProvider,
+      {
+        accessToken: 'info-token',
+        mockUserResponse: {
+          sub: 'user101',
+          email: 'cached@example.com',
+          name: 'Cached User'
+        },
+        expectedUserInfo: {
+          sub: 'user101',
+          email: 'cached@example.com',
+          name: 'Cached User',
+          provider: 'generic'
+        }
+      }
+    ));
 
-      // ADR 006: User info is not cached, always fetched from API
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user101',
-        email: 'cached@example.com',
-        name: 'Cached User'
-      }));
-
-      const result = await provider.getUserInfo(accessToken);
-
-      expect(result).toMatchObject({
-        sub: 'user101',
-        email: 'cached@example.com',
-        name: 'Cached User',
-        provider: 'generic'
-      });
-
-      provider.dispose();
-    });
-
-    it('fetches user info with additional fields', async () => {
-      const provider = createProvider();
-      const accessToken = 'api-fetch-token';
-
-      // Mock userinfo response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        sub: 'user202',
-        email: 'api@example.com',
-        name: 'API User',
-        picture: 'https://example.com/pic.jpg'
-      }));
-
-      const result = await provider.getUserInfo(accessToken);
-
-      expect(result).toMatchObject({
-        sub: 'user202',
-        email: 'api@example.com',
-        name: 'API User',
-        provider: 'generic'
-      });
-
-      provider.dispose();
-    });
+    it('fetches user info with additional fields', testGetUserInfoFromAPI(
+      createProvider,
+      {
+        accessToken: 'api-fetch-token',
+        mockUserResponse: {
+          sub: 'user202',
+          email: 'api@example.com',
+          name: 'API User',
+          picture: 'https://example.com/pic.jpg'
+        },
+        expectedUserInfo: {
+          sub: 'user202',
+          email: 'api@example.com',
+          name: 'API User',
+          provider: 'generic'
+        }
+      }
+    ));
   });
 
   describe('provider metadata', () => {

@@ -6,10 +6,15 @@
  */
 
 import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest';
-import { RedisSessionStore, RedisClientStore, OAuthSession } from '../../src/index.js';
+import { RedisSessionStore, RedisClientStore } from '../../src/index.js';
 import type { OAuthClientInformationFull } from '@modelcontextprotocol/sdk/shared/auth.js';
+import {
+  RedisTestInstance,
+  createTestSession,
+  createEnvironmentSessions,
+} from '../helpers/redis-test-helpers.js';
 
-// Hoist Redis mock to avoid initialization issues
+// Hoist Redis mock at module scope (required for Vitest)
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
 // Mock Redis for testing
@@ -18,24 +23,13 @@ vi.mock('ioredis', () => ({
   Redis: RedisMock,
 }));
 
-// Create a shared Redis instance for all tests
-let sharedRedis: any = null;
-
 describe('Redis Key Prefix Isolation (ADR 006)', () => {
   beforeEach(async () => {
-    if (!sharedRedis) {
-      sharedRedis = new (RedisMock as any)();
-    }
-    // Flush all data between tests
-    await sharedRedis.flushall();
+    await RedisTestInstance.flush();
   });
 
   afterAll(async () => {
-    // Clean up shared Redis instance
-    if (sharedRedis) {
-      await sharedRedis.quit();
-      sharedRedis = null;
-    }
+    await RedisTestInstance.cleanup();
   });
 
   describe('Session Store Key Isolation', () => {
@@ -45,25 +39,23 @@ describe('Redis Key Prefix Isolation (ADR 006)', () => {
       const store2 = new RedisSessionStore('redis://localhost:6379', 'mcp-server-2');
 
       const state = 'shared-state-123';
-      const session1: OAuthSession = {
-        provider: 'google',
+      const session1 = createTestSession({
         state,
+        provider: 'google',
         codeVerifier: 'verifier-1',
         codeChallenge: 'challenge-1',
         redirectUri: 'http://localhost:3001/callback',
         scopes: ['openid', 'profile'],
-        expiresAt: Date.now() + 600000,
-      };
+      });
 
-      const session2: OAuthSession = {
-        provider: 'github',
+      const session2 = createTestSession({
         state,
+        provider: 'github',
         codeVerifier: 'verifier-2',
         codeChallenge: 'challenge-2',
         redirectUri: 'http://localhost:3002/callback',
         scopes: ['user:email'],
-        expiresAt: Date.now() + 600000,
-      };
+      });
 
       // Store sessions with same state but different prefixes
       await store1.storeSession(state, session1);
@@ -96,15 +88,14 @@ describe('Redis Key Prefix Isolation (ADR 006)', () => {
       const storeMcp2 = new RedisSessionStore('redis://localhost:6379', 'mcp');
 
       const state = 'test-state';
-      const session: OAuthSession = {
-        provider: 'google',
+      const session = createTestSession({
         state,
+        provider: 'google',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
         redirectUri: 'http://localhost:3000/callback',
         scopes: ['openid'],
-        expiresAt: Date.now() + 600000,
-      };
+      });
 
       // Store with 'mcp' prefix
       await storeMcp1.storeSession(state, session);
@@ -125,15 +116,14 @@ describe('Redis Key Prefix Isolation (ADR 006)', () => {
       const store3 = new RedisSessionStore('redis://localhost:6379', 'test::');
 
       const state = 'normalized-state';
-      const session: OAuthSession = {
-        provider: 'google',
+      const session = createTestSession({
         state,
+        provider: 'google',
         codeVerifier: 'verifier',
         codeChallenge: 'challenge',
         redirectUri: 'http://localhost:3000/callback',
         scopes: ['openid'],
-        expiresAt: Date.now() + 600000,
-      };
+      });
 
       // Store with first prefix
       await store1.storeSession(state, session);
@@ -201,20 +191,11 @@ describe('Redis Key Prefix Isolation (ADR 006)', () => {
       const prodStore = new RedisSessionStore('redis://localhost:6379', 'mcp-prod');
 
       const state = 'test-state';
-      const createSession = (env: string): OAuthSession => ({
-        provider: 'google',
-        state,
-        codeVerifier: `verifier-${env}`,
-        codeChallenge: `challenge-${env}`,
-        redirectUri: `http://${env}.example.com/callback`,
-        scopes: ['openid'],
-        expiresAt: Date.now() + 600000,
-      });
 
       // Store sessions in all three environments
-      await devStore.storeSession(state, createSession('dev'));
-      await stagingStore.storeSession(state, createSession('staging'));
-      await prodStore.storeSession(state, createSession('prod'));
+      await devStore.storeSession(state, createEnvironmentSessions(state, 'dev'));
+      await stagingStore.storeSession(state, createEnvironmentSessions(state, 'staging'));
+      await prodStore.storeSession(state, createEnvironmentSessions(state, 'prod'));
 
       // Verify complete isolation
       const devSession = await devStore.getSession(state);

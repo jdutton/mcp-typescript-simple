@@ -5,14 +5,17 @@ import type { GoogleOAuthConfig, OAuthSession } from '@mcp-typescript-simple/aut
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-import { createMockResponse } from './test-helpers.js';
+import { createMockResponse, createAndStoreSession, mockIdTokenVerification, setupGoogleAuthMocks } from './test-helpers.js';
 
-const mockGenerateAuthUrl = vi.fn<(_options: Record<string, unknown>) => string>();
-const mockGetToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ tokens: Record<string, unknown> }>>();
-const mockVerifyIdToken = vi.fn<(_options: Record<string, unknown>) => Promise<{ getPayload: () => Record<string, unknown> }>>();
-const mockRefreshAccessToken = vi.fn<() => Promise<{ credentials: Record<string, unknown> }>>();
-const mockSetCredentials = vi.fn<(_options: Record<string, unknown>) => void>();
-const mockGetTokenInfo = vi.fn<(_token: string) => Promise<Record<string, unknown>>>();
+// Setup Google auth library mocks
+const {
+  mockGenerateAuthUrl,
+  mockGetToken,
+  mockVerifyIdToken,
+  mockRefreshAccessToken,
+  mockSetCredentials,
+  mockGetTokenInfo
+} = setupGoogleAuthMocks();
 
 // Mock global fetch for Google API calls
 const mockFetch = vi.fn() as MockFunction<typeof fetch>;
@@ -94,13 +97,9 @@ describe('GoogleOAuthProvider', () => {
     const now = 1_000_000;
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-    (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-      state: 'state123',
-      codeVerifier: 'verifier',
-      codeChallenge: 'challenge',
+    createAndStoreSession(provider, 'state123', {
       redirectUri: baseConfig.redirectUri,
       scopes: ['openid', 'email'],
-      provider: 'google',
       expiresAt: now + 5_000
     });
 
@@ -112,13 +111,11 @@ describe('GoogleOAuthProvider', () => {
         expiry_date: now + 3_600_000
       }
     });
-    mockVerifyIdToken.mockResolvedValueOnce({
-      getPayload: () => ({
-        sub: '123',
-        email: 'user@example.com',
-        name: 'Test User',
-        picture: 'avatar.png'
-      })
+    mockIdTokenVerification(mockVerifyIdToken, {
+      sub: '123',
+      email: 'user@example.com',
+      name: 'Test User',
+      picture: 'avatar.png'
     });
 
     const res = createMockResponse();
@@ -156,13 +153,9 @@ describe('GoogleOAuthProvider', () => {
     const provider = createProvider();
     const now = 2_000_000;
     const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-    (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-      state: 'state123',
-      codeVerifier: 'verifier',
-      codeChallenge: 'challenge',
+    createAndStoreSession(provider, 'state123', {
       redirectUri: baseConfig.redirectUri,
       scopes: baseConfig.scopes,
-      provider: 'google',
       expiresAt: now + 5_000
     });
 
@@ -382,28 +375,8 @@ describe('GoogleOAuthProvider', () => {
   });
 
   // Authorization Callback Flow Tests
-  describe('Authorization Callback Flow', () => {
-    it('handles OAuth error parameter from Google', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await provider.handleAuthorizationCallback({
-        query: { error: 'access_denied', error_description: 'User denied access' }
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Authorization failed',
-        details: 'access_denied'
-      });
-      expect(consoleSpy).toHaveBeenCalledWith('Google OAuth error', { error: 'access_denied' });
-
-      consoleSpy.mockRestore();
-      provider.dispose();
-    });
-
-    it('validates missing code parameter', async () => {
+  describe('OAuth callback error handling', () => {
+    it('returns error if code is missing', async () => {
       const provider = createProvider();
       const res = createMockResponse();
 
@@ -417,20 +390,65 @@ describe('GoogleOAuthProvider', () => {
       provider.dispose();
     });
 
-    it('validates missing state parameter', async () => {
+    it('returns error if OAuth provider returns error', async () => {
       const provider = createProvider();
       const res = createMockResponse();
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
       await provider.handleAuthorizationCallback({
-        query: { code: 'valid_code' } // Missing state
+        query: { error: 'access_denied', error_description: 'User denied access' }
       } as unknown as Request, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Missing authorization code or state' });
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Authorization failed',
+        details: 'access_denied'
+      });
 
+      loggerErrorSpy.mockRestore();
       provider.dispose();
     });
 
+    it('returns error when token exchange does not provide access token', async () => {
+      const provider = createProvider();
+      const now = 9_000_000;
+      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+
+      createAndStoreSession(provider, 'state123', {
+        redirectUri: baseConfig.redirectUri,
+        scopes: baseConfig.scopes,
+        expiresAt: now + 5_000
+      });
+
+      // Mock Google's getToken to return empty tokens
+      mockGetToken.mockResolvedValueOnce({
+        tokens: {} // No access_token
+      });
+
+      const res = createMockResponse();
+      const req = {
+        query: {
+          code: 'auth-code',
+          state: 'state123'
+        }
+      } as unknown as Request;
+
+      await provider.handleAuthorizationCallback(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        error: 'Authorization failed',
+        details: 'No access token received'
+      });
+
+      dateSpy.mockRestore();
+      loggerErrorSpy.mockRestore();
+      provider.dispose();
+    });
+  });
+
+  describe('Authorization Callback Flow', () => {
     it('handles invalid state parameter with detailed error', async () => {
       const provider = createProvider();
       const res = createMockResponse();
@@ -455,14 +473,11 @@ describe('GoogleOAuthProvider', () => {
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
       // Store session with client redirect URI
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
+      createAndStoreSession(provider, 'state123', {
         codeVerifier: '',
-        codeChallenge: 'challenge',
         redirectUri: baseConfig.redirectUri,
         clientRedirectUri: 'https://client.example.com/callback',
         scopes: ['openid', 'email'],
-        provider: 'google',
         expiresAt: now + 5_000
       });
 
@@ -489,13 +504,9 @@ describe('GoogleOAuthProvider', () => {
       const now = 7_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+      createAndStoreSession(provider, 'state123', {
         redirectUri: baseConfig.redirectUri,
         scopes: ['openid', 'email'],
-        provider: 'google',
         expiresAt: now + 5_000
       });
 
@@ -531,13 +542,9 @@ describe('GoogleOAuthProvider', () => {
       const now = 8_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+      createAndStoreSession(provider, 'state123', {
         redirectUri: baseConfig.redirectUri,
         scopes: ['openid', 'email'],
-        provider: 'google',
         expiresAt: now + 5_000
       });
 
@@ -550,12 +557,10 @@ describe('GoogleOAuthProvider', () => {
         }
       });
 
-      mockVerifyIdToken.mockResolvedValueOnce({
-        getPayload: () => ({
-          sub: '123',
-          email: 'user@example.com',
-          name: 'Test User'
-        })
+      mockIdTokenVerification(mockVerifyIdToken, {
+        sub: '123',
+        email: 'user@example.com',
+        name: 'Test User'
       });
 
       const res = createMockResponse();
@@ -580,13 +585,9 @@ describe('GoogleOAuthProvider', () => {
       const now = 9_000_000;
       const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
 
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+      createAndStoreSession(provider, 'state123', {
         redirectUri: baseConfig.redirectUri,
         scopes: ['openid', 'email'],
-        provider: 'google',
         expiresAt: now + 5_000
       });
 
@@ -700,12 +701,10 @@ describe('GoogleOAuthProvider', () => {
         }
       });
 
-      mockVerifyIdToken.mockResolvedValueOnce({
-        getPayload: () => ({
-          sub: '123',
-          email: 'user@example.com',
-          name: 'Test User'
-        })
+      mockIdTokenVerification(mockVerifyIdToken, {
+        sub: '123',
+        email: 'user@example.com',
+        name: 'Test User'
       });
 
       const res = createMockResponse();

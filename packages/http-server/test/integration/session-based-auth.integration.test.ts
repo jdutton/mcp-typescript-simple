@@ -13,94 +13,12 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import request from 'supertest';
 import type {
-  OAuthConfig,
-  OAuthProviderType,
-  OAuthUserInfo,
-  SessionAuthCache
+  OAuthProviderType
 } from '@mcp-typescript-simple/auth';
-import { BaseOAuthProvider } from '@mcp-typescript-simple/auth';
 import { MemorySessionManager } from '../../src/session/memory-session-manager.js';
-import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
-
-// Mock OAuth provider for testing
-class MockOAuthProvider extends BaseOAuthProvider {
-  public mockFetchUserInfo: ((_token: string) => Promise<OAuthUserInfo>) | null = null;
-
-  constructor(
-    config: OAuthConfig,
-    private readonly _providerType: OAuthProviderType,
-    pkceStore: MemoryPKCEStore
-  ) {
-    super(config, undefined, pkceStore);
-  }
-
-  getProviderType(): OAuthProviderType {
-    return this._providerType;
-  }
-
-  getProviderName(): string {
-    return this._providerType;
-  }
-
-  getEndpoints() {
-    return {
-      authEndpoint: `/auth/${this._providerType}`,
-      callbackEndpoint: `/auth/${this._providerType}/callback`,
-      refreshEndpoint: `/auth/${this._providerType}/refresh`,
-      logoutEndpoint: `/auth/${this._providerType}/logout`
-    };
-  }
-
-  getDefaultScopes(): string[] {
-    return ['openid', 'profile', 'email'];
-  }
-
-  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {}
-  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {}
-  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {}
-  async handleLogout(_req: Request, _res: Response): Promise<void> {}
-
-  async verifyAccessToken(token: string) {
-    return {
-      token,
-      clientId: this._config.clientId,
-      scopes: ['openid', 'profile', 'email'],
-      expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-      extra: {
-        userInfo: await this.getUserInfo(token),
-        provider: this._providerType
-      }
-    };
-  }
-
-  async getUserInfo(token: string): Promise<OAuthUserInfo> {
-    if (this.mockFetchUserInfo) {
-      return this.mockFetchUserInfo(token);
-    }
-    return {
-      sub: 'user-123',
-      name: 'Test User',
-      email: 'test@example.com',
-      provider: this._providerType
-    };
-  }
-
-  protected async fetchUserInfo(token: string): Promise<OAuthUserInfo> {
-    return this.getUserInfo(token);
-  }
-
-  // Mock implementation for legacy O(N) authentication testing
-  async hasToken(token: string): Promise<boolean> {
-    // ADR 006: No server-side token storage, but for testing backward compatibility
-    // we simulate that the provider "has" known tokens
-    return token === 'test-access-token';
-  }
-
-  // Expose protected method for testing
-  public testHashToken(token: string): string {
-    return this.hashToken(token);
-  }
-}
+import { MockOAuthProvider } from '../helpers/mock-oauth-provider.js';
+import { createMockOAuthProvider, setupAuthenticatedSession } from '../helpers/auth-test-helpers.js';
+import { makeAuthenticatedRequest, testRequestWithFetchTracking } from '../helpers/api-request-helpers.js';
 
 // Helper to create authentication middleware similar to HTTP server
 function createAuthMiddleware(
@@ -180,16 +98,8 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
   let googleProvider: MockOAuthProvider;
 
   beforeEach(() => {
-    // Create test providers
-    const config: OAuthConfig = {
-      clientId: 'test-client-id',
-      clientSecret: 'test-client-secret',
-      redirectUri: 'http://localhost:3000/callback',
-      scopes: ['openid', 'profile', 'email']
-    };
-
-    const pkceStore = new MemoryPKCEStore();
-    googleProvider = new MockOAuthProvider(config, 'google', pkceStore);
+    // Create test providers using helper
+    googleProvider = createMockOAuthProvider('google');
     sessionManager = new MemorySessionManager();
 
     // Configure provider with session manager
@@ -213,37 +123,40 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
     });
   });
 
+  /**
+   * Helper to test session-based auth with TTL validation tracking
+   */
+  async function testSessionAuthWithTTL(options: {
+    token: string;
+    tokenHash: string;
+    lastValidated?: number;
+    validationTTL: number;
+  }) {
+    const session = await setupAuthenticatedSession(sessionManager, {
+      provider: 'google',
+      token: options.token,
+      tokenHash: options.tokenHash,
+      lastValidated: options.lastValidated,
+      validationTTL: options.validationTTL
+    });
+
+    return testRequestWithFetchTracking(
+      { app, endpoint: '/api/test', token: options.token, sessionId: session.sessionId },
+      (mock) => { googleProvider.mockFetchUserInfo = mock; }
+    );
+  }
+
   describe('Session-Based Authentication (O(1) Provider Lookup)', () => {
     it('should authenticate successfully with valid session and token', async () => {
       const token = 'test-access-token';
       const tokenHash = googleProvider.testHashToken(token);
 
-      // Create session with auth cache
-      const authCache: SessionAuthCache = {
+      // Create authenticated session using helper
+      const session = await setupAuthenticatedSession(sessionManager, {
         provider: 'google',
-        userId: 'user-123',
-        tokenHash,
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
-
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
+        token,
+        tokenHash
+      });
 
       const response = await request(app)
         .get('/api/test')
@@ -276,10 +189,12 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       // Create session without auth cache
       const session = await sessionManager.createSession(undefined, {});
 
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', session.sessionId);
+      const response = await makeAuthenticatedRequest({
+        app,
+        endpoint: '/api/test',
+        token,
+        sessionId: session.sessionId
+      });
 
       expect(response.status).toBe(401);
       expect(response.body.error).toContain('Session not found');
@@ -289,37 +204,19 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       const token = 'test-access-token';
       const tokenHash = googleProvider.testHashToken(token);
 
-      // Create session with auth cache for unknown provider
-      const authCache: SessionAuthCache = {
+      // Create authenticated session for unknown provider using helper
+      const session = await setupAuthenticatedSession(sessionManager, {
         provider: 'github', // GitHub provider not registered
-        userId: 'user-123',
-        tokenHash,
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
+        token,
+        tokenHash
+      });
 
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
-
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', session.sessionId);
+      const response = await makeAuthenticatedRequest({
+        app,
+        endpoint: '/api/test',
+        token,
+        sessionId: session.sessionId
+      });
 
       expect(response.status).toBe(401);
       expect(response.body.error).toContain('Provider not available');
@@ -330,32 +227,12 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       const newToken = 'new-access-token';
       const oldTokenHash = googleProvider.testHashToken(oldToken);
 
-      // Create session with old token hash
-      const authCache: SessionAuthCache = {
+      // Create authenticated session with old token using helper
+      const session = await setupAuthenticatedSession(sessionManager, {
         provider: 'google',
-        userId: 'user-123',
-        tokenHash: oldTokenHash,
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token: oldToken,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
-
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
+        token: oldToken,
+        tokenHash: oldTokenHash
+      });
 
       // Mock fetchUserInfo to return same user ID
       googleProvider.mockFetchUserInfo = async () => ({
@@ -380,32 +257,12 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       const newToken = 'attacker-token';
       const oldTokenHash = googleProvider.testHashToken(oldToken);
 
-      // Create session with old token hash
-      const authCache: SessionAuthCache = {
+      // Create authenticated session with old token using helper
+      const session = await setupAuthenticatedSession(sessionManager, {
         provider: 'google',
-        userId: 'user-123',
-        tokenHash: oldTokenHash,
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token: oldToken,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
-
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
+        token: oldToken,
+        tokenHash: oldTokenHash
+      });
 
       // Mock fetchUserInfo to return different user ID (attack simulation)
       googleProvider.mockFetchUserInfo = async () => ({
@@ -428,48 +285,11 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       const token = 'test-access-token';
       const tokenHash = googleProvider.testHashToken(token);
 
-      // Create session with recent validation
-      const authCache: SessionAuthCache = {
-        provider: 'google',
-        userId: 'user-123',
+      const { response, fetchCalled } = await testSessionAuthWithTTL({
+        token,
         tokenHash,
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000, // 5 minutes
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
-
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
-
-      // Track if fetchUserInfo is called
-      let fetchCalled = false;
-      googleProvider.mockFetchUserInfo = async () => {
-        fetchCalled = true;
-        return {
-          sub: 'user-123',
-          name: 'Test User',
-          email: 'test@example.com'
-        };
-      };
-
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', session.sessionId);
+        validationTTL: 300000 // 5 minutes
+      });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -481,48 +301,12 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       const token = 'test-access-token';
       const tokenHash = googleProvider.testHashToken(token);
 
-      // Create session with expired validation
-      const authCache: SessionAuthCache = {
-        provider: 'google',
-        userId: 'user-123',
+      const { response, fetchCalled } = await testSessionAuthWithTTL({
+        token,
         tokenHash,
-        tokenBindingTime: Date.now(),
         lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
-        validationTTL: 300000,
-        scopes: ['openid', 'profile', 'email'],
-        authInfo: {
-          token,
-          clientId: 'test-client-id',
-          scopes: ['openid', 'profile', 'email'],
-          expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-          extra: {
-            userInfo: {
-              sub: 'user-123',
-              name: 'Test User',
-              email: 'test@example.com',
-              provider: 'google'
-            }
-          }
-        }
-      };
-
-      const session = await sessionManager.createSession(undefined, { auth: authCache });
-
-      // Track if fetchUserInfo is called
-      let fetchCalled = false;
-      googleProvider.mockFetchUserInfo = async () => {
-        fetchCalled = true;
-        return {
-          sub: 'user-123',
-          name: 'Test User',
-          email: 'test@example.com'
-        };
-      };
-
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', session.sessionId);
+        validationTTL: 300000
+      });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);

@@ -168,10 +168,10 @@ program
 
       // Initialize git only if not already a git repository
       const isGitRepo = await fs.pathExists(path.join(projectPath, '.git'));
-      if (!isGitRepo) {
-        await initGit(projectPath);
-      } else {
+      if (isGitRepo) {
         console.log(chalk.cyan('ℹ️  Git repository already exists, skipping initialization\n'));
+      } else {
+        await initGit(projectPath);
       }
 
       // Always install dependencies

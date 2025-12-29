@@ -12,121 +12,13 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Request, Response } from 'express';
-import {
-  BaseOAuthProvider,
-  OAuthSessionStore,
-  OAuthTokenStore
-} from '@mcp-typescript-simple/auth';
 import type {
   OAuthConfig,
-  OAuthEndpoints,
-  OAuthProviderType,
-  OAuthUserInfo,
-  SessionAuthCache,
-  AuthInfo
+  SessionAuthCache
 } from '@mcp-typescript-simple/auth';
-import { PKCEStore, MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 import { SessionManager } from '@mcp-typescript-simple/http-server';
-
-// Test provider implementation
-class TestOAuthProvider extends BaseOAuthProvider {
-  // Mock fetchUserInfo for testing
-  public mockFetchUserInfo: ((_token: string) => Promise<OAuthUserInfo>) | null = null;
-
-  constructor(config: OAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
-  }
-
-  getProviderType(): OAuthProviderType {
-    return 'google';
-  }
-
-  getProviderName(): string {
-    return 'Test';
-  }
-
-  getEndpoints(): OAuthEndpoints {
-    return {
-      authEndpoint: '/auth',
-      callbackEndpoint: '/callback',
-      refreshEndpoint: '/refresh',
-      logoutEndpoint: '/logout'
-    };
-  }
-
-  getDefaultScopes(): string[] {
-    return ['openid', 'profile', 'email'];
-  }
-
-  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {}
-  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {}
-  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {}
-  async handleLogout(_req: Request, _res: Response): Promise<void> {}
-
-  async verifyAccessToken(token: string): Promise<AuthInfo> {
-    return {
-      token,
-      clientId: this._config.clientId,
-      scopes: ['openid', 'profile', 'email'],
-      expiresAt: Math.floor((Date.now() + 3600000) / 1000),
-      extra: {
-        userInfo: await this.getUserInfo(token),
-        provider: 'google'
-      }
-    };
-  }
-
-  async getUserInfo(token: string): Promise<OAuthUserInfo> {
-    if (this.mockFetchUserInfo) {
-      return this.mockFetchUserInfo(token);
-    }
-    return {
-      sub: 'user-123',
-      name: 'Test User',
-      email: 'test@example.com',
-      email_verified: true
-    };
-  }
-
-  protected async fetchUserInfo(token: string): Promise<OAuthUserInfo> {
-    return this.getUserInfo(token);
-  }
-
-  // Expose protected methods for testing
-  public testHashToken(token: string): string {
-    return this.hashToken(token);
-  }
-
-  public async testCanUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {
-    return this.canUseCachedAuthentication(authCache);
-  }
-
-  public testBuildAuthInfoFromSessionCache(token: string, authCache: SessionAuthCache): AuthInfo {
-    return this.buildAuthInfoFromSessionCache(token, authCache);
-  }
-
-  public async testRevalidateAndUpdateBinding(
-    token: string,
-    tokenHash: string,
-    sessionId: string,
-    authCache: SessionAuthCache
-  ): Promise<AuthInfo> {
-    return this.revalidateAndUpdateBinding(token, tokenHash, sessionId, authCache);
-  }
-
-  public async testRevalidateAndUpdateCache(
-    token: string,
-    sessionId: string,
-    authCache: SessionAuthCache
-  ): Promise<AuthInfo> {
-    return this.revalidateAndUpdateCache(token, sessionId, authCache);
-  }
-
-  public async testUpdateSessionAuthCache(sessionId: string, authCache: SessionAuthCache): Promise<void> {
-    return this.updateSessionAuthCache(sessionId, authCache);
-  }
-}
+import { MockOAuthProvider } from '../../../http-server/test/helpers/mock-oauth-provider.js';
 
 // Helper to create test config
 function createTestConfig(): OAuthConfig {
@@ -187,13 +79,39 @@ function createSessionAuthCache(overrides?: Partial<SessionAuthCache>): SessionA
   };
 }
 
+// Helper to setup token refresh test scenario
+async function setupTokenRefreshScenario(
+  provider: MockOAuthProvider,
+  sessionManager: SessionManager,
+  options: {
+    oldToken?: string;
+    userId?: string;
+  } = {}
+) {
+  const oldToken = options.oldToken || 'old-token';
+  const userId = options.userId || 'user-123';
+  const oldTokenHash = provider.testHashToken(oldToken);
+
+  const authCache = createSessionAuthCache({
+    tokenHash: oldTokenHash,
+    userId
+  });
+
+  const sessionId = await sessionManager.createSession({
+    clientId: 'test-client',
+    auth: authCache
+  });
+
+  return { oldToken, sessionId, authCache };
+}
+
 describe('Session-Based Authentication (ADR 006)', () => {
-  let provider: TestOAuthProvider;
+  let provider: MockOAuthProvider;
   let sessionManager: SessionManager;
 
   beforeEach(() => {
     const pkceStore = new MemoryPKCEStore();
-    provider = new TestOAuthProvider(createTestConfig(), undefined, pkceStore);
+    provider = new MockOAuthProvider(createTestConfig(), 'google', pkceStore);
     sessionManager = createMockSessionManager();
   });
 
@@ -346,19 +264,8 @@ describe('Session-Based Authentication (ADR 006)', () => {
 
     it('should re-validate and update binding when token hash mismatches', async () => {
       provider.setSessionManager(sessionManager);
-      const oldToken = 'old-token';
       const newToken = 'new-token';
-      const oldTokenHash = provider.testHashToken(oldToken);
-
-      const authCache = createSessionAuthCache({
-        tokenHash: oldTokenHash,
-        userId: 'user-123'
-      });
-
-      const sessionId = await sessionManager.createSession({
-        clientId: 'test-client',
-        auth: authCache
-      });
+      const { sessionId } = await setupTokenRefreshScenario(provider, sessionManager);
 
       // Mock fetchUserInfo to verify it's called with new token
       let fetchCalledWithToken: string | null = null;
@@ -380,19 +287,8 @@ describe('Session-Based Authentication (ADR 006)', () => {
 
     it('should throw error when user ID mismatches after token refresh (security)', async () => {
       provider.setSessionManager(sessionManager);
-      const oldToken = 'old-token';
       const newToken = 'new-token';
-      const oldTokenHash = provider.testHashToken(oldToken);
-
-      const authCache = createSessionAuthCache({
-        tokenHash: oldTokenHash,
-        userId: 'user-123'
-      });
-
-      const sessionId = await sessionManager.createSession({
-        clientId: 'test-client',
-        auth: authCache
-      });
+      const { sessionId } = await setupTokenRefreshScenario(provider, sessionManager);
 
       // Mock fetchUserInfo to return different user ID (attack simulation)
       provider.mockFetchUserInfo = async () => {
@@ -483,25 +379,23 @@ describe('Session-Based Authentication (ADR 006)', () => {
   });
 
   describe('revalidateAndUpdateBinding()', () => {
-    it('should re-validate token and update binding', async () => {
+    async function setupRevalidateTest(userIdForMock: string) {
       provider.setSessionManager(sessionManager);
       const newToken = 'new-token';
       const newTokenHash = provider.testHashToken(newToken);
-
-      const authCache = createSessionAuthCache({
-        userId: 'user-123'
-      });
-
-      const sessionId = await sessionManager.createSession({
-        clientId: 'test-client',
-        auth: authCache
-      });
+      const { sessionId, authCache } = await setupTokenRefreshScenario(provider, sessionManager);
 
       provider.mockFetchUserInfo = async () => ({
-        sub: 'user-123',
-        name: 'Test User',
-        email: 'test@example.com'
+        sub: userIdForMock,
+        name: userIdForMock === 'user-123' ? 'Test User' : 'Attacker',
+        email: userIdForMock === 'user-123' ? 'test@example.com' : 'attacker@example.com'
       });
+
+      return { newToken, newTokenHash, sessionId, authCache };
+    }
+
+    it('should re-validate token and update binding', async () => {
+      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest('user-123');
 
       const authInfo = await provider.testRevalidateAndUpdateBinding(
         newToken,
@@ -516,24 +410,7 @@ describe('Session-Based Authentication (ADR 006)', () => {
     });
 
     it('should throw error on user ID mismatch', async () => {
-      provider.setSessionManager(sessionManager);
-      const newToken = 'new-token';
-      const newTokenHash = provider.testHashToken(newToken);
-
-      const authCache = createSessionAuthCache({
-        userId: 'user-123'
-      });
-
-      const sessionId = await sessionManager.createSession({
-        clientId: 'test-client',
-        auth: authCache
-      });
-
-      provider.mockFetchUserInfo = async () => ({
-        sub: 'user-456', // Different user
-        name: 'Attacker',
-        email: 'attacker@example.com'
-      });
+      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest('user-456');
 
       await expect(provider.testRevalidateAndUpdateBinding(
         newToken,
@@ -549,6 +426,7 @@ describe('Session-Based Authentication (ADR 006)', () => {
       provider.setSessionManager(sessionManager);
       const token = 'test-token';
 
+      // Create session with expired last validation time
       const authCache = createSessionAuthCache({
         lastValidated: Date.now() - 600000 // 10 minutes ago
       });
