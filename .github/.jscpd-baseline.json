@@ -6518,6 +6518,42 @@
     },
     {
       "format": "typescript",
+      "lines": 8,
+      "fragment": ") => {\n  const provider = createProviderFn();\n  const res = createMockResponse();\n  const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n\n  await provider.handleAuthorizationRequest({} as Request, res);\n\n  expect",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 135,
+        "end": 142,
+        "startLoc": {
+          "line": 135,
+          "column": 1,
+          "position": 1025
+        },
+        "endLoc": {
+          "line": 142,
+          "column": 7,
+          "position": 1106
+        }
+      },
+      "secondFile": {
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 107,
+        "end": 114,
+        "startLoc": {
+          "line": 107,
+          "column": 1,
+          "position": 786
+        },
+        "endLoc": {
+          "line": 114,
+          "column": 6,
+          "position": 867
+        }
+      }
+    },
+    {
+      "format": "typescript",
       "lines": 13,
       "fragment": "};\n  }\n\n  getDefaultScopes(): string[] {\n    return ['openid', 'profile', 'email'];\n  }\n\n  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {}\n  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {}\n  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {}\n  async handleLogout(_req: Request, _res: Response): Promise<void> {}\n\n  async verifyAccessToken(token: string):",
       "tokens": 0,
@@ -6734,37 +6770,109 @@
     },
     {
       "format": "typescript",
-      "lines": 9,
-      "fragment": ", async () => {\n      const provider = createProvider();\n      const res = createMockResponse();\n\n      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n\n      await provider.handleAuthorizationRequest({} as Request, res);\n\n      // Anti-caching headers should be set",
+      "lines": 20,
+      "fragment": "();\n      const res = createMockResponse();\n      const req = {\n        query: {\n          state: 'state123'\n        }\n      } as unknown as Request;\n\n      await provider.handleAuthorizationCallback(req, res);\n\n      expect(res.status).toHaveBeenCalledWith(400);\n      expect(res.json).toHaveBeenCalledWith({\n        error: 'Missing authorization code or state'\n      });\n\n      provider.dispose();\n    });\n\n    it('returns error if OAuth provider returns error', async () => {\n      const provider = createProvider",
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 77,
-        "end": 85,
+        "start": 121,
+        "end": 140,
         "startLoc": {
-          "line": 77,
-          "column": 28,
-          "position": 658
+          "line": 121,
+          "column": 15,
+          "position": 944
         },
         "endLoc": {
-          "line": 85,
-          "column": 38,
-          "position": 745
+          "line": 140,
+          "column": 15,
+          "position": 1086
         }
       },
       "secondFile": {
-        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 53,
-        "end": 61,
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 163,
+        "end": 182,
         "startLoc": {
-          "line": 53,
-          "column": 57,
-          "position": 422
+          "line": 163,
+          "column": 17,
+          "position": 1238
         },
         "endLoc": {
-          "line": 61,
-          "column": 7,
-          "position": 509
+          "line": 182,
+          "column": 17,
+          "position": 1380
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 25,
+      "fragment": "();\n      const res = createMockResponse();\n      const req = {\n        query: {\n          error: 'access_denied',\n          error_description: 'User denied access'\n        }\n      } as unknown as Request;\n\n      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});\n\n      await provider.handleAuthorizationCallback(req, res);\n\n      expect(res.status).toHaveBeenCalledWith(400);\n      expect(res.json).toHaveBeenCalledWith({\n        error: 'Authorization failed',\n        details: 'access_denied'\n      });\n\n      loggerErrorSpy.mockRestore();\n      provider.dispose();\n    });\n\n    it('returns error when token exchange does not provide access token', async () => {\n      const provider = createProvider",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
+        "start": 140,
+        "end": 164,
+        "startLoc": {
+          "line": 140,
+          "column": 15,
+          "position": 1087
+        },
+        "endLoc": {
+          "line": 164,
+          "column": 15,
+          "position": 1281
+        }
+      },
+      "secondFile": {
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 182,
+        "end": 206,
+        "startLoc": {
+          "line": 182,
+          "column": 17,
+          "position": 1381
+        },
+        "endLoc": {
+          "line": 206,
+          "column": 17,
+          "position": 1575
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 10,
+      "fragment": "();\n      const now = Date.now();\n\n      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});\n\n      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {\n        state: 'state123',\n        codeVerifier: 'verifier',\n        codeChallenge: 'challenge',\n        redirectUri: baseConfig",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
+        "start": 164,
+        "end": 173,
+        "startLoc": {
+          "line": 164,
+          "column": 15,
+          "position": 1282
+        },
+        "endLoc": {
+          "line": 173,
+          "column": 11,
+          "position": 1398
+        }
+      },
+      "secondFile": {
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 206,
+        "end": 215,
+        "startLoc": {
+          "line": 206,
+          "column": 17,
+          "position": 1576
+        },
+        "endLoc": {
+          "line": 215,
+          "column": 15,
+          "position": 1692
         }
       }
     },
@@ -6775,32 +6883,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 200,
-        "end": 210,
+        "start": 169,
+        "end": 179,
         "startLoc": {
-          "line": 200,
+          "line": 169,
           "column": 7,
-          "position": 1637
+          "position": 1332
         },
         "endLoc": {
-          "line": 210,
+          "line": 179,
           "column": 29,
-          "position": 1742
+          "position": 1437
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 99,
-        "end": 109,
+        "start": 68,
+        "end": 78,
         "startLoc": {
-          "line": 99,
+          "line": 68,
           "column": 7,
-          "position": 856
+          "position": 551
         },
         "endLoc": {
-          "line": 109,
+          "line": 78,
           "column": 32,
-          "position": 961
+          "position": 656
         }
       }
     },
@@ -6811,32 +6919,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 655,
-        "end": 671,
+        "start": 624,
+        "end": 640,
         "startLoc": {
-          "line": 655,
+          "line": 624,
           "column": 7,
-          "position": 5229
+          "position": 4924
         },
         "endLoc": {
-          "line": 671,
+          "line": 640,
           "column": 15,
-          "position": 5378
+          "position": 5073
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 7,
-          "position": 4906
+          "position": 4601
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 13,
-          "position": 5055
+          "position": 4750
         }
       }
     },
@@ -6847,32 +6955,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 695,
-        "end": 711,
+        "start": 664,
+        "end": 680,
         "startLoc": {
-          "line": 695,
+          "line": 664,
           "column": 7,
-          "position": 5548
+          "position": 5243
         },
         "endLoc": {
-          "line": 711,
+          "line": 680,
           "column": 18,
-          "position": 5697
+          "position": 5392
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 7,
-          "position": 4906
+          "position": 4601
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 13,
-          "position": 5055
+          "position": 4750
         }
       }
     },
@@ -6883,32 +6991,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 711,
-        "end": 727,
+        "start": 680,
+        "end": 696,
         "startLoc": {
-          "line": 711,
+          "line": 680,
           "column": 18,
-          "position": 5698
+          "position": 5393
         },
         "endLoc": {
-          "line": 727,
+          "line": 696,
           "column": 57,
-          "position": 5788
+          "position": 5483
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 671,
-        "end": 687,
+        "start": 640,
+        "end": 656,
         "startLoc": {
-          "line": 671,
+          "line": 640,
           "column": 15,
-          "position": 5379
+          "position": 5074
         },
         "endLoc": {
-          "line": 687,
+          "line": 656,
           "column": 46,
-          "position": 5469
+          "position": 5164
         }
       }
     },
@@ -6919,32 +7027,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 728,
-        "end": 744,
+        "start": 697,
+        "end": 713,
         "startLoc": {
-          "line": 728,
+          "line": 697,
           "column": 2,
-          "position": 5810
+          "position": 5505
         },
         "endLoc": {
-          "line": 744,
+          "line": 713,
           "column": 14,
-          "position": 5956
+          "position": 5651
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 2,
-          "position": 4907
+          "position": 4602
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 14,
-          "position": 5053
+          "position": 4748
         }
       }
     },
@@ -6955,32 +7063,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 745,
-        "end": 760,
+        "start": 714,
+        "end": 729,
         "startLoc": {
-          "line": 745,
+          "line": 714,
           "column": 13,
-          "position": 5962
+          "position": 5657
         },
         "endLoc": {
-          "line": 760,
+          "line": 729,
           "column": 46,
-          "position": 6048
+          "position": 5743
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 672,
-        "end": 687,
+        "start": 641,
+        "end": 656,
         "startLoc": {
-          "line": 672,
+          "line": 641,
           "column": 13,
-          "position": 5383
+          "position": 5078
         },
         "endLoc": {
-          "line": 687,
+          "line": 656,
           "column": 46,
-          "position": 5469
+          "position": 5164
         }
       }
     },
@@ -6991,32 +7099,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 767,
-        "end": 783,
+        "start": 736,
+        "end": 752,
         "startLoc": {
-          "line": 767,
+          "line": 736,
           "column": 2,
-          "position": 6174
+          "position": 5869
         },
         "endLoc": {
-          "line": 783,
+          "line": 752,
           "column": 11,
-          "position": 6320
+          "position": 6015
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 2,
-          "position": 4907
+          "position": 4602
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 14,
-          "position": 5053
+          "position": 4748
         }
       }
     },
@@ -7027,32 +7135,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 783,
-        "end": 799,
+        "start": 752,
+        "end": 768,
         "startLoc": {
-          "line": 783,
+          "line": 752,
           "column": 11,
-          "position": 6321
+          "position": 6016
         },
         "endLoc": {
-          "line": 799,
+          "line": 768,
           "column": 43,
-          "position": 6410
+          "position": 6105
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 671,
-        "end": 687,
+        "start": 640,
+        "end": 656,
         "startLoc": {
-          "line": 671,
+          "line": 640,
           "column": 2,
-          "position": 5380
+          "position": 5075
         },
         "endLoc": {
-          "line": 687,
+          "line": 656,
           "column": 46,
-          "position": 5469
+          "position": 5164
         }
       }
     },
@@ -7063,32 +7171,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 807,
-        "end": 823,
+        "start": 776,
+        "end": 792,
         "startLoc": {
-          "line": 807,
+          "line": 776,
           "column": 7,
-          "position": 6470
+          "position": 6165
         },
         "endLoc": {
-          "line": 823,
+          "line": 792,
           "column": 13,
-          "position": 6619
+          "position": 6314
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 7,
-          "position": 4906
+          "position": 4601
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 13,
-          "position": 5055
+          "position": 4750
         }
       }
     },
@@ -7099,32 +7207,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 848,
-        "end": 864,
+        "start": 817,
+        "end": 833,
         "startLoc": {
-          "line": 848,
+          "line": 817,
           "column": 7,
-          "position": 6788
+          "position": 6483
         },
         "endLoc": {
-          "line": 864,
+          "line": 833,
           "column": 13,
-          "position": 6937
+          "position": 6632
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 615,
-        "end": 631,
+        "start": 584,
+        "end": 600,
         "startLoc": {
-          "line": 615,
+          "line": 584,
           "column": 7,
-          "position": 4906
+          "position": 4601
         },
         "endLoc": {
-          "line": 631,
+          "line": 600,
           "column": 13,
-          "position": 5055
+          "position": 4750
         }
       }
     },
@@ -7135,32 +7243,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 881,
-        "end": 890,
+        "start": 850,
+        "end": 859,
         "startLoc": {
-          "line": 881,
+          "line": 850,
           "column": 66,
-          "position": 7032
+          "position": 6727
         },
         "endLoc": {
-          "line": 890,
+          "line": 859,
           "column": 13,
-          "position": 7119
+          "position": 6814
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 727,
-        "end": 737,
+        "start": 696,
+        "end": 706,
         "startLoc": {
-          "line": 727,
+          "line": 696,
           "column": 57,
-          "position": 5789
+          "position": 5484
         },
         "endLoc": {
-          "line": 737,
+          "line": 706,
           "column": 7,
-          "position": 5877
+          "position": 5572
         }
       }
     },
@@ -7171,32 +7279,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 924,
-        "end": 943,
+        "start": 893,
+        "end": 912,
         "startLoc": {
-          "line": 924,
+          "line": 893,
           "column": 9,
-          "position": 7378
+          "position": 7073
         },
         "endLoc": {
-          "line": 943,
+          "line": 912,
           "column": 43,
-          "position": 7523
+          "position": 7218
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 890,
-        "end": 909,
+        "start": 859,
+        "end": 878,
         "startLoc": {
-          "line": 890,
+          "line": 859,
           "column": 9,
-          "position": 7113
+          "position": 6808
         },
         "endLoc": {
-          "line": 909,
+          "line": 878,
           "column": 41,
-          "position": 7258
+          "position": 6953
         }
       }
     },
@@ -7212,12 +7320,12 @@
         "startLoc": {
           "line": 32,
           "column": 22,
-          "position": 242
+          "position": 248
         },
         "endLoc": {
           "line": 48,
           "column": 20,
-          "position": 374
+          "position": 380
         }
       },
       "secondFile": {
@@ -7227,84 +7335,48 @@
         "startLoc": {
           "line": 33,
           "column": 25,
-          "position": 252
+          "position": 258
         },
         "endLoc": {
           "line": 49,
           "column": 23,
-          "position": 384
+          "position": 390
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 16,
-      "fragment": "(baseConfig, undefined, new MemoryPKCEStore());\n  };\n\n  describe('handleAuthorizationRequest', () => {\n    it('redirects to authorization URL with correct parameters', async () => {\n      const provider = createProvider();\n      const res = createMockResponse();\n\n      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n\n      await provider.handleAuthorizationRequest({} as Request, res);\n\n      expect(res.redirect).toHaveBeenCalledTimes(1);\n      const redirectUrl = res.redirectUrl;\n\n      expect(redirectUrl).toContain('https://github.com/login/oauth/authorize'",
+      "lines": 21,
+      "fragment": ");\n    });\n\n    it('sets anti-caching headers', async () => {\n      await testAntiCachingHeaders(createProvider);\n    });\n  });\n\n  describe('handleAuthorizationCallback', () => {\n    it('exchanges code for tokens and fetches user info', async () => {\n      const provider = createProvider();\n      const now = Date.now();\n\n      // Store a session first\n      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {\n        state: 'state123',\n        codeVerifier: 'verifier',\n        codeChallenge: 'challenge',\n        redirectUri: baseConfig.redirectUri,\n        scopes: baseConfig.scopes,\n        provider: 'github'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 48,
-        "end": 63,
+        "start": 53,
+        "end": 73,
         "startLoc": {
-          "line": 48,
-          "column": 20,
-          "position": 375
-        },
-        "endLoc": {
-          "line": 63,
+          "line": 53,
           "column": 43,
-          "position": 533
-        }
-      },
-      "secondFile": {
-        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 49,
-        "end": 64,
-        "startLoc": {
-          "line": 49,
-          "column": 23,
-          "position": 385
+          "position": 438
         },
         "endLoc": {
-          "line": 64,
-          "column": 65,
-          "position": 543
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 42,
-      "fragment": ");\n      expect(redirectUrl).toContain('client_id=client-id');\n      expect(redirectUrl).toContain('redirect_uri=');\n      expect(redirectUrl).toContain('response_type=code');\n      expect(redirectUrl).toContain('scope=');\n      expect(redirectUrl).toContain('state=');\n      expect(redirectUrl).toContain('code_challenge=');\n      expect(redirectUrl).toContain('code_challenge_method=S256');\n\n      loggerInfoSpy.mockRestore();\n      provider.dispose();\n    });\n\n    it('sets anti-caching headers', async () => {\n      const provider = createProvider();\n      const res = createMockResponse();\n\n      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n\n      await provider.handleAuthorizationRequest({} as Request, res);\n\n      // Anti-caching headers should be set\n      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));\n\n      loggerInfoSpy.mockRestore();\n      provider.dispose();\n    });\n  });\n\n  describe('handleAuthorizationCallback', () => {\n    it('exchanges code for tokens and fetches user info', async () => {\n      const provider = createProvider();\n      const now = Date.now();\n\n      // Store a session first\n      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {\n        state: 'state123',\n        codeVerifier: 'verifier',\n        codeChallenge: 'challenge',\n        redirectUri: baseConfig.redirectUri,\n        scopes: baseConfig.scopes,\n        provider: 'github'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 63,
-        "end": 104,
-        "startLoc": {
-          "line": 63,
-          "column": 43,
-          "position": 534
-        },
-        "endLoc": {
-          "line": 104,
+          "line": 73,
           "column": 9,
-          "position": 930
+          "position": 625
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 64,
-        "end": 105,
+        "start": 54,
+        "end": 74,
         "startLoc": {
-          "line": 64,
+          "line": 54,
           "column": 65,
-          "position": 544
+          "position": 448
         },
         "endLoc": {
-          "line": 105,
+          "line": 74,
           "column": 12,
-          "position": 940
+          "position": 635
         }
       }
     },
@@ -7315,32 +7387,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 128,
-        "end": 144,
+        "start": 97,
+        "end": 113,
         "startLoc": {
-          "line": 128,
+          "line": 97,
           "column": 2,
-          "position": 1085
+          "position": 780
         },
         "endLoc": {
-          "line": 144,
+          "line": 113,
           "column": 6,
-          "position": 1205
+          "position": 900
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 123,
-        "end": 139,
+        "start": 92,
+        "end": 108,
         "startLoc": {
-          "line": 123,
+          "line": 92,
           "column": 2,
-          "position": 1047
+          "position": 742
         },
         "endLoc": {
-          "line": 139,
+          "line": 108,
           "column": 5,
-          "position": 1167
+          "position": 862
         }
       }
     },
@@ -7351,32 +7423,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 150,
-        "end": 215,
+        "start": 119,
+        "end": 184,
         "startLoc": {
-          "line": 150,
+          "line": 119,
           "column": 9,
-          "position": 1242
+          "position": 937
         },
         "endLoc": {
-          "line": 215,
+          "line": 184,
           "column": 29,
-          "position": 1780
+          "position": 1475
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 145,
-        "end": 108,
+        "start": 114,
+        "end": 77,
         "startLoc": {
-          "line": 145,
+          "line": 114,
           "column": 9,
-          "position": 1204
+          "position": 899
         },
         "endLoc": {
-          "line": 108,
+          "line": 77,
           "column": 32,
-          "position": 951
+          "position": 646
         }
       }
     },
@@ -7387,32 +7459,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 211,
-        "end": 246,
+        "start": 180,
+        "end": 215,
         "startLoc": {
-          "line": 211,
+          "line": 180,
           "column": 9,
-          "position": 1760
+          "position": 1455
         },
         "endLoc": {
-          "line": 246,
+          "line": 215,
           "column": 9,
-          "position": 2039
+          "position": 1734
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 206,
-        "end": 241,
+        "start": 175,
+        "end": 210,
         "startLoc": {
-          "line": 206,
+          "line": 175,
           "column": 12,
-          "position": 1722
+          "position": 1417
         },
         "endLoc": {
-          "line": 241,
+          "line": 210,
           "column": 12,
-          "position": 2001
+          "position": 1696
         }
       }
     },
@@ -7423,32 +7495,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 266,
-        "end": 284,
+        "start": 235,
+        "end": 253,
         "startLoc": {
-          "line": 266,
+          "line": 235,
           "column": 7,
-          "position": 2160
+          "position": 1855
         },
         "endLoc": {
-          "line": 284,
+          "line": 253,
           "column": 6,
-          "position": 2297
+          "position": 1992
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 260,
-        "end": 278,
+        "start": 229,
+        "end": 247,
         "startLoc": {
-          "line": 260,
+          "line": 229,
           "column": 7,
-          "position": 2115
+          "position": 1810
         },
         "endLoc": {
-          "line": 278,
+          "line": 247,
           "column": 5,
-          "position": 2252
+          "position": 1947
         }
       }
     },
@@ -7459,32 +7531,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 285,
-        "end": 312,
+        "start": 254,
+        "end": 281,
         "startLoc": {
-          "line": 285,
+          "line": 254,
           "column": 7,
-          "position": 2300
+          "position": 1995
         },
         "endLoc": {
-          "line": 312,
+          "line": 281,
           "column": 15,
-          "position": 2483
+          "position": 2178
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 280,
-        "end": 307,
+        "start": 249,
+        "end": 276,
         "startLoc": {
-          "line": 280,
+          "line": 249,
           "column": 7,
-          "position": 2262
+          "position": 1957
         },
         "endLoc": {
-          "line": 307,
+          "line": 276,
           "column": 21,
-          "position": 2445
+          "position": 2140
         }
       }
     },
@@ -7495,32 +7567,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 315,
-        "end": 344,
+        "start": 284,
+        "end": 313,
         "startLoc": {
-          "line": 315,
+          "line": 284,
           "column": 18,
-          "position": 2528
+          "position": 2223
         },
         "endLoc": {
-          "line": 344,
+          "line": 313,
           "column": 2,
-          "position": 2754
+          "position": 2449
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 374,
-        "end": 404,
+        "start": 343,
+        "end": 373,
         "startLoc": {
-          "line": 374,
+          "line": 343,
           "column": 2,
-          "position": 2972
+          "position": 2667
         },
         "endLoc": {
-          "line": 404,
+          "line": 373,
           "column": 3,
-          "position": 3199
+          "position": 2894
         }
       }
     },
@@ -7531,32 +7603,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 406,
-        "end": 423,
+        "start": 375,
+        "end": 392,
         "startLoc": {
-          "line": 406,
+          "line": 375,
           "column": 7,
-          "position": 3241
+          "position": 2936
         },
         "endLoc": {
-          "line": 423,
+          "line": 392,
           "column": 29,
-          "position": 3338
+          "position": 3033
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 441,
-        "end": 458,
+        "start": 410,
+        "end": 427,
         "startLoc": {
-          "line": 441,
+          "line": 410,
           "column": 7,
-          "position": 3524
+          "position": 3219
         },
         "endLoc": {
-          "line": 458,
+          "line": 427,
           "column": 42,
-          "position": 3621
+          "position": 3316
         }
       }
     },
@@ -7567,32 +7639,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 434,
-        "end": 454,
+        "start": 403,
+        "end": 423,
         "startLoc": {
-          "line": 434,
+          "line": 403,
           "column": 7,
-          "position": 3420
+          "position": 3115
         },
         "endLoc": {
-          "line": 454,
+          "line": 423,
           "column": 31,
-          "position": 3544
+          "position": 3239
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 467,
-        "end": 487,
+        "start": 436,
+        "end": 456,
         "startLoc": {
-          "line": 467,
+          "line": 436,
           "column": 7,
-          "position": 3689
+          "position": 3384
         },
         "endLoc": {
-          "line": 487,
+          "line": 456,
           "column": 34,
-          "position": 3813
+          "position": 3508
         }
       }
     },
@@ -7603,32 +7675,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 455,
-        "end": 471,
+        "start": 424,
+        "end": 440,
         "startLoc": {
-          "line": 455,
+          "line": 424,
           "column": 7,
-          "position": 3547
+          "position": 3242
         },
         "endLoc": {
-          "line": 471,
+          "line": 440,
           "column": 6,
-          "position": 3715
+          "position": 3410
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 488,
-        "end": 504,
+        "start": 457,
+        "end": 473,
         "startLoc": {
-          "line": 488,
+          "line": 457,
           "column": 7,
-          "position": 3816
+          "position": 3511
         },
         "endLoc": {
-          "line": 504,
+          "line": 473,
           "column": 10,
-          "position": 3984
+          "position": 3679
         }
       }
     },
@@ -7639,32 +7711,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
+        "start": 453,
+        "end": 466,
+        "startLoc": {
+          "line": 453,
+          "column": 7,
+          "position": 3485
+        },
+        "endLoc": {
+          "line": 466,
+          "column": 29,
+          "position": 3575
+        }
+      },
+      "secondFile": {
+        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
         "start": 484,
         "end": 497,
         "startLoc": {
           "line": 484,
           "column": 7,
-          "position": 3790
+          "position": 3740
         },
         "endLoc": {
           "line": 497,
-          "column": 29,
-          "position": 3880
-        }
-      },
-      "secondFile": {
-        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 515,
-        "end": 528,
-        "startLoc": {
-          "line": 515,
-          "column": 7,
-          "position": 4045
-        },
-        "endLoc": {
-          "line": 528,
           "column": 32,
-          "position": 4135
+          "position": 3830
         }
       }
     },
@@ -7675,68 +7747,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/github-provider.test.ts",
-        "start": 532,
-        "end": 540,
+        "start": 501,
+        "end": 509,
         "startLoc": {
-          "line": 532,
+          "line": 501,
           "column": 15,
-          "position": 4160
+          "position": 3855
         },
         "endLoc": {
-          "line": 540,
+          "line": 509,
           "column": 9,
-          "position": 4235
+          "position": 3930
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 559,
-        "end": 567,
+        "start": 528,
+        "end": 536,
         "startLoc": {
-          "line": 559,
+          "line": 528,
           "column": 11,
-          "position": 4364
+          "position": 4059
         },
         "endLoc": {
-          "line": 567,
+          "line": 536,
           "column": 12,
-          "position": 4439
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 44,
-      "fragment": "const createMockResponse = (): MockResponse => {\n  const data: Partial<Response> & {\n    statusCode?: number;\n    jsonPayload?: unknown;\n    redirectUrl?: string;\n    headers?: Record<string, string>;\n  } = {\n    headers: {}\n  };\n\n  data.status = vi.fn((code: number) => {\n    data.statusCode = code;\n    return data as Response;\n  });\n  data.json = vi.fn((payload: unknown) => {\n    data.jsonPayload = payload;\n    return data as Response;\n  });\n  data.redirect = vi.fn((statusOrUrl: number | string, maybeUrl?: string) => {\n    if (typeof statusOrUrl === 'number') {\n      data.statusCode = statusOrUrl;\n      data.redirectUrl = maybeUrl ?? '';\n    } else {\n      data.redirectUrl = statusOrUrl;\n    }\n    return data as Response;\n  });\n  data.set = vi.fn((name: string, value?: string | string[]) => {\n    if (data.headers && typeof value === 'string') {\n      data.headers[name] = value;\n    }\n    return data as Response;\n  });\n  data.setHeader = vi.fn((name: string, value: string | string[]) => {\n    if (data.headers && typeof value === 'string') {\n      data.headers[name] = value;\n    }\n    return data as Response;\n  });\n\n  return data as MockResponse;\n};\n\nconst",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 35,
-        "end": 78,
-        "startLoc": {
-          "line": 35,
-          "column": 1,
-          "position": 256
-        },
-        "endLoc": {
-          "line": 78,
-          "column": 6,
-          "position": 734
-        }
-      },
-      "secondFile": {
-        "name": "packages/auth/test/providers/test-helpers.ts",
-        "start": 29,
-        "end": 84,
-        "startLoc": {
-          "line": 29,
-          "column": 2,
-          "position": 94
-        },
-        "endLoc": {
-          "line": 84,
-          "column": 4,
-          "position": 576
+          "position": 4134
         }
       }
     },
@@ -7747,17 +7783,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 93,
-        "end": 109,
+        "start": 35,
+        "end": 51,
         "startLoc": {
-          "line": 93,
+          "line": 35,
           "column": 23,
-          "position": 918
+          "position": 269
         },
         "endLoc": {
-          "line": 109,
+          "line": 51,
           "column": 21,
-          "position": 1050
+          "position": 401
         }
       },
       "secondFile": {
@@ -7767,48 +7803,12 @@
         "startLoc": {
           "line": 33,
           "column": 25,
-          "position": 252
+          "position": 258
         },
         "endLoc": {
           "line": 49,
           "column": 23,
-          "position": 384
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 10,
-      "fragment": "(baseConfig, undefined, new MemoryPKCEStore());\n  };\n\n  describe('handleAuthorizationRequest', () => {\n    it('redirects to authorization URL with correct parameters', async () => {\n      const provider = createProvider();\n      const res = createMockResponse();\n\n      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n      const",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 109,
-        "end": 118,
-        "startLoc": {
-          "line": 109,
-          "column": 21,
-          "position": 1051
-        },
-        "endLoc": {
-          "line": 118,
-          "column": 6,
-          "position": 1154
-        }
-      },
-      "secondFile": {
-        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 49,
-        "end": 59,
-        "startLoc": {
-          "line": 49,
-          "column": 23,
-          "position": 385
-        },
-        "endLoc": {
-          "line": 59,
-          "column": 6,
-          "position": 489
+          "position": 390
         }
       }
     },
@@ -7819,68 +7819,68 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 130,
-        "end": 140,
+        "start": 72,
+        "end": 82,
         "startLoc": {
-          "line": 130,
+          "line": 72,
           "column": 17,
-          "position": 1277
+          "position": 628
         },
         "endLoc": {
-          "line": 140,
+          "line": 82,
           "column": 15,
-          "position": 1374
+          "position": 725
         }
       },
       "secondFile": {
-        "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 64,
-        "end": 74,
+        "name": "packages/auth/test/providers/test-helpers.ts",
+        "start": 115,
+        "end": 125,
         "startLoc": {
-          "line": 64,
-          "column": 65,
-          "position": 544
+          "line": 115,
+          "column": 16,
+          "position": 892
         },
         "endLoc": {
-          "line": 74,
+          "line": 125,
           "column": 9,
-          "position": 641
+          "position": 989
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 33,
-      "fragment": ".mockRestore();\n      provider.dispose();\n    });\n\n    it('sets anti-caching headers', async () => {\n      const provider = createProvider();\n      const res = createMockResponse();\n\n      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});\n\n      await provider.handleAuthorizationRequest({} as Request, res);\n\n      // Anti-caching headers should be set\n      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));\n\n      loggerInfoSpy.mockRestore();\n      provider.dispose();\n    });\n  });\n\n  describe('handleAuthorizationCallback', () => {\n    it('exchanges code for tokens and fetches user info', async () => {\n      const provider = createProvider();\n      const now = Date.now();\n\n      // Store a session first\n      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {\n        state: 'state123',\n        codeVerifier: 'verifier',\n        codeChallenge: 'challenge',\n        redirectUri: baseConfig.redirectUri,\n        scopes: baseConfig.scopes,\n        provider: 'generic'",
+      "lines": 17,
+      "fragment": ");\n    });\n  });\n\n  describe('handleAuthorizationCallback', () => {\n    it('exchanges code for tokens and fetches user info', async () => {\n      const provider = createProvider();\n      const now = Date.now();\n\n      // Store a session first\n      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {\n        state: 'state123',\n        codeVerifier: 'verifier',\n        codeChallenge: 'challenge',\n        redirectUri: baseConfig.redirectUri,\n        scopes: baseConfig.scopes,\n        provider: 'generic'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 140,
-        "end": 172,
+        "start": 98,
+        "end": 114,
         "startLoc": {
-          "line": 140,
-          "column": 15,
-          "position": 1375
+          "line": 98,
+          "column": 2,
+          "position": 875
         },
         "endLoc": {
-          "line": 172,
+          "line": 114,
           "column": 10,
-          "position": 1681
+          "position": 1032
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 73,
-        "end": 105,
+        "start": 58,
+        "end": 74,
         "startLoc": {
-          "line": 73,
-          "column": 14,
-          "position": 634
+          "line": 58,
+          "column": 15,
+          "position": 478
         },
         "endLoc": {
-          "line": 105,
+          "line": 74,
           "column": 12,
-          "position": 940
+          "position": 635
         }
       }
     },
@@ -7891,32 +7891,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 189,
-        "end": 210,
+        "start": 131,
+        "end": 152,
         "startLoc": {
-          "line": 189,
+          "line": 131,
           "column": 7,
-          "position": 1780
+          "position": 1131
         },
         "endLoc": {
-          "line": 210,
+          "line": 152,
           "column": 10,
-          "position": 1935
+          "position": 1286
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 123,
-        "end": 144,
+        "start": 92,
+        "end": 113,
         "startLoc": {
-          "line": 123,
+          "line": 92,
           "column": 7,
-          "position": 1046
+          "position": 741
         },
         "endLoc": {
-          "line": 144,
+          "line": 113,
           "column": 12,
-          "position": 1201
+          "position": 896
         }
       }
     },
@@ -7927,32 +7927,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 211,
-        "end": 259,
+        "start": 153,
+        "end": 201,
         "startLoc": {
-          "line": 211,
+          "line": 153,
           "column": 9,
-          "position": 1938
+          "position": 1289
         },
         "endLoc": {
-          "line": 259,
+          "line": 201,
           "column": 2,
-          "position": 2298
+          "position": 1649
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 145,
-        "end": 194,
+        "start": 114,
+        "end": 205,
         "startLoc": {
-          "line": 145,
+          "line": 114,
           "column": 9,
-          "position": 1204
+          "position": 899
         },
         "endLoc": {
-          "line": 194,
+          "line": 205,
           "column": 3,
-          "position": 1565
+          "position": 1554
         }
       }
     },
@@ -7963,32 +7963,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 254,
-        "end": 271,
+        "start": 196,
+        "end": 213,
         "startLoc": {
-          "line": 254,
+          "line": 196,
           "column": 2,
-          "position": 2272
+          "position": 1623
         },
         "endLoc": {
-          "line": 271,
+          "line": 213,
           "column": 10,
-          "position": 2407
+          "position": 1758
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 224,
-        "end": 241,
+        "start": 193,
+        "end": 210,
         "startLoc": {
-          "line": 224,
+          "line": 193,
           "column": 2,
-          "position": 1866
+          "position": 1561
         },
         "endLoc": {
-          "line": 241,
+          "line": 210,
           "column": 12,
-          "position": 2001
+          "position": 1696
         }
       }
     },
@@ -7999,32 +7999,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 289,
-        "end": 313,
+        "start": 231,
+        "end": 255,
         "startLoc": {
-          "line": 289,
+          "line": 231,
           "column": 7,
-          "position": 2514
+          "position": 1865
         },
         "endLoc": {
-          "line": 313,
+          "line": 255,
           "column": 2,
-          "position": 2680
+          "position": 2031
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 260,
-        "end": 285,
+        "start": 229,
+        "end": 254,
         "startLoc": {
-          "line": 260,
+          "line": 229,
           "column": 7,
-          "position": 2115
+          "position": 1810
         },
         "endLoc": {
-          "line": 285,
+          "line": 254,
           "column": 3,
-          "position": 2282
+          "position": 1977
         }
       }
     },
@@ -8035,32 +8035,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 346,
-        "end": 368,
+        "start": 288,
+        "end": 310,
         "startLoc": {
-          "line": 346,
+          "line": 288,
           "column": 5,
-          "position": 2930
+          "position": 2281
         },
         "endLoc": {
-          "line": 368,
+          "line": 310,
           "column": 26,
-          "position": 3068
+          "position": 2419
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 440,
-        "end": 427,
+        "start": 409,
+        "end": 396,
         "startLoc": {
-          "line": 440,
+          "line": 409,
           "column": 12,
-          "position": 3519
+          "position": 3214
         },
         "endLoc": {
-          "line": 427,
+          "line": 396,
           "column": 29,
-          "position": 3374
+          "position": 3069
         }
       }
     },
@@ -8071,32 +8071,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 372,
-        "end": 393,
+        "start": 314,
+        "end": 335,
         "startLoc": {
-          "line": 372,
+          "line": 314,
           "column": 5,
-          "position": 3095
+          "position": 2446
         },
         "endLoc": {
-          "line": 393,
+          "line": 335,
           "column": 33,
-          "position": 3224
+          "position": 2575
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 466,
-        "end": 487,
+        "start": 435,
+        "end": 456,
         "startLoc": {
-          "line": 466,
+          "line": 435,
           "column": 12,
-          "position": 3684
+          "position": 3379
         },
         "endLoc": {
-          "line": 487,
+          "line": 456,
           "column": 34,
-          "position": 3813
+          "position": 3508
         }
       }
     },
@@ -8107,32 +8107,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/providers/generic-provider.test.ts",
-        "start": 394,
-        "end": 406,
+        "start": 336,
+        "end": 348,
         "startLoc": {
-          "line": 394,
+          "line": 336,
           "column": 7,
-          "position": 3227
+          "position": 2578
         },
         "endLoc": {
-          "line": 406,
+          "line": 348,
           "column": 29,
-          "position": 3345
+          "position": 2696
         }
       },
       "secondFile": {
         "name": "packages/auth/test/providers/microsoft-provider.test.ts",
-        "start": 488,
-        "end": 500,
+        "start": 457,
+        "end": 469,
         "startLoc": {
-          "line": 488,
+          "line": 457,
           "column": 7,
-          "position": 3816
+          "position": 3511
         },
         "endLoc": {
-          "line": 500,
+          "line": 469,
           "column": 27,
-          "position": 3934
+          "position": 3629
         }
       }
     },

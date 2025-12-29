@@ -9,7 +9,7 @@ import type {
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-import { createMockResponse, jsonReply } from './test-helpers.js';
+import { createMockResponse, jsonReply, testAuthorizationRequestParams, testAntiCachingHeaders } from './test-helpers.js';
 
 /* eslint-disable sonarjs/no-unused-vars */
 let originalFetch: typeof globalThis.fetch;
@@ -51,42 +51,11 @@ describe('MicrosoftOAuthProvider', () => {
 
   describe('handleAuthorizationRequest', () => {
     it('redirects to authorization URL with correct parameters', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      expect(res.redirect).toHaveBeenCalledTimes(1);
-      const redirectUrl = res.redirectUrl;
-
-      expect(redirectUrl).toContain('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
-      expect(redirectUrl).toContain('client_id=client-id');
-      expect(redirectUrl).toContain('redirect_uri=');
-      expect(redirectUrl).toContain('response_type=code');
-      expect(redirectUrl).toContain('scope=');
-      expect(redirectUrl).toContain('state=');
-      expect(redirectUrl).toContain('code_challenge=');
-      expect(redirectUrl).toContain('code_challenge_method=S256');
-
-      loggerInfoSpy.mockRestore();
-      provider.dispose();
+      await testAuthorizationRequestParams(createProvider, 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
     });
 
     it('sets anti-caching headers', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      // Anti-caching headers should be set
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));
-
-      loggerInfoSpy.mockRestore();
-      provider.dispose();
+      await testAntiCachingHeaders(createProvider);
     });
   });
 
