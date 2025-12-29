@@ -202,3 +202,32 @@ export async function setupRedisWithEncryption(): Promise<{
 
   return { encryptionService, sharedRedis };
 }
+
+/**
+ * Test helper for normalizeKeyPrefix tests
+ * Reduces duplication when testing prefix normalization behavior
+ *
+ * @param testCases - Array of input/expected output pairs
+ *
+ * @example
+ * ```typescript
+ * testKeyPrefixNormalization([
+ *   ['mcp', 'mcp:'],
+ *   ['mcp:', 'mcp:'],
+ *   ['mcp::', 'mcp:']
+ * ]);
+ * ```
+ */
+export function testKeyPrefixNormalization(
+  normalizeKeyPrefix: (_prefix: string) => string,
+  testCases: Array<[input: string, expected: string]>
+): void {
+  for (const [input, expected] of testCases) {
+    const result = normalizeKeyPrefix(input);
+    if (result !== expected) {
+      throw new Error(
+        `normalizeKeyPrefix('${input}') expected '${expected}' but got '${result}'`
+      );
+    }
+  }
+}

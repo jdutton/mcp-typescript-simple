@@ -1,11 +1,24 @@
 import { vi } from 'vitest';
 
 import type { Request } from 'express';
-import type { GoogleOAuthConfig, OAuthSession } from '@mcp-typescript-simple/auth';
+import type { GoogleOAuthConfig } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
-import { createMockResponse, createAndStoreSession, mockIdTokenVerification, setupGoogleAuthMocks } from './test-helpers.js';
+import {
+  createAndStoreSession,
+  mockIdTokenVerification,
+  setupGoogleAuthMocks,
+  getProviderSession,
+  withGoogleProvider,
+  mockDateNow,
+  testGoogleAuthorizationRequest,
+  testGoogleJWTValidation,
+  createTestAuthCache,
+  testTokenRefreshMissingToken,
+  setupGoogleCallbackTest,
+  testAuthorizationCallbackFailure
+} from './test-helpers.js';
 
 // Setup Google auth library mocks
 const {
@@ -58,16 +71,16 @@ describe('GoogleOAuthProvider', () => {
   });
 
   it('redirects to Google authorization URL and stores session data', async () => {
-    const provider = createProvider();
-
-    const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
-      .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-    const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
-      .mockReturnValue('state123');
-
-    const res = createMockResponse();
-    const req = { query: {} } as Request;  // Add query object to prevent undefined errors
-    await provider.handleAuthorizationRequest(req, res);
+    await testGoogleAuthorizationRequest(createProvider, {
+      state: 'state123',
+      codeVerifier: 'verifier',
+      codeChallenge: 'challenge',
+      expectedSession: {
+        state: 'state123',
+        codeVerifier: 'verifier',
+        provider: 'google'
+      }
+    });
 
     expect(mockGenerateAuthUrl).toHaveBeenCalledWith({
       access_type: 'offline',
@@ -78,224 +91,165 @@ describe('GoogleOAuthProvider', () => {
       prompt: 'consent',
       redirect_uri: baseConfig.redirectUri
     });
-    expect(res.redirect).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/auth?state=state123');
-
-    const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
-    expect(session).toMatchObject({
-      state: 'state123',
-      codeVerifier: 'verifier',
-      provider: 'google'
-    });
-
-    pkceSpy.mockRestore();
-    stateSpy.mockRestore();
-    provider.dispose();
   });
 
   it('exchanges code for tokens and returns user info during callback', async () => {
-    const provider = createProvider();
-    const now = 1_000_000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+    await withGoogleProvider(createProvider, async (provider, res) => {
+      const now = 1_000_000;
+      const { dateSpy } = setupGoogleCallbackTest(provider, {
+        now,
+        state: 'state123',
+        redirectUri: baseConfig.redirectUri,
+        mockGetToken,
+        tokens: {
+          access_token: 'access-token',
+          refresh_token: 'refresh-token',
+          id_token: 'id-token',
+          expiry_date: now + 3_600_000
+        }
+      });
 
-    createAndStoreSession(provider, 'state123', {
-      redirectUri: baseConfig.redirectUri,
-      scopes: ['openid', 'email'],
-      expiresAt: now + 5_000
-    });
+      mockIdTokenVerification(mockVerifyIdToken, {
+        sub: '123',
+        email: 'user@example.com',
+        name: 'Test User',
+        picture: 'avatar.png'
+      });
 
-    mockGetToken.mockResolvedValueOnce({
-      tokens: {
+      await provider.handleAuthorizationCallback({
+        query: { code: 'code123', state: 'state123' }
+      } as unknown as Request, res);
+
+      expect(mockGetToken).toHaveBeenCalledWith({
+        code: 'code123',
+        codeVerifier: 'verifier'
+      });
+      expect(mockVerifyIdToken).toHaveBeenCalledWith({
+        idToken: 'id-token',
+        audience: 'client-id'
+      });
+
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         access_token: 'access-token',
         refresh_token: 'refresh-token',
-        id_token: 'id-token',
-        expiry_date: now + 3_600_000
-      }
+        token_type: 'Bearer',
+        user: expect.objectContaining({ email: 'user@example.com', provider: 'google' })
+      }));
+
+      const sessionAfter = await getProviderSession(provider, 'state123');
+      expect(sessionAfter).toBeNull();
+
+      // ADR 006: Tokens are not stored server-side
+
+      dateSpy.mockRestore();
     });
-    mockIdTokenVerification(mockVerifyIdToken, {
-      sub: '123',
-      email: 'user@example.com',
-      name: 'Test User',
-      picture: 'avatar.png'
-    });
-
-    const res = createMockResponse();
-
-    await provider.handleAuthorizationCallback({
-      query: { code: 'code123', state: 'state123' }
-    } as unknown as Request, res);
-
-    expect(mockGetToken).toHaveBeenCalledWith({
-      code: 'code123',
-      codeVerifier: 'verifier'
-    });
-    expect(mockVerifyIdToken).toHaveBeenCalledWith({
-      idToken: 'id-token',
-      audience: 'client-id'
-    });
-
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      access_token: 'access-token',
-      refresh_token: 'refresh-token',
-      token_type: 'Bearer',
-      user: expect.objectContaining({ email: 'user@example.com', provider: 'google' })
-    }));
-
-    const sessionAfter = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
-    expect(sessionAfter).toBeNull();
-
-    // ADR 006: Tokens are not stored server-side
-
-    dateSpy.mockRestore();
-    provider.dispose();
   });
 
   it('returns 500 when Google does not supply an access token', async () => {
-    const provider = createProvider();
-    const now = 2_000_000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-    createAndStoreSession(provider, 'state123', {
-      redirectUri: baseConfig.redirectUri,
-      scopes: baseConfig.scopes,
-      expiresAt: now + 5_000
+    await withGoogleProvider(createProvider, async (provider, res) => {
+      const now = 2_000_000;
+      const dateSpy = mockDateNow(now);
+      createAndStoreSession(provider, 'state123', {
+        redirectUri: baseConfig.redirectUri,
+        scopes: baseConfig.scopes,
+        expiresAt: now + 5_000
+      });
+
+      mockGetToken.mockResolvedValueOnce({ tokens: {} });
+
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+
+      await testAuthorizationCallbackFailure(provider, res);
+
+      expect(consoleSpy).toHaveBeenCalled();
+
+      consoleSpy.mockRestore();
+      dateSpy.mockRestore();
     });
-
-    mockGetToken.mockResolvedValueOnce({ tokens: {} });
-
-    const res = createMockResponse();
-    const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-    await provider.handleAuthorizationCallback({
-      query: { code: 'code123', state: 'state123' }
-    } as unknown as Request, res);
-
-    expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Authorization failed' }));
-    expect(consoleSpy).toHaveBeenCalled();
-
-    consoleSpy.mockRestore();
-    dateSpy.mockRestore();
-    provider.dispose();
   });
 
   it('refreshes tokens when provided a valid refresh token', async () => {
-    const provider = createProvider();
-    const now = 3_000_000;
-    const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+    await withGoogleProvider(createProvider, async (provider, res) => {
+      const now = 3_000_000;
+      const dateSpy = mockDateNow(now);
 
-    // ADR 006: Tokens are not stored server-side
-    mockRefreshAccessToken.mockResolvedValueOnce({
-      credentials: {
+      // ADR 006: Tokens are not stored server-side
+      mockRefreshAccessToken.mockResolvedValueOnce({
+        credentials: {
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+          expiry_date: now + 7_200_000
+        }
+      });
+
+      await provider.handleTokenRefresh({
+        body: { refresh_token: 'refresh-token' }
+      } as unknown as Request, res);
+
+      expect(mockSetCredentials).toHaveBeenCalledWith({ refresh_token: 'refresh-token' });
+      expect(mockRefreshAccessToken).toHaveBeenCalled();
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         access_token: 'new-access-token',
-        refresh_token: 'new-refresh-token',
-        expiry_date: now + 7_200_000
-      }
+        refresh_token: 'new-refresh-token'
+      }));
+
+      dateSpy.mockRestore();
     });
-
-    const res = createMockResponse();
-
-    await provider.handleTokenRefresh({
-      body: { refresh_token: 'refresh-token' }
-    } as unknown as Request, res);
-
-    expect(mockSetCredentials).toHaveBeenCalledWith({ refresh_token: 'refresh-token' });
-    expect(mockRefreshAccessToken).toHaveBeenCalled();
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      access_token: 'new-access-token',
-      refresh_token: 'new-refresh-token'
-    }));
-
-    dateSpy.mockRestore();
-    provider.dispose();
   });
 
   it('returns 401 when refresh token is unknown', async () => {
-    const provider = createProvider();
-    const res = createMockResponse();
-
-    await provider.handleTokenRefresh({
-      body: { refresh_token: 'missing-token' },
-      headers: { host: 'localhost:3000' },
-      secure: false
-    } as unknown as Request, res);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-      error: 'Failed to refresh token'
-    }));
-
-    provider.dispose();
+    await withGoogleProvider(createProvider, async (provider, res) => {
+      await testTokenRefreshMissingToken(provider, res, 'missing-token');
+    });
   });
 
   // Authorization Request Flow Tests
   describe('Authorization Request Flow', () => {
     it('handles MCP Inspector client redirect flow with provided parameters', async () => {
-      const provider = createProvider();
-
-      // Mock the setupPKCE method to use client challenge and return a server state
-      const setupPKCESpy = vi.spyOn(provider as unknown as { setupPKCE: (_clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } }, 'setupPKCE')
-        .mockReturnValue({ state: 'generated_state', codeVerifier: '', codeChallenge: 'client_challenge' });
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          redirect_uri: 'https://client.example.com/callback',
-          code_challenge: 'client_challenge',
-          code_challenge_method: 'S256',
-          state: 'client_state',
-          client_id: 'client-123'
+      await testGoogleAuthorizationRequest(createProvider, {
+        state: 'generated_state',
+        codeVerifier: '',
+        codeChallenge: 'client_challenge',
+        mockSetupPKCE: { state: 'generated_state', codeVerifier: '', codeChallenge: 'client_challenge' },
+        request: {
+          query: {
+            redirect_uri: 'https://client.example.com/callback',
+            code_challenge: 'client_challenge',
+            code_challenge_method: 'S256',
+            state: 'client_state',
+            client_id: 'client-123'
+          }
+        } as Partial<Request>,
+        expectedSession: {
+          state: 'generated_state',
+          codeVerifier: '',
+          codeChallenge: 'client_challenge',
+          clientRedirectUri: 'https://client.example.com/callback'
         }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationRequest(req, res);
+      });
 
       expect(mockGenerateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({
         code_challenge: 'client_challenge',
         code_challenge_method: 'S256',
         state: 'generated_state'
       }));
-      expect(res.redirect).toHaveBeenCalled();
-
-      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
-      expect(session).toMatchObject({
-        state: 'generated_state',
-        codeVerifier: '', // Empty because client provided challenge
-        codeChallenge: 'client_challenge',
-        clientRedirectUri: 'https://client.example.com/callback'
-      });
-
-      setupPKCESpy.mockRestore();
-      provider.dispose();
     });
 
     it('generates PKCE when client parameters are missing', async () => {
-      const provider = createProvider();
+      await testGoogleAuthorizationRequest(createProvider, {
+        state: 'generated_state',
+        codeVerifier: 'generated_verifier',
+        codeChallenge: 'generated_challenge',
+        expectedSession: {
+          codeVerifier: 'generated_verifier',
+          codeChallenge: 'generated_challenge'
+        }
+      });
 
-      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
-        .mockReturnValue({ codeVerifier: 'generated_verifier', codeChallenge: 'generated_challenge' });
-      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
-        .mockReturnValue('generated_state');
-
-      const res = createMockResponse();
-      const req = { query: {} } as Request;
-
-      await provider.handleAuthorizationRequest(req, res);
-
-      expect(pkceSpy).toHaveBeenCalled();
-      expect(stateSpy).toHaveBeenCalled();
       expect(mockGenerateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({
         code_challenge: 'generated_challenge',
         state: 'generated_state'
       }));
-
-      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('generated_state');
-      expect(session).toMatchObject({
-        codeVerifier: 'generated_verifier',
-        codeChallenge: 'generated_challenge'
-      });
-
-      pkceSpy.mockRestore();
-      stateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('uses default scopes when config scopes are empty', async () => {
@@ -303,436 +257,369 @@ describe('GoogleOAuthProvider', () => {
         ...baseConfig,
         scopes: []
       };
-      const provider = new GoogleOAuthProvider(configWithEmptyScopes, undefined, new MemoryPKCEStore());
+      const createProviderWithEmptyScopes = () => new GoogleOAuthProvider(configWithEmptyScopes, undefined, new MemoryPKCEStore());
 
-      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
-        .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
-        .mockReturnValue('state123');
-
-      const res = createMockResponse();
-      const req = { query: {} } as Request;
-
-      await provider.handleAuthorizationRequest(req, res);
+      await testGoogleAuthorizationRequest(createProviderWithEmptyScopes, {
+        state: 'state123',
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge'
+      });
 
       expect(mockGenerateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({
         scope: ['openid', 'email', 'profile'] // Default scopes
       }));
-
-      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
-      expect(session?.scopes).toEqual(['openid', 'email', 'profile']);
-
-      pkceSpy.mockRestore();
-      stateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('stores session with correct expiration timeout', async () => {
-      const provider = createProvider();
       const now = 5_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      const dateSpy = mockDateNow(now);
 
-      const pkceSpy = vi.spyOn(provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } }, 'generatePKCE')
-        .mockReturnValue({ codeVerifier: 'verifier', codeChallenge: 'challenge' });
-      const stateSpy = vi.spyOn(provider as unknown as { generateState: () => string }, 'generateState')
-        .mockReturnValue('state123');
+      const { session } = await testGoogleAuthorizationRequest(createProvider, {
+        state: 'state123',
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge'
+      });
 
-      const res = createMockResponse();
-      const req = { query: {} } as Request;
-
-      await provider.handleAuthorizationRequest(req, res);
-
-      const session = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
       expect(session?.expiresAt).toBe(now + 10 * 60 * 1000); // 10 minute timeout
-
-      pkceSpy.mockRestore();
-      stateSpy.mockRestore();
       dateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('handles error during authorization URL generation', async () => {
-      const provider = createProvider();
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      // Make generateAuthUrl throw an error
-      mockGenerateAuthUrl.mockImplementation(() => {
-        throw new Error('Auth URL generation failed');
+        // Make generateAuthUrl throw an error
+        mockGenerateAuthUrl.mockImplementation(() => {
+          throw new Error('Auth URL generation failed');
+        });
+
+        const req = { query: {} } as Request;
+        await provider.handleAuthorizationRequest(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({ error: 'Failed to initiate authorization' });
+        expect(consoleSpy).toHaveBeenCalled();
+
+        consoleSpy.mockRestore();
       });
-
-      const res = createMockResponse();
-      const req = { query: {} } as Request;
-
-      await provider.handleAuthorizationRequest(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Failed to initiate authorization' });
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
-      provider.dispose();
     });
   });
 
   // Authorization Callback Flow Tests
   describe('OAuth callback error handling', () => {
     it('returns error if code is missing', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        await provider.handleAuthorizationCallback({
+          query: { state: 'valid_state' } // Missing code
+        } as unknown as Request, res);
 
-      await provider.handleAuthorizationCallback({
-        query: { state: 'valid_state' } // Missing code
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Missing authorization code or state' });
-
-      provider.dispose();
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({ error: 'Missing authorization code or state' });
+      });
     });
 
     it('returns error if OAuth provider returns error', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      await provider.handleAuthorizationCallback({
-        query: { error: 'access_denied', error_description: 'User denied access' }
-      } as unknown as Request, res);
+        await provider.handleAuthorizationCallback({
+          query: { error: 'access_denied', error_description: 'User denied access' }
+        } as unknown as Request, res);
 
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Authorization failed',
-        details: 'access_denied'
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'Authorization failed',
+          details: 'access_denied'
+        });
+
+        loggerErrorSpy.mockRestore();
       });
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
     });
 
     it('returns error when token exchange does not provide access token', async () => {
-      const provider = createProvider();
-      const now = 9_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 9_000_000;
+        const dateSpy = mockDateNow(now);
+        const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      createAndStoreSession(provider, 'state123', {
-        redirectUri: baseConfig.redirectUri,
-        scopes: baseConfig.scopes,
-        expiresAt: now + 5_000
+        createAndStoreSession(provider, 'state123', {
+          redirectUri: baseConfig.redirectUri,
+          scopes: baseConfig.scopes,
+          expiresAt: now + 5_000
+        });
+
+        // Mock Google's getToken to return empty tokens
+        mockGetToken.mockResolvedValueOnce({
+          tokens: {} // No access_token
+        });
+
+        const req = {
+          query: {
+            code: 'auth-code',
+            state: 'state123'
+          }
+        } as unknown as Request;
+
+        await provider.handleAuthorizationCallback(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'Authorization failed',
+          details: 'No access token received'
+        });
+
+        dateSpy.mockRestore();
+        loggerErrorSpy.mockRestore();
       });
-
-      // Mock Google's getToken to return empty tokens
-      mockGetToken.mockResolvedValueOnce({
-        tokens: {} // No access_token
-      });
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          code: 'auth-code',
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Authorization failed',
-        details: 'No access token received'
-      });
-
-      dateSpy.mockRestore();
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
     });
   });
 
   describe('Authorization Callback Flow', () => {
     it('handles invalid state parameter with detailed error', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        await provider.handleAuthorizationCallback({
+          query: { code: 'valid_code', state: 'invalid_state' }
+        } as unknown as Request, res);
 
-      await provider.handleAuthorizationCallback({
-        query: { code: 'valid_code', state: 'invalid_state' }
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'oauth_state_error',
-        error_description: expect.stringContaining('Invalid or expired state parameter'),
-        retry_suggestion: 'Please start the OAuth flow again by visiting /auth/google'
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'oauth_state_error',
+          error_description: expect.stringContaining('Invalid or expired state parameter'),
+          retry_suggestion: 'Please start the OAuth flow again by visiting /auth/google'
+        });
       });
-
-      provider.dispose();
     });
 
     it('redirects to client when clientRedirectUri is provided', async () => {
-      const provider = createProvider();
-      const now = 6_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 6_000_000;
+        const dateSpy = mockDateNow(now);
 
-      // Store session with client redirect URI
-      createAndStoreSession(provider, 'state123', {
-        codeVerifier: '',
-        redirectUri: baseConfig.redirectUri,
-        clientRedirectUri: 'https://client.example.com/callback',
-        scopes: ['openid', 'email'],
-        expiresAt: now + 5_000
+        // Store session with client redirect URI
+        createAndStoreSession(provider, 'state123', {
+          codeVerifier: '',
+          redirectUri: baseConfig.redirectUri,
+          clientRedirectUri: 'https://client.example.com/callback',
+          scopes: ['openid', 'email'],
+          expiresAt: now + 5_000
+        });
+
+        await provider.handleAuthorizationCallback({
+          query: { code: 'auth_code', state: 'state123' }
+        } as unknown as Request, res);
+
+        expect(res.redirect).toHaveBeenCalledWith('https://client.example.com/callback?code=auth_code&state=state123');
+
+        // Session should NOT be cleaned up yet - preserved for token exchange
+        // It will be cleaned up in handleTokenExchange after successful exchange
+        const sessionAfter = await getProviderSession(provider, 'state123');
+        expect(sessionAfter).not.toBeNull();
+        expect(sessionAfter?.state).toBe('state123');
+
+        dateSpy.mockRestore();
       });
-
-      const res = createMockResponse();
-
-      await provider.handleAuthorizationCallback({
-        query: { code: 'auth_code', state: 'state123' }
-      } as unknown as Request, res);
-
-      expect(res.redirect).toHaveBeenCalledWith('https://client.example.com/callback?code=auth_code&state=state123');
-
-      // Session should NOT be cleaned up yet - preserved for token exchange
-      // It will be cleaned up in handleTokenExchange after successful exchange
-      const sessionAfter = await (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> }).getSession('state123');
-      expect(sessionAfter).not.toBeNull();
-      expect(sessionAfter?.state).toBe('state123');
-
-      dateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('handles ID token verification failure', async () => {
-      const provider = createProvider();
-      const now = 7_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 7_000_000;
+        const { dateSpy } = setupGoogleCallbackTest(provider, {
+          now,
+          state: 'state123',
+          redirectUri: baseConfig.redirectUri,
+          mockGetToken,
+          tokens: {
+            access_token: 'access-token',
+            id_token: 'invalid-id-token'
+          }
+        });
 
-      createAndStoreSession(provider, 'state123', {
-        redirectUri: baseConfig.redirectUri,
-        scopes: ['openid', 'email'],
-        expiresAt: now + 5_000
+        // Mock verifyIdToken to return invalid payload
+        mockVerifyIdToken.mockResolvedValueOnce({
+          getPayload: () => ({ sub: null, email: null }) // Invalid payload
+        });
+
+        await testAuthorizationCallbackFailure(provider, res);
+
+        dateSpy.mockRestore();
       });
-
-      mockGetToken.mockResolvedValueOnce({
-        tokens: {
-          access_token: 'access-token',
-          id_token: 'invalid-id-token'
-        }
-      });
-
-      // Mock verifyIdToken to return invalid payload
-      mockVerifyIdToken.mockResolvedValueOnce({
-        getPayload: () => ({ sub: null, email: null }) // Invalid payload
-      });
-
-      const res = createMockResponse();
-
-      await provider.handleAuthorizationCallback({
-        query: { code: 'code123', state: 'state123' }
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        error: 'Authorization failed'
-      }));
-
-      dateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('handles missing expiry_date in tokens', async () => {
-      const provider = createProvider();
-      const now = 8_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 8_000_000;
+        const { dateSpy } = setupGoogleCallbackTest(provider, {
+          now,
+          state: 'state123',
+          redirectUri: baseConfig.redirectUri,
+          mockGetToken,
+          tokens: {
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            id_token: 'id-token'
+            // Missing expiry_date
+          }
+        });
 
-      createAndStoreSession(provider, 'state123', {
-        redirectUri: baseConfig.redirectUri,
-        scopes: ['openid', 'email'],
-        expiresAt: now + 5_000
-      });
+        mockIdTokenVerification(mockVerifyIdToken, {
+          sub: '123',
+          email: 'user@example.com',
+          name: 'Test User'
+        });
 
-      mockGetToken.mockResolvedValueOnce({
-        tokens: {
+        await provider.handleAuthorizationCallback({
+          query: { code: 'code123', state: 'state123' }
+        } as unknown as Request, res);
+
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
           access_token: 'access-token',
-          refresh_token: 'refresh-token',
-          id_token: 'id-token'
-          // Missing expiry_date
-        }
+          expires_in: expect.any(Number) // Should have calculated expiry
+        }));
+
+        // ADR 006: Tokens are not stored server-side
+
+        dateSpy.mockRestore();
       });
-
-      mockIdTokenVerification(mockVerifyIdToken, {
-        sub: '123',
-        email: 'user@example.com',
-        name: 'Test User'
-      });
-
-      const res = createMockResponse();
-
-      await provider.handleAuthorizationCallback({
-        query: { code: 'code123', state: 'state123' }
-      } as unknown as Request, res);
-
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        access_token: 'access-token',
-        expires_in: expect.any(Number) // Should have calculated expiry
-      }));
-
-      // ADR 006: Tokens are not stored server-side
-
-      dateSpy.mockRestore();
-      provider.dispose();
     });
 
     it('handles user info with fallback name from email', async () => {
-      const provider = createProvider();
-      const now = 9_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 9_000_000;
+        const { dateSpy } = setupGoogleCallbackTest(provider, {
+          now,
+          state: 'state123',
+          redirectUri: baseConfig.redirectUri,
+          mockGetToken,
+          tokens: {
+            access_token: 'access-token',
+            id_token: 'id-token',
+            expiry_date: now + 3_600_000
+          }
+        });
 
-      createAndStoreSession(provider, 'state123', {
-        redirectUri: baseConfig.redirectUri,
-        scopes: ['openid', 'email'],
-        expiresAt: now + 5_000
+        mockVerifyIdToken.mockResolvedValueOnce({
+          getPayload: () => ({
+            sub: '123',
+            email: 'user@example.com'
+            // Missing name - should fallback to email
+          })
+        });
+
+        await provider.handleAuthorizationCallback({
+          query: { code: 'code123', state: 'state123' }
+        } as unknown as Request, res);
+
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+          user: expect.objectContaining({
+            name: 'user@example.com', // Should fallback to email
+            email: 'user@example.com'
+          })
+        }));
+
+        dateSpy.mockRestore();
       });
-
-      mockGetToken.mockResolvedValueOnce({
-        tokens: {
-          access_token: 'access-token',
-          id_token: 'id-token',
-          expiry_date: now + 3_600_000
-        }
-      });
-
-      mockVerifyIdToken.mockResolvedValueOnce({
-        getPayload: () => ({
-          sub: '123',
-          email: 'user@example.com'
-          // Missing name - should fallback to email
-        })
-      });
-
-      const res = createMockResponse();
-
-      await provider.handleAuthorizationCallback({
-        query: { code: 'code123', state: 'state123' }
-      } as unknown as Request, res);
-
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        user: expect.objectContaining({
-          name: 'user@example.com', // Should fallback to email
-          email: 'user@example.com'
-        })
-      }));
-
-      dateSpy.mockRestore();
-      provider.dispose();
     });
   });
 
   // Token Exchange Flow Tests
   describe('Token Exchange Flow', () => {
     it('rejects unsupported grant types', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        await provider.handleTokenExchange({
+          body: { grant_type: 'client_credentials', code: 'code123' }
+        } as unknown as Request, res);
 
-      await provider.handleTokenExchange({
-        body: { grant_type: 'client_credentials', code: 'code123' }
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'unsupported_grant_type',
-        error_description: 'Only authorization_code grant type is supported'
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'unsupported_grant_type',
+          error_description: 'Only authorization_code grant type is supported'
+        });
       });
-
-      provider.dispose();
     });
 
     it('validates missing code parameter', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        await provider.handleTokenExchange({
+          body: { grant_type: 'authorization_code', code_verifier: 'verifier' }
+        } as unknown as Request, res);
 
-      await provider.handleTokenExchange({
-        body: { grant_type: 'authorization_code', code_verifier: 'verifier' }
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'invalid_request',
-        error_description: 'Missing required parameter: code'
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'invalid_request',
+          error_description: 'Missing required parameter: code'
+        });
       });
-
-      provider.dispose();
     });
 
     it('handles Google API failure during token exchange', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      // Mock getToken to throw error
-      mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
+        // Mock getToken to throw error
+        mockGetToken.mockRejectedValueOnce(new Error('Invalid authorization code'));
 
-      await provider.handleTokenExchange({
-        body: {
-          grant_type: 'authorization_code',
-          code: 'invalid_code',
-          code_verifier: 'verifier'
-        }
-      } as unknown as Request, res);
+        await provider.handleTokenExchange({
+          body: {
+            grant_type: 'authorization_code',
+            code: 'invalid_code',
+            code_verifier: 'verifier'
+          }
+        } as unknown as Request, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'server_error',
-        error_description: 'Invalid authorization code'
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.json).toHaveBeenCalledWith({
+          error: 'server_error',
+          error_description: 'Invalid authorization code'
+        });
+        expect(consoleSpy).toHaveBeenCalled();
+
+        consoleSpy.mockRestore();
       });
-      expect(consoleSpy).toHaveBeenCalled();
-
-      consoleSpy.mockRestore();
-      provider.dispose();
     });
 
     it('removes undefined fields from token response', async () => {
-      const provider = createProvider();
-      const now = 10_000_000;
-      const dateSpy = vi.spyOn(Date, 'now').mockReturnValue(now);
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        const now = 10_000_000;
+        const dateSpy = mockDateNow(now);
 
-      mockGetToken.mockResolvedValueOnce({
-        tokens: {
+        mockGetToken.mockResolvedValueOnce({
+          tokens: {
+            access_token: 'access-token',
+            id_token: 'id-token'
+            // No refresh_token - should be removed from response
+          }
+        });
+
+        mockIdTokenVerification(mockVerifyIdToken, {
+          sub: '123',
+          email: 'user@example.com',
+          name: 'Test User'
+        });
+
+        await provider.handleTokenExchange({
+          body: {
+            grant_type: 'authorization_code',
+            code: 'code123',
+            code_verifier: 'verifier'
+          }
+        } as unknown as Request, res);
+
+        expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({
+          refresh_token: undefined
+        }));
+
+        // Verify response structure
+        const responseCall = vi.mocked(res.json).mock.calls[0]?.[0] as any;
+        expect('refresh_token' in responseCall).toBe(false);
+        expect(responseCall).toMatchObject({
           access_token: 'access-token',
-          id_token: 'id-token'
-          // No refresh_token - should be removed from response
-        }
+          token_type: 'Bearer',
+          expires_in: expect.any(Number),
+          scope: 'openid email profile'
+        });
+
+        dateSpy.mockRestore();
       });
-
-      mockIdTokenVerification(mockVerifyIdToken, {
-        sub: '123',
-        email: 'user@example.com',
-        name: 'Test User'
-      });
-
-      const res = createMockResponse();
-
-      await provider.handleTokenExchange({
-        body: {
-          grant_type: 'authorization_code',
-          code: 'code123',
-          code_verifier: 'verifier'
-        }
-      } as unknown as Request, res);
-
-      expect(res.json).toHaveBeenCalledWith(expect.not.objectContaining({
-        refresh_token: undefined
-      }));
-
-      // Verify response structure
-      const responseCall = vi.mocked(res.json).mock.calls[0]?.[0] as any;
-      expect('refresh_token' in responseCall).toBe(false);
-      expect(responseCall).toMatchObject({
-        access_token: 'access-token',
-        token_type: 'Bearer',
-        expires_in: expect.any(Number),
-        scope: 'openid email profile'
-      });
-
-      dateSpy.mockRestore();
-      provider.dispose();
     });
   });
 
@@ -838,77 +725,69 @@ describe('GoogleOAuthProvider', () => {
   // Additional Coverage Tests
   describe('Additional Coverage Tests', () => {
     it('fetches user info from Google API', async () => {
-      const provider = createProvider();
+      await withGoogleProvider(createProvider, async (provider) => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            id: '456',
+            email: 'remote@example.com',
+            name: 'Remote User',
+            picture: 'remote-avatar.jpg'
+          })
+        } as any);
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({
-          id: '456',
+        const userInfo = await provider.getUserInfo('remote-token');
+
+        expect(mockFetch).toHaveBeenCalledWith('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { 'Authorization': 'Bearer remote-token' }
+        });
+        expect(userInfo).toMatchObject({
+          sub: '456',
           email: 'remote@example.com',
           name: 'Remote User',
-          picture: 'remote-avatar.jpg'
-        })
-      } as any);
-
-      const userInfo = await provider.getUserInfo('remote-token');
-
-      expect(mockFetch).toHaveBeenCalledWith('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { 'Authorization': 'Bearer remote-token' }
+          picture: 'remote-avatar.jpg',
+          provider: 'google'
+        });
       });
-      expect(userInfo).toMatchObject({
-        sub: '456',
-        email: 'remote@example.com',
-        name: 'Remote User',
-        picture: 'remote-avatar.jpg',
-        provider: 'google'
-      });
-
-      provider.dispose();
     });
 
     it('handles getUserInfo API failure', async () => {
-      const provider = createProvider();
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      await withGoogleProvider(createProvider, async (provider) => {
+        const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 403,
-        statusText: 'Forbidden'
-      } as any);
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden'
+        } as any);
 
-      await expect(provider.getUserInfo('invalid-token'))
-        .rejects
-        .toThrow('Failed to get user information');
+        await expect(provider.getUserInfo('invalid-token'))
+          .rejects
+          .toThrow('Failed to get user information');
 
-      consoleSpy.mockRestore();
-      provider.dispose();
+        consoleSpy.mockRestore();
+      });
     });
 
     it('handles logout with authorization header', async () => {
-      const provider = createProvider();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        // ADR 006: Tokens are not stored server-side
+        await provider.handleLogout({
+          headers: { authorization: 'Bearer logout-token' }
+        } as Request, res);
 
-      // ADR 006: Tokens are not stored server-side
-      const res = createMockResponse();
-      await provider.handleLogout({
-        headers: { authorization: 'Bearer logout-token' }
-      } as Request, res);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      provider.dispose();
+        expect(res.json).toHaveBeenCalledWith({ success: true });
+      });
     });
 
     it('handles logout without authorization header', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
+      await withGoogleProvider(createProvider, async (provider, res) => {
+        await provider.handleLogout({
+          headers: {}
+        } as Request, res);
 
-      await provider.handleLogout({
-        headers: {}
-      } as Request, res);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      provider.dispose();
+        expect(res.json).toHaveBeenCalledWith({ success: true });
+      });
     });
 
     it('returns correct provider metadata', () => {
@@ -929,9 +808,8 @@ describe('GoogleOAuthProvider', () => {
   });
 
   describe('JWT Validation (ADR 006)', () => {
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- assertions are in testGoogleJWTValidation helper
     it('should validate ID token locally using JWT signature verification', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
-
       // Mock verifyIdToken to return valid token
       mockVerifyIdToken.mockResolvedValueOnce({
         getPayload: () => ({
@@ -941,43 +819,20 @@ describe('GoogleOAuthProvider', () => {
         })
       });
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            idToken: 'valid-jwt-token',
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      expect(result).toBe(true);
-      expect(mockVerifyIdToken).toHaveBeenCalledWith({
-        idToken: 'valid-jwt-token',
-        audience: 'client-id'
-      });
-
-      provider.dispose();
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          idToken: 'valid-jwt-token',
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        }),
+        true,
+        mockVerifyIdToken
+      );
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- assertions are in testGoogleJWTValidation helper
     it('should reject expired ID tokens', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
-
       // Mock verifyIdToken to return expired token
       mockVerifyIdToken.mockResolvedValueOnce({
         getPayload: () => ({
@@ -987,180 +842,81 @@ describe('GoogleOAuthProvider', () => {
         })
       });
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            idToken: 'expired-jwt-token',
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      expect(result).toBe(false);
-
-      provider.dispose();
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          idToken: 'expired-jwt-token',
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        }),
+        false
+      );
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- assertions are in testGoogleJWTValidation helper
     it('should reject invalid JWT tokens', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
-
       // Mock verifyIdToken to throw error
       mockVerifyIdToken.mockRejectedValueOnce(new Error('Invalid token signature'));
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            idToken: 'invalid-jwt-token',
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      expect(result).toBe(false);
-
-      provider.dispose();
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          idToken: 'invalid-jwt-token',
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        }),
+        false
+      );
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- assertions are in testGoogleJWTValidation helper
     it('should reject tokens with invalid payload', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
-
       // Mock verifyIdToken to return null payload
       mockVerifyIdToken.mockResolvedValueOnce({
         getPayload: () => null as any
       });
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000,
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            idToken: 'jwt-token-with-null-payload',
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      expect(result).toBe(false);
-
-      provider.dispose();
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          idToken: 'jwt-token-with-null-payload',
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        }),
+        false
+      );
     });
 
     it('should fallback to TTL-based caching when no ID token available', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+          // No idToken field
+        }),
+        true
+      );
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now(),
-        validationTTL: 300000, // 5 minutes
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            // No idToken field
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      // Should return true because within TTL
-      expect(result).toBe(true);
       // Should NOT call verifyIdToken
       expect(mockVerifyIdToken).not.toHaveBeenCalled();
-
-      provider.dispose();
     });
 
     it('should fallback to TTL-based caching and return false when TTL expired', async () => {
-      const provider = new GoogleOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
+      await testGoogleJWTValidation(
+        createProvider,
+        createTestAuthCache({
+          provider: 'google',
+          lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
+          validationTTL: 300000, // 5 minutes
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+          // No idToken field
+        }),
+        false
+      );
 
-      const authCache = {
-        provider: 'google' as const,
-        userId: 'user-123',
-        tokenHash: 'test-hash',
-        tokenBindingTime: Date.now(),
-        lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
-        validationTTL: 300000, // 5 minutes
-        scopes: ['openid', 'email'],
-        authInfo: {
-          token: 'test-token',
-          clientId: 'client-id',
-          scopes: ['openid', 'email'],
-          expiresAt: Math.floor(Date.now() / 1000) + 3600,
-          extra: {
-            // No idToken field
-            userInfo: {
-              sub: 'user-123',
-              email: 'test@example.com'
-            }
-          }
-        }
-      };
-
-      const result = await (provider as any).canUseCachedAuthentication(authCache);
-
-      // Should return false because TTL expired
-      expect(result).toBe(false);
       // Should NOT call verifyIdToken
       expect(mockVerifyIdToken).not.toHaveBeenCalled();
-
-      provider.dispose();
     });
   });
 });

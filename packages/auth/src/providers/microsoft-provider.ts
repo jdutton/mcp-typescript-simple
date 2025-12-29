@@ -140,7 +140,7 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
    * Override canUseCachedAuthentication for Microsoft JWT validation (ADR 006)
    *
    * Microsoft provides ID tokens (JWTs) that can be verified locally without API calls.
-   * This method validates the JWT expiry claim.
+   * This method validates the JWT expiry and audience claims using common base helpers.
    *
    * Note: Full JWT signature verification would require fetching Microsoft's JWKS
    * and verifying the signature. For now, we perform expiry validation and rely
@@ -164,64 +164,44 @@ export class MicrosoftOAuthProvider extends BaseOAuthProvider {
       return super.canUseCachedAuthentication(authCache);
     }
 
-    try {
-      // Decode JWT payload (base64url decode of middle part)
-      const parts = idToken.split('.');
-      if (parts.length !== 3) {
-        logger.oauthDebug('Invalid JWT format', { provider: 'microsoft' });
-        return false;
-      }
+    // Decode JWT payload using common base helper
+    const payload = this.decodeJWTPayload(idToken);
+    if (!payload) {
+      return false; // Invalid JWT format
+    }
 
-      // Decode payload (second part of JWT)
-      const payloadB64 = parts[1];
-      if (!payloadB64) {
-        logger.oauthDebug('JWT missing payload', { provider: 'microsoft' });
-        return false;
-      }
-      const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');
-      const payload = JSON.parse(payloadJson) as {
-        exp?: number;
-        sub?: string;
-        aud?: string;
-      };
-
-      // Check expiry (payload.exp is in seconds, Date.now() is in milliseconds)
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp && payload.exp < now) {
-        logger.oauthDebug('Microsoft ID token expired', {
-          provider: 'microsoft',
-          exp: payload.exp,
-          now
-        });
-        return false;
-      }
-
-      // Verify audience matches our client ID
-      if (payload.aud && payload.aud !== this._config.clientId) {
-        logger.oauthDebug('Microsoft ID token audience mismatch', {
-          provider: 'microsoft',
-          expected: this._config.clientId,
-          actual: payload.aud
-        });
-        return false;
-      }
-
-      // JWT is valid (expiry + audience) - use cached auth
-      // Note: Full signature verification would require JWKS validation
-      logger.oauthDebug('Microsoft ID token validated locally (expiry + audience check)', {
-        provider: 'microsoft',
-        userId: payload.sub
+    // Check expiry using common base helper
+    if (!payload.exp) {
+      // Accept tokens without expiry claim (with warning)
+      logger.oauthWarn('Microsoft ID token missing exp claim - accepting with caution', {
+        provider: 'microsoft'
       });
-      return true;
-
-    } catch (error) {
-      // JWT validation failed - need re-validation with provider
-      logger.oauthDebug('Microsoft ID token validation failed', {
+    } else if (!this.isJWTNotExpired(payload)) {
+      logger.oauthDebug('Microsoft ID token expired', {
         provider: 'microsoft',
-        error: error instanceof Error ? error.message : String(error)
+        exp: payload.exp,
+        now: Math.floor(Date.now() / 1000)
       });
       return false;
     }
+
+    // Verify audience matches our client ID
+    if (payload.aud && payload.aud !== this._config.clientId) {
+      logger.oauthDebug('Microsoft ID token audience mismatch', {
+        provider: 'microsoft',
+        expected: this._config.clientId,
+        actual: payload.aud
+      });
+      return false;
+    }
+
+    // JWT is valid (expiry + audience) - use cached auth
+    // Note: Full signature verification would require JWKS validation
+    logger.oauthDebug('Microsoft ID token validated locally (expiry + audience check)', {
+      provider: 'microsoft',
+      userId: payload.sub
+    });
+    return true;
   }
 
   /**

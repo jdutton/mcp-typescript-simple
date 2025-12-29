@@ -7,9 +7,22 @@ import { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provid
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 /**
- * Supported OAuth provider types
+ * Import and re-export shared OAuth types from persistence package (single source of truth)
+ * This eliminates type duplication across packages.
  */
-export type OAuthProviderType = 'google' | 'github' | 'microsoft' | 'generic';
+import type {
+  OAuthProviderType,
+  OAuthUserInfo,
+  OAuthSession,
+  StoredTokenInfo
+} from '@mcp-typescript-simple/persistence';
+
+export type {
+  OAuthProviderType,
+  OAuthUserInfo,
+  OAuthSession,
+  StoredTokenInfo
+};
 
 /**
  * Base configuration for any OAuth provider
@@ -75,18 +88,6 @@ export interface OAuthEndpoints {
 }
 
 /**
- * User information returned from OAuth providers
- */
-export interface OAuthUserInfo {
-  sub: string;          // Subject identifier (unique user ID)
-  email: string;        // User email address
-  name: string;         // Display name
-  picture?: string;     // Profile picture URL
-  provider: string;     // Provider name
-  providerData?: unknown;   // Provider-specific additional data
-}
-
-/**
  * OAuth token response from provider
  */
 export interface OAuthTokenResponse {
@@ -107,34 +108,6 @@ export interface ProviderTokenResponse {
   scope?: string;
   token_type?: string;
   [key: string]: unknown;
-}
-
-/**
- * OAuth session data stored during the flow
- */
-export interface OAuthSession {
-  state: string;
-  codeVerifier: string;
-  codeChallenge: string;
-  redirectUri: string;
-  clientRedirectUri?: string; // Original client redirect URI (e.g., MCP Inspector, Claude Code)
-  clientState?: string; // Original client state parameter (for OAuth clients that manage their own state)
-  scopes: string[];
-  provider: OAuthProviderType;
-  expiresAt: number;
-}
-
-/**
- * Stored token information with user data
- */
-export interface StoredTokenInfo {
-  accessToken: string;
-  refreshToken?: string;
-  idToken?: string;
-  expiresAt: number;
-  userInfo: OAuthUserInfo;
-  provider: OAuthProviderType;
-  scopes: string[];
 }
 
 /**

@@ -19,13 +19,15 @@ import {
   testTokenExchangeSuccess,
   testSilentCodeVerifierMissing,
   testTokenRefreshFlow,
+  testTokenRefreshMissingToken,
   testLogoutFlow,
   testVerifyAccessTokenValid,
   testVerifyAccessTokenFetchesUserInfo,
   testVerifyAccessTokenInvalid,
   testGetUserInfoSuccess,
   testGetUserInfoFromAPI,
-  testGetUserInfoError
+  testGetUserInfoError,
+  testProviderMetadata
 } from './test-helpers.js';
 
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
@@ -169,16 +171,7 @@ describe('MicrosoftOAuthProvider', () => {
       // Mock Microsoft API returning error for invalid refresh token
       fetchMock.mockResolvedValueOnce(new Response('Invalid grant', { status: 400 }));
 
-      await provider.handleTokenRefresh({
-        body: { refresh_token: 'unknown' },
-        headers: { host: 'localhost:3000' },
-        secure: false
-      } as unknown as Request, res);
-
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        error: 'Failed to refresh token'
-      }));
+      await testTokenRefreshMissingToken(provider, res);
 
       provider.dispose();
     });
@@ -303,39 +296,18 @@ describe('MicrosoftOAuthProvider', () => {
     ));
   });
 
-  describe('provider metadata', () => {
-    it('returns correct provider type', () => {
-      const provider = createProvider();
-      expect(provider.getProviderType()).toBe('microsoft');
-      provider.dispose();
-    });
-
-    it('returns correct provider name', () => {
-      const provider = createProvider();
-      expect(provider.getProviderName()).toBe('Microsoft');
-      provider.dispose();
-    });
-
-    it('returns correct endpoints', () => {
-      const provider = createProvider();
-      const endpoints = provider.getEndpoints();
-
-      expect(endpoints).toEqual({
-        authEndpoint: '/auth/microsoft',
-        callbackEndpoint: '/auth/microsoft/callback',
-        refreshEndpoint: '/auth/microsoft/refresh',
-        logoutEndpoint: '/auth/microsoft/logout'
-      });
-
-      provider.dispose();
-    });
-
-    it('returns correct default scopes', () => {
-      const provider = createProvider();
-      expect(provider.getDefaultScopes()).toEqual(['openid', 'profile', 'email']);
-      provider.dispose();
-    });
-  });
+  describe('provider metadata', testProviderMetadata(
+    createProvider,
+    {
+      type: 'microsoft',
+      name: 'Microsoft',
+      authEndpoint: '/auth/microsoft',
+      callbackEndpoint: '/auth/microsoft/callback',
+      refreshEndpoint: '/auth/microsoft/refresh',
+      logoutEndpoint: '/auth/microsoft/logout',
+      defaultScopes: ['openid', 'profile', 'email']
+    }
+  ));
 
   describe('JWT Validation (ADR 006)', () => {
     // Helper to create a valid JWT token (simplified format for testing)

@@ -954,3 +954,353 @@ export const testTokenRefreshInvalidToken = (
     provider.dispose();
   };
 };
+
+/**
+ * Provider metadata test suite
+ * Eliminates duplication across provider tests for standard metadata tests
+ *
+ * @param createProviderFn - Function to create provider instance
+ * @param expected - Expected metadata values
+ *
+ * @example
+ * ```typescript
+ * describe('provider metadata', testProviderMetadata(
+ *   createProvider,
+ *   {
+ *     type: 'google',
+ *     name: 'Google',
+ *     authEndpoint: '/auth/google',
+ *     callbackEndpoint: '/auth/google/callback',
+ *     refreshEndpoint: '/auth/google/refresh',
+ *     logoutEndpoint: '/auth/google/logout',
+ *     defaultScopes: ['openid', 'profile', 'email']
+ *   }
+ * ));
+ * ```
+ */
+export const testProviderMetadata = (
+  createProviderFn: () => BaseOAuthProvider,
+  expected: {
+    type: string;
+    name: string;
+    authEndpoint: string;
+    callbackEndpoint: string;
+    refreshEndpoint: string;
+    logoutEndpoint: string;
+    defaultScopes: string[];
+  }
+) => {
+  return () => {
+    it('returns correct provider type', () => {
+      const provider = createProviderFn();
+      expect(provider.getProviderType()).toBe(expected.type);
+      provider.dispose();
+    });
+
+    it('returns correct provider name', () => {
+      const provider = createProviderFn();
+      expect(provider.getProviderName()).toBe(expected.name);
+      provider.dispose();
+    });
+
+    it('returns correct endpoints', () => {
+      const provider = createProviderFn();
+      const endpoints = provider.getEndpoints();
+
+      expect(endpoints).toEqual({
+        authEndpoint: expected.authEndpoint,
+        callbackEndpoint: expected.callbackEndpoint,
+        refreshEndpoint: expected.refreshEndpoint,
+        logoutEndpoint: expected.logoutEndpoint
+      });
+
+      provider.dispose();
+    });
+
+    it('returns correct default scopes', () => {
+      const provider = createProviderFn();
+      expect(provider.getDefaultScopes()).toEqual(expected.defaultScopes);
+      provider.dispose();
+    });
+  };
+};
+
+// =============================================================================
+// Google-specific test helpers
+// =============================================================================
+
+/**
+ * Type-safe helper to get session from provider (Google-specific casting)
+ */
+export const getProviderSession = async (
+  provider: BaseOAuthProvider,
+  state: string
+): Promise<OAuthSession | null> => {
+  return (provider as unknown as { getSession: (_state: string) => Promise<OAuthSession | null> })
+    .getSession(state);
+};
+
+/**
+ * Google-specific: Helper to run test with automatic provider setup/teardown
+ *
+ * Wraps test logic with provider creation and disposal to reduce boilerplate.
+ *
+ * @param createProviderFn - Function to create provider instance
+ * @param testFn - Test function that receives provider and response mocks
+ */
+export const withGoogleProvider = async <T>(
+  createProviderFn: () => BaseOAuthProvider,
+  testFn: (_provider: BaseOAuthProvider, _res: MockResponse) => Promise<T>
+): Promise<T> => {
+  const provider = createProviderFn();
+  const res = createMockResponse();
+  try {
+    return await testFn(provider, res);
+  } finally {
+    provider.dispose();
+  }
+};
+
+/**
+ * Google-specific: Mock PKCE generation
+ *
+ * @param provider - Provider instance to spy on
+ * @param codeVerifier - Code verifier to return
+ * @param codeChallenge - Code challenge to return
+ * @returns Spy that must be restored after test
+ */
+export const mockGooglePKCE = (
+  provider: BaseOAuthProvider,
+  codeVerifier: string,
+  codeChallenge: string
+) => {
+  return vi.spyOn(
+    provider as unknown as { generatePKCE: () => { codeVerifier: string; codeChallenge: string } },
+    'generatePKCE'
+  ).mockReturnValue({ codeVerifier, codeChallenge });
+};
+
+/**
+ * Google-specific: Mock state generation
+ *
+ * @param provider - Provider instance to spy on
+ * @param state - State value to return
+ * @returns Spy that must be restored after test
+ */
+export const mockGoogleState = (
+  provider: BaseOAuthProvider,
+  state: string
+) => {
+  return vi.spyOn(
+    provider as unknown as { generateState: () => string },
+    'generateState'
+  ).mockReturnValue(state);
+};
+
+/**
+ * Google-specific: Mock setupPKCE method (for MCP Inspector flow)
+ *
+ * @param provider - Provider instance to spy on
+ * @param returnValue - Value to return from setupPKCE
+ * @returns Spy that must be restored after test
+ */
+export const mockGoogleSetupPKCE = (
+  provider: BaseOAuthProvider,
+  returnValue: { state: string; codeVerifier: string; codeChallenge: string }
+) => {
+  return vi.spyOn(
+    provider as unknown as { setupPKCE: (_clientCodeChallenge?: string) => { state: string; codeVerifier: string; codeChallenge: string } },
+    'setupPKCE'
+  ).mockReturnValue(returnValue);
+};
+
+/**
+ * Google-specific: Mock Date.now for time-based tests
+ *
+ * @param timestamp - Timestamp to return from Date.now()
+ * @returns Spy that must be restored after test
+ */
+export const mockDateNow = (timestamp: number) => {
+  return vi.spyOn(Date, 'now').mockReturnValue(timestamp);
+};
+
+/**
+ * Google-specific: Helper for authorization request tests
+ *
+ * Reduces duplication in tests that verify authorization URL generation and session storage.
+ *
+ * @param createProviderFn - Function to create provider
+ * @param config - Test configuration
+ */
+export const testGoogleAuthorizationRequest = async (
+  createProviderFn: () => BaseOAuthProvider,
+  config: {
+    state: string;
+    codeVerifier: string;
+    codeChallenge: string;
+    request?: Partial<Request>;
+    expectedAuthUrlParams?: Record<string, unknown>;
+    expectedSession?: Partial<OAuthSession>;
+    mockSetupPKCE?: { state: string; codeVerifier: string; codeChallenge: string };
+  }
+) => {
+  return withGoogleProvider(createProviderFn, async (provider, res) => {
+    let pkceSpy;
+    let stateSpy;
+    let setupPKCESpy;
+
+    if (config.mockSetupPKCE) {
+      setupPKCESpy = mockGoogleSetupPKCE(provider, config.mockSetupPKCE);
+    } else {
+      pkceSpy = mockGooglePKCE(provider, config.codeVerifier, config.codeChallenge);
+      stateSpy = mockGoogleState(provider, config.state);
+    }
+
+    const req = (config.request || { query: {} }) as Request;
+    await provider.handleAuthorizationRequest(req, res);
+
+    if (config.expectedAuthUrlParams) {
+      // Verify authorization URL parameters if specified
+      expect(res.redirect).toHaveBeenCalled();
+    }
+
+    const session = await getProviderSession(provider, config.state);
+    if (config.expectedSession) {
+      expect(session).toMatchObject(config.expectedSession);
+    }
+
+    pkceSpy?.mockRestore();
+    stateSpy?.mockRestore();
+    setupPKCESpy?.mockRestore();
+
+    return { session, res };
+  });
+};
+
+/**
+ * Google-specific: Helper for JWT validation tests (ADR 006)
+ *
+ * Reduces duplication in canUseCachedAuthentication tests.
+ *
+ * @param createProviderFn - Function to create provider
+ * @param authCache - Auth cache object to test
+ * @param expectedResult - Expected validation result
+ * @param mockVerifyIdToken - Mock verifyIdToken function (optional)
+ */
+export const testGoogleJWTValidation = async (
+  createProviderFn: () => any,
+  authCache: ReturnType<typeof createTestAuthCache>,
+  expectedResult: boolean,
+  mockVerifyIdToken?: ReturnType<typeof vi.fn>
+) => {
+  const provider = createProviderFn();
+  try {
+    const result = await provider.canUseCachedAuthentication(authCache);
+    expect(result).toBe(expectedResult);
+
+    // If verifyIdToken was provided and idToken exists in cache, verify it was called
+    if (mockVerifyIdToken && authCache.authInfo.extra?.idToken) {
+      expect(mockVerifyIdToken).toHaveBeenCalledWith({
+        idToken: authCache.authInfo.extra.idToken,
+        audience: authCache.authInfo.clientId
+      });
+    }
+  } finally {
+    provider.dispose();
+  }
+};
+
+/**
+ * Test helper for token refresh with missing/invalid token (401 error)
+ *
+ * Eliminates duplication between google-provider and microsoft-provider tests
+ * for the common pattern of testing token refresh failures.
+ *
+ * @param provider - Provider instance
+ * @param res - Mock response object
+ * @param refreshToken - The invalid/missing refresh token to test with
+ */
+export const testTokenRefreshMissingToken = async (
+  provider: BaseOAuthProvider,
+  res: MockResponse,
+  refreshToken: string = 'unknown'
+) => {
+  await provider.handleTokenRefresh({
+    body: { refresh_token: refreshToken },
+    headers: { host: 'localhost:3000' },
+    secure: false
+  } as unknown as Request, res);
+
+  expect(res.status).toHaveBeenCalledWith(401);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    error: 'Failed to refresh token'
+  }));
+};
+
+/**
+ * Google-specific: Setup authorization callback test with common mock patterns
+ *
+ * Reduces duplication in google-provider tests that share the same setup pattern:
+ * - Mock Date.now()
+ * - Create and store session
+ * - Mock getToken response
+ *
+ * @param provider - Provider instance
+ * @param config - Test configuration
+ * @returns Object with dateSpy for cleanup
+ */
+export const setupGoogleCallbackTest = (
+  provider: BaseOAuthProvider,
+  config: {
+    now: number;
+    state: string;
+    redirectUri: string;
+    scopes?: string[];
+    sessionExpiresIn?: number;
+    mockGetToken: ReturnType<typeof vi.fn>;
+    tokens: {
+      access_token: string;
+      refresh_token?: string;
+      id_token?: string;
+      expiry_date?: number;
+    };
+  }
+) => {
+  const dateSpy = mockDateNow(config.now);
+
+  createAndStoreSession(provider, config.state, {
+    redirectUri: config.redirectUri,
+    scopes: config.scopes || ['openid', 'email'],
+    expiresAt: config.now + (config.sessionExpiresIn || 5_000)
+  });
+
+  config.mockGetToken.mockResolvedValueOnce({
+    tokens: config.tokens
+  });
+
+  return { dateSpy };
+};
+
+/**
+ * Test helper for authorization callback failures (500 errors)
+ *
+ * Reduces duplication in tests that verify authorization callback error handling.
+ *
+ * @param provider - Provider instance
+ * @param res - Mock response object
+ * @param state - State parameter (defaults to 'state123')
+ */
+export const testAuthorizationCallbackFailure = async (
+  provider: BaseOAuthProvider,
+  res: MockResponse,
+  state: string = 'state123'
+) => {
+  await provider.handleAuthorizationCallback({
+    query: { code: 'code123', state }
+  } as unknown as Request, res);
+
+  expect(res.status).toHaveBeenCalledWith(500);
+  expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+    error: 'Authorization failed'
+  }));
+};

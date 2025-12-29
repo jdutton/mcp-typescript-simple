@@ -1485,6 +1485,65 @@ export abstract class BaseOAuthProvider implements OAuthProvider {
   }
 
   /**
+   * Decode JWT payload without signature verification (ADR 006)
+   *
+   * Common helper for JWT-based providers (Google, Microsoft) to extract
+   * payload claims for expiry and audience validation.
+   *
+   * SECURITY NOTE: This does NOT verify the JWT signature. Callers must:
+   * 1. Use this only for cached tokens already validated with provider
+   * 2. Rely on HTTPS + token binding for authentication security
+   * 3. For full security, use provider-specific JWT libraries (like Google's oauth2Client)
+   *
+   * @param idToken - JWT ID token
+   * @returns Decoded payload or null if invalid format
+   */
+  protected decodeJWTPayload(idToken: string): { exp?: number; sub?: string; aud?: string } | null {
+    try {
+      const parts = idToken.split('.');
+      if (parts.length !== 3) {
+        logger.oauthDebug('Invalid JWT format', { provider: this.getProviderType() });
+        return null;
+      }
+
+      // Decode payload (second part of JWT)
+      const payloadB64 = parts[1];
+      if (!payloadB64) {
+        logger.oauthDebug('JWT missing payload', { provider: this.getProviderType() });
+        return null;
+      }
+
+      const payloadJson = Buffer.from(payloadB64, 'base64url').toString('utf8');
+      return JSON.parse(payloadJson) as { exp?: number; sub?: string; aud?: string };
+
+    } catch (error) {
+      logger.oauthDebug('JWT decode failed', {
+        provider: this.getProviderType(),
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Validate JWT expiry claim (ADR 006)
+   *
+   * Common helper for JWT-based providers to check if token is expired.
+   *
+   * @param payload - Decoded JWT payload
+   * @returns true if token is still valid (not expired), false if expired or missing exp claim
+   */
+  protected isJWTNotExpired(payload: { exp?: number }): boolean {
+    if (!payload.exp) {
+      return false; // No expiry claim
+    }
+
+    // Check expiry (payload.exp is in seconds, Date.now() is in milliseconds)
+    const now = Math.floor(Date.now() / 1000);
+    return payload.exp >= now;
+  }
+
+  /**
    * Build AuthInfo from session authentication cache (ADR 006)
    *
    * @param token - Current bearer access token

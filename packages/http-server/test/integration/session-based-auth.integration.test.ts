@@ -18,7 +18,7 @@ import type {
 import { MemorySessionManager } from '../../src/session/memory-session-manager.js';
 import { MockOAuthProvider } from '../helpers/mock-oauth-provider.js';
 import { createMockOAuthProvider, setupAuthenticatedSession } from '../helpers/auth-test-helpers.js';
-import { makeAuthenticatedRequest, testRequestWithFetchTracking } from '../helpers/api-request-helpers.js';
+import { makeAuthenticatedRequest, testRequestWithFetchTracking, expectMatchers } from '../helpers/api-request-helpers.js';
 
 // Helper to create authentication middleware similar to HTTP server
 function createAuthMiddleware(
@@ -158,10 +158,12 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         tokenHash
       });
 
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', session.sessionId);
+      const response = await makeAuthenticatedRequest({
+        app,
+        endpoint: '/api/test',
+        token,
+        sessionId: session.sessionId
+      });
 
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
@@ -171,16 +173,18 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       expect(response.body.provider).toBe('google');
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests -- assertions are in expectMatchers.toBeUnauthorized helper
     it('should reject request when session not found', async () => {
       const token = 'test-access-token';
 
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${token}`)
-        .set('mcp-session-id', 'nonexistent-session');
+      const response = await makeAuthenticatedRequest({
+        app,
+        endpoint: '/api/test',
+        token,
+        sessionId: 'nonexistent-session'
+      });
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toContain('Session not found');
+      expectMatchers.toBeUnauthorized(response, 'Session not found');
     });
 
     it('should reject request when session not authenticated', async () => {
@@ -196,8 +200,7 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         sessionId: session.sessionId
       });
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toContain('Session not found');
+      expectMatchers.toBeUnauthorized(response, 'Session not found');
     });
 
     it('should reject request when provider not available', async () => {
@@ -218,8 +221,7 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         sessionId: session.sessionId
       });
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toContain('Provider not available');
+      expectMatchers.toBeUnauthorized(response, 'Provider not available');
     });
 
     it('should detect token refresh when hash mismatches', async () => {
@@ -272,13 +274,14 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
       });
 
       // Request with attacker token (should be rejected)
-      const response = await request(app)
-        .get('/api/test')
-        .set('Authorization', `Bearer ${newToken}`)
-        .set('mcp-session-id', session.sessionId);
+      const response = await makeAuthenticatedRequest({
+        app,
+        endpoint: '/api/test',
+        token: newToken,
+        sessionId: session.sessionId
+      });
 
-      expect(response.status).toBe(401);
-      expect(response.body.error).toContain('Token user mismatch');
+      expectMatchers.toBeUnauthorized(response, 'Token user mismatch');
     });
 
     it('should use cached auth when within TTL', async () => {

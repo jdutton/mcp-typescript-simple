@@ -122,3 +122,55 @@ export async function testRequestWithFetchTracking(
     fetchCalled: fetchCalled.value
   };
 }
+
+/**
+ * Expect matchers for common API response assertions
+ *
+ * Use these with Vitest's expect() to validate API responses in a DRY manner.
+ */
+export const expectMatchers = {
+  /**
+   * Asserts that response is a 401 unauthorized error
+   *
+   * @example
+   * ```typescript
+   * const response = await makeAuthenticatedRequest({ ... });
+   * expectMatchers.toBeUnauthorized(response, 'Session not found');
+   * ```
+   */
+  toBeUnauthorized(response: any, errorSubstring: string) {
+    if (response.status !== 401) {
+      throw new Error(`Expected status 401 but got ${response.status}`);
+    }
+    if (!response.body.error?.includes(errorSubstring)) {
+      throw new Error(`Expected error containing "${errorSubstring}" but got "${response.body.error}"`);
+    }
+  },
+
+  /**
+   * Asserts that response is a 200 success with user data
+   *
+   * @example
+   * ```typescript
+   * const response = await makeAuthenticatedRequest({ ... });
+   * expectMatchers.toBeAuthenticatedSuccess(response, 'user-123', 'google');
+   * ```
+   */
+  toBeAuthenticatedSuccess(response: any, expectedUserId: string, expectedProvider: string) {
+    if (response.status !== 200) {
+      throw new Error(`Expected status 200 but got ${response.status}: ${JSON.stringify(response.body)}`);
+    }
+    if (!response.body.success) {
+      throw new Error('Expected success: true in response');
+    }
+    if (!response.body.user) {
+      throw new Error('Expected user data in response');
+    }
+    if (response.body.user.sub !== expectedUserId) {
+      throw new Error(`Expected user.sub to be "${expectedUserId}" but got "${response.body.user.sub}"`);
+    }
+    if (response.body.user.provider !== expectedProvider) {
+      throw new Error(`Expected user.provider to be "${expectedProvider}" but got "${response.body.user.provider}"`);
+    }
+  }
+};

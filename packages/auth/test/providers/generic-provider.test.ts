@@ -18,7 +18,8 @@ import {
   testVerifyAccessTokenFetchesUserInfo,
   testVerifyAccessTokenInvalid,
   testGetUserInfoSuccess,
-  testGetUserInfoFromAPI
+  testGetUserInfoFromAPI,
+  testProviderMetadata
 } from './test-helpers.js';
 
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
@@ -237,37 +238,16 @@ describe('GenericOAuthProvider', () => {
     ));
   });
 
-  describe('provider metadata', () => {
-    it('returns correct provider type', () => {
-      const provider = createProvider();
-      expect(provider.getProviderType()).toBe('generic');
-      provider.dispose();
-    });
-
-    it('returns correct provider name', () => {
-      const provider = createProvider();
-      expect(provider.getProviderName()).toBe('Test OAuth Provider');
-      provider.dispose();
-    });
-
-    it('returns correct endpoints', () => {
-      const provider = createProvider();
-      const endpoints = provider.getEndpoints();
-
-      expect(endpoints).toEqual({
-        authEndpoint: '/auth/oauth',
-        callbackEndpoint: '/auth/oauth/callback',
-        refreshEndpoint: '/auth/oauth/refresh',
-        logoutEndpoint: '/auth/oauth/logout'
-      });
-
-      provider.dispose();
-    });
-
-    it('returns correct default scopes', () => {
-      const provider = createProvider();
-      expect(provider.getDefaultScopes()).toEqual(['openid', 'email', 'profile']);
-      provider.dispose();
-    });
-  });
+  describe('provider metadata', testProviderMetadata(
+    createProvider,
+    {
+      type: 'generic',
+      name: 'Test OAuth Provider',
+      authEndpoint: '/auth/oauth',
+      callbackEndpoint: '/auth/oauth/callback',
+      refreshEndpoint: '/auth/oauth/refresh',
+      logoutEndpoint: '/auth/oauth/logout',
+      defaultScopes: ['openid', 'email', 'profile']
+    }
+  ));
 });

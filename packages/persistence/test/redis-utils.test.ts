@@ -7,26 +7,33 @@
 
 import { describe, it, expect } from 'vitest';
 import { normalizeKeyPrefix, getRedisKeyPrefix } from '../src/stores/redis/redis-utils.js';
+import { testKeyPrefixNormalization } from './helpers/redis-test-helpers.js';
 
 describe('Redis Utilities', () => {
   describe('normalizeKeyPrefix', () => {
     it('should add trailing colon to prefix without colon', () => {
-      expect(normalizeKeyPrefix('mcp')).toBe('mcp:');
-      expect(normalizeKeyPrefix('mcp-main')).toBe('mcp-main:');
-      expect(normalizeKeyPrefix('mcp-server-1')).toBe('mcp-server-1:');
-      expect(normalizeKeyPrefix('production')).toBe('production:');
+      testKeyPrefixNormalization(normalizeKeyPrefix, [
+        ['mcp', 'mcp:'],
+        ['mcp-main', 'mcp-main:'],
+        ['mcp-server-1', 'mcp-server-1:'],
+        ['production', 'production:']
+      ]);
     });
 
     it('should preserve single trailing colon', () => {
-      expect(normalizeKeyPrefix('mcp:')).toBe('mcp:');
-      expect(normalizeKeyPrefix('mcp-main:')).toBe('mcp-main:');
-      expect(normalizeKeyPrefix('mcp-server-1:')).toBe('mcp-server-1:');
+      testKeyPrefixNormalization(normalizeKeyPrefix, [
+        ['mcp:', 'mcp:'],
+        ['mcp-main:', 'mcp-main:'],
+        ['mcp-server-1:', 'mcp-server-1:']
+      ]);
     });
 
     it('should normalize multiple trailing colons to single colon', () => {
-      expect(normalizeKeyPrefix('mcp::')).toBe('mcp:');
-      expect(normalizeKeyPrefix('mcp:::')).toBe('mcp:');
-      expect(normalizeKeyPrefix('mcp-main::::')).toBe('mcp-main:');
+      testKeyPrefixNormalization(normalizeKeyPrefix, [
+        ['mcp::', 'mcp:'],
+        ['mcp:::', 'mcp:'],
+        ['mcp-main::::', 'mcp-main:']
+      ]);
     });
 
     it('should return empty string for empty prefix (backward compatibility)', () => {
@@ -34,13 +41,17 @@ describe('Redis Utilities', () => {
     });
 
     it('should handle whitespace-only prefixes', () => {
-      expect(normalizeKeyPrefix('   ')).toBe('   :');
+      testKeyPrefixNormalization(normalizeKeyPrefix, [
+        ['   ', '   :']
+      ]);
     });
 
     it('should handle prefixes with special characters', () => {
-      expect(normalizeKeyPrefix('mcp_dev')).toBe('mcp_dev:');
-      expect(normalizeKeyPrefix('mcp-test-123')).toBe('mcp-test-123:');
-      expect(normalizeKeyPrefix('mcp.staging')).toBe('mcp.staging:');
+      testKeyPrefixNormalization(normalizeKeyPrefix, [
+        ['mcp_dev', 'mcp_dev:'],
+        ['mcp-test-123', 'mcp-test-123:'],
+        ['mcp.staging', 'mcp.staging:']
+      ]);
     });
 
     it('should be idempotent (calling twice yields same result)', () => {
