@@ -179,7 +179,8 @@ describeSystemTest('STDIO Transport System', () => {
         const toolNamesSet = new Set(tools.map(extractToolName));
 
         const llmTools = ['chat', 'analyze', 'summarize', 'explain'];
-        const availableLLMTools = llmTools.filter((tool) => toolNamesSet.has(tool));
+        const isToolAvailable = (tool: string) => toolNamesSet.has(tool);
+        const availableLLMTools = llmTools.filter(isToolAvailable);
 
         if (availableLLMTools.length === 0) {
           console.log('ℹ️  No LLM tools available (no API keys configured)');

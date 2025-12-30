@@ -632,15 +632,21 @@ export class MCPStreamableHttpServer {
     const authInfo = await provider.verifyAccessTokenWithSession(token, sessionIdHeader);
 
     // Log success
-    // Type assertion required: authInfo.extra.userInfo is dynamically typed ({})
-    const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
+    const userInfo = authInfo.extra?.userInfo;
+    const userEmail = userInfo && typeof userInfo === 'object' && 'email' in userInfo
+      ? (userInfo as { email?: string }).email
+      : undefined;
+    const userSub = userInfo && typeof userInfo === 'object' && 'sub' in userInfo
+      ? (userInfo as { sub?: string }).sub
+      : undefined;
+
     logger.info("Auth success (session-based)", {
       requestId,
       sessionId: sessionIdHeader,
       provider: providerType,
       clientId: authInfo.clientId,
       scopes: authInfo.scopes?.join(', ') ?? 'none',
-      user: userInfo ? (userInfo.email ?? userInfo.sub ?? 'unknown') : undefined
+      user: userEmail ?? userSub ?? undefined
     });
 
     return authInfo;
