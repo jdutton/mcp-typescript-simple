@@ -131,7 +131,7 @@ const withProviderTest = async <T>(
 ): Promise<T> => {
   const provider = createProviderFn();
   const res = createMockResponse();
-  const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
+  const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => { /* no-op mock */ });
 
   try {
     return await testFn(provider, res);
@@ -287,7 +287,7 @@ export const testOAuthCallbackErrors = (
         }
       } as unknown as Request;
 
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       await provider.handleAuthorizationCallback(req, res);
 
@@ -304,7 +304,7 @@ export const testOAuthCallbackErrors = (
     it('returns error when token exchange does not provide access token', async () => {
       const provider = createProviderFn();
 
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       createAndStoreSession(provider, 'state123', {
         redirectUri: providerConfig.redirectUri,
@@ -787,7 +787,7 @@ export const testVerifyAccessTokenInvalid = (
     const fetchMock = vi.mocked(globalThis.fetch);
     fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
 
-    const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+    const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
     await expect(provider.verifyAccessToken(accessToken)).rejects.toThrow();
 
@@ -864,8 +864,8 @@ export const testGetUserInfoError = (
   return async () => {
     const provider = createProviderFn();
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
+    const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
     // Mock failed provider API response
     const fetchMock = vi.mocked(globalThis.fetch);

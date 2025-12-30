@@ -10,19 +10,16 @@ import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
  * Import and re-export shared OAuth types from persistence package (single source of truth)
  * This eliminates type duplication across packages.
  */
-import type {
-  OAuthProviderType,
-  OAuthUserInfo,
-  OAuthSession,
-  StoredTokenInfo
-} from '@mcp-typescript-simple/persistence';
+// Import types used locally in this file
+import type { OAuthProviderType, OAuthUserInfo } from '@mcp-typescript-simple/persistence';
 
+// Re-export all shared types (including those only used by consumers)
 export type {
   OAuthProviderType,
   OAuthUserInfo,
   OAuthSession,
   StoredTokenInfo
-};
+} from '@mcp-typescript-simple/persistence';
 
 /**
  * Base configuration for any OAuth provider

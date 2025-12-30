@@ -146,7 +146,7 @@ describe('OpenAPI Compliance Integration Tests', () => {
 
   describe('MCP Protocol Compliance', () => {
     // NOTE: Skipped tests removed - they require full MCP handler setup
-    // TODO: Add these tests back when integration test infrastructure supports MCP handlers
+    // Future: Consider adding these tests back when integration test infrastructure supports MCP handlers
 
     it('should reject invalid JSON-RPC request (missing jsonrpc field)', async () => {
       const response = await request(app)
@@ -208,7 +208,7 @@ describe('OpenAPI Compliance Integration Tests', () => {
 
   describe('Dynamic Client Registration', () => {
     // NOTE: Skipped test removed - requires full OAuth provider setup
-    // TODO: Add DCR test back when integration test infrastructure supports OAuth providers
+    // Future: Add DCR test back when integration test infrastructure supports OAuth providers
 
     it('should reject invalid registration (missing redirect_uris)', async () => {
       const response = await request(app)

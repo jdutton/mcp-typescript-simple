@@ -18,6 +18,7 @@ describe('Redis Utilities', () => {
         ['mcp-server-1', 'mcp-server-1:'],
         ['production', 'production:']
       ]);
+      expect(normalizeKeyPrefix('mcp')).toBe('mcp:'); // Verify behavior
     });
 
     it('should preserve single trailing colon', () => {
@@ -26,6 +27,7 @@ describe('Redis Utilities', () => {
         ['mcp-main:', 'mcp-main:'],
         ['mcp-server-1:', 'mcp-server-1:']
       ]);
+      expect(normalizeKeyPrefix('mcp:')).toBe('mcp:'); // Verify behavior
     });
 
     it('should normalize multiple trailing colons to single colon', () => {
@@ -34,6 +36,7 @@ describe('Redis Utilities', () => {
         ['mcp:::', 'mcp:'],
         ['mcp-main::::', 'mcp-main:']
       ]);
+      expect(normalizeKeyPrefix('mcp::')).toBe('mcp:'); // Verify behavior
     });
 
     it('should return empty string for empty prefix (backward compatibility)', () => {
@@ -44,6 +47,7 @@ describe('Redis Utilities', () => {
       testKeyPrefixNormalization(normalizeKeyPrefix, [
         ['   ', '   :']
       ]);
+      expect(normalizeKeyPrefix('   ')).toBe('   :'); // Verify behavior
     });
 
     it('should handle prefixes with special characters', () => {
@@ -52,6 +56,7 @@ describe('Redis Utilities', () => {
         ['mcp-test-123', 'mcp-test-123:'],
         ['mcp.staging', 'mcp.staging:']
       ]);
+      expect(normalizeKeyPrefix('mcp_dev')).toBe('mcp_dev:'); // Verify behavior
     });
 
     it('should be idempotent (calling twice yields same result)', () => {

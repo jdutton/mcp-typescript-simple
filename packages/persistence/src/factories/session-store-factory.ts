@@ -111,7 +111,7 @@ export class SessionStoreFactory {
         warnings.push('OAuth state will be lost if callback hits different instance');
       }
     } else {
-      detectedType = type as Exclude<SessionStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

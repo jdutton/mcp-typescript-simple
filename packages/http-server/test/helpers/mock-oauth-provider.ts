@@ -48,10 +48,19 @@ export class MockOAuthProvider extends BaseOAuthProvider {
     return ['openid', 'profile', 'email'];
   }
 
-  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {}
-  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {}
-  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {}
-  async handleLogout(_req: Request, _res: Response): Promise<void> {}
+  // Mock methods - intentionally empty as they're not used in tests
+  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {
+    // No-op: mock provider doesn't handle real auth flows
+  }
+  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {
+    // No-op: mock provider doesn't handle real auth flows
+  }
+  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {
+    // No-op: mock provider doesn't handle token refresh
+  }
+  async handleLogout(_req: Request, _res: Response): Promise<void> {
+    // No-op: mock provider doesn't handle logout
+  }
 
   async verifyAccessToken(token: string) {
     return {

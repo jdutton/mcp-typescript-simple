@@ -39,9 +39,7 @@ describe('Production Storage Validator', () => {
         delete process.env.VERCEL_ENV;
         delete process.env.REDIS_URL;
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
 
@@ -49,9 +47,7 @@ describe('Production Storage Validator', () => {
         process.env.NODE_ENV = 'development';
         delete process.env.REDIS_URL;
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
 
@@ -59,9 +55,7 @@ describe('Production Storage Validator', () => {
         process.env.NODE_ENV = 'test';
         delete process.env.REDIS_URL;
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
 
@@ -69,9 +63,7 @@ describe('Production Storage Validator', () => {
         process.env.NODE_ENV = 'development';
         process.env.REDIS_URL = 'redis://localhost:6379';
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
     });
@@ -91,9 +83,7 @@ describe('Production Storage Validator', () => {
         process.env.NODE_ENV = 'production';
         process.env.REDIS_URL = 'redis://localhost:6379';
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
     });
@@ -113,9 +103,7 @@ describe('Production Storage Validator', () => {
         process.env.VERCEL_ENV = 'production';
         process.env.REDIS_URL = 'redis://upstash.example.com:6379';
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
     });
@@ -137,9 +125,7 @@ describe('Production Storage Validator', () => {
         process.env.VERCEL_ENV = 'production';
         process.env.REDIS_URL = 'redis://production.example.com:6379';
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
     });
@@ -149,9 +135,7 @@ describe('Production Storage Validator', () => {
         process.env.VERCEL_ENV = 'preview'; // Not production
         delete process.env.REDIS_URL;
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
-        expect(validate).not.toThrow();
+        validateProductionStorage();
         expect(process.exit).not.toHaveBeenCalled();
       });
 
@@ -176,13 +160,11 @@ describe('Production Storage Validator', () => {
           'redis://:password@redis.example.com:6379',
         ];
 
-        // Validate function extracted to reduce callback nesting depth (max 4 levels)
-        const validate = () => validateProductionStorage();
         for (const url of redisUrls) {
           vi.clearAllMocks();
           process.env.REDIS_URL = url;
 
-          expect(validate).not.toThrow();
+          validateProductionStorage();
           expect(process.exit).not.toHaveBeenCalled();
         }
       });

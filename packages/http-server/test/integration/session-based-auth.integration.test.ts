@@ -25,6 +25,7 @@ function createAuthMiddleware(
   providers: Map<OAuthProviderType, MockOAuthProvider>,
   sessionManager: MemorySessionManager
 ) {
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Complex test setup
   return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization as string | undefined;
 
@@ -200,6 +201,7 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         sessionId: session.sessionId
       });
 
+      expect(response.status).toBe(401); // Explicit assertion for linter
       expectMatchers.toBeUnauthorized(response, 'Session not found');
     });
 
@@ -221,6 +223,7 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         sessionId: session.sessionId
       });
 
+      expect(response.status).toBe(401); // Explicit assertion for linter
       expectMatchers.toBeUnauthorized(response, 'Provider not available');
     });
 
@@ -281,6 +284,7 @@ describe('HTTP Server Session-Based Authentication Integration (ADR 006)', () =>
         sessionId: session.sessionId
       });
 
+      expect(response.status).toBe(401); // Explicit assertion for linter
       expectMatchers.toBeUnauthorized(response, 'Token user mismatch');
     });
 

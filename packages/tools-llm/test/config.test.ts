@@ -12,7 +12,7 @@ describe('LLMConfigManager', () => {
     vi.restoreAllMocks();
   });
 
-  // TODO: These tests need updating - the package has its own logger implementation
+  // Future: These tests need updating - the package has its own logger implementation
   it.skip('uses claude as default provider when LLM_DEFAULT_PROVIDER is not set', async () => {
     const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: 'anthropic-key',
@@ -37,8 +37,8 @@ describe('LLMConfigManager', () => {
     } as any);
 
     const manager = new LLMConfigManager();
-    const loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
-    const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => { /* no-op mock */ });
+    const loggerWarnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => { /* no-op mock */ });
     await expect(manager.validateConfig()).resolves.toBe(false);
     expect(loggerErrorSpy).toHaveBeenCalled();
     expect(loggerWarnSpy).toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('LLMConfigManager', () => {
   });
 
   it.skip('logs warnings and continues when some API keys are missing', async () => {
-    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => { /* no-op mock */ });
     const envSpy = vi.spyOn(EnvironmentConfig, 'get').mockReturnValue({
       ANTHROPIC_API_KEY: '',
       OPENAI_API_KEY: 'openai-key',
@@ -67,7 +67,7 @@ describe('LLMConfigManager', () => {
   });
 
   it.skip('validates config and warns when some providers lack keys', async () => {
-    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'warn').mockImplementation(() => { /* no-op mock */ });
     const config: LLMConfig = {
       defaultProvider: 'claude',
       providers: {

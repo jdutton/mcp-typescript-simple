@@ -42,7 +42,7 @@ describe('TransportFactory', () => {
 
 
   it('propagates errors when Streamable HTTP transports fail to close', async () => {
-    vi.spyOn(logger, 'error').mockImplementation(() => {});
+    vi.spyOn(logger, 'error').mockImplementation(() => { /* no-op mock */ });
     const manager = new StreamableHTTPTransportManager({
       port: 3000,
       host: 'localhost',
@@ -138,7 +138,7 @@ describe('TransportFactory', () => {
     });
 
     it('starts successfully after initialization', async () => {
-      const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {});
+      const loggerInfoSpy = vi.spyOn(logger, 'info').mockImplementation(() => { /* no-op mock */ });
 
       await manager.initialize(mockServer);
       await manager.start();

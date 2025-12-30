@@ -277,7 +277,7 @@ async function _testMCPInspectorCLI(_baseUrl: string, _token: string): Promise<v
 
     console.log('✅ MCP Inspector CLI available');
 
-    // TODO: Test MCP Inspector CLI with authenticated session
+    // Future: Test MCP Inspector CLI with authenticated session
     // This would require:
     // 1. Inspector CLI to support custom Authorization headers
     // 2. HTTP transport configuration

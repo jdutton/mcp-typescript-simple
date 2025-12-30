@@ -286,8 +286,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
    */
   protected async canUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {
     // Check if we have an ID token to validate
-    const extra = authCache.authInfo.extra as Record<string, unknown> | undefined;
-    const idToken = extra?.idToken as string | undefined;
+    const extra = authCache.authInfo.extra;
+    const idToken = typeof extra?.idToken === 'string' ? extra.idToken : undefined;
 
     if (!idToken) {
       // No ID token available - fall back to opaque token validation

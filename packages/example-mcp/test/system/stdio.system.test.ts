@@ -176,10 +176,10 @@ describeSystemTest('STDIO Transport System', () => {
     describe('LLM Tools (if available)', () => {
       test('should list LLM tools if API keys are configured', async () => {
         const tools = await client.listTools();
-        const toolNames = tools.map(extractToolName);
+        const toolNamesSet = new Set(tools.map(extractToolName));
 
         const llmTools = ['chat', 'analyze', 'summarize', 'explain'];
-        const isToolAvailable = (tool: string) => toolNames.includes(tool);
+        const isToolAvailable = (tool: string) => toolNamesSet.has(tool);
         const availableLLMTools = llmTools.filter(isToolAvailable);
 
         if (availableLLMTools.length > 0) {

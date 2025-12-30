@@ -105,6 +105,26 @@ async function setupTokenRefreshScenario(
   return { oldToken, sessionId, authCache };
 }
 
+// Helper to setup revalidate tests with mocked user info
+async function setupRevalidateTest(
+  provider: MockOAuthProvider,
+  sessionManager: SessionManager,
+  userIdForMock: string
+) {
+  provider.setSessionManager(sessionManager);
+  const newToken = 'new-token';
+  const newTokenHash = provider.testHashToken(newToken);
+  const { sessionId, authCache } = await setupTokenRefreshScenario(provider, sessionManager);
+
+  provider.mockFetchUserInfo = async () => ({
+    sub: userIdForMock,
+    name: userIdForMock === 'user-123' ? 'Test User' : 'Attacker',
+    email: userIdForMock === 'user-123' ? 'test@example.com' : 'attacker@example.com'
+  });
+
+  return { newToken, newTokenHash, sessionId, authCache };
+}
+
 describe('Session-Based Authentication (ADR 006)', () => {
   let provider: MockOAuthProvider;
   let sessionManager: SessionManager;
@@ -379,23 +399,8 @@ describe('Session-Based Authentication (ADR 006)', () => {
   });
 
   describe('revalidateAndUpdateBinding()', () => {
-    async function setupRevalidateTest(userIdForMock: string) {
-      provider.setSessionManager(sessionManager);
-      const newToken = 'new-token';
-      const newTokenHash = provider.testHashToken(newToken);
-      const { sessionId, authCache } = await setupTokenRefreshScenario(provider, sessionManager);
-
-      provider.mockFetchUserInfo = async () => ({
-        sub: userIdForMock,
-        name: userIdForMock === 'user-123' ? 'Test User' : 'Attacker',
-        email: userIdForMock === 'user-123' ? 'test@example.com' : 'attacker@example.com'
-      });
-
-      return { newToken, newTokenHash, sessionId, authCache };
-    }
-
     it('should re-validate token and update binding', async () => {
-      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest('user-123');
+      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest(provider, sessionManager, 'user-123');
 
       const authInfo = await provider.testRevalidateAndUpdateBinding(
         newToken,
@@ -410,7 +415,7 @@ describe('Session-Based Authentication (ADR 006)', () => {
     });
 
     it('should throw error on user ID mismatch', async () => {
-      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest('user-456');
+      const { newToken, newTokenHash, sessionId, authCache } = await setupRevalidateTest(provider, sessionManager, 'user-456');
 
       await expect(provider.testRevalidateAndUpdateBinding(
         newToken,
@@ -473,8 +478,8 @@ describe('Session-Based Authentication (ADR 006)', () => {
       // Verify session was updated
       const session = await sessionManager.getSession(sessionId);
       expect(session).toBeDefined();
-      // Note: Current implementation logs but doesn't actually update
-      // This is a TODO for Phase 2 optimization
+      // Note: Current implementation logs the cache update but doesn't persist to session storage
+      // Future optimization: Implement session persistence for auth cache updates (tracked in backlog)
     });
 
     it('should handle session not found gracefully', async () => {

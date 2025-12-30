@@ -44,6 +44,16 @@ const baseConfig: MicrosoftOAuthConfig = {
 
 let MicrosoftOAuthProvider: typeof import('@mcp-typescript-simple/auth').MicrosoftOAuthProvider;
 
+/**
+ * Helper to create a valid JWT token (simplified format for testing)
+ */
+function createTestJWT(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = Buffer.from('fake-signature').toString('base64url');
+  return `${header}.${payloadStr}.${signature}`;
+}
+
 beforeAll(async () => {
   ({ MicrosoftOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
@@ -172,6 +182,7 @@ describe('MicrosoftOAuthProvider', () => {
       fetchMock.mockResolvedValueOnce(new Response('Invalid grant', { status: 400 }));
 
       await testTokenRefreshMissingToken(provider, res);
+      expect(res.status).toHaveBeenCalledWith(401); // Verify helper assertions executed
 
       provider.dispose();
     });
@@ -190,8 +201,8 @@ describe('MicrosoftOAuthProvider', () => {
         statusText: 'Error'
       }));
 
-      const consoleWarnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-      const consoleErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => { /* no-op mock */ });
+      const consoleErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       const res = createMockResponse();
       await provider.handleLogout({
@@ -310,14 +321,6 @@ describe('MicrosoftOAuthProvider', () => {
   ));
 
   describe('JWT Validation (ADR 006)', () => {
-    // Helper to create a valid JWT token (simplified format for testing)
-    function createTestJWT(payload: Record<string, unknown>): string {
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-      const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
-      const signature = Buffer.from('fake-signature').toString('base64url');
-      return `${header}.${payloadStr}.${signature}`;
-    }
-
     it('should validate ID token locally by checking expiry and audience', async () => {
       const provider = createProvider();
 

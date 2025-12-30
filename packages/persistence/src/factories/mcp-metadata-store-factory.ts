@@ -214,7 +214,8 @@ export class MCPMetadataStoreFactory {
         warnings.push('Not suitable for Vercel serverless or multi-instance deployments');
       }
     } else {
-      detectedType = type as Exclude<MCPMetadataStoreType, 'auto'>;
+      // TypeScript narrows the type when type !== 'auto'
+      detectedType = type;
     }
 
     // Validate selected/detected type

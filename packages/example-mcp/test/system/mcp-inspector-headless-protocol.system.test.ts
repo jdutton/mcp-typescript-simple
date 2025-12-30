@@ -331,6 +331,7 @@ test.describe('MCP Inspector Protocol Testing', () => {
     }
   });
 
+  // eslint-disable-next-line sonarjs/cognitive-complexity -- Complex test setup
   test('should list all available tools', async () => {
     if (!browser) {
       throw new Error('Browser not initialized');

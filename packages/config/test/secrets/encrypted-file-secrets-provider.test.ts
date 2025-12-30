@@ -483,7 +483,7 @@ describe('EncryptedFileSecretsProvider', () => {
       const envContent = 'API_KEY=key123\nSECRET=secret456\n';
       (fs.readFile as Mock) = vi.fn().mockResolvedValue(envContent);
 
-      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });
 
       await EncryptedFileSecretsProvider.migrateFromPlaintext(
         '.env.local',

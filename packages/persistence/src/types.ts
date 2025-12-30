@@ -5,8 +5,6 @@
  * persistence package's independence while maintaining type safety.
  */
 
-import type { AuthInfo } from './interfaces/mcp-metadata-store.js';
-
 /**
  * Supported OAuth provider types
  */
@@ -15,7 +13,8 @@ export type OAuthProviderType = 'google' | 'github' | 'microsoft' | 'generic';
 /**
  * Re-export AuthInfo from mcp-metadata-store to avoid duplication
  */
-export type { AuthInfo };
+import type { AuthInfo } from './interfaces/mcp-metadata-store.js';
+export type { AuthInfo } from './interfaces/mcp-metadata-store.js';
 
 /**
  * OAuth user information structure

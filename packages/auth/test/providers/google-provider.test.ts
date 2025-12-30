@@ -157,7 +157,7 @@ describe('GoogleOAuthProvider', () => {
 
       mockGetToken.mockResolvedValueOnce({ tokens: {} });
 
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       await testAuthorizationCallbackFailure(provider, res);
 
@@ -200,6 +200,7 @@ describe('GoogleOAuthProvider', () => {
   it('returns 401 when refresh token is unknown', async () => {
     await withGoogleProvider(createProvider, async (provider, res) => {
       await testTokenRefreshMissingToken(provider, res, 'missing-token');
+      expect(res.status).toHaveBeenCalledWith(401); // Verify helper assertions executed
     });
   });
 
@@ -285,7 +286,7 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles error during authorization URL generation', async () => {
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider, res) => {
           // Make generateAuthUrl throw an error
@@ -320,7 +321,7 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('returns error if OAuth provider returns error', async () => {
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider, res) => {
           await provider.handleAuthorizationCallback({
@@ -341,7 +342,7 @@ describe('GoogleOAuthProvider', () => {
     it('returns error when token exchange does not provide access token', async () => {
       const now = 9_000_000;
       const dateSpy = mockDateNow(now);
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider, res) => {
           createAndStoreSession(provider, 'state123', {
@@ -444,6 +445,7 @@ describe('GoogleOAuthProvider', () => {
         });
 
         await testAuthorizationCallbackFailure(provider, res);
+        expect(res.status).toHaveBeenCalledWith(500); // Verify helper assertions executed
 
         dateSpy.mockRestore();
       });
@@ -557,7 +559,7 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles Google API failure during token exchange', async () => {
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider, res) => {
           // Mock getToken to throw error
@@ -633,7 +635,7 @@ describe('GoogleOAuthProvider', () => {
   describe('Token Verification Flow', () => {
     it('verifies token with Google TokenInfo API', async () => {
       const provider = createProvider();
-      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => { /* no-op mock */ });
 
       mockGetTokenInfo.mockResolvedValueOnce({
         sub: '456',
@@ -665,7 +667,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('falls back to UserInfo API when TokenInfo fails', async () => {
       const provider = createProvider();
-      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthDebug').mockImplementation(() => { /* no-op mock */ });
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -705,7 +707,7 @@ describe('GoogleOAuthProvider', () => {
 
     it('throws error when both TokenInfo and UserInfo APIs fail', async () => {
       const provider = createProvider();
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       // Mock TokenInfo to fail
       mockGetTokenInfo.mockRejectedValueOnce(new Error('Token info failed'));
@@ -759,7 +761,7 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles getUserInfo API failure', async () => {
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider) => {
           mockFetch.mockResolvedValueOnce({

@@ -59,7 +59,7 @@
     "test:contract:local": "HTTP_TEST_PORT=3001 TEST_TARGET=local TEST_ENV=express:ci npm run test:contract",
     "test:contract:docker": "TEST_TARGET=docker npm run test:contract",
     "test:contract:vercel": "TEST_TARGET=vercel npm run test:contract",
-    "lint": "eslint 'packages/**/src/**/*.ts' 'packages/**/test/**/*.ts' 'test/**/*.ts' 'tools/**/*.ts' 'tools/**/*.js' --ignore-pattern='**/vitest.config.ts' --ignore-pattern='**/dist/**' --ignore-pattern='**/templates/**' --no-warn-ignored --max-warnings=18",
+    "lint": "eslint 'packages/**/src/**/*.ts' 'packages/**/test/**/*.ts' 'test/**/*.ts' 'tools/**/*.ts' 'tools/**/*.js' --ignore-pattern='**/vitest.config.ts' --ignore-pattern='**/dist/**' --ignore-pattern='**/templates/**' --no-warn-ignored --max-warnings=0",
     "duplication-check": "tsx tools/duplication-check.ts",
     "typecheck": "tsc --noEmit",
     "dev:clean": "npx tsx tools/clean-dev-data.ts",

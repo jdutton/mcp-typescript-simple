@@ -14,6 +14,7 @@ let globalHttpServer: ChildProcess | null = null;
  * Only shows fatal errors to reduce noise during tests
  * Set SYSTEM_TEST_VERBOSE=true to see all server output
  */
+// eslint-disable-next-line sonarjs/cognitive-complexity -- Complex test setup
 function filterAndLogServerOutput(text: string, isStderr: boolean = false): void {
   // Suppress all server logs (only show fatal startup errors)
   // Only log fatal errors that would prevent startup

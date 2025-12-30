@@ -1226,150 +1226,6 @@
     },
     {
       "format": "typescript",
-      "lines": 13,
-      "fragment": ", {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n\n        // Handle HTTP transport cannot maintain session state gracefully",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 464,
-        "end": 476,
-        "startLoc": {
-          "line": 464,
-          "column": 19,
-          "position": 3667
-        },
-        "endLoc": {
-          "line": 476,
-          "column": 66,
-          "position": 3759
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 147,
-        "end": 158,
-        "startLoc": {
-          "line": 147,
-          "column": 2,
-          "position": 1041
-        },
-        "endLoc": {
-          "line": 158,
-          "column": 7,
-          "position": 1132
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 9,
-      "fragment": "expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 507,
-        "end": 515,
-        "startLoc": {
-          "line": 507,
-          "column": 7,
-          "position": 3984
-        },
-        "endLoc": {
-          "line": 515,
-          "column": 3,
-          "position": 4079
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 241,
-        "end": 248,
-        "startLoc": {
-          "line": 241,
-          "column": 7,
-          "position": 1800
-        },
-        "endLoc": {
-          "line": 248,
-          "column": 2,
-          "position": 1894
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 15,
-      "fragment": ", {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  }",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 525,
-        "end": 539,
-        "startLoc": {
-          "line": 525,
-          "column": 17,
-          "position": 4160
-        },
-        "endLoc": {
-          "line": 539,
-          "column": 2,
-          "position": 4276
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 147,
-        "end": 162,
-        "startLoc": {
-          "line": 147,
-          "column": 2,
-          "position": 1041
-        },
-        "endLoc": {
-          "line": 162,
-          "column": 3,
-          "position": 1158
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 8,
-      "fragment": "response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Protocol Performance'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 534,
-        "end": 541,
-        "startLoc": {
-          "line": 534,
-          "column": 2,
-          "position": 4218
-        },
-        "endLoc": {
-          "line": 541,
-          "column": 23,
-          "position": 4284
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 243,
-        "end": 250,
-        "startLoc": {
-          "line": 243,
-          "column": 2,
-          "position": 1836
-        },
-        "endLoc": {
-          "line": 250,
-          "column": 17,
-          "position": 1902
-        }
-      }
-    },
-    {
-      "format": "typescript",
       "lines": 10,
       "fragment": "emitOCSFEvent(\n        apiActivityEvent(APIActivityId.Other)\n          .actor({ user: { name: 'system', uid: 'system' } })\n          .api({\n            operation: 'invoke',\n            service: { name: 'mcp.tool' },\n            version: '1.0',\n          })\n          .status(StatusId.Failure)\n          .message(`Invalid input for tool '",
       "tokens": 0,
@@ -1874,37 +1730,37 @@
     },
     {
       "format": "typescript",
-      "lines": 17,
-      "fragment": ", 'auto'>;\n    }\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments'",
+      "lines": 20,
+      "fragment": ";\n      }\n    } else {\n      detectedType = type; // TypeScript narrows the type when type !== 'auto'\n    }\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/session-store-factory.ts",
-        "start": 114,
+        "start": 111,
         "end": 130,
         "startLoc": {
-          "line": 114,
-          "column": 17,
-          "position": 675
+          "line": 111,
+          "column": 2,
+          "position": 651
         },
         "endLoc": {
           "line": 130,
           "column": 70,
-          "position": 768
+          "position": 760
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 225,
+        "start": 222,
         "end": 241,
         "startLoc": {
-          "line": 225,
-          "column": 15,
-          "position": 1512
+          "line": 222,
+          "column": 7,
+          "position": 1488
         },
         "endLoc": {
           "line": 241,
           "column": 66,
-          "position": 1605
+          "position": 1597
         }
       }
     },
@@ -2018,73 +1874,73 @@
     },
     {
       "format": "typescript",
-      "lines": 18,
-      "fragment": ", 'auto'>;\n    }\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments');\n        warnings.push('OAuth token verification may fail if routed to different instance'",
+      "lines": 21,
+      "fragment": ");\n      }\n    } else {\n      detectedType = type; // TypeScript narrows the type when type !== 'auto'\n    }\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments');\n        warnings.push('OAuth token verification may fail if routed to different instance'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/oauth-token-store-factory.ts",
-        "start": 186,
+        "start": 183,
         "end": 203,
         "startLoc": {
-          "line": 186,
-          "column": 20,
-          "position": 1223
+          "line": 183,
+          "column": 63,
+          "position": 1198
         },
         "endLoc": {
           "line": 203,
           "column": 68,
-          "position": 1325
+          "position": 1317
         }
       },
       "secondFile": {
-        "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 225,
+        "name": "packages/persistence/src/factories/session-store-factory.ts",
+        "start": 111,
         "end": 131,
         "startLoc": {
-          "line": 225,
-          "column": 15,
-          "position": 1512
+          "line": 111,
+          "column": 63,
+          "position": 650
         },
         "endLoc": {
           "line": 131,
           "column": 59,
-          "position": 777
+          "position": 769
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 18,
-      "fragment": ", 'auto'>;\n    }\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments');\n        warnings.push('MCP sessions may be lost if routed to different instance'",
+      "lines": 17,
+      "fragment": "}\n\n    // Validate selected/detected type\n    switch (detectedType) {\n      case 'redis':\n        if (!process.env.REDIS_URL) {\n          return {\n            valid: false,\n            storeType: detectedType,\n            warnings: ['REDIS_URL environment variable not configured'],\n          };\n        }\n        break;\n\n      case 'memory':\n        warnings.push('Memory store not suitable for multi-instance serverless deployments');\n        warnings.push('MCP sessions may be lost if routed to different instance'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/mcp-metadata-store-factory.ts",
-        "start": 217,
-        "end": 234,
+        "start": 219,
+        "end": 235,
         "startLoc": {
-          "line": 217,
-          "column": 21,
+          "line": 219,
+          "column": 5,
           "position": 1408
         },
         "endLoc": {
-          "line": 234,
+          "line": 235,
           "column": 59,
-          "position": 1510
+          "position": 1503
         }
       },
       "secondFile": {
-        "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 225,
+        "name": "packages/persistence/src/factories/session-store-factory.ts",
+        "start": 115,
         "end": 131,
         "startLoc": {
-          "line": 225,
-          "column": 15,
-          "position": 1512
+          "line": 115,
+          "column": 5,
+          "position": 674
         },
         "endLoc": {
           "line": 131,
           "column": 59,
-          "position": 777
+          "position": 769
         }
       }
     },
@@ -2172,12 +2028,12 @@
         "startLoc": {
           "line": 226,
           "column": 63,
-          "position": 2065
+          "position": 2077
         },
         "endLoc": {
           "line": 236,
           "column": 40,
-          "position": 2167
+          "position": 2179
         }
       },
       "secondFile": {
@@ -2187,12 +2043,12 @@
         "startLoc": {
           "line": 205,
           "column": 65,
-          "position": 1880
+          "position": 1892
         },
         "endLoc": {
           "line": 215,
           "column": 42,
-          "position": 1982
+          "position": 1994
         }
       }
     },
@@ -2208,12 +2064,12 @@
         "startLoc": {
           "line": 266,
           "column": 2,
-          "position": 2422
+          "position": 2434
         },
         "endLoc": {
           "line": 274,
           "column": 6,
-          "position": 2503
+          "position": 2515
         }
       },
       "secondFile": {
@@ -2223,12 +2079,12 @@
         "startLoc": {
           "line": 252,
           "column": 2,
-          "position": 2297
+          "position": 2309
         },
         "endLoc": {
           "line": 260,
           "column": 5,
-          "position": 2378
+          "position": 2390
         }
       }
     },
@@ -2244,12 +2100,12 @@
         "startLoc": {
           "line": 279,
           "column": 47,
-          "position": 2527
+          "position": 2539
         },
         "endLoc": {
           "line": 287,
           "column": 12,
-          "position": 2617
+          "position": 2629
         }
       },
       "secondFile": {
@@ -2259,12 +2115,12 @@
         "startLoc": {
           "line": 265,
           "column": 60,
-          "position": 2402
+          "position": 2414
         },
         "endLoc": {
           "line": 259,
           "column": 9,
-          "position": 2367
+          "position": 2379
         }
       }
     },
@@ -2280,12 +2136,12 @@
         "startLoc": {
           "line": 302,
           "column": 5,
-          "position": 2751
+          "position": 2763
         },
         "endLoc": {
           "line": 309,
           "column": 8,
-          "position": 2829
+          "position": 2841
         }
       },
       "secondFile": {
@@ -2295,12 +2151,12 @@
         "startLoc": {
           "line": 266,
           "column": 5,
-          "position": 2414
+          "position": 2426
         },
         "endLoc": {
           "line": 259,
           "column": 9,
-          "position": 2367
+          "position": 2379
         }
       }
     },
@@ -2316,12 +2172,12 @@
         "startLoc": {
           "line": 326,
           "column": 5,
-          "position": 2967
+          "position": 2979
         },
         "endLoc": {
           "line": 333,
           "column": 8,
-          "position": 3050
+          "position": 3062
         }
       },
       "secondFile": {
@@ -2331,12 +2187,12 @@
         "startLoc": {
           "line": 266,
           "column": 5,
-          "position": 2414
+          "position": 2426
         },
         "endLoc": {
           "line": 309,
           "column": 8,
-          "position": 2834
+          "position": 2846
         }
       }
     },
@@ -2352,12 +2208,12 @@
         "startLoc": {
           "line": 373,
           "column": 5,
-          "position": 3389
+          "position": 3401
         },
         "endLoc": {
           "line": 380,
           "column": 2,
-          "position": 3459
+          "position": 3471
         }
       },
       "secondFile": {
@@ -2367,12 +2223,12 @@
         "startLoc": {
           "line": 348,
           "column": 5,
-          "position": 3169
+          "position": 3181
         },
         "endLoc": {
           "line": 355,
           "column": 2,
-          "position": 3239
+          "position": 3251
         }
       }
     },
@@ -2388,12 +2244,12 @@
         "startLoc": {
           "line": 383,
           "column": 53,
-          "position": 3481
+          "position": 3493
         },
         "endLoc": {
           "line": 393,
           "column": 36,
-          "position": 3583
+          "position": 3595
         }
       },
       "secondFile": {
@@ -2403,48 +2259,12 @@
         "startLoc": {
           "line": 205,
           "column": 65,
-          "position": 1880
+          "position": 1892
         },
         "endLoc": {
           "line": 215,
           "column": 42,
-          "position": 1982
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 11,
-      "fragment": ";\n        process.env.REDIS_URL = 'redis://localhost:6379';\n\n        // Validate function extracted to reduce callback nesting depth (max 4 levels)\n        const validate = () => validateProductionStorage();\n        expect(validate).not.toThrow();\n        expect(process.exit).not.toHaveBeenCalled();\n      });\n    });\n\n    describe('Production Environment - VERCEL_ENV=production'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/http-server/test/server/production-storage-validator.test.ts",
-        "start": 91,
-        "end": 101,
-        "startLoc": {
-          "line": 91,
-          "column": 13,
-          "position": 732
-        },
-        "endLoc": {
-          "line": 101,
-          "column": 49,
-          "position": 809
-        }
-      },
-      "secondFile": {
-        "name": "packages/http-server/test/server/production-storage-validator.test.ts",
-        "start": 69,
-        "end": 79,
-        "startLoc": {
-          "line": 69,
-          "column": 14,
-          "position": 556
-        },
-        "endLoc": {
-          "line": 79,
-          "column": 47,
-          "position": 633
+          "position": 1994
         }
       }
     },
@@ -2743,17 +2563,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/vitest-global-setup.ts",
-        "start": 63,
-        "end": 130,
+        "start": 64,
+        "end": 131,
         "startLoc": {
-          "line": 63,
+          "line": 64,
           "column": 1,
-          "position": 458
+          "position": 460
         },
         "endLoc": {
-          "line": 130,
+          "line": 131,
           "column": 12,
-          "position": 923
+          "position": 925
         }
       },
       "secondFile": {
@@ -2990,42 +2810,6 @@
     },
     {
       "format": "typescript",
-      "lines": 21,
-      "fragment": "} from './utils.js';\n\ninterface MCPRequest {\n  jsonrpc: '2.0';\n  method: string;\n  params?: any;\n  id: string | number;\n}\n\ninterface MCPResponse {\n  jsonrpc: '2.0';\n  result?: any;\n  error?: {\n    code: number;\n    message: string;\n    data?: any;\n  };\n  id: string | number;\n}\n\ndescribeSystemTest",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/test/system/tools.system.test.ts",
-        "start": 16,
-        "end": 36,
-        "startLoc": {
-          "line": 16,
-          "column": 1,
-          "position": 50
-        },
-        "endLoc": {
-          "line": 36,
-          "column": 19,
-          "position": 168
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 14,
-        "end": 34,
-        "startLoc": {
-          "line": 14,
-          "column": 1,
-          "position": 47
-        },
-        "endLoc": {
-          "line": 34,
-          "column": 10,
-          "position": 165
-        }
-      }
-    },
-    {
-      "format": "typescript",
       "lines": 8,
       "fragment": "const response = await sendMCPRequest(request);\n\n        expect(response.result).toBeDefined();\n        expect(response.result.content).toBeDefined();\n\n        const textContent = response.result.content.find((item: any) => item.type === 'text');\n        expect(textContent).toBeDefined();\n        expect",
       "tokens": 0,
@@ -3093,78 +2877,6 @@
           "line": 320,
           "column": 2,
           "position": 2547
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 10,
-      "fragment": "expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Tool Performance and Reliability'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/test/system/tools.system.test.ts",
-        "start": 403,
-        "end": 412,
-        "startLoc": {
-          "line": 403,
-          "column": 7,
-          "position": 3206
-        },
-        "endLoc": {
-          "line": 412,
-          "column": 35,
-          "position": 3295
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 154,
-        "end": 250,
-        "startLoc": {
-          "line": 154,
-          "column": 7,
-          "position": 1076
-        },
-        "endLoc": {
-          "line": 250,
-          "column": 17,
-          "position": 1902
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 9,
-      "fragment": "expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it('should handle invalid parameter types'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/test/system/tools.system.test.ts",
-        "start": 534,
-        "end": 542,
-        "startLoc": {
-          "line": 534,
-          "column": 7,
-          "position": 4413
-        },
-        "endLoc": {
-          "line": 542,
-          "column": 40,
-          "position": 4510
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 241,
-        "end": 515,
-        "startLoc": {
-          "line": 241,
-          "column": 7,
-          "position": 1800
-        },
-        "endLoc": {
-          "line": 515,
-          "column": 45,
-          "position": 4081
         }
       }
     },
@@ -3278,181 +2990,253 @@
     },
     {
       "format": "typescript",
-      "lines": 61,
-      "fragment": "/**\n * System tests for MCP protocol compliance and functionality\n */\n\nimport { AxiosInstance } from 'axios';\nimport {\n  createHttpClient,\n  waitForServer,\n  expectValidApiResponse,\n  getCurrentEnvironment,\n  describeSystemTest,\n  isLocalEnvironment,\n  isSTDIOEnvironment\n} from './utils.js';\n\ninterface MCPRequest {\n  jsonrpc: '2.0';\n  method: string;\n  params?: any;\n  id: string | number;\n}\n\ninterface MCPResponse {\n  jsonrpc: '2.0';\n  result?: any;\n  error?: {\n    code: number;\n    message: string;\n    data?: any;\n  };\n  id: string | number;\n}\n\ninterface MCPTool {\n  name: string;\n  description: string;\n  inputSchema: {\n    type: string;\n    properties?: Record<string, any>;\n    required?: string[];\n  };\n}\n\ndescribeSystemTest('MCP Protocol System', () => {\n  const environment = getCurrentEnvironment();\n\n  // Skip HTTP tests entirely in STDIO mode\n  if (isSTDIOEnvironment(environment)) {\n    it('should skip HTTP MCP tests in STDIO mode', () => {\n      console.log('ℹ️  HTTP MCP tests skipped for environment: STDIO transport mode (npm run dev:stdio)');\n    });\n    return;\n  }\n\n  let client: AxiosInstance;\n  let _mcpInitialized = false;\n\n  beforeAll(async () => {\n    client = createHttpClient();\n\n    if",
+      "lines": 21,
+      "fragment": "} from './utils.js';\n\ninterface MCPRequest {\n  jsonrpc: '2.0';\n  method: string;\n  params?: any;\n  id: string | number;\n}\n\ninterface MCPResponse {\n  jsonrpc: '2.0';\n  result?: any;\n  error?: {\n    code: number;\n    message: string;\n    data?: any;\n  };\n  id: string | number;\n}\n\ninterface",
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/mcp.system.test.ts",
-        "start": 1,
-        "end": 61,
+        "start": 14,
+        "end": 34,
         "startLoc": {
-          "line": 1,
+          "line": 14,
           "column": 1,
-          "position": 0
+          "position": 47
         },
         "endLoc": {
-          "line": 61,
-          "column": 3,
-          "position": 348
+          "line": 34,
+          "column": 10,
+          "position": 165
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 1,
-        "end": 61,
+        "name": "packages/example-mcp/test/system/tools.system.test.ts",
+        "start": 16,
+        "end": 36,
         "startLoc": {
-          "line": 1,
+          "line": 16,
           "column": 1,
-          "position": 0
+          "position": 50
         },
         "endLoc": {
-          "line": 61,
-          "column": 64,
-          "position": 348
+          "line": 36,
+          "column": 19,
+          "position": 168
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 41,
-      "fragment": "const isReady = await waitForServer(client);\n      if (!isReady) {\n        throw new Error(`Server not ready at ${environment.baseUrl}`);\n      }\n    }\n\n    // Initialize MCP session once for the entire test suite\n    try {\n      const initRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'initialize',\n        params: {\n          protocolVersion: '2024-11-05',\n          capabilities: {},\n          clientInfo: {\n            name: 'test-client',\n            version: '1.0.0'\n          }\n        },\n        id: 'init'\n      };\n\n      const response = await client.post('/mcp', initRequest, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      if (response.status === 200) {\n        _mcpInitialized = true;\n        console.log('✅ MCP session initialized for test suite');\n      } else {\n        console.log('❌ MCP session initialization failed:', response.status, response.data);\n      }\n    } catch (error) {\n      console.log('❌ MCP session initialization error:', error);\n    }\n  });\n\n  afterAll",
+      "lines": 9,
+      "fragment": "expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it",
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/mcp.system.test.ts",
-        "start": 63,
-        "end": 103,
+        "start": 157,
+        "end": 165,
         "startLoc": {
-          "line": 63,
+          "line": 157,
           "column": 7,
-          "position": 363
+          "position": 1084
         },
         "endLoc": {
-          "line": 103,
-          "column": 9,
-          "position": 648
+          "line": 165,
+          "column": 3,
+          "position": 1166
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 64,
-        "end": 104,
+        "name": "packages/example-mcp/test/system/tools.system.test.ts",
+        "start": 403,
+        "end": 410,
         "startLoc": {
-          "line": 64,
+          "line": 403,
           "column": 7,
-          "position": 376
+          "position": 3206
         },
         "endLoc": {
-          "line": 104,
-          "column": 6,
-          "position": 661
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 176,
-      "fragment": "});\n\n  async function sendMCPRequest(request: MCPRequest): Promise<MCPResponse | null> {\n    const response = await client.post('/mcp', request, {\n      headers: {\n        'Content-Type': 'application/json',\n        'Accept': 'application/json, text/event-stream',\n      },\n    });\n\n    // Handle \"Server not initialized\" gracefully for testing\n    if (response.status === 400 && response.data?.error?.message?.includes('Server not initialized')) {\n      console.log(`⚠️ Skipping '${request.method}' - Streamable HTTP transport session limitation`);\n      console.log(`ℹ️  EXPECTED: HTTP transport can't persist sessions between requests (unlike STDIO mode)`);\n      return null;\n    }\n\n    expectValidApiResponse(response, 200);\n    return response.data as MCPResponse;\n  }\n\n  describe('MCP Protocol Compliance', () => {\n    it('should respond to MCP endpoint', async () => {\n      const response = await client.post('/mcp', {\n        jsonrpc: '2.0',\n        method: 'ping',\n        id: 1\n      }, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([200, 400, 500]).toContain(response.status);\n\n      // Check content-type header if present\n      if (response.headers['content-type']) {\n        expect(response.headers['content-type']).toMatch(/application\\/json/);\n      }\n    });\n\n    it('should handle invalid JSON-RPC requests', async () => {\n      const response = await client.post('/mcp', {\n        invalid: 'request'\n      }, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it('should validate JSON-RPC 2.0 format', async () => {\n      const invalidRequests = [\n        { method: 'test', id: 1 }, // Missing jsonrpc\n        { jsonrpc: '1.0', method: 'test', id: 1 }, // Wrong version\n        { jsonrpc: '2.0', id: 1 }, // Missing method\n        { jsonrpc: '2.0', method: 'test' }, // Missing id\n      ];\n\n      for (const invalidRequest of invalidRequests) {\n        const response = await client.post('/mcp', invalidRequest, {\n          headers: {\n            'Content-Type': 'application/json',\n            'Accept': 'application/json, text/event-stream',\n          },\n        });\n        expect([400, 500]).toContain(response.status);\n      }\n    });\n  });\n\n  describe('MCP Initialization', () => {\n    it('should support initialize request', async () => {\n      const initRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'initialize',\n        params: {\n          protocolVersion: '2024-11-05',\n          capabilities: {\n            roots: {\n              listChanged: true\n            },\n            sampling: {}\n          },\n          clientInfo: {\n            name: 'test-client',\n            version: '1.0.0'\n          }\n        },\n        id: 1\n      };\n\n      const response = await sendMCPRequest(initRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping initialize test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      expect(response.jsonrpc).toBe('2.0');\n      expect(response.id).toBe(1);\n\n      if (response.result) {\n        expect(response.result.protocolVersion).toBeDefined();\n        expect(response.result.capabilities).toBeDefined();\n        expect(response.result.serverInfo).toBeDefined();\n        expect(response.result.serverInfo.name).toBeDefined();\n        expect(response.result.serverInfo.version).toBeDefined();\n      }\n    });\n\n    it('should handle initialization errors gracefully', async () => {\n      const invalidInitRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'initialize',\n        params: {\n          protocolVersion: 'invalid-version'\n        },\n        id: 2\n      };\n\n      const response = await client.post('/mcp', invalidInitRequest, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      // Should either succeed with a fallback or return a proper error\n      expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Tool Discovery', () => {\n    it('should support tools/list request', async () => {\n      const toolsListRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/list',\n        id: 3\n      };\n\n      const response = await sendMCPRequest(toolsListRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping tools/list test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      expect(response.jsonrpc).toBe('2.0');\n      expect(response.id).toBe(3);\n\n      if (response.result) {\n        expect(response.result.tools).toBeDefined();\n        expect(Array.isArray(response.result.tools)).toBe(true);\n\n        // Should have at least basic tools\n        expect(response.result.tools.length).toBeGreaterThan(0);\n\n        // Validate tool structure\n        response",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
-        "start": 105,
-        "end": 280,
-        "startLoc": {
-          "line": 105,
-          "column": 3,
-          "position": 663
-        },
-        "endLoc": {
-          "line": 280,
-          "column": 9,
-          "position": 2121
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 102,
-        "end": 277,
-        "startLoc": {
-          "line": 102,
-          "column": 3,
-          "position": 655
-        },
-        "endLoc": {
-          "line": 277,
-          "column": 4,
-          "position": 2113
+          "line": 410,
+          "column": 2,
+          "position": 3287
         }
       }
     },
     {
       "format": "typescript",
       "lines": 8,
-      "fragment": "{\n          expect(tool.name).toBeDefined();\n          expect(tool.description).toBeDefined();\n          expect(tool.inputSchema).toBeDefined();\n          expect(tool.inputSchema.type).toBeDefined();\n\n          console.log(`🔧 Available tool: ${tool.name} - ${tool.description}`);\n        })",
+      "fragment": "expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  }",
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/mcp.system.test.ts",
-        "start": 280,
-        "end": 287,
+        "start": 244,
+        "end": 251,
         "startLoc": {
-          "line": 280,
-          "column": 2,
-          "position": 2138
+          "line": 244,
+          "column": 7,
+          "position": 1808
         },
         "endLoc": {
-          "line": 287,
+          "line": 251,
           "column": 2,
-          "position": 2218
+          "position": 1902
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 277,
-        "end": 285,
+        "name": "packages/example-mcp/test/system/tools.system.test.ts",
+        "start": 534,
+        "end": 542,
         "startLoc": {
-          "line": 277,
-          "column": 2,
-          "position": 2129
+          "line": 534,
+          "column": 7,
+          "position": 4413
         },
         "endLoc": {
-          "line": 285,
-          "column": 2,
-          "position": 2211
+          "line": 542,
+          "column": 3,
+          "position": 4508
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 317,
-      "fragment": "}\n    });\n\n    it('should include expected basic tools', async () => {\n      const toolsListRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/list',\n        id: 4\n      };\n\n      const response = await sendMCPRequest(toolsListRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping basic tools test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      if (response.result && response.result.tools) {\n        const toolNames = response.result.tools.map((tool: MCPTool) => tool.name);\n\n        // Should include basic tools that don't require API keys\n        expect(toolNames).toContain('hello');\n        expect(toolNames).toContain('echo');\n        expect(toolNames).toContain('current-time');\n\n        console.log(`📋 Available tools: ${toolNames.join(', ')}`);\n      }\n    });\n\n    it('should include LLM tools when API keys are available', async () => {\n      const healthResponse = await client.get('/health');\n      const health = healthResponse.data;\n\n      const toolsListRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/list',\n        id: 5\n      };\n\n      const response = await sendMCPRequest(toolsListRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping LLM tools test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      if (response.result && response.result.tools) {\n        const toolNames = response.result.tools.map((tool: MCPTool) => tool.name);\n\n        // If LLM providers are available, should include LLM tools\n        if (health.llm_providers && health.llm_providers.length > 0) {\n          const llmTools = ['chat', 'analyze', 'summarize', 'explain'];\n          const hasAnyLlmTool = llmTools.some(tool => toolNames.includes(tool));\n\n          if (hasAnyLlmTool) {\n            console.log(`🤖 LLM tools available: ${toolNames.filter((name: string) => llmTools.includes(name)).join(', ')}`);\n          } else {\n            console.log('⚠️ LLM providers configured but no LLM tools available');\n          }\n        } else {\n          console.log('⚠️ No LLM providers configured - LLM tools not available');\n        }\n      }\n    });\n  });\n\n  describe('Basic Tool Execution', () => {\n    it('should execute hello tool', async () => {\n      const helloRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'hello',\n          arguments: {\n            name: 'System Test'\n          }\n        },\n        id: 6\n      };\n\n      const response = await sendMCPRequest(helloRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping hello tool test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      expect(response.jsonrpc).toBe('2.0');\n      expect(response.id).toBe(6);\n\n      if (response.result) {\n        expect(response.result.content).toBeDefined();\n        expect(Array.isArray(response.result.content)).toBe(true);\n        expect(response.result.content.length).toBeGreaterThan(0);\n\n        const textContent = response.result.content.find((item: any) => item.type === 'text');\n        expect(textContent).toBeDefined();\n        expect(textContent.text).toContain('System Test');\n\n        console.log(`👋 Hello tool response: ${textContent.text}`);\n      }\n    });\n\n    it('should execute echo tool', async () => {\n      const echoRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'echo',\n          arguments: {\n            message: 'System test message'\n          }\n        },\n        id: 7\n      };\n\n      const response = await sendMCPRequest(echoRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping echo tool test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      if (response.result) {\n        const textContent = response.result.content.find((item: any) => item.type === 'text');\n        expect(textContent.text).toContain('System test message');\n\n        console.log(`🔄 Echo tool response: ${textContent.text}`);\n      }\n    });\n\n    it('should execute current-time tool', async () => {\n      const timeRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'current-time',\n          arguments: {}\n        },\n        id: 8\n      };\n\n      const response = await sendMCPRequest(timeRequest);\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping current-time tool test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      if (response.result) {\n        const textContent = response.result.content.find((item: any) => item.type === 'text');\n        expect(textContent.text).toBeDefined();\n\n        // Should contain a valid timestamp\n        const timestamp = textContent.text;\n        expect(new Date(timestamp).getTime()).toBeGreaterThan(0);\n\n        console.log(`⏰ Current time tool response: ${timestamp}`);\n      }\n    });\n  });\n\n  describe('Error Handling', () => {\n    it('should handle unknown tool calls', async () => {\n      const unknownToolRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'nonexistent-tool',\n          arguments: {}\n        },\n        id: 9\n      };\n\n      const response = await client.post('/mcp', unknownToolRequest, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n\n        // Handle HTTP transport cannot maintain session state gracefully\n        if (response.data.error.message.includes('Server not initialized')) {\n          console.log('⚠️ Skipping unknown tool test - HTTP transport cannot maintain session state');\n          expect(response.data.error.message).toContain('Server not initialized');\n        } else {\n          expect(response.data.error.message).toContain('tool');\n        }\n      }\n    });\n\n    it('should handle invalid tool arguments', async () => {\n      const invalidArgsRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'hello',\n          arguments: {\n            invalid_param: 'value'\n          }\n        },\n        id: 10\n      };\n\n      const response = await client.post('/mcp', invalidArgsRequest, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      // Should either succeed (ignoring invalid params) or return proper error\n      expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it('should handle malformed tool call requests', async () => {\n      const malformedRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          // Missing name and arguments\n        },\n        id: 11\n      };\n\n      const response = await client.post('/mcp', malformedRequest, {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Protocol Performance', () => {\n    it('should respond to tool calls within acceptable time', async () => {\n      const startTime = Date.now();\n\n      const helloRequest: MCPRequest = {\n        jsonrpc: '2.0',\n        method: 'tools/call',\n        params: {\n          name: 'hello',\n          arguments: { name: 'Performance Test' }\n        },\n        id: 12\n      };\n\n      const response = await sendMCPRequest(helloRequest);\n      const responseTime = Date.now() - startTime;\n\n      // Handle HTTP transport cannot maintain session states gracefully\n      if (!response) {\n        console.log('⚠️ Skipping performance test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      expect(response.result).toBeDefined();\n\n      // Basic tools should be fast\n      expect(responseTime).toBeLessThan(5000); // 5 seconds max\n\n      console.log(`⚡ Tool call response time: ${responseTime}ms`);\n    });\n\n    it('should handle concurrent tool calls', async () => {\n      const requests = [\n        { name: 'hello', arguments: { name: 'Test 1' } },\n        { name: 'echo', arguments: { message: 'Test 2' } },\n        { name: 'current-time', arguments: {} }\n      ];\n\n      const promises = requests.map((params, index) => {\n        const request: MCPRequest = {\n          jsonrpc: '2.0',\n          method: 'tools/call',\n          params,\n          id: 20 + index\n        };\n\n        return sendMCPRequest(request);\n      });\n\n      const responses = await Promise.all(promises);\n\n      // Filter out null responses (HTTP transport cannot maintain session states)\n      const validResponses = responses.filter(response => response !== null);\n\n      if (validResponses.length === 0) {\n        console.log('⚠️ Skipping concurrent test - HTTP transport cannot maintain session state');\n        return;\n      }\n\n      // All valid requests should succeed\n      validResponses",
+      "lines": 8,
+      "fragment": "response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Tool Discovery'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/mcp.system.test.ts",
-        "start": 288,
-        "end": 604,
+        "start": 246,
+        "end": 253,
         "startLoc": {
-          "line": 288,
-          "column": 7,
-          "position": 2222
+          "line": 246,
+          "column": 2,
+          "position": 1844
         },
         "endLoc": {
-          "line": 604,
-          "column": 15,
-          "position": 4774
+          "line": 253,
+          "column": 17,
+          "position": 1910
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/test/system/mcp.system.test.ts",
-        "start": 285,
-        "end": 601,
+        "name": "packages/example-mcp/test/system/tools.system.test.ts",
+        "start": 405,
+        "end": 412,
         "startLoc": {
-          "line": 285,
-          "column": 7,
-          "position": 2211
+          "line": 405,
+          "column": 2,
+          "position": 3229
         },
         "endLoc": {
-          "line": 601,
-          "column": 4,
-          "position": 4763
+          "line": 412,
+          "column": 35,
+          "position": 3295
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 13,
+      "fragment": ", {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n\n        // Handle HTTP transport cannot maintain session state gracefully",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
+        "start": 467,
+        "end": 479,
+        "startLoc": {
+          "line": 467,
+          "column": 19,
+          "position": 3678
+        },
+        "endLoc": {
+          "line": 479,
+          "column": 66,
+          "position": 3770
+        }
+      },
+      "secondFile": {
+        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
+        "start": 150,
+        "end": 161,
+        "startLoc": {
+          "line": 150,
+          "column": 2,
+          "position": 1049
+        },
+        "endLoc": {
+          "line": 161,
+          "column": 7,
+          "position": 1140
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 9,
+      "fragment": "expect([200, 400, 500]).toContain(response.status);\n\n      if (response.status !== 200 && response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n\n    it('should handle malformed tool call requests'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
+        "start": 510,
+        "end": 518,
+        "startLoc": {
+          "line": 510,
+          "column": 7,
+          "position": 3995
+        },
+        "endLoc": {
+          "line": 518,
+          "column": 45,
+          "position": 4092
+        }
+      },
+      "secondFile": {
+        "name": "packages/example-mcp/test/system/tools.system.test.ts",
+        "start": 534,
+        "end": 542,
+        "startLoc": {
+          "line": 534,
+          "column": 7,
+          "position": 4413
+        },
+        "endLoc": {
+          "line": 542,
+          "column": 40,
+          "position": 4510
+        }
+      }
+    },
+    {
+      "format": "typescript",
+      "lines": 17,
+      "fragment": ", {\n        headers: {\n          'Content-Type': 'application/json',\n          'Accept': 'application/json, text/event-stream',\n        },\n      });\n\n      expect([400, 500]).toContain(response.status);\n\n      if (response.data && response.data.error) {\n        expect(response.data.error.code).toBeDefined();\n        expect(response.data.error.message).toBeDefined();\n      }\n    });\n  });\n\n  describe('Protocol Performance'",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
+        "start": 528,
+        "end": 544,
+        "startLoc": {
+          "line": 528,
+          "column": 17,
+          "position": 4171
+        },
+        "endLoc": {
+          "line": 544,
+          "column": 23,
+          "position": 4295
+        }
+      },
+      "secondFile": {
+        "name": "packages/example-mcp/test/system/mcp.system.test.ts",
+        "start": 150,
+        "end": 412,
+        "startLoc": {
+          "line": 150,
+          "column": 2,
+          "position": 1049
+        },
+        "endLoc": {
+          "line": 412,
+          "column": 35,
+          "position": 3295
         }
       }
     },
@@ -3715,32 +3499,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/test/system/mcp-inspector-headless-protocol.system.test.ts",
-        "start": 711,
-        "end": 728,
+        "start": 712,
+        "end": 729,
         "startLoc": {
-          "line": 711,
+          "line": 712,
           "column": 7,
-          "position": 4624
+          "position": 4627
         },
         "endLoc": {
-          "line": 728,
+          "line": 729,
           "column": 8,
-          "position": 4842
+          "position": 4845
         }
       },
       "secondFile": {
         "name": "packages/example-mcp/test/system/mcp-inspector-headless-protocol.system.test.ts",
-        "start": 472,
-        "end": 489,
+        "start": 473,
+        "end": 490,
         "startLoc": {
-          "line": 472,
+          "line": 473,
           "column": 7,
-          "position": 2837
+          "position": 2840
         },
         "endLoc": {
-          "line": 489,
+          "line": 490,
           "column": 6,
-          "position": 3055
+          "position": 3058
         }
       }
     },
@@ -3838,17 +3622,17 @@
       },
       "secondFile": {
         "name": "packages/example-mcp/test/system/vitest-global-setup.ts",
-        "start": 248,
-        "end": 258,
+        "start": 249,
+        "end": 259,
         "startLoc": {
-          "line": 248,
+          "line": 249,
           "column": 3,
-          "position": 1884
+          "position": 1886
         },
         "endLoc": {
-          "line": 258,
+          "line": 259,
           "column": 2,
-          "position": 2043
+          "position": 2045
         }
       }
     },
@@ -5052,12 +4836,12 @@
         "startLoc": {
           "line": 388,
           "column": 7,
-          "position": 3137
+          "position": 3139
         },
         "endLoc": {
           "line": 398,
           "column": 57,
-          "position": 3209
+          "position": 3211
         }
       },
       "secondFile": {
@@ -5067,12 +4851,12 @@
         "startLoc": {
           "line": 323,
           "column": 4,
-          "position": 2617
+          "position": 2619
         },
         "endLoc": {
           "line": 333,
           "column": 52,
-          "position": 2689
+          "position": 2691
         }
       }
     },
@@ -6123,7 +5907,7 @@
     {
       "format": "typescript",
       "lines": 9,
-      "fragment": "protected async canUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {\n    // Check if we have an ID token to validate\n    const extra = authCache.authInfo.extra as Record<string, unknown> | undefined;\n    const idToken = extra?.idToken as string | undefined;\n\n    if (!idToken) {\n      // No ID token available - fall back to opaque token validation\n      logger.oauthDebug('No ID token available for JWT validation, using TTL-based caching', {\n        provider: 'google'",
+      "fragment": "protected async canUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {\n    // Check if we have an ID token to validate\n    const extra = authCache.authInfo.extra;\n    const idToken = typeof extra?.idToken === 'string' ? extra.idToken : undefined;\n\n    if (!idToken) {\n      // No ID token available - fall back to opaque token validation\n      logger.oauthDebug('No ID token available for JWT validation, using TTL-based caching', {\n        provider: 'google'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/src/providers/google-provider.ts",
@@ -6137,7 +5921,7 @@
         "endLoc": {
           "line": 295,
           "column": 9,
-          "position": 2361
+          "position": 2355
         }
       },
       "secondFile": {
@@ -6152,7 +5936,7 @@
         "endLoc": {
           "line": 162,
           "column": 12,
-          "position": 1144
+          "position": 1138
         }
       }
     },
@@ -6168,12 +5952,12 @@
         "startLoc": {
           "line": 511,
           "column": 2,
-          "position": 4100
+          "position": 4094
         },
         "endLoc": {
           "line": 536,
           "column": 78,
-          "position": 4305
+          "position": 4299
         }
       },
       "secondFile": {
@@ -6204,12 +5988,12 @@
         "startLoc": {
           "line": 536,
           "column": 7,
-          "position": 4305
+          "position": 4299
         },
         "endLoc": {
           "line": 544,
           "column": 2,
-          "position": 4399
+          "position": 4393
         }
       },
       "secondFile": {
@@ -6322,24 +6106,24 @@
       },
       "secondFile": {
         "name": "packages/tools-llm/src/llm/config.ts",
-        "start": 49,
-        "end": 60,
+        "start": 47,
+        "end": 58,
         "startLoc": {
-          "line": 49,
+          "line": 47,
           "column": 10,
-          "position": 409
+          "position": 400
         },
         "endLoc": {
-          "line": 60,
+          "line": 58,
           "column": 10,
-          "position": 540
+          "position": 531
         }
       }
     },
     {
       "format": "typescript",
       "lines": 6,
-      "fragment": ", async () => {\n    const manager = new LLMManager();\n    vi.spyOn(console, 'error').mockImplementation(() => {});\n    vi.spyOn(console, 'log').mockImplementation(() => {});\n\n    const openAiClient",
+      "fragment": ", async () => {\n    const manager = new LLMManager();\n    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });\n    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });\n\n    const openAiClient",
       "tokens": 0,
       "firstFile": {
         "name": "packages/tools-llm/test/manager.test.ts",
@@ -6348,12 +6132,12 @@
         "startLoc": {
           "line": 272,
           "column": 67,
-          "position": 2569
+          "position": 2581
         },
         "endLoc": {
           "line": 277,
           "column": 13,
-          "position": 2644
+          "position": 2662
         }
       },
       "secondFile": {
@@ -6363,19 +6147,19 @@
         "startLoc": {
           "line": 235,
           "column": 70,
-          "position": 2218
+          "position": 2224
         },
         "endLoc": {
           "line": 240,
           "column": 12,
-          "position": 2293
+          "position": 2305
         }
       }
     },
     {
       "format": "typescript",
       "lines": 6,
-      "fragment": ", async () => {\n    const manager = new LLMManager();\n    vi.spyOn(console, 'error').mockImplementation(() => {});\n    vi.spyOn(console, 'log').mockImplementation(() => {});\n\n    const claudeClient",
+      "fragment": ", async () => {\n    const manager = new LLMManager();\n    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });\n    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });\n\n    const claudeClient",
       "tokens": 0,
       "firstFile": {
         "name": "packages/tools-llm/test/manager.test.ts",
@@ -6384,12 +6168,12 @@
         "startLoc": {
           "line": 296,
           "column": 60,
-          "position": 2796
+          "position": 2814
         },
         "endLoc": {
           "line": 301,
           "column": 13,
-          "position": 2871
+          "position": 2895
         }
       },
       "secondFile": {
@@ -6399,12 +6183,12 @@
         "startLoc": {
           "line": 235,
           "column": 70,
-          "position": 2218
+          "position": 2224
         },
         "endLoc": {
           "line": 240,
           "column": 12,
-          "position": 2293
+          "position": 2305
         }
       }
     },
@@ -6420,12 +6204,12 @@
         "startLoc": {
           "line": 75,
           "column": 16,
-          "position": 781
+          "position": 793
         },
         "endLoc": {
           "line": 85,
           "column": 3,
-          "position": 892
+          "position": 904
         }
       },
       "secondFile": {
@@ -6456,27 +6240,27 @@
         "startLoc": {
           "line": 85,
           "column": 3,
-          "position": 893
+          "position": 905
         },
         "endLoc": {
           "line": 96,
           "column": 3,
-          "position": 1024
+          "position": 1036
         }
       },
       "secondFile": {
         "name": "packages/tools-llm/src/llm/config.ts",
-        "start": 49,
-        "end": 60,
+        "start": 47,
+        "end": 58,
         "startLoc": {
-          "line": 49,
+          "line": 47,
           "column": 10,
-          "position": 409
+          "position": 400
         },
         "endLoc": {
-          "line": 60,
+          "line": 58,
           "column": 10,
-          "position": 540
+          "position": 531
         }
       }
     },
@@ -6492,12 +6276,12 @@
         "startLoc": {
           "line": 96,
           "column": 3,
-          "position": 1025
+          "position": 1037
         },
         "endLoc": {
           "line": 108,
           "column": 2,
-          "position": 1135
+          "position": 1147
         }
       },
       "secondFile": {
@@ -6528,12 +6312,12 @@
         "startLoc": {
           "line": 157,
           "column": 99,
-          "position": 1599
+          "position": 1611
         },
         "endLoc": {
           "line": 166,
           "column": 7,
-          "position": 1685
+          "position": 1697
         }
       },
       "secondFile": {
@@ -6543,12 +6327,12 @@
         "startLoc": {
           "line": 138,
           "column": 71,
-          "position": 1406
+          "position": 1418
         },
         "endLoc": {
           "line": 147,
           "column": 11,
-          "position": 1492
+          "position": 1504
         }
       }
     },
@@ -6574,17 +6358,17 @@
       },
       "secondFile": {
         "name": "packages/example-mcp/test/system/vitest-global-setup.ts",
-        "start": 249,
-        "end": 257,
+        "start": 250,
+        "end": 258,
         "startLoc": {
-          "line": 249,
+          "line": 250,
           "column": 5,
-          "position": 1899
+          "position": 1901
         },
         "endLoc": {
-          "line": 257,
+          "line": 258,
           "column": 3,
-          "position": 1998
+          "position": 2000
         }
       }
     },
@@ -7027,17 +6811,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/types.ts",
-        "start": 141,
-        "end": 164,
+        "start": 140,
+        "end": 163,
         "startLoc": {
-          "line": 141,
+          "line": 140,
           "column": 1,
-          "position": 443
+          "position": 446
         },
         "endLoc": {
-          "line": 164,
+          "line": 163,
           "column": 4,
-          "position": 543
+          "position": 546
         }
       },
       "secondFile": {
@@ -7063,17 +6847,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/types.ts",
-        "start": 165,
-        "end": 200,
+        "start": 164,
+        "end": 199,
         "startLoc": {
-          "line": 165,
+          "line": 164,
           "column": 1,
-          "position": 545
+          "position": 548
         },
         "endLoc": {
-          "line": 200,
+          "line": 199,
           "column": 6,
-          "position": 645
+          "position": 648
         }
       },
       "secondFile": {
@@ -7135,17 +6919,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/observability/src/logger.ts",
-        "start": 254,
-        "end": 272,
+        "start": 255,
+        "end": 273,
         "startLoc": {
-          "line": 254,
+          "line": 255,
           "column": 3,
-          "position": 2238
+          "position": 2233
         },
         "endLoc": {
-          "line": 272,
+          "line": 273,
           "column": 6,
-          "position": 2406
+          "position": 2401
         }
       },
       "secondFile": {
@@ -7171,17 +6955,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/observability/src/logger.ts",
-        "start": 299,
-        "end": 316,
+        "start": 300,
+        "end": 317,
         "startLoc": {
-          "line": 299,
+          "line": 300,
           "column": 1,
-          "position": 2508
+          "position": 2503
         },
         "endLoc": {
-          "line": 316,
+          "line": 317,
           "column": 4,
-          "position": 2602
+          "position": 2597
         }
       },
       "secondFile": {
@@ -8966,78 +8750,6 @@
     },
     {
       "format": "typescript",
-      "lines": 22,
-      "fragment": "import { Server } from \"@modelcontextprotocol/sdk/server/index.js\";\n\n// Import package-based tools\nimport { ToolRegistry } from \"@mcp-typescript-simple/tools\";\nimport { basicTools } from \"@mcp-typescript-simple/example-tools-basic\";\nimport { LLMManager } from \"@mcp-typescript-simple/tools-llm\";\nimport { createLLMTools } from \"@mcp-typescript-simple/example-tools-llm\";\nimport { setupMCPServerWithRegistry } from \"@mcp-typescript-simple/server\";\n\n// Import configuration and transport system\nimport { EnvironmentConfig } from \"@mcp-typescript-simple/config\";\nimport { TransportFactory } from \"@mcp-typescript-simple/http-server\";\n\n// Import structured logger and OTEL LoggerProvider initialization\nimport { logger } from \"@mcp-typescript-simple/observability\";\nimport { initializeLoggerProvider } from \"@mcp-typescript-simple/observability/logger\";\nimport { logs } from '@opentelemetry/api-logs';\n\n// Initialize LLM manager\nconst llmManager = new LLMManager();\n\nconst",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/src/index.ts",
-        "start": 7,
-        "end": 28,
-        "startLoc": {
-          "line": 7,
-          "column": 1,
-          "position": 19
-        },
-        "endLoc": {
-          "line": 28,
-          "column": 6,
-          "position": 188
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/src/index.ts",
-        "start": 8,
-        "end": 29,
-        "startLoc": {
-          "line": 8,
-          "column": 1,
-          "position": 21
-        },
-        "endLoc": {
-          "line": 29,
-          "column": 92,
-          "position": 190
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 97,
-      "fragment": "const server = new Server(\n  {\n    name: \"mcp-typescript-simple\",\n    version: \"1.0.0\",\n  },\n  {\n    capabilities: {\n      tools: {},\n    },\n  }\n);\n\nasync function main() {\n  try {\n    // CRITICAL: Initialize LoggerProvider first to avoid --import timing issues\n    // This must happen before ANY OCSF events are emitted\n    // SKIP if already initialized via --import (Docker/production)\n    // Check if LoggerProvider is already initialized (from register.ts via --import)\n    const loggerProvider = logs.getLoggerProvider();\n    const isProxyProvider = loggerProvider.constructor.name === 'ProxyLoggerProvider';\n\n    if (isProxyProvider) {\n      // No LoggerProvider yet - initialize it now\n      // This happens when running without --import (e.g., npm run dev:oauth)\n      console.debug('[index.ts] No LoggerProvider detected, initializing...');\n      initializeLoggerProvider();\n    } else {\n      // LoggerProvider already initialized (e.g., via --import in Docker)\n      console.debug('[index.ts] LoggerProvider already initialized (via --import), skipping initialization');\n    }\n\n    // Load environment configuration\n    const config = EnvironmentConfig.get();\n    const mode = EnvironmentConfig.getTransportMode();\n\n    logger.info(`Starting MCP TypeScript Simple server in ${mode} mode`, {\n      mode,\n      environment: config.NODE_ENV\n    });\n\n    // Log configuration for debugging\n    EnvironmentConfig.logConfiguration();\n\n    // Create tool registry with basic tools\n    const toolRegistry = new ToolRegistry();\n    toolRegistry.merge(basicTools);\n    logger.info(\"Basic tools loaded\", { count: basicTools.list().length });\n\n    // Initialize LLM manager and add LLM tools (gracefully handle missing API keys)\n    try {\n      await llmManager.initialize();\n      const llmTools = createLLMTools(llmManager);\n      toolRegistry.merge(llmTools);\n      logger.info(\"LLM tools loaded\", { count: llmTools.list().length });\n    } catch (error) {\n      const errorMessage = error instanceof Error ? error.message : String(error);\n      logger.warn(\"LLM initialization failed - LLM tools will be unavailable\", {\n        error: errorMessage,\n        suggestion: \"Set API keys: ANTHROPIC_API_KEY, OPENAI_API_KEY, or GOOGLE_API_KEY\"\n      });\n    }\n\n    // Setup MCP server with tool registry (new package-based architecture)\n    await setupMCPServerWithRegistry(server, toolRegistry, logger);\n\n    // Create and start transport\n    const transportManager = TransportFactory.createFromEnvironment();\n\n    // Initialize transport with server and tool registry\n    // The tool registry will be used for HTTP transport connections\n    await transportManager.initialize(server, toolRegistry);\n\n    // Start the transport\n    await transportManager.start();\n\n    // Display status information\n    const availableProviders = llmManager.getAvailableProviders();\n    logger.info(\"MCP server ready\", {\n      transport: transportManager.getInfo(),\n      llmProviders: availableProviders.length > 0 ? availableProviders : null,\n      basicToolsOnly: availableProviders.length === 0\n    });\n\n    // Handle graceful shutdown\n    const handleShutdown = async (signal: string) => {\n      logger.info(\"Received shutdown signal, shutting down gracefully\", { signal });\n      try {\n        await transportManager.stop();\n        logger.info(\"Server stopped successfully\");\n        process.exit(0);\n      } catch (error) {\n        logger.error(\"Error during shutdown\", error);\n        process.exit(1);\n      }\n    };\n\n    process.on('SIGINT', () => {",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/example-mcp/src/index.ts",
-        "start": 28,
-        "end": 124,
-        "startLoc": {
-          "line": 28,
-          "column": 1,
-          "position": 188
-        },
-        "endLoc": {
-          "line": 124,
-          "column": 2,
-          "position": 898
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/src/index.ts",
-        "start": 30,
-        "end": 126,
-        "startLoc": {
-          "line": 30,
-          "column": 1,
-          "position": 192
-        },
-        "endLoc": {
-          "line": 126,
-          "column": 5,
-          "position": 902
-        }
-      }
-    },
-    {
-      "format": "typescript",
       "lines": 23,
       "fragment": "afterAll(() => {\n    // Cleanup temporary directory\n    if (tempDir && existsSync(tempDir)) {\n      console.log(`\\n🧹 Cleaning up: ${tempDir}`);\n      rmSync(tempDir, { recursive: true, force: true });\n      console.log('✅ Cleanup completed');\n    }\n  });\n\n  describe('Project Structure', () => {\n    it('should create project directory', () => {\n      expect(existsSync(projectDir)).toBe(true);\n    });\n\n    it('should include package.json', () => {\n      expect(existsSync(join(projectDir, 'package.json'))).toBe(true);\n    });\n\n    it('should include tsconfig.json', () => {\n      expect(existsSync(join(projectDir, 'tsconfig.json'))).toBe(true);\n    });\n\n    it('should include eslint.config.js'",
       "tokens": 0,
@@ -10519,17 +10231,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 110,
-        "end": 123,
+        "start": 111,
+        "end": 124,
         "startLoc": {
-          "line": 110,
+          "line": 111,
           "column": 2,
-          "position": 1035
+          "position": 1038
         },
         "endLoc": {
-          "line": 123,
+          "line": 124,
           "column": 24,
-          "position": 1168
+          "position": 1171
         }
       },
       "secondFile": {
@@ -10555,32 +10267,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 159,
-        "end": 164,
+        "start": 160,
+        "end": 165,
         "startLoc": {
-          "line": 159,
+          "line": 160,
           "column": 23,
-          "position": 1563
+          "position": 1568
         },
         "endLoc": {
-          "line": 164,
+          "line": 165,
           "column": 23,
-          "position": 1647
+          "position": 1652
         }
       },
       "secondFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 110,
-        "end": 110,
+        "start": 111,
+        "end": 111,
         "startLoc": {
-          "line": 110,
+          "line": 111,
           "column": 15,
-          "position": 1034
+          "position": 1037
         },
         "endLoc": {
-          "line": 110,
+          "line": 111,
           "column": 15,
-          "position": 1033
+          "position": 1036
         }
       }
     },
@@ -10591,32 +10303,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 182,
-        "end": 195,
+        "start": 183,
+        "end": 196,
         "startLoc": {
-          "line": 182,
+          "line": 183,
           "column": 2,
-          "position": 1816
+          "position": 1821
         },
         "endLoc": {
-          "line": 195,
+          "line": 196,
           "column": 7,
-          "position": 1904
+          "position": 1909
         }
       },
       "secondFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 136,
-        "end": 149,
+        "start": 137,
+        "end": 150,
         "startLoc": {
-          "line": 136,
+          "line": 137,
           "column": 5,
-          "position": 1303
+          "position": 1306
         },
         "endLoc": {
-          "line": 149,
+          "line": 150,
           "column": 8,
-          "position": 1391
+          "position": 1394
         }
       }
     },
@@ -10627,17 +10339,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 208,
-        "end": 221,
+        "start": 209,
+        "end": 222,
         "startLoc": {
-          "line": 208,
+          "line": 209,
           "column": 2,
-          "position": 2106
+          "position": 2111
         },
         "endLoc": {
-          "line": 221,
+          "line": 222,
           "column": 17,
-          "position": 2239
+          "position": 2244
         }
       },
       "secondFile": {
@@ -10663,17 +10375,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 243,
-        "end": 259,
+        "start": 244,
+        "end": 260,
         "startLoc": {
-          "line": 243,
+          "line": 244,
           "column": 55,
-          "position": 2418
+          "position": 2423
         },
         "endLoc": {
-          "line": 259,
+          "line": 260,
           "column": 18,
-          "position": 2634
+          "position": 2639
         }
       },
       "secondFile": {
@@ -10699,17 +10411,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 263,
-        "end": 275,
+        "start": 264,
+        "end": 276,
         "startLoc": {
-          "line": 263,
+          "line": 264,
           "column": 7,
-          "position": 2646
+          "position": 2651
         },
         "endLoc": {
-          "line": 275,
+          "line": 276,
           "column": 33,
-          "position": 2745
+          "position": 2750
         }
       },
       "secondFile": {
@@ -10735,17 +10447,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/auth/test/multi-provider-token-exchange.test.ts",
-        "start": 298,
-        "end": 310,
+        "start": 299,
+        "end": 311,
         "startLoc": {
-          "line": 298,
+          "line": 299,
           "column": 2,
-          "position": 3001
+          "position": 3006
         },
         "endLoc": {
-          "line": 310,
+          "line": 311,
           "column": 3,
-          "position": 3096
+          "position": 3101
         }
       },
       "secondFile": {
@@ -11739,7 +11451,7 @@
     {
       "format": "typescript",
       "lines": 35,
-      "fragment": ");\n\n  const child = spawn('npx', ['tsx', 'src/index.ts'], {\n    stdio: 'pipe'\n  });\n\n  const sendRequest = async (request: any): Promise<any> => {\n    return new Promise((resolve, reject) => {\n      const timeout = setTimeout(() => {\n        reject(new Error('Request timeout (60s)'));\n      }, 60000);\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => {}); // Silence server logs for cleaner output",
+      "fragment": ");\n\n  const child = spawn('npx', ['tsx', 'src/index.ts'], {\n    stdio: 'pipe'\n  });\n\n  const sendRequest = async (request: any): Promise<any> => {\n    return new Promise((resolve, reject) => {\n      const timeout = setTimeout(() => {\n        reject(new Error('Request timeout (60s)'));\n      }, 60000);\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => { /* no-op */ }); // Silence server logs for cleaner output",
       "tokens": 0,
       "firstFile": {
         "name": "tools/manual/test-model-selection.ts",
@@ -11753,7 +11465,7 @@
         "endLoc": {
           "line": 45,
           "column": 42,
-          "position": 395
+          "position": 398
         }
       },
       "secondFile": {
@@ -11768,7 +11480,7 @@
         "endLoc": {
           "line": 46,
           "column": 23,
-          "position": 404
+          "position": 407
         }
       }
     },
@@ -12027,7 +11739,7 @@
     {
       "format": "typescript",
       "lines": 33,
-      "fragment": ");\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => {}); // Silence server logs\n      child.stdin.write(JSON.stringify(request) + '\\n');\n    });\n  };\n\n  try {\n    await new Promise(resolve => setTimeout(resolve, 3000));\n\n    const",
+      "fragment": ");\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => { /* no-op */ }); // Silence server logs\n      child.stdin.write(JSON.stringify(request) + '\\n');\n    });\n  };\n\n  try {\n    await new Promise(resolve => setTimeout(resolve, 3000));\n\n    const",
       "tokens": 0,
       "firstFile": {
         "name": "tools/manual/final-verification.ts",
@@ -12041,7 +11753,7 @@
         "endLoc": {
           "line": 53,
           "column": 6,
-          "position": 455
+          "position": 458
         }
       },
       "secondFile": {
@@ -12056,14 +11768,14 @@
         "endLoc": {
           "line": 54,
           "column": 8,
-          "position": 464
+          "position": 467
         }
       }
     },
     {
       "format": "typescript",
       "lines": 43,
-      "fragment": ");\n\n  const child = spawn('npx', ['tsx', 'src/index.ts'], {\n    stdio: 'pipe'\n  });\n\n  const sendRequest = async (request: any): Promise<any> => {\n    return new Promise((resolve, reject) => {\n      const timeout = setTimeout(() => {\n        reject(new Error('Request timeout (60s)'));\n      }, 60000);\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => {}); // Silence server logs\n      child.stdin.write(JSON.stringify(request) + '\\n');\n    });\n  };\n\n  try {\n    await new Promise(resolve => setTimeout(resolve, 3000));\n\n    console.log('💬 CHAT TOOL DEMONSTRATIONS:'",
+      "fragment": ");\n\n  const child = spawn('npx', ['tsx', 'src/index.ts'], {\n    stdio: 'pipe'\n  });\n\n  const sendRequest = async (request: any): Promise<any> => {\n    return new Promise((resolve, reject) => {\n      const timeout = setTimeout(() => {\n        reject(new Error('Request timeout (60s)'));\n      }, 60000);\n\n      let responseBuffer = '';\n      const onData = (data: Buffer) => {\n        responseBuffer += data.toString();\n        const lines = responseBuffer.split('\\n');\n        for (const line of lines) {\n          if (line.trim() && line.startsWith('{')) {\n            try {\n              const response = JSON.parse(line);\n              if (response.id === request.id) {\n                clearTimeout(timeout);\n                child.stdout.off('data', onData);\n                resolve(response);\n                return;\n              }\n            } catch {\n              // Continue parsing lines for valid JSON response\n            }\n          }\n        }\n      };\n\n      child.stdout.on('data', onData);\n      child.stderr.on('data', () => { /* no-op */ }); // Silence server logs\n      child.stdin.write(JSON.stringify(request) + '\\n');\n    });\n  };\n\n  try {\n    await new Promise(resolve => setTimeout(resolve, 3000));\n\n    console.log('💬 CHAT TOOL DEMONSTRATIONS:'",
       "tokens": 0,
       "firstFile": {
         "name": "tools/manual/demo-model-selection.ts",
@@ -12077,7 +11789,7 @@
         "endLoc": {
           "line": 53,
           "column": 31,
-          "position": 459
+          "position": 462
         }
       },
       "secondFile": {
@@ -12092,7 +11804,7 @@
         "endLoc": {
           "line": 54,
           "column": 38,
-          "position": 468
+          "position": 471
         }
       }
     },
@@ -12171,72 +11883,36 @@
     {
       "format": "typescript",
       "lines": 16,
-      "fragment": "import { defineConfig } from 'vitest/config';\n\nexport default defineConfig({\n  test: {\n    globals: true,\n    environment: 'node',\n    include: ['test/**/*.test.ts'],\n    coverage: {\n      provider: 'v8',\n      reporter: ['text', 'json', 'html'],\n      exclude: [\n        'node_modules/',\n        'dist/',\n        'test/',\n        '**/*.test.ts',\n        '**/*.spec.ts'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/vitest.config.ts",
-        "start": 1,
-        "end": 16,
-        "startLoc": {
-          "line": 1,
-          "column": 1,
-          "position": 0
-        },
-        "endLoc": {
-          "line": 16,
-          "column": 15,
-          "position": 102
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/vitest.config.ts",
-        "start": 1,
-        "end": 16,
-        "startLoc": {
-          "line": 1,
-          "column": 1,
-          "position": 0
-        },
-        "endLoc": {
-          "line": 16,
-          "column": 17,
-          "position": 102
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 20,
-      "fragment": ";\n\nexport default defineConfig({\n  test: {\n    globals: true,\n    environment: 'node',\n    include: ['test/**/*.test.ts'],\n    coverage: {\n      provider: 'v8',\n      reporter: ['text', 'json', 'html'],\n      exclude: [\n        'node_modules/',\n        'dist/',\n        'test/',\n        '**/*.test.ts',\n        '**/*.config.ts',\n      ],\n    },\n  },\n  resolve",
+      "fragment": ";\n\nexport default defineConfig({\n  test: {\n    globals: true,\n    environment: 'node',\n    include: ['test/**/*.test.ts'],\n    coverage: {\n      provider: 'v8',\n      reporter: ['text', 'json', 'html'],\n      exclude: [\n        'node_modules/',\n        'dist/',\n        'test/',\n        '**/*.test.ts',\n        '**/*.config.ts'",
       "tokens": 0,
       "firstFile": {
         "name": "packages/example-mcp/vitest.config.ts",
         "start": 2,
-        "end": 21,
+        "end": 17,
         "startLoc": {
           "line": 2,
           "column": 12,
           "position": 24
         },
         "endLoc": {
-          "line": 21,
-          "column": 8,
-          "position": 131
+          "line": 17,
+          "column": 17,
+          "position": 115
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/vitest.config.ts",
+        "name": "packages/persistence/vitest.config.ts",
         "start": 1,
-        "end": 20,
+        "end": 16,
         "startLoc": {
           "line": 1,
           "column": 16,
           "position": 11
         },
         "endLoc": {
-          "line": 20,
-          "column": 69,
-          "position": 118
+          "line": 16,
+          "column": 15,
+          "position": 102
         }
       }
     },
@@ -12261,7 +11937,7 @@
         }
       },
       "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/vitest.config.ts",
+        "name": "packages/persistence/vitest.config.ts",
         "start": 1,
         "end": 20,
         "startLoc": {
@@ -13137,78 +12813,6 @@
           "line": 134,
           "column": 26,
           "position": 1034
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 28,
-      "fragment": "],\n\n    // Coverage configuration\n    coverage: {\n      provider: 'v8',\n      reporter: ['text', 'html', 'lcov'],\n      reportsDirectory: 'coverage/system',\n      include: [\n        'src/**/*.ts',\n      ],\n      exclude: [\n        'src/**/*.d.ts',\n      ],\n    },\n\n    // System tests may take longer than unit tests\n    testTimeout: 30000,\n\n    // System tests should run sequentially to avoid conflicts\n    pool: 'forks',\n    poolOptions: {\n      forks: {\n        singleFork: true, // Run in single process to avoid port conflicts\n      },\n    },\n\n    // Global setup and teardown for HTTP server management\n    globalSetup: ['./packages/example-mcp/test/system/vitest-global-setup.ts'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "vitest.system.config.ts",
-        "start": 19,
-        "end": 46,
-        "startLoc": {
-          "line": 19,
-          "column": 5,
-          "position": 84
-        },
-        "endLoc": {
-          "line": 46,
-          "column": 60,
-          "position": 218
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/vitest.system.config.ts",
-        "start": 28,
-        "end": 55,
-        "startLoc": {
-          "line": 28,
-          "column": 5,
-          "position": 107
-        },
-        "endLoc": {
-          "line": 55,
-          "column": 39,
-          "position": 241
-        }
-      }
-    },
-    {
-      "format": "javascript",
-      "lines": 348,
-      "fragment": "import eslint from '@eslint/js';\nimport typescriptEslint from '@typescript-eslint/eslint-plugin';\nimport typescriptParser from '@typescript-eslint/parser';\nimport sonarjs from 'eslint-plugin-sonarjs';\nimport unicorn from 'eslint-plugin-unicorn';\nimport importPlugin from 'eslint-plugin-import';\nimport security from 'eslint-plugin-security';\nimport pluginNode from 'eslint-plugin-n';\n\nexport default [\n  eslint.configs.recommended,\n  sonarjs.configs.recommended,\n  security.configs.recommended,\n  {\n    // Test files - disable type-aware linting (test files excluded from tsconfig)\n    files: ['**/*.test.ts', '**/test/**/*.ts', '**/test-*.ts', '**/tests/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // Test files excluded from tsconfig\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules for test files\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      // Relaxed rules for test files\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      '@typescript-eslint/no-non-null-assertion': 'off',\n      'no-undef': 'off',\n\n      // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)\n      'sonarjs/no-ignored-exceptions': 'warn', // Empty catch blocks common in tests for expected failures\n      'sonarjs/assertions-in-tests': 'warn', // Some tests validate side effects, not return values\n      'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)\n      'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars\n\n      // Callback nesting depth (catch SonarQube brain-overload issues)\n      'max-nested-callbacks': ['error', { max: 4 }], // Limit callback nesting to 4 levels (SonarQube threshold)\n      'max-depth': ['warn', { max: 4 }], // Warn on deep block nesting\n\n      // SonarJS rules - LOW VALUE (disable for tests)\n      'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity\n      'sonarjs/os-command': 'off',\n      'sonarjs/no-os-command-from-path': 'off',\n      'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks\n      'sonarjs/no-nested-template-literals': 'off',\n      'sonarjs/slow-regex': 'off',\n      'sonarjs/cognitive-complexity': 'off', // Test readability > complexity\n      'sonarjs/no-nested-conditional': 'off', // Complex test setup sometimes needs nested conditionals\n      'sonarjs/no-hardcoded-passwords': 'off', // Test fixtures need test credentials\n      'sonarjs/no-hardcoded-secrets': 'off', // Test fixtures need test secrets\n      'sonarjs/pseudo-random': 'off', // Math.random() fine for test data\n      'sonarjs/no-empty-test-file': 'off', // Placeholder test files during development\n      'sonarjs/no-clear-text-protocols': 'off', // Tests use http://localhost\n      'sonarjs/todo-tag': 'off', // TODOs in tests are useful for tracking coverage\n      'sonarjs/unused-import': 'off', // Covered by @typescript-eslint/no-unused-vars\n      'sonarjs/no-identical-functions': 'off', // Test helper functions intentionally duplicated\n      'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files\n      'sonarjs/no-unused-collection': 'off', // Test data setup may create collections for side effects\n\n      // Code quality - ERROR in tests (autofix removes unused imports)\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - relaxed for tests\n      'security/detect-child-process': 'off', // Tests execute commands\n      'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Import rules - HIGH VALUE (catch duplicate imports)\n      'import/no-duplicates': 'error',\n\n      // Unicorn rules - HIGH VALUE (enforce in tests)\n      'unicorn/prefer-node-protocol': 'error', // Modern Node.js best practice\n\n      // Unicorn rules - LOW VALUE (disable for tests)\n      'unicorn/no-array-for-each': 'off', // .forEach() is readable in tests\n      'unicorn/no-useless-undefined': 'off', // Explicit undefined in test data is intentional\n      'unicorn/prefer-top-level-await': 'off', // Test frameworks handle async differently\n      'unicorn/prefer-number-properties': 'off', // Not worth the churn in tests\n      'unicorn/throw-new-error': 'off',\n      'unicorn/prefer-module': 'off',\n      'unicorn/prefer-ternary': 'off',\n      'unicorn/prefer-string-raw': 'off',\n\n      // Security - check legitimate issues but allow test exceptions\n      'security/detect-unsafe-regex': 'warn', // Check but don't block on test regex\n    },\n  },\n  {\n    // Production TypeScript files (type-aware linting enabled)\n    files: ['**/*.ts', '**/*.tsx'],\n    ignores: ['**/*.test.ts', '**/test/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: true, // Enable type-aware linting\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // TypeScript core rules - STRICT\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'error',\n      '@typescript-eslint/explicit-module-boundary-types': 'error',\n      '@typescript-eslint/no-non-null-assertion': 'error',\n\n      // TypeScript async/promise safety - STRICT\n      '@typescript-eslint/no-floating-promises': 'error',\n      '@typescript-eslint/await-thenable': 'error',\n      '@typescript-eslint/no-misused-promises': 'error',\n\n      // Modern JavaScript patterns\n      '@typescript-eslint/prefer-nullish-coalescing': 'error',\n      '@typescript-eslint/prefer-optional-chain': 'error',\n\n      // General rules\n      'no-console': 'off', // Allow console in production code (used by tools)\n      'no-undef': 'off', // TypeScript handles this\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n\n      // Security - CRITICAL vulnerability detection\n      'security/detect-child-process': 'error',\n      'security/detect-non-literal-fs-filename': 'warn', // Can be noisy but important\n      'security/detect-non-literal-regexp': 'warn',\n      'security/detect-unsafe-regex': 'error', // CRITICAL: ReDoS vulnerability\n      'security/detect-buffer-noassert': 'error',\n      'security/detect-eval-with-expression': 'error',\n      'security/detect-no-csrf-before-method-override': 'error',\n      'security/detect-possible-timing-attacks': 'warn',\n      'security/detect-pseudoRandomBytes': 'error',\n      'security/detect-object-injection': 'off', // TypeScript type safety covers this\n\n      // Node.js best practices\n      'n/no-path-concat': 'error', // Prevents path.join issues\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - STRICT enforcement\n      'sonarjs/no-ignored-exceptions': 'error',\n      'sonarjs/no-control-regex': 'error',\n      'sonarjs/no-redundant-jump': 'error',\n      'sonarjs/updated-loop-counter': 'error',\n      'sonarjs/no-nested-template-literals': 'error',\n      'sonarjs/no-nested-functions': 'error',\n      'sonarjs/no-nested-conditional': 'error',\n      'sonarjs/cognitive-complexity': ['error', 15],\n      'sonarjs/slow-regex': 'warn',\n      'sonarjs/duplicates-in-character-class': 'error',\n      'sonarjs/prefer-single-boolean-return': 'error',\n      'sonarjs/no-unused-vars': 'warn',\n\n      // Unicorn rules - modern JavaScript best practices\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/throw-new-error': 'error',\n      'unicorn/prefer-module': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/no-useless-undefined': 'error',\n      'unicorn/prefer-ternary': 'off', // Can reduce readability\n      'unicorn/prefer-string-raw': 'error',\n    },\n  },\n  {\n    // Tools scripts - relaxed linting (MUST disable type-aware rules)\n    files: ['tools/**/*.ts'],\n    languageOptions: {\n      parser: typescriptParser,\n      parserOptions: {\n        ecmaVersion: 2022,\n        sourceType: 'module',\n        project: false, // No type-aware linting for tools\n      },\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      '@typescript-eslint': typescriptEslint,\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Disable type-aware rules inherited from sonarjs.configs.recommended\n      '@typescript-eslint/no-floating-promises': 'off',\n      '@typescript-eslint/await-thenable': 'off',\n      '@typescript-eslint/no-misused-promises': 'off',\n      '@typescript-eslint/prefer-nullish-coalescing': 'off',\n      '@typescript-eslint/prefer-optional-chain': 'off',\n\n      '@typescript-eslint/no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      '@typescript-eslint/no-explicit-any': 'off',\n      '@typescript-eslint/explicit-module-boundary-types': 'off',\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - more lenient for tools\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error', // Still require proper error handling\n      '@typescript-eslint/no-unsafe-function-type': 'off',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules for tools\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n    },\n  },\n  {\n    // Tools JavaScript files - same rules as TypeScript tools\n    files: ['tools/**/*.js'],\n    languageOptions: {\n      ecmaVersion: 2022,\n      sourceType: 'module',\n      globals: {\n        NodeJS: 'readonly',\n        process: 'readonly',\n        console: 'readonly',\n        Buffer: 'readonly',\n      },\n    },\n    plugins: {\n      unicorn,\n      import: importPlugin,\n      security,\n      n: pluginNode,\n    },\n    rules: {\n      // Core JavaScript rules\n      'no-unused-vars': ['error', {\n        argsIgnorePattern: '^_',\n        varsIgnorePattern: '^_',\n        caughtErrorsIgnorePattern: '^_',\n      }],\n      'prefer-const': 'error',\n      'no-var': 'error',\n      'no-console': 'off', // Tools use console for output\n\n      // Security - relaxed for tools\n      'security/detect-child-process': 'off', // Tools spawn processes\n      'security/detect-non-literal-fs-filename': 'off', // Tools use dynamic paths\n      'security/detect-object-injection': 'off',\n\n      // Import rules\n      'import/no-duplicates': 'error',\n\n      // SonarJS rules - catch issues\n      'sonarjs/cognitive-complexity': ['warn', 30],\n      'sonarjs/no-duplicate-string': 'off',\n      'sonarjs/no-identical-functions': 'warn',\n      'sonarjs/no-os-command-from-path': 'off', // Tools spawn processes\n      'sonarjs/no-ignored-exceptions': 'error',\n\n      // Node.js rules\n      'n/no-path-concat': 'error',\n\n      // Unicorn rules\n      'unicorn/prefer-node-protocol': 'error',\n      'unicorn/prefer-number-properties': 'error',\n      'unicorn/no-array-for-each': 'error',\n      'unicorn/prefer-top-level-await': 'error',\n      'unicorn/throw-new-error': 'error',\n    },\n  },\n  {\n    ignores: [\n      'build/**',\n      'dist/**',\n      'coverage/**',\n      'node_modules/**',\n      '*.config.js', // Root config files (vitest, eslint, etc)\n      '**/*.d.ts'",
-      "tokens": 0,
-      "firstFile": {
-        "name": "eslint.config.js",
-        "start": 1,
-        "end": 348,
-        "startLoc": {
-          "line": 1,
-          "column": 1,
-          "position": 0
-        },
-        "endLoc": {
-          "line": 348,
-          "column": 12,
-          "position": 2144
-        }
-      },
-      "secondFile": {
-        "name": "packages/create-mcp-typescript-simple/templates/eslint.config.js",
-        "start": 1,
-        "end": 348,
-        "startLoc": {
-          "line": 1,
-          "column": 1,
-          "position": 0
-        },
-        "endLoc": {
-          "line": 348,
-          "column": 14,
-          "position": 2144
         }
       }
     }

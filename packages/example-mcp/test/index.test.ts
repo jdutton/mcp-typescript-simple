@@ -73,7 +73,7 @@ describe('MCP server bootstrap', () => {
       throw new Error(`process.exit called with ${code}`);
     }) as typeof process.exit);
 
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
 
     await import('../src/index.js');
     await startCalled;

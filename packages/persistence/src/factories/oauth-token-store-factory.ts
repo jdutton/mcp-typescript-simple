@@ -183,7 +183,7 @@ export class OAuthTokenStoreFactory {
         warnings.push('OAuth tokens will be lost if request hits different instance');
       }
     } else {
-      detectedType = type as Exclude<OAuthTokenStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

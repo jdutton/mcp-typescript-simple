@@ -222,7 +222,7 @@ export class TokenStoreFactory {
         detectedType = 'file';
       }
     } else {
-      detectedType = type as Exclude<TokenStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

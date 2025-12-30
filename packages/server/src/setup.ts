@@ -21,7 +21,8 @@ export interface ServerLogger {
  * Simple console-based logger fallback
  */
 const defaultLogger: ServerLogger = {
-  debug: () => {}, // Silent by default
+  // Intentionally empty - debug logging is silent by default to avoid noise
+  debug: () => { /* no-op */ },
   error: (message: string, error?: unknown) => {
     console.error(message, error);
   },
