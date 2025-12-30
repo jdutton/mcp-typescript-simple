@@ -181,23 +181,26 @@ describeSystemTest('STDIO Transport System', () => {
         const llmTools = ['chat', 'analyze', 'summarize', 'explain'];
         const availableLLMTools = llmTools.filter((tool) => toolNamesSet.has(tool));
 
-        if (availableLLMTools.length > 0) {
-          console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);
-
-          // Test one LLM tool if available
-          if (availableLLMTools.includes('chat')) {
-            try {
-              const result = await client.callTool('chat', {
-                message: 'Hello, this is a test message'
-              });
-              expect(result.content).toBeDefined();
-              console.log('✅ LLM chat tool executed successfully');
-            } catch (error) {
-              console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
-            }
-          }
-        } else {
+        if (availableLLMTools.length === 0) {
           console.log('ℹ️  No LLM tools available (no API keys configured)');
+          return;
+        }
+
+        console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);
+
+        // Test one LLM tool if available
+        if (!availableLLMTools.includes('chat')) {
+          return;
+        }
+
+        try {
+          const result = await client.callTool('chat', {
+            message: 'Hello, this is a test message'
+          });
+          expect(result.content).toBeDefined();
+          console.log('✅ LLM chat tool executed successfully');
+        } catch (error) {
+          console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
         }
       });
     });
