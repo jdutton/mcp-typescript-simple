@@ -18,6 +18,7 @@ import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 import { getDataPath } from '../utils/data-paths.js';
 import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
+import { createStore, type BaseStoreFactoryOptions } from './base-store-factory.js';
 
 export type MCPMetadataStoreType = 'memory' | 'file' | 'caching' | 'redis' | 'auto';
 
@@ -50,26 +51,22 @@ export class MCPMetadataStoreFactory {
   static async create(options: MCPMetadataStoreFactoryOptions = {}): Promise<MCPSessionMetadataStore> {
     const storeType = options.type ?? 'auto';
 
-    if (storeType === 'auto') {
-      return await this.createAutoDetected(options);
+    // Handle 'caching' type specially (not in base factory)
+    if (storeType === 'caching') {
+      return await this.createCachingStore(options);
     }
 
-    switch (storeType) {
-      case 'memory':
-        return this.createMemoryStore();
-
-      case 'file':
-        return this.createFileStore(options.filePath);
-
-      case 'caching':
-        return await this.createCachingStore(options);
-
-      case 'redis':
-        return await this.createRedisStore(options.redisUrl);
-
-      default:
-        throw new Error(`Unknown MCP metadata store type: ${storeType}`);
-    }
+    return await createStore<MCPSessionMetadataStore>(
+      options as BaseStoreFactoryOptions,
+      {
+        createAutoDetected: async () => this.createAutoDetected(options),
+        createMemoryStore: () => this.createMemoryStore(),
+        createRedisStore: async () => this.createRedisStore(options.redisUrl),
+        createFileStore: (filePath) => this.createFileStore((filePath as string | undefined) ?? options.filePath)
+      },
+      'MCP metadata',
+      options.filePath
+    );
   }
 
   /**

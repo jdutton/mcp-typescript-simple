@@ -38,42 +38,6 @@
     },
     {
       "format": "typescript",
-      "lines": 19,
-      "fragment": ");\n      return null;\n    }\n\n    // Decrypt and deserialize token data - fail fast on decryption errors\n    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);\n\n    // Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken,",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 164,
-        "end": 182,
-        "startLoc": {
-          "line": 164,
-          "column": 14,
-          "position": 1173
-        },
-        "endLoc": {
-          "line": 182,
-          "column": 2,
-          "position": 1281
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 122,
-        "end": 140,
-        "startLoc": {
-          "line": 122,
-          "column": 9,
-          "position": 853
-        },
-        "endLoc": {
-          "line": 140,
-          "column": 2,
-          "position": 961
-        }
-      }
-    },
-    {
-      "format": "typescript",
       "lines": 14,
       "fragment": ");\n\n      logger.info('Token validated and used', {\n        tokenId: result.token.id,\n        usageCount: result.token.usage_count,\n        maxUses: result.token.max_uses ?? 'unlimited',\n      });\n    }\n\n    return result;\n  }\n\n  async getToken(id: string): Promise<InitialAccessToken | undefined> {\n    return",
       "tokens": 0,
@@ -177,78 +141,6 @@
           "line": 102,
           "column": 6,
           "position": 770
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 18,
-      "fragment": "// Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken);\n    return validatedToken;\n  }\n\n  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {\n    // O(1) lookup using secondary index\n    const accessToken",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 58,
-        "end": 75,
-        "startLoc": {
-          "line": 58,
-          "column": 5,
-          "position": 444
-        },
-        "endLoc": {
-          "line": 75,
-          "column": 12,
-          "position": 568
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 129,
-        "end": 146,
-        "startLoc": {
-          "line": 129,
-          "column": 5,
-          "position": 892
-        },
-        "endLoc": {
-          "line": 146,
-          "column": 16,
-          "position": 1016
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 17,
-      "fragment": "// Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');\n    return { accessToken, tokenInfo: validatedToken };\n  }\n\n  async deleteToken(accessToken: string): Promise<void> {\n    const tokenInfo",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 91,
-        "end": 107,
-        "startLoc": {
-          "line": 91,
-          "column": 5,
-          "position": 679
-        },
-        "endLoc": {
-          "line": 107,
-          "column": 10,
-          "position": 796
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 171,
-        "end": 187,
-        "startLoc": {
-          "line": 171,
-          "column": 5,
-          "position": 1212
-        },
-        "endLoc": {
-          "line": 187,
-          "column": 4,
-          "position": 1329
         }
       }
     },
@@ -1627,32 +1519,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 175,
-        "end": 198,
+        "start": 174,
+        "end": 197,
         "startLoc": {
-          "line": 175,
+          "line": 174,
           "column": 5,
-          "position": 1087
+          "position": 1137
         },
         "endLoc": {
-          "line": 198,
+          "line": 197,
           "column": 6,
-          "position": 1268
+          "position": 1318
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 137,
-        "end": 160,
+        "start": 136,
+        "end": 159,
         "startLoc": {
-          "line": 137,
+          "line": 136,
           "column": 5,
-          "position": 815
+          "position": 865
         },
         "endLoc": {
-          "line": 160,
+          "line": 159,
           "column": 7,
-          "position": 996
+          "position": 1046
         }
       }
     },
@@ -1663,68 +1555,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/session-store-factory.ts",
-        "start": 111,
-        "end": 130,
+        "start": 105,
+        "end": 124,
         "startLoc": {
-          "line": 111,
+          "line": 105,
           "column": 2,
-          "position": 651
+          "position": 637
         },
         "endLoc": {
-          "line": 130,
+          "line": 124,
           "column": 70,
-          "position": 760
+          "position": 746
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 222,
-        "end": 241,
+        "start": 221,
+        "end": 240,
         "startLoc": {
-          "line": 222,
+          "line": 221,
           "column": 7,
-          "position": 1488
+          "position": 1538
         },
         "endLoc": {
-          "line": 241,
+          "line": 240,
           "column": 66,
-          "position": 1597
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 16,
-      "fragment": "{\n    const storeType = options.type ?? 'auto';\n\n    if (storeType === 'auto') {\n      return this.createAutoDetected();\n    }\n\n    switch (storeType) {\n      case 'memory':\n        return this.createMemoryStore();\n\n      case 'redis':\n        return this.createRedisStore();\n\n      default:\n        throw new Error(`Unknown PKCE store type: ",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/factories/pkce-store-factory.ts",
-        "start": 34,
-        "end": 49,
-        "startLoc": {
-          "line": 34,
-          "column": 2,
-          "position": 141
-        },
-        "endLoc": {
-          "line": 49,
-          "column": 27,
-          "position": 242
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/factories/session-store-factory.ts",
-        "start": 34,
-        "end": 49,
-        "startLoc": {
-          "line": 34,
-          "column": 2,
-          "position": 141
-        },
-        "endLoc": {
-          "line": 49,
-          "column": 30,
-          "position": 242
+          "position": 1647
         }
       }
     },
@@ -1735,32 +1591,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/oauth-token-store-factory.ts",
-        "start": 99,
-        "end": 108,
+        "start": 92,
+        "end": 101,
         "startLoc": {
-          "line": 99,
+          "line": 92,
           "column": 20,
-          "position": 562
+          "position": 559
         },
         "endLoc": {
-          "line": 108,
+          "line": 101,
           "column": 16,
-          "position": 652
+          "position": 649
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 136,
-        "end": 145,
+        "start": 135,
+        "end": 144,
         "startLoc": {
-          "line": 136,
+          "line": 135,
           "column": 15,
-          "position": 810
+          "position": 860
         },
         "endLoc": {
-          "line": 145,
+          "line": 144,
           "column": 8,
-          "position": 900
+          "position": 950
         }
       }
     },
@@ -1771,32 +1627,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/oauth-token-store-factory.ts",
-        "start": 132,
-        "end": 152,
+        "start": 125,
+        "end": 145,
         "startLoc": {
-          "line": 132,
+          "line": 125,
           "column": 21,
-          "position": 792
+          "position": 789
         },
         "endLoc": {
-          "line": 152,
+          "line": 145,
           "column": 73,
-          "position": 968
+          "position": 965
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/token-store-factory.ts",
-        "start": 170,
-        "end": 115,
+        "start": 169,
+        "end": 108,
         "startLoc": {
-          "line": 170,
+          "line": 169,
           "column": 16,
-          "position": 1053
+          "position": 1103
         },
         "endLoc": {
-          "line": 115,
+          "line": 108,
           "column": 79,
-          "position": 709
+          "position": 706
         }
       }
     },
@@ -1807,32 +1663,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/oauth-token-store-factory.ts",
-        "start": 183,
-        "end": 203,
+        "start": 176,
+        "end": 196,
         "startLoc": {
-          "line": 183,
+          "line": 176,
           "column": 63,
-          "position": 1198
+          "position": 1195
         },
         "endLoc": {
-          "line": 203,
+          "line": 196,
           "column": 68,
-          "position": 1317
+          "position": 1314
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/session-store-factory.ts",
-        "start": 111,
-        "end": 131,
+        "start": 105,
+        "end": 125,
         "startLoc": {
-          "line": 111,
+          "line": 105,
           "column": 63,
-          "position": 650
+          "position": 636
         },
         "endLoc": {
-          "line": 131,
+          "line": 125,
           "column": 59,
-          "position": 769
+          "position": 755
         }
       }
     },
@@ -1843,32 +1699,32 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/factories/mcp-metadata-store-factory.ts",
-        "start": 219,
-        "end": 235,
+        "start": 216,
+        "end": 232,
         "startLoc": {
-          "line": 219,
+          "line": 216,
           "column": 5,
-          "position": 1408
+          "position": 1445
         },
         "endLoc": {
-          "line": 235,
+          "line": 232,
           "column": 59,
-          "position": 1503
+          "position": 1540
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/factories/session-store-factory.ts",
-        "start": 115,
-        "end": 131,
+        "start": 109,
+        "end": 125,
         "startLoc": {
-          "line": 115,
+          "line": 109,
           "column": 5,
-          "position": 674
+          "position": 660
         },
         "endLoc": {
-          "line": 131,
+          "line": 125,
           "column": 59,
-          "position": 769
+          "position": 755
         }
       }
     },

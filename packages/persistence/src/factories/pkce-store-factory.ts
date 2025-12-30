@@ -14,6 +14,7 @@ import { MemoryPKCEStore } from '../stores/memory/memory-pkce-store.js';
 import { RedisPKCEStore } from '../stores/redis/redis-pkce-store.js';
 import { logger } from '../logger.js';
 import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
+import { createStore, type BaseStoreFactoryOptions } from './base-store-factory.js';
 
 export type PKCEStoreType = 'memory' | 'redis' | 'auto';
 
@@ -32,22 +33,15 @@ export class PKCEStoreFactory {
    * Create a PKCE store based on configuration
    */
   static create(options: PKCEStoreFactoryOptions = {}): PKCEStore {
-    const storeType = options.type ?? 'auto';
-
-    if (storeType === 'auto') {
-      return this.createAutoDetected();
-    }
-
-    switch (storeType) {
-      case 'memory':
-        return this.createMemoryStore();
-
-      case 'redis':
-        return this.createRedisStore();
-
-      default:
-        throw new Error(`Unknown PKCE store type: ${storeType}`);
-    }
+    return createStore<PKCEStore>(
+      options as BaseStoreFactoryOptions,
+      {
+        createAutoDetected: () => this.createAutoDetected(),
+        createMemoryStore: () => this.createMemoryStore(),
+        createRedisStore: () => this.createRedisStore()
+      },
+      'PKCE'
+    ) as PKCEStore;
   }
 
   /**

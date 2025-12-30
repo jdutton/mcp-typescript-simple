@@ -114,12 +114,17 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     });
   }
 
-  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
-    const key = this.getTokenKey(accessToken);
-    const data = await this.redis.get(key);
-
+  /**
+   * Helper: Fetch token data from Redis and validate
+   * Shared logic between getToken and findByRefreshToken
+   */
+  private async fetchAndValidateToken(
+    data: string | null,
+    accessToken: string,
+    notFoundContext?: string
+  ): Promise<StoredTokenInfo | null> {
     if (!data) {
-      logTokenNotFound(accessToken, 'access');
+      logTokenNotFound(accessToken, 'access', notFoundContext);
       return null;
     }
 
@@ -132,6 +137,15 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
       accessToken,
       async () => this.deleteToken(accessToken)
     );
+
+    return validatedToken;
+  }
+
+  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
+    const key = this.getTokenKey(accessToken);
+    const data = await this.redis.get(key);
+
+    const validatedToken = await this.fetchAndValidateToken(data, accessToken);
 
     if (!validatedToken) {
       return null;
@@ -161,19 +175,9 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     if (!data) {
       // Clean up stale index entry
       await this.redis.del(refreshIndexKey);
-      logTokenNotFound(refreshToken, 'refresh', 'stale index');
-      return null;
     }
 
-    // Decrypt and deserialize token data - fail fast on decryption errors
-    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
-
-    // Verify not expired using shared utility
-    const validatedToken = await validateTokenExpiry(
-      tokenInfo,
-      accessToken,
-      async () => this.deleteToken(accessToken)
-    );
+    const validatedToken = await this.fetchAndValidateToken(data, accessToken, data ? undefined : 'stale index');
 
     if (!validatedToken) {
       return null;
