@@ -174,6 +174,19 @@ describeSystemTest('STDIO Transport System', () => {
     });
 
     describe('LLM Tools (if available)', () => {
+      // Helper to test LLM chat tool execution
+      const testLLMChatTool = async () => {
+        try {
+          const result = await client.callTool('chat', {
+            message: 'Hello, this is a test message'
+          });
+          expect(result.content).toBeDefined();
+          console.log('✅ LLM chat tool executed successfully');
+        } catch (error) {
+          console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
+        }
+      };
+
       test('should list LLM tools if API keys are configured', async () => {
         const tools = await client.listTools();
         const toolNamesSet = new Set(tools.map(extractToolName));
@@ -190,18 +203,8 @@ describeSystemTest('STDIO Transport System', () => {
         console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);
 
         // Test one LLM tool if available
-        if (!availableLLMTools.includes('chat')) {
-          return;
-        }
-
-        try {
-          const result = await client.callTool('chat', {
-            message: 'Hello, this is a test message'
-          });
-          expect(result.content).toBeDefined();
-          console.log('✅ LLM chat tool executed successfully');
-        } catch (error) {
-          console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
+        if (availableLLMTools.includes('chat')) {
+          await testLLMChatTool();
         }
       });
     });
