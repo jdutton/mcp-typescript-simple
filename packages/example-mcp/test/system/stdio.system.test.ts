@@ -179,8 +179,7 @@ describeSystemTest('STDIO Transport System', () => {
         const toolNamesSet = new Set(tools.map(extractToolName));
 
         const llmTools = ['chat', 'analyze', 'summarize', 'explain'];
-        const isToolAvailable = (tool: string) => toolNamesSet.has(tool);
-        const availableLLMTools = llmTools.filter(isToolAvailable);
+        const availableLLMTools = llmTools.filter((tool) => toolNamesSet.has(tool));
 
         if (availableLLMTools.length > 0) {
           console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);

@@ -286,13 +286,15 @@ describe('GoogleOAuthProvider', () => {
     });
 
     it('handles error during authorization URL generation', async () => {
+      const throwAuthUrlError = () => {
+        throw new Error('Auth URL generation failed');
+      };
+
       const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
       try {
         await withGoogleProvider(createProvider, async (provider, res) => {
           // Make generateAuthUrl throw an error
-          mockGenerateAuthUrl.mockImplementation(() => {
-            throw new Error('Auth URL generation failed');
-          });
+          mockGenerateAuthUrl.mockImplementation(throwAuthUrlError);
 
           const req = { query: {} } as Request;
           await provider.handleAuthorizationRequest(req, res);
@@ -426,6 +428,8 @@ describe('GoogleOAuthProvider', () => {
 
     it('handles ID token verification failure', async () => {
       const invalidPayload = { sub: null, email: null };
+      const getInvalidPayload = () => invalidPayload;
+
       await withGoogleProvider(createProvider, async (provider, res) => {
         const now = 7_000_000;
         const { dateSpy } = setupGoogleCallbackTest(provider, {
@@ -441,7 +445,7 @@ describe('GoogleOAuthProvider', () => {
 
         // Mock verifyIdToken to return invalid payload
         mockVerifyIdToken.mockResolvedValueOnce({
-          getPayload: () => invalidPayload
+          getPayload: getInvalidPayload
         });
 
         await testAuthorizationCallbackFailure(provider, res);
@@ -494,6 +498,8 @@ describe('GoogleOAuthProvider', () => {
         email: 'user@example.com'
         // Missing name - should fallback to email
       };
+      const getPayloadWithoutName = () => payloadWithoutName;
+
       await withGoogleProvider(createProvider, async (provider, res) => {
         const now = 9_000_000;
         const { dateSpy } = setupGoogleCallbackTest(provider, {
@@ -509,7 +515,7 @@ describe('GoogleOAuthProvider', () => {
         });
 
         mockVerifyIdToken.mockResolvedValueOnce({
-          getPayload: () => payloadWithoutName
+          getPayload: getPayloadWithoutName
         });
 
         await provider.handleAuthorizationCallback({
@@ -739,10 +745,12 @@ describe('GoogleOAuthProvider', () => {
         name: 'Remote User',
         picture: 'remote-avatar.jpg'
       };
+      const jsonResolver = () => Promise.resolve(mockUserData);
+
       await withGoogleProvider(createProvider, async (provider) => {
         mockFetch.mockResolvedValueOnce({
           ok: true,
-          json: () => Promise.resolve(mockUserData)
+          json: jsonResolver
         } as any);
 
         const userInfo = await provider.getUserInfo('remote-token');
