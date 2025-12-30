@@ -38,11 +38,11 @@
 
 import { promises as fs, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
+import { BaseOAuthTokenStore } from '../base-oauth-token-store.js';
+import { serializeOAuthToken, deserializeOAuthToken } from '../../interfaces/oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
-import { logTokenNotFound, logTokenRetrieved, logTokenDeleted, validateTokenExpiry } from '../oauth-token-utils.js';
 
 interface PersistedOAuthTokenData {
   version: number;
@@ -64,9 +64,7 @@ export interface FileOAuthTokenStoreOptions {
   encryptionService: TokenEncryptionService;
 }
 
-export class FileOAuthTokenStore implements OAuthTokenStore {
-  private tokens = new Map<string, StoredTokenInfo>();
-  private refreshTokenIndex = new Map<string, string>(); // refreshToken -> accessToken
+export class FileOAuthTokenStore extends BaseOAuthTokenStore {
   private readonly filePath: string;
   private readonly backupPath: string;
   private writePromise: Promise<void> = Promise.resolve();
@@ -75,6 +73,8 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
   private readonly encryptionService: TokenEncryptionService;
 
   constructor(options: FileOAuthTokenStoreOptions) {
+    super();
+
     // SECURITY: Fail fast if encryption service not provided
     if (!options.encryptionService) {
       throw new Error('TokenEncryptionService is REQUIRED - zero tolerance for unencrypted OAuth tokens');
@@ -93,6 +93,13 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       tokensLoaded: this.tokens.size,
       debounceMs: this.debounceMs,
     });
+  }
+
+  /**
+   * Override to trigger file save on mutations
+   */
+  protected override onTokenMutated(): void {
+    this.scheduleSave();
   }
 
   /**
@@ -220,7 +227,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       this.refreshTokenIndex.set(tokenInfo.refreshToken, accessToken);
     }
 
-    this.scheduleSave();
+    this.onTokenMutated();
 
     logger.debug('OAuth token stored', {
       tokenPrefix: accessToken.substring(0, 8),
@@ -228,114 +235,6 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       expiresAt: new Date(tokenInfo.expiresAt).toISOString(),
       userEmail: tokenInfo.userInfo.email,
     });
-  }
-
-  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
-    const tokenInfo = this.tokens.get(accessToken);
-
-    if (!tokenInfo) {
-      logTokenNotFound(accessToken, 'access');
-      return null;
-    }
-
-    // Verify not expired using shared utility
-    const validatedToken = await validateTokenExpiry(
-      tokenInfo,
-      accessToken,
-      async () => this.deleteToken(accessToken)
-    );
-
-    if (!validatedToken) {
-      return null;
-    }
-
-    logTokenRetrieved(accessToken, validatedToken);
-    return validatedToken;
-  }
-
-  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
-    // O(1) lookup using secondary index
-    const accessToken = this.refreshTokenIndex.get(refreshToken);
-
-    if (!accessToken) {
-      logTokenNotFound(refreshToken, 'refresh');
-      return null;
-    }
-
-    const tokenInfo = this.tokens.get(accessToken);
-
-    if (!tokenInfo) {
-      // Clean up stale index entry
-      this.refreshTokenIndex.delete(refreshToken);
-      this.scheduleSave();
-      logTokenNotFound(refreshToken, 'refresh', 'stale index');
-      return null;
-    }
-
-    // Verify not expired using shared utility
-    const validatedToken = await validateTokenExpiry(
-      tokenInfo,
-      accessToken,
-      async () => this.deleteToken(accessToken)
-    );
-
-    if (!validatedToken) {
-      return null;
-    }
-
-    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');
-    return { accessToken, tokenInfo: validatedToken };
-  }
-
-  async deleteToken(accessToken: string): Promise<void> {
-    const tokenInfo = this.tokens.get(accessToken);
-    const existed = this.tokens.delete(accessToken);
-
-    // Clean up secondary index
-    if (tokenInfo?.refreshToken) {
-      this.refreshTokenIndex.delete(tokenInfo.refreshToken);
-    }
-
-    if (existed) {
-      this.scheduleSave();
-    }
-
-    logTokenDeleted(accessToken, existed);
-  }
-
-  async cleanup(): Promise<number> {
-    const now = Date.now();
-    let cleanedCount = 0;
-
-    for (const [accessToken, tokenInfo] of this.tokens.entries()) {
-      if (tokenInfo.expiresAt && tokenInfo.expiresAt <= now) {
-        this.tokens.delete(accessToken);
-        // Clean up secondary index
-        if (tokenInfo.refreshToken) {
-          this.refreshTokenIndex.delete(tokenInfo.refreshToken);
-        }
-        cleanedCount++;
-        logger.debug('Expired OAuth token cleaned up', {
-          tokenPrefix: accessToken.substring(0, 8),
-          provider: tokenInfo.provider,
-          expiredAt: new Date(tokenInfo.expiresAt).toISOString(),
-        });
-      }
-    }
-
-    if (cleanedCount > 0) {
-      this.scheduleSave();
-      logger.info('Expired OAuth tokens cleanup completed', {
-        cleanedCount,
-        remainingCount: this.tokens.size,
-      });
-    }
-
-    return cleanedCount;
-  }
-
-  async getTokenCount(): Promise<number> {
-    return this.tokens.size;
   }
 
   /**

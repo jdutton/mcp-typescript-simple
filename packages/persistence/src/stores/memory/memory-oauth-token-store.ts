@@ -10,17 +10,16 @@
  * WARNING: Does NOT work across multiple serverless instances!
  */
 
-import { OAuthTokenStore } from '../../interfaces/oauth-token-store.js';
+import { BaseOAuthTokenStore } from '../base-oauth-token-store.js';
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
-import { isTokenExpired, logTokenNotFound, logTokenRetrieved, logTokenDeleted, validateTokenExpiry } from '../oauth-token-utils.js';
+import { isTokenExpired } from '../oauth-token-utils.js';
 
-export class MemoryOAuthTokenStore implements OAuthTokenStore {
-  private tokens = new Map<string, StoredTokenInfo>();
-  private refreshTokenIndex = new Map<string, string>(); // refreshToken -> accessToken
+export class MemoryOAuthTokenStore extends BaseOAuthTokenStore {
   private cleanupInterval?: NodeJS.Timeout;
 
   constructor() {
+    super();
     logger.info('MemoryOAuthTokenStore initialized');
 
     // Start automatic cleanup of expired tokens every hour
@@ -29,6 +28,14 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
     if (typeof this.cleanupInterval.unref === 'function') {
       this.cleanupInterval.unref();
     }
+  }
+
+  /**
+   * Override expiry check to use shared utility
+   */
+  protected override isExpired(tokenInfo: StoredTokenInfo): boolean {
+    // Use the accessToken placeholder since isTokenExpired only logs it
+    return isTokenExpired(tokenInfo, '[checking]');
   }
 
   async storeToken(accessToken: string, tokenInfo: StoredTokenInfo): Promise<void> {
@@ -45,107 +52,6 @@ export class MemoryOAuthTokenStore implements OAuthTokenStore {
       expiresAt: new Date(tokenInfo.expiresAt).toISOString(),
       userEmail: tokenInfo.userInfo.email
     });
-  }
-
-  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {
-    const tokenInfo = this.tokens.get(accessToken);
-
-    if (!tokenInfo) {
-      logTokenNotFound(accessToken, 'access');
-      return null;
-    }
-
-    // Verify not expired using shared utility
-    const validatedToken = await validateTokenExpiry(
-      tokenInfo,
-      accessToken,
-      async () => this.deleteToken(accessToken)
-    );
-
-    if (!validatedToken) {
-      return null;
-    }
-
-    logTokenRetrieved(accessToken, validatedToken);
-    return validatedToken;
-  }
-
-  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
-    // O(1) lookup using secondary index
-    const accessToken = this.refreshTokenIndex.get(refreshToken);
-
-    if (!accessToken) {
-      logTokenNotFound(refreshToken, 'refresh');
-      return null;
-    }
-
-    const tokenInfo = this.tokens.get(accessToken);
-
-    if (!tokenInfo) {
-      // Clean up stale index entry
-      this.refreshTokenIndex.delete(refreshToken);
-      logTokenNotFound(refreshToken, 'refresh', 'stale index');
-      return null;
-    }
-
-    // Verify not expired using shared utility
-    const validatedToken = await validateTokenExpiry(
-      tokenInfo,
-      accessToken,
-      async () => this.deleteToken(accessToken)
-    );
-
-    if (!validatedToken) {
-      return null;
-    }
-
-    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');
-    return { accessToken, tokenInfo: validatedToken };
-  }
-
-  async deleteToken(accessToken: string): Promise<void> {
-    const tokenInfo = this.tokens.get(accessToken);
-    const existed = this.tokens.delete(accessToken);
-
-    // Clean up secondary index
-    if (tokenInfo?.refreshToken) {
-      this.refreshTokenIndex.delete(tokenInfo.refreshToken);
-    }
-
-    logTokenDeleted(accessToken, existed);
-  }
-
-  async cleanup(): Promise<number> {
-    let cleanedCount = 0;
-
-    for (const [accessToken, tokenInfo] of this.tokens.entries()) {
-      if (isTokenExpired(tokenInfo, accessToken)) {
-        this.tokens.delete(accessToken);
-        // Clean up secondary index
-        if (tokenInfo.refreshToken) {
-          this.refreshTokenIndex.delete(tokenInfo.refreshToken);
-        }
-        cleanedCount++;
-        logger.debug('Expired OAuth token cleaned up', {
-          tokenPrefix: accessToken.substring(0, 8),
-          provider: tokenInfo.provider,
-          expiredAt: new Date(tokenInfo.expiresAt ?? Date.now()).toISOString()
-        });
-      }
-    }
-
-    if (cleanedCount > 0) {
-      logger.info('Expired OAuth tokens cleanup completed', {
-        cleanedCount,
-        remainingCount: this.tokens.size
-      });
-    }
-
-    return cleanedCount;
-  }
-
-  async getTokenCount(): Promise<number> {
-    return this.tokens.size;
   }
 
   /**
