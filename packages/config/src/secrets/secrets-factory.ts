@@ -7,7 +7,7 @@
  * Detection Logic:
  * 1. If VERCEL=1 → VercelSecretsProvider
  * 2. If VAULT_ADDR set → VaultSecretsProvider
- * 3. If TOKEN_ENCRYPTION_KEY set → EncryptedFileSecretsProvider
+ * 3. If SECRETS_MASTER_KEY set → EncryptedFileSecretsProvider
  * 4. Otherwise → FileSecretsProvider (fallback)
  *
  * Usage:
@@ -15,7 +15,7 @@
  * import { createSecretsProvider } from './secrets-factory.js';
  *
  * const secrets = await createSecretsProvider();
- * const encryptionKey = await secrets.getSecret('TOKEN_ENCRYPTION_KEY');
+ * const clientSecret = await secrets.getSecret('GOOGLE_CLIENT_SECRET');
  * ```
  *
  * Testing:

@@ -8,6 +8,8 @@
  * - Error handling for various scenarios
  */
 
+import { getCurrentEnvironment } from './utils.js';
+
 interface MCPResponse<T = any> {
   jsonrpc: '2.0';
   id?: number | string | null;
@@ -34,11 +36,15 @@ interface ErrorResponse {
 }
 
 class MCPTestClient {
-  private baseUrl = 'http://localhost:3001'; // Use different port to avoid conflicts
+  private baseUrl: string;
   private defaultHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json, text/event-stream'
   };
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
 
   async post<T = any>(path: string, body?: any, headers: Record<string, string> = {}): Promise<{
     status: number;
@@ -105,10 +111,11 @@ const describeOrSkip = shouldSkip ? describe.skip : describe;
 
 describeOrSkip('MCP Session State Management System Tests', () => {
   let client: MCPTestClient;
+  const environment = getCurrentEnvironment();
 
   beforeAll(async () => {
-    client = new MCPTestClient();
-    console.log('🔍 Using global HTTP server on port 3001 (managed by Vitest global setup)');
+    client = new MCPTestClient(environment.baseUrl);
+    console.log(`🔍 Using global HTTP server at ${environment.baseUrl} (managed by Vitest global setup)`);
   });
 
   afterAll(async () => {

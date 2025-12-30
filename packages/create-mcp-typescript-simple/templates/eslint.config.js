@@ -42,23 +42,46 @@ export default [
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off', // Requires type information
 
       // Relaxed rules for test files
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-empty-function': ['warn', { allow: [] }], // Catch empty async methods
       'no-undef': 'off',
 
-      // SonarJS rules - relaxed for tests
-      'sonarjs/no-ignored-exceptions': 'error', // Still enforce (use // NOSONAR with explanation)
+      // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)
+      'sonarjs/no-ignored-exceptions': 'warn', // Empty catch blocks common in tests for expected failures
+      'sonarjs/assertions-in-tests': 'warn', // Some tests validate side effects, not return values
+      'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)
+      'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars
+
+      // Callback nesting depth (catch SonarQube brain-overload issues)
+      'max-nested-callbacks': ['error', { max: 4 }], // Limit callback nesting to 4 levels (SonarQube threshold)
+      'max-depth': ['warn', { max: 4 }], // Warn on deep block nesting
+
+      // SonarJS rules - LOW VALUE (disable for tests)
+      'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity
       'sonarjs/os-command': 'off',
       'sonarjs/no-os-command-from-path': 'off',
       'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks
       'sonarjs/no-nested-template-literals': 'off',
       'sonarjs/slow-regex': 'off',
-      'sonarjs/cognitive-complexity': ['warn', 20], // Higher threshold for tests
+      'sonarjs/cognitive-complexity': ['warn', 15], // Match SonarQube threshold (warn for visibility)
+      'sonarjs/no-nested-conditional': 'off', // Complex test setup sometimes needs nested conditionals
+      'sonarjs/no-hardcoded-passwords': 'off', // Test fixtures need test credentials
+      'sonarjs/no-hardcoded-secrets': 'off', // Test fixtures need test secrets
+      'sonarjs/pseudo-random': 'off', // Math.random() fine for test data
+      'sonarjs/no-empty-test-file': 'off', // Placeholder test files during development
+      'sonarjs/no-clear-text-protocols': 'off', // Tests use http://localhost
+      'sonarjs/todo-tag': 'warn', // Track TODOs without blocking
+      'sonarjs/unused-import': 'off', // Covered by @typescript-eslint/no-unused-vars
+      'sonarjs/no-identical-functions': 'off', // Test helper functions intentionally duplicated
+      'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files
+      'sonarjs/no-unused-collection': 'off', // Test data setup may create collections for side effects
 
-      // Code quality - strict in tests
+      // Code quality - ERROR in tests (autofix removes unused imports)
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
@@ -75,19 +98,24 @@ export default [
       'security/detect-non-literal-fs-filename': 'off', // Tests use temp paths
       'security/detect-object-injection': 'off', // TypeScript type safety covers this
 
-      // Import rules - catch duplicate imports
+      // Import rules - HIGH VALUE (catch duplicate imports)
       'import/no-duplicates': 'error',
 
-      // Unicorn rules - modern JavaScript
-      'unicorn/prefer-node-protocol': 'error',
-      'unicorn/prefer-number-properties': 'error',
-      'unicorn/throw-new-error': 'error',
-      'unicorn/prefer-module': 'error',
-      'unicorn/prefer-top-level-await': 'error',
-      'unicorn/no-array-for-each': 'error',
-      'unicorn/no-useless-undefined': 'error',
+      // Unicorn rules - HIGH VALUE (enforce in tests)
+      'unicorn/prefer-node-protocol': 'error', // Modern Node.js best practice
+
+      // Unicorn rules - LOW VALUE (disable for tests)
+      'unicorn/no-array-for-each': 'off', // .forEach() is readable in tests
+      'unicorn/no-useless-undefined': 'off', // Explicit undefined in test data is intentional
+      'unicorn/prefer-top-level-await': 'off', // Test frameworks handle async differently
+      'unicorn/prefer-number-properties': 'off', // Not worth the churn in tests
+      'unicorn/throw-new-error': 'off',
+      'unicorn/prefer-module': 'off',
       'unicorn/prefer-ternary': 'off',
-      'unicorn/prefer-string-raw': 'error',
+      'unicorn/prefer-string-raw': 'off',
+
+      // Security - check legitimate issues but allow test exceptions
+      'security/detect-unsafe-regex': 'warn', // Check but don't block on test regex
     },
   },
   {
@@ -125,6 +153,8 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error', // Catch unnecessary type assertions
+      '@typescript-eslint/no-empty-function': 'error', // Prevent empty functions in production
 
       // TypeScript async/promise safety - STRICT
       '@typescript-eslint/no-floating-promises': 'error',
@@ -186,6 +216,7 @@ export default [
       'unicorn/no-useless-undefined': 'error',
       'unicorn/prefer-ternary': 'off', // Can reduce readability
       'unicorn/prefer-string-raw': 'error',
+      'unicorn/prefer-export-from': 'error', // Use direct export-from pattern
     },
   },
   {
@@ -219,6 +250,7 @@ export default [
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off', // Requires type information
 
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',

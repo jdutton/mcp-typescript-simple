@@ -11,28 +11,35 @@ import { logger } from '../../logger.js';
 /**
  * Get Redis key prefix from environment variable
  *
- * @returns Key prefix from REDIS_KEY_PREFIX env var (empty string if not set)
+ * @returns Key prefix from REDIS_KEY_PREFIX env var (defaults to 'mcp' per ADR 006)
  */
 export function getRedisKeyPrefix(): string {
-  return process.env.REDIS_KEY_PREFIX ?? '';
+  return process.env.REDIS_KEY_PREFIX ?? 'mcp';
 }
 
 /**
- * Normalize Redis key prefix by ensuring it ends with a colon separator
+ * Normalize Redis key prefix by ensuring it ends with exactly one colon separator
  *
  * Converts:
  * - 'mcp-main' → 'mcp-main:'
  * - 'mcp-main:' → 'mcp-main:' (no change)
+ * - 'mcp-main::' → 'mcp-main:' (removes extra colons)
  * - '' → '' (empty string stays empty for backward compatibility)
  *
  * @param prefix User-provided key prefix (may or may not include trailing colon)
- * @returns Normalized prefix with trailing colon (or empty string if no prefix)
+ * @returns Normalized prefix with single trailing colon (or empty string if no prefix)
  */
 export function normalizeKeyPrefix(prefix: string): string {
   if (!prefix) {
     return ''; // Empty prefix for backward compatibility
   }
-  return prefix.endsWith(':') ? prefix : `${prefix}:`;
+  // Remove all trailing colons, then add exactly one
+  // Note: Using a simple while loop instead of regex to avoid potential ReDoS
+  let normalized = prefix;
+  while (normalized.endsWith(':')) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized + ':';
 }
 
 /**

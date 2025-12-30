@@ -1,12 +1,14 @@
 # ADR-004: Encryption Infrastructure and Hard Security Stance
 
 **Date:** 2025-10-26
-**Status:** ✅ Accepted and Implemented
+**Status:** ✅ Accepted and Implemented (Partially Superseded)
 **Related Issue:** #89 - Enterprise-Grade Security Implementation
 **Supersedes:** None
-**Superseded By:** None
+**Superseded By:** [ADR-006: Session-Based Authentication Caching](./006-session-based-auth-caching.md) (Token encryption only)
 
 **Note:** References to "phases" in this document are historical implementation tracking artifacts from the original PR. After merging to main, all encryption infrastructure exists as a unified feature set.
+
+**⚠️ Important:** ADR-006 eliminates bearer token storage and TOKEN_ENCRYPTION_KEY requirement. The encryption infrastructure for Initial Access Tokens (OAuth DCR) remains active. See ADR-006 for details on session-based authentication caching.
 
 ## Context
 

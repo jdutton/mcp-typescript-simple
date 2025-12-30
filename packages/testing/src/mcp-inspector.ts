@@ -12,9 +12,7 @@ import { Page } from '@playwright/test';
 import { ChildProcess, spawn } from 'node:child_process';
 import axios from 'axios';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { verifyPortsFreed } from './port-utils.js';
 import { stopProcessGroup } from './process-utils.js';
-import { setupTestEnvironment, TestEnvironmentCleanup } from './test-setup.js';
 import { TEST_PORTS } from './port-registry.js';
 import { registerProcess } from './signal-handler.js';
 
@@ -23,7 +21,8 @@ export const INSPECTOR_PORT = TEST_PORTS.INSPECTOR;
 export const INSPECTOR_URL = `http://localhost:${INSPECTOR_PORT}`;
 
 // Re-export for convenience
-export { setupTestEnvironment, type TestEnvironmentCleanup, verifyPortsFreed };
+export { setupTestEnvironment, type TestEnvironmentCleanup } from './test-setup.js';
+export { verifyPortsFreed } from './port-utils.js';
 
 /**
  * Start MCP Inspector process in its own process group

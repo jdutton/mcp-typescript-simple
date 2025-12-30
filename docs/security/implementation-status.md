@@ -58,8 +58,9 @@ All sensitive data (tokens, sessions, PII) encrypted using AES-256-GCM authentic
 - Manual Redis inspection confirms encrypted data
 
 **Related Documentation:**
-- [ADR-004: Encryption Infrastructure](../adr/004-encryption-infrastructure.md)
-- [Vercel Deployment Guide](../vercel-deployment.md) - TOKEN_ENCRYPTION_KEY setup
+- [ADR-004: Encryption Infrastructure](../adr/004-encryption-infrastructure.md) - Partially superseded by ADR-006
+- [ADR-006: Session-Based Authentication Caching](../adr/006-session-based-auth-caching.md)
+- [Vercel Deployment Guide](../vercel-deployment.md)
 
 ---
 
@@ -489,7 +490,7 @@ Vercel Dashboard:
 - `packages/http-server/src/server/mcp-instance-manager.ts`
 
 **Deployment & Configuration:**
-- `docs/vercel-deployment.md` (TOKEN_ENCRYPTION_KEY setup)
+- `docs/vercel-deployment.md` (deployment guide)
 - `docs/session-management.md` (SessionManager interface)
 - `CLAUDE.md` (required secrets and deployment guidance)
 - `vibe-validate.config.mjs` (Security Validation phase)
@@ -502,14 +503,11 @@ Vercel Dashboard:
 
 **Production (MANDATORY):**
 ```bash
-# Encryption key for Redis token storage (32-byte base64)
-TOKEN_ENCRYPTION_KEY="your-base64-key-here"
-
-# Generate with:
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-
 # Redis connection for multi-instance deployments
 REDIS_URL="redis://default:password@hostname:port"
+
+# Redis key prefix for multi-tenancy (optional, default: 'mcp')
+REDIS_KEY_PREFIX="mcp-prod"
 ```
 
 **GitHub Secrets (CI/CD):**
@@ -518,13 +516,11 @@ REDIS_URL="redis://default:password@hostname:port"
 VERCEL_TOKEN: <Vercel auth token>
 VERCEL_ORG_ID: <Vercel organization ID>
 VERCEL_PROJECT_ID: <Vercel project ID>
-TOKEN_ENCRYPTION_KEY: <Same 32-byte base64 key>
 ```
 
 ### Deployment Checklist
 
 **Pre-Deployment:**
-- [ ] `TOKEN_ENCRYPTION_KEY` set in Vercel environment variables
 - [ ] `REDIS_URL` configured for production Redis instance
 - [ ] All validation passing: `npm run validate`
 - [ ] Security scanners passing (exit code 0)

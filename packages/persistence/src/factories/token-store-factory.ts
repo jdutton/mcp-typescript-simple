@@ -17,6 +17,7 @@ import { TokenEncryptionService } from '../encryption/token-encryption-service.j
 import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
+import { createStore, type BaseStoreFactoryOptions } from './base-store-factory.js';
 
 export type TokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
 
@@ -71,27 +72,25 @@ export class TokenStoreFactory {
       REDIS_URL: !!process.env.REDIS_URL,
     });
 
+    const store = await createStore<InitialAccessTokenStore>(
+      options as BaseStoreFactoryOptions,
+      {
+        createAutoDetected: async () => this.createAutoDetected(options),
+        createMemoryStore: async () => this.createMemoryStore(options),
+        createRedisStore: async () => this.createRedisStore(),
+        createFileStore: async (opts) => this.createFileStore((opts as TokenStoreFactoryOptions | undefined) ?? options)
+      },
+      'token',
+      options
+    );
+
     if (storeType === 'auto') {
-      const store = await this.createAutoDetected(options);
       console.log('[TokenStoreFactory.create] Created store via auto-detect', {
         storeConstructorName: store.constructor.name,
       });
-      return store;
     }
 
-    switch (storeType) {
-      case 'memory':
-        return this.createMemoryStore(options);
-
-      case 'file':
-        return this.createFileStore(options);
-
-      case 'redis':
-        return this.createRedisStore();
-
-      default:
-        throw new Error(`Unknown token store type: ${storeType}`);
-    }
+    return store;
   }
 
   /**
@@ -222,7 +221,7 @@ export class TokenStoreFactory {
         detectedType = 'file';
       }
     } else {
-      detectedType = type as Exclude<TokenStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

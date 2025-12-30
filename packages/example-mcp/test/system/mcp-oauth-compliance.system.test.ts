@@ -115,7 +115,7 @@ describeSystemTest('MCP & OAuth 2.0 Specification Compliance Auditor', () => {
   });
 
   describe('OAuth 2.0 RFC 6750 Bearer Token Compliance', () => {
-    it('should comply with Section 3.1 - WWW-Authenticate Response Header Field', async () => {
+    it('should comply with Section 3.1 - WWW-Authenticate Response Header Field', async () => { // eslint-disable-line sonarjs/cognitive-complexity -- Complex test setup
       console.log('🔍 Auditing RFC 6750 Section 3.1 compliance...');
 
       // Check if auth is enabled first
@@ -202,7 +202,7 @@ describeSystemTest('MCP & OAuth 2.0 Specification Compliance Auditor', () => {
       console.log(`✅ WWW-Authenticate header: ${wwwAuth}`);
     });
 
-    it('should comply with Section 2.1 - Authorization Request Header Field', async () => {
+    it('should comply with Section 2.1 - Authorization Request Header Field', async () => { // eslint-disable-line sonarjs/cognitive-complexity -- Complex test setup
       console.log('🔍 Auditing RFC 6750 Section 2.1 compliance...');
 
       // Check if auth is enabled first

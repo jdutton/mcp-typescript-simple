@@ -3,35 +3,28 @@
  */
 
 import { vi } from 'vitest';
-import { RedisSessionStore, OAuthSession } from '../../src/index.js';
+import { RedisSessionStore } from '../../src/index.js';
+import {
+  RedisTestInstance,
+  createTestSession,
+} from '../helpers/redis-test-helpers.js';
 
-// Hoist Redis mock to avoid initialization issues
+// Hoist Redis mock at module scope (required for Vitest)
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires both default and named exports
+// Mock Redis for testing
 vi.mock('ioredis', () => ({
   default: RedisMock,
   Redis: RedisMock,
 }));
 
-// Create a shared Redis instance for cleanup
-let sharedRedis: any = null;
-
 describe('Redis OAuth Stores', () => {
   beforeEach(async () => {
-    if (!sharedRedis) {
-      sharedRedis = new (RedisMock as any)();
-    }
-    // Flush all data between tests
-    await sharedRedis.flushall();
+    await RedisTestInstance.flush();
   });
 
   afterAll(async () => {
-    // Clean up shared Redis instance
-    if (sharedRedis) {
-      await sharedRedis.quit();
-      sharedRedis = null;
-    }
+    await RedisTestInstance.cleanup();
   });
 
   describe('RedisSessionStore', () => {
@@ -49,15 +42,13 @@ describe('Redis OAuth Stores', () => {
     describe('storeSession', () => {
       it('should store session with TTL', async () => {
         const state = 'test-state-123';
-        const session: OAuthSession = {
-          provider: 'google',
+        const session = createTestSession({
           state,
+          provider: 'google',
           codeVerifier: 'test-verifier',
           codeChallenge: 'test-challenge',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['openid', 'profile', 'email'],
-          expiresAt: Date.now() + 600000, // 10 minutes
-        };
+        });
 
         await store.storeSession(state, session);
 
@@ -68,17 +59,15 @@ describe('Redis OAuth Stores', () => {
 
       it('should store session with all optional fields', async () => {
         const state = 'test-state-456';
-        const session: OAuthSession = {
-          provider: 'github',
+        const session = createTestSession({
           state,
+          provider: 'github',
           codeVerifier: 'test-verifier',
           codeChallenge: 'test-challenge-2',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['user:email'],
-          expiresAt: Date.now() + 600000,
           clientState: 'client-csrf-token',
           clientRedirectUri: 'http://localhost:6274/callback',
-        };
+        });
 
         await store.storeSession(state, session);
 
@@ -90,15 +79,13 @@ describe('Redis OAuth Stores', () => {
     describe('getSession', () => {
       it('should retrieve stored session', async () => {
         const state = 'test-state-789';
-        const session: OAuthSession = {
-          provider: 'microsoft',
+        const session = createTestSession({
           state,
+          provider: 'microsoft',
           codeVerifier: 'test-verifier',
           codeChallenge: 'test-challenge-3',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['openid'],
-          expiresAt: Date.now() + 600000,
-        };
+        });
 
         await store.storeSession(state, session);
         const retrieved = await store.getSession(state);
@@ -113,15 +100,14 @@ describe('Redis OAuth Stores', () => {
 
       it('should return null for expired session', async () => {
         const state = 'expired-state';
-        const session: OAuthSession = {
-          provider: 'google',
+        const session = createTestSession({
           state,
+          provider: 'google',
           codeVerifier: 'test-verifier',
           codeChallenge: 'test-challenge-4',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['openid'],
-          expiresAt: Date.now() - 1000, // Expired 1 second ago
-        };
+          expiresIn: -1000, // Expired 1 second ago
+        });
 
         await store.storeSession(state, session);
         const retrieved = await store.getSession(state);
@@ -133,15 +119,13 @@ describe('Redis OAuth Stores', () => {
     describe('deleteSession', () => {
       it('should delete existing session', async () => {
         const state = 'delete-test-state';
-        const session: OAuthSession = {
-          provider: 'google',
+        const session = createTestSession({
           state,
+          provider: 'google',
           codeVerifier: 'test-verifier',
           codeChallenge: 'test-challenge-5',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['openid'],
-          expiresAt: Date.now() + 600000,
-        };
+        });
 
         await store.storeSession(state, session);
         await store.deleteSession(state);
@@ -166,25 +150,21 @@ describe('Redis OAuth Stores', () => {
     describe('getSessionCount', () => {
       it('should return correct session count', async () => {
         // Store multiple sessions
-        await store.storeSession('state-1', {
-          provider: 'google',
+        await store.storeSession('state-1', createTestSession({
           state: 'state-1',
+          provider: 'google',
           codeVerifier: 'verifier-1',
           codeChallenge: 'challenge-1',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['openid'],
-          expiresAt: Date.now() + 600000,
-        });
+        }));
 
-        await store.storeSession('state-2', {
-          provider: 'github',
+        await store.storeSession('state-2', createTestSession({
           state: 'state-2',
+          provider: 'github',
           codeVerifier: 'verifier-2',
           codeChallenge: 'challenge-2',
-          redirectUri: 'http://localhost:3000/callback',
           scopes: ['user:email'],
-          expiresAt: Date.now() + 600000,
-        });
+        }));
 
         const count = await store.getSessionCount();
         expect(count).toBe(2);

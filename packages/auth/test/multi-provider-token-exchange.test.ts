@@ -104,6 +104,7 @@ describe('Multi-Provider Token Exchange', () => {
   });
 
   describe('Fallback to sequential provider trial', () => {
+    // eslint-disable-next-line sonarjs/cognitive-complexity -- Complex test setup
     it('should try each provider when no stored code_verifier found', async () => {
       const googleProvider = {
         hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
@@ -153,7 +154,7 @@ describe('Multi-Provider Token Exchange', () => {
       expect(errors[0]).toEqual({ provider: 'google', error: 'Invalid code' });
     });
 
-    it('should aggregate errors when all providers fail', async () => {
+    it('should aggregate errors when all providers fail', async () => { // eslint-disable-line sonarjs/cognitive-complexity -- Complex test setup
       const googleProvider = {
         hasStoredCodeForProvider: vi.fn<(_code: string) => Promise<boolean>>().mockResolvedValue(false),
         handleTokenExchange: vi.fn<(_req: Request, _res: Response) => Promise<void>>().mockRejectedValue(new Error('Google: Invalid code')),

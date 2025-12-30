@@ -266,14 +266,20 @@ describe('Route Coverage - Detect Undocumented Routes', () => {
 
       // Log documented routes by tag
       const routesByTag: { [key: string]: number } = {};
-      Object.entries(openapiSpec.paths || {}).forEach(([_path, methods]: [string, any]) => {
+
+      // Helper to count tags from method definitions
+      const countTagsInMethods = (methods: any, tagCounts: { [key: string]: number }) => {
         Object.values(methods).forEach((methodDef: any) => {
           if (methodDef.tags) {
             methodDef.tags.forEach((tag: string) => {
-              routesByTag[tag] = (routesByTag[tag] || 0) + 1;
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
             });
           }
         });
+      };
+
+      Object.entries(openapiSpec.paths || {}).forEach(([_path, methods]: [string, any]) => {
+        countTagsInMethods(methods, routesByTag);
       });
 
       console.log('\n  Routes by category:');

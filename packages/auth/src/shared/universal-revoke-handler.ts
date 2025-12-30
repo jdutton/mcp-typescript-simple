@@ -28,7 +28,6 @@ import {
  * @param res - Response adapter
  * @param providers - Map of available OAuth providers
  */
-// eslint-disable-next-line sonarjs/cognitive-complexity -- RFC 7009 compliance requires nested validation and multi-provider search logic
 export async function handleUniversalRevokeRequest(
   req: OAuthRequestAdapter,
   res: OAuthResponseAdapter,
@@ -49,33 +48,14 @@ export async function handleUniversalRevokeRequest(
       return;
     }
 
-    // Try to revoke token from each provider
-    // RFC 7009 Section 2.2: "The authorization server responds with HTTP status code 200
+    // ADR 006: Tokens are not stored server-side
+    // Per RFC 7009 Section 2.2: "The authorization server responds with HTTP status code 200
     // if the token has been revoked successfully or if the client submitted an invalid token"
-    for (const [providerType, provider] of providers.entries()) {
-      try {
-        // Check if provider has this token
-        if ('getToken' in provider) {
-          const storedToken = await (provider as unknown as { getToken: (_token: string) => Promise<unknown> }).getToken(token);
-          if (storedToken) {
-            // Remove token from provider's store
-            await provider.removeToken(token);
-            logger.debug('Token revoked successfully', { provider: providerType });
-            break; // Token found and removed, stop searching
-          }
-        } else {
-          // If provider doesn't support getToken, try removing anyway
-          await provider.removeToken(token);
-          logger.debug('Token removal attempted', { provider: providerType });
-          break;
-        }
-      } catch (error) {
-        // Per RFC 7009 Section 2.2: "invalid tokens do not cause an error"
-        // Continue trying other providers
-        logger.debug('Token removal failed, trying next provider', { provider: providerType, error });
-        continue;
-      }
-    }
+    // Since tokens are client-managed, we simply acknowledge the revocation request
+    logger.debug('Token revocation requested (client-managed tokens, no server-side storage)', {
+      tokenPrefix: token.substring(0, 8),
+      providers: Array.from(providers.keys())
+    });
 
     // Always return 200 OK per RFC 7009 (even if token not found)
     sendOAuthSuccess(res, { success: true });

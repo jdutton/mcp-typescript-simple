@@ -9,6 +9,8 @@
  * Fix: Added header to both Express server and Vercel serverless endpoint
  */
 
+import { getCurrentEnvironment } from './utils.js';
+
 interface MCPResponse<T = any> {
   jsonrpc: '2.0';
   id?: number | string | null;
@@ -20,11 +22,15 @@ interface MCPResponse<T = any> {
 }
 
 class MCPTestClient {
-  private baseUrl = 'http://localhost:3001';
+  private baseUrl: string;
   private defaultHeaders = {
     'Content-Type': 'application/json',
     'Accept': 'application/json, text/event-stream'
   };
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
 
   async post<T = any>(path: string, body?: any): Promise<{
     status: number;
@@ -70,9 +76,10 @@ const describeIfExpress = testEnv === 'express' ? describe : describe.skip;
 
 describeIfExpress('MCP CORS Headers', () => {
   let client: MCPTestClient;
+  const environment = getCurrentEnvironment();
 
   beforeAll(() => {
-    client = new MCPTestClient();
+    client = new MCPTestClient(environment.baseUrl);
   });
 
   describe('Access-Control-Expose-Headers', () => {
@@ -166,7 +173,7 @@ describeIfExpress('MCP CORS Headers', () => {
 
   describe('CORS Preflight (OPTIONS)', () => {
     it('should include mcp-session-id in allowed and exposed headers', async () => {
-      const response = await fetch('http://localhost:3001/mcp', {
+      const response = await fetch(`${environment.baseUrl}/mcp`, {
         method: 'OPTIONS',
         headers: {
           'Origin': 'http://localhost:6274',

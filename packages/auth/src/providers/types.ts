@@ -7,9 +7,19 @@ import { OAuthTokenVerifier } from '@modelcontextprotocol/sdk/server/auth/provid
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 
 /**
- * Supported OAuth provider types
+ * Import and re-export shared OAuth types from persistence package (single source of truth)
+ * This eliminates type duplication across packages.
  */
-export type OAuthProviderType = 'google' | 'github' | 'microsoft' | 'generic';
+// Import types used locally in this file
+import type { OAuthProviderType, OAuthUserInfo } from '@mcp-typescript-simple/persistence';
+
+// Re-export all shared types (including those only used by consumers)
+export type {
+  OAuthProviderType,
+  OAuthUserInfo,
+  OAuthSession,
+  StoredTokenInfo
+} from '@mcp-typescript-simple/persistence';
 
 /**
  * Base configuration for any OAuth provider
@@ -75,18 +85,6 @@ export interface OAuthEndpoints {
 }
 
 /**
- * User information returned from OAuth providers
- */
-export interface OAuthUserInfo {
-  sub: string;          // Subject identifier (unique user ID)
-  email: string;        // User email address
-  name: string;         // Display name
-  picture?: string;     // Profile picture URL
-  provider: string;     // Provider name
-  providerData?: unknown;   // Provider-specific additional data
-}
-
-/**
  * OAuth token response from provider
  */
 export interface OAuthTokenResponse {
@@ -107,34 +105,6 @@ export interface ProviderTokenResponse {
   scope?: string;
   token_type?: string;
   [key: string]: unknown;
-}
-
-/**
- * OAuth session data stored during the flow
- */
-export interface OAuthSession {
-  state: string;
-  codeVerifier: string;
-  codeChallenge: string;
-  redirectUri: string;
-  clientRedirectUri?: string; // Original client redirect URI (e.g., MCP Inspector, Claude Code)
-  clientState?: string; // Original client state parameter (for OAuth clients that manage their own state)
-  scopes: string[];
-  provider: OAuthProviderType;
-  expiresAt: number;
-}
-
-/**
- * Stored token information with user data
- */
-export interface StoredTokenInfo {
-  accessToken: string;
-  refreshToken?: string;
-  idToken?: string;
-  expiresAt: number;
-  userInfo: OAuthUserInfo;
-  provider: OAuthProviderType;
-  scopes: string[];
 }
 
 /**
@@ -174,13 +144,6 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   handleAuthorizationCallback(_req: Request, _res: Response): Promise<void>;
 
   /**
-   * Check if this provider has a token in its local store (no external API call)
-   * Returns true if the token exists in this provider's token store
-   * This is a fast, local-only lookup to identify which provider owns a token
-   */
-  hasToken(_accessToken: string): Promise<boolean>;
-
-  /**
    * Handle token refresh requests
    * Refreshes an expired access token using the refresh token
    */
@@ -199,29 +162,26 @@ export interface OAuthProvider extends OAuthTokenVerifier {
   verifyAccessToken(_token: string): Promise<AuthInfo>;
 
   /**
+   * Verify an access token using session-based authentication caching (ADR 006)
+   *
+   * Provides O(1) provider lookup, token binding verification, JWT validation,
+   * and TTL-based caching for opaque tokens.
+   *
+   * @param token - Bearer access token from Authorization header
+   * @param sessionId - Session ID from mcp-session-id header
+   * @returns AuthInfo with user identity and scopes
+   */
+  verifyAccessTokenWithSession(_token: string, _sessionId: string): Promise<AuthInfo>;
+
+  /**
    * Get user information from an access token
    */
   getUserInfo(_accessToken: string): Promise<OAuthUserInfo>;
 
   /**
-   * Check if a token is valid and not expired
-   */
-  isTokenValid(_token: string): Promise<boolean>;
-
-  /**
    * Get the current session count for monitoring
    */
   getSessionCount(): Promise<number>;
-
-  /**
-   * Get the current token count for monitoring
-   */
-  getTokenCount(): Promise<number>;
-
-  /**
-   * Remove a token from the provider's token store (RFC 7009 token revocation)
-   */
-  removeToken(_token: string): Promise<void>;
 
   /**
    * Clean up expired sessions and tokens

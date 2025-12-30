@@ -1,125 +1,25 @@
 import { vi } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import {
-  BaseOAuthProvider
-, OAuthTokenError , OAuthSessionStore , OAuthTokenStore } from '@mcp-typescript-simple/auth';
+  OAuthTokenError
+} from '@mcp-typescript-simple/auth';
 import type {
   OAuthConfig,
-  OAuthEndpoints,
-  OAuthProviderType,
   OAuthSession,
-  OAuthUserInfo,
-  ProviderTokenResponse,
-  StoredTokenInfo
+  ProviderTokenResponse
 } from '@mcp-typescript-simple/auth';
-import { PKCEStore , MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
+import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
+import { MockOAuthProvider } from '../../../http-server/test/helpers/mock-oauth-provider.js';
 
-type MockResponse = Response & {
-  statusCode?: number;
-  jsonPayload?: unknown;
-};
-
-
-/* eslint-disable sonarjs/no-unused-vars */
-const createResponse = (): MockResponse => {
-  const res: Partial<Response> & {
-    statusCode?: number;
-    jsonPayload?: unknown;
-  } = {};
-  res.status = vi.fn((code: number) => {
-    res.statusCode = code;
-    return res as Response;
-  });
-  res.json = vi.fn((payload: unknown) => {
-    res.jsonPayload = payload;
-    return res as Response;
-  });
-  res.redirect = vi.fn(() => res as Response);
-  res.setHeader = vi.fn(() => res as Response);
-  return res as MockResponse;
-};
+import { createMockResponse as createResponse, jsonReply } from './test-helpers.js';
 
 type SessionAccess = {
   storeSession(_state: string, _session: OAuthSession): Promise<void>;
   getSession(_state: string): Promise<OAuthSession | null>;
   removeSession(_state: string): Promise<void>;
-  storeToken(_token: string, _info: StoredTokenInfo): Promise<void>;
-  getToken(_token: string): Promise<StoredTokenInfo | null>;
-  removeToken(_token: string): Promise<void>;
   cleanup(): Promise<void>;
-  getTokenCount(): Promise<number>;
 };
-
-class TestOAuthProvider extends BaseOAuthProvider {
-  constructor(config: OAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
-  }
-
-  getProviderType(): OAuthProviderType {
-    return 'google';
-  }
-
-  getProviderName(): string {
-    return 'Test';
-  }
-
-  getEndpoints(): OAuthEndpoints {
-    return {
-      authEndpoint: '/auth',
-      callbackEndpoint: '/callback',
-      refreshEndpoint: '/refresh',
-      logoutEndpoint: '/logout'
-    };
-  }
-
-  getDefaultScopes(): string[] {
-    return ['scope'];
-  }
-
-  async handleAuthorizationRequest(_req: Request, _res: Response): Promise<void> {}
-
-  async handleAuthorizationCallback(_req: Request, _res: Response): Promise<void> {}
-
-  async handleTokenRefresh(_req: Request, _res: Response): Promise<void> {}
-
-  async handleLogout(_req: Request, _res: Response): Promise<void> {}
-
-  async verifyAccessToken(token: string) {
-    return {
-      token,
-      clientId: this.config.clientId,
-      scopes: ['scope'],
-      expiresAt: Math.floor((Date.now() + 1000) / 1000),
-      extra: {
-        userInfo: await this.getUserInfo(token),
-        provider: 'google'
-      }
-    };
-  }
-
-  async getUserInfo(_accessToken: string): Promise<OAuthUserInfo> {
-    return {
-      sub: '123',
-      provider: 'google',
-      email: 'user@example.com',
-      name: 'User'
-    };
-  }
-
-  protected getTokenUrl(): string {
-    return 'https://example.com/token';
-  }
-
-  protected async fetchUserInfo(_accessToken: string): Promise<OAuthUserInfo> {
-    return {
-      sub: '123',
-      provider: 'google',
-      email: 'user@example.com',
-      name: 'User'
-    };
-  }
-}
 
 const baseConfig: OAuthConfig = {
   clientId: 'client-id',
@@ -130,7 +30,7 @@ const baseConfig: OAuthConfig = {
 };
 
 describe('BaseOAuthProvider', () => {
-  let provider: TestOAuthProvider;
+  let provider: MockOAuthProvider;
   let sessionAccess: SessionAccess;
   let originalFetch: typeof globalThis.fetch;
   const fetchMock = vi.fn() as MockFunction<typeof fetch>;
@@ -148,7 +48,7 @@ describe('BaseOAuthProvider', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
     fetchMock.mockReset();
-    provider = new TestOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    provider = new MockOAuthProvider(baseConfig, 'google', new MemoryPKCEStore());
     sessionAccess = provider as unknown as SessionAccess;
   });
 
@@ -157,16 +57,7 @@ describe('BaseOAuthProvider', () => {
     vi.useRealTimers();
   });
 
-  const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) => {
-    const payload = typeof body === 'string' ? body : JSON.stringify(body);
-    return new Response(payload, {
-      status: init?.status ?? 200,
-      statusText: init?.statusText,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  };
-
-  it('cleans up expired sessions and tokens', async () => {
+  it('cleans up expired sessions', async () => {
     const now = Date.now();
     const expiredSession: OAuthSession = {
       state: 'expired',
@@ -178,63 +69,14 @@ describe('BaseOAuthProvider', () => {
       expiresAt: now - 10
     };
 
-    sessionAccess.storeSession('expired', expiredSession);
-    sessionAccess.storeSession('valid', { ...expiredSession, state: 'valid', expiresAt: now + 5000 });
-
-    sessionAccess.storeToken('expired-token', {
-      accessToken: 'expired-token',
-      expiresAt: now - 10,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
-
-    sessionAccess.storeToken('valid-token', {
-      accessToken: 'valid-token',
-      expiresAt: now + 60_000,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
+    await sessionAccess.storeSession('expired', expiredSession);
+    await sessionAccess.storeSession('valid', { ...expiredSession, state: 'valid', expiresAt: now + 5000 });
 
     await sessionAccess.cleanup();
 
-    const _tokenStore = provider as unknown as { tokens: Map<string, StoredTokenInfo> };
-
+    // ADR 006: Only sessions are stored, tokens are client-managed
     expect(await sessionAccess.getSession('expired')).toBeNull();
     expect(await sessionAccess.getSession('valid')).toBeDefined();
-    expect(await sessionAccess.getToken('expired-token')).toBeNull();
-    expect(await sessionAccess.getToken('valid-token')).toBeDefined();
-  });
-
-  it('removes tokens that are expiring within buffer during validation', async () => {
-    const now = Date.now();
-    sessionAccess.storeToken('token', {
-      accessToken: 'token',
-      expiresAt: now + 500,
-      provider: 'google',
-      scopes: ['scope'],
-      userInfo: {
-        sub: '123',
-        provider: 'google',
-        email: 'user@example.com',
-        name: 'User'
-      }
-    });
-
-    const result = await provider.isTokenValid('token');
-    expect(result).toBe(false);
-    expect(await sessionAccess.getToken('token')).toBeNull();
   });
 
   it('exchanges authorization code for tokens and returns JSON response', async () => {
@@ -298,6 +140,46 @@ describe('BaseOAuthProvider', () => {
   });
 
   describe('OAuth Client State Preservation (Claude Code / MCP Inspector compatibility)', () => {
+    /**
+     * Helper to create a test OAuth session with client redirect parameters
+     */
+    const createTestSession = (
+      serverState: string,
+      authCode: string,
+      options?: {
+        clientState?: string;
+        clientRedirectUri?: string;
+        scopes?: string[];
+      }
+    ): OAuthSession => {
+      return {
+        state: serverState,
+        codeVerifier: 'verifier',
+        codeChallenge: 'challenge',
+        redirectUri: 'http://localhost:3000/auth/callback',
+        clientRedirectUri: options?.clientRedirectUri,
+        clientState: options?.clientState,
+        scopes: options?.scopes ?? ['openid', 'profile', 'email'],
+        provider: 'google',
+        expiresAt: Date.now() + 600000
+      };
+    };
+
+    /**
+     * Helper to test handleClientRedirect with a session
+     */
+    const testClientRedirect = async (
+      serverState: string,
+      authCode: string,
+      sessionOptions?: Parameters<typeof createTestSession>[2]
+    ) => {
+      const res = createResponse();
+      const session = createTestSession(serverState, authCode, sessionOptions);
+      sessionAccess.storeSession(serverState, session);
+      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+      return { handled, res, session };
+    };
+
     it('stores and retrieves client state in OAuth session', () => {
       const serverState = 'server-state-123';
       const clientState = 'client-state-456';
@@ -320,26 +202,14 @@ describe('BaseOAuthProvider', () => {
     });
 
     it('handles client redirect with client original state', async () => {
-      const res = createResponse();
       const serverState = 'server-state-abc';
       const clientState = 'client-state-xyz';
       const authCode = 'auth-code-123';
 
-      const session: OAuthSession = {
-        state: serverState,
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
-        redirectUri: 'http://localhost:3000/auth/callback',
-        clientRedirectUri: 'http://localhost:50151/callback',
-        clientState: clientState,
-        scopes: ['openid', 'profile', 'email'],
-        provider: 'google',
-        expiresAt: Date.now() + 600000
-      };
-
-      sessionAccess.storeSession(serverState, session);
-
-      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+      const { handled, res } = await testClientRedirect(serverState, authCode, {
+        clientState,
+        clientRedirectUri: 'http://localhost:50151/callback'
+      });
 
       expect(handled).toBe(true);
       expect(res.redirect).toHaveBeenCalledWith(
@@ -354,25 +224,13 @@ describe('BaseOAuthProvider', () => {
     });
 
     it('falls back to server state when client state not provided', async () => {
-      const res = createResponse();
       const serverState = 'server-state-only';
       const authCode = 'auth-code-456';
 
-      const session: OAuthSession = {
-        state: serverState,
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
-        redirectUri: 'http://localhost:3000/auth/callback',
+      const { handled, res } = await testClientRedirect(serverState, authCode, {
         clientRedirectUri: 'http://localhost:6274/callback',
-        // No clientState provided
-        scopes: ['openid', 'profile'],
-        provider: 'google',
-        expiresAt: Date.now() + 600000
-      };
-
-      sessionAccess.storeSession(serverState, session);
-
-      const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
+        scopes: ['openid', 'profile']
+      });
 
       expect(handled).toBe(true);
       expect(res.redirect).toHaveBeenCalledWith(
@@ -385,16 +243,9 @@ describe('BaseOAuthProvider', () => {
       const serverState = 'server-state-123';
       const authCode = 'auth-code-789';
 
-      const session: OAuthSession = {
-        state: serverState,
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
-        redirectUri: 'http://localhost:3000/auth/callback',
-        // No clientRedirectUri
-        scopes: ['openid'],
-        provider: 'google',
-        expiresAt: Date.now() + 600000
-      };
+      const session = createTestSession(serverState, authCode, {
+        scopes: ['openid']
+      });
 
       const handled = await provider['handleClientRedirect'](session, authCode, serverState, res as Response);
 
@@ -506,20 +357,7 @@ describe('BaseOAuthProvider', () => {
 
         const res = createResponse();
 
-        // Store token
-        await sessionAccess.storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600000,
-          provider: 'google',
-          scopes: ['scope'],
-          userInfo: {
-            sub: '123',
-            provider: 'google',
-            email: 'user@example.com',
-            name: 'User'
-          }
-        });
-
+        // ADR 006: Tokens are not stored server-side, logout succeeds regardless
         // Execute logout - should complete without throwing
         await expect(provider.handleLogout(req, res)).resolves.not.toThrow();
       });

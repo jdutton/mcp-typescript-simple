@@ -43,7 +43,7 @@ async function testProviderAvailability() {
       };
 
       child.stdout.on('data', onData);
-      child.stderr.on('data', () => {}); // Silence server logs
+      child.stderr.on('data', () => { /* no-op */ }); // Silence server logs
       child.stdin.write(JSON.stringify(request) + '\n');
     });
   };

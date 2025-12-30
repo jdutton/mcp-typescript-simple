@@ -42,7 +42,7 @@ async function testModelSelection() {
       };
 
       child.stdout.on('data', onData);
-      child.stderr.on('data', () => {}); // Silence server logs for cleaner output
+      child.stderr.on('data', () => { /* no-op */ }); // Silence server logs for cleaner output
       child.stdin.write(JSON.stringify(request) + '\n');
     });
   };

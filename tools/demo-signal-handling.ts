@@ -48,7 +48,7 @@ async function startServer(port: number): Promise<ChildProcess> {
     });
 
     // Keep server alive
-    setInterval(() => {}, 1000);
+    setInterval(() => { /* no-op */ }, 1000);
   `], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {
@@ -148,7 +148,7 @@ async function main() {
   console.log('   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
   // Keep the script alive
-  await new Promise(() => {});
+  await new Promise(() => { /* no-op */ });
 }
 
 // Run the demo

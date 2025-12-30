@@ -125,7 +125,7 @@ describe('OAuthProviderFactory', () => {
   });
 
   it('returns null when no OAuth providers are configured', async () => {
-    const warnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => { /* no-op mock */ });
     // No OAuth credentials set - beforeEach already cleared environment
 
     const providers = await OAuthProviderFactory.createAllFromEnvironment();

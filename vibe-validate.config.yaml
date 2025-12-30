@@ -39,14 +39,14 @@ validation:
           command: npm run typecheck
         - name: ESLint
           command: npm run lint
+        - name: Code Duplication Check
+          command: npm run duplication-check
         - name: OpenAPI Validation
           command: npm run test:openapi
         - name: Security Check
           command: npm run security:check
         - name: Wildcard Dependencies Check
           command: npm run validate:wildcards
-        - name: Contract Tests
-          command: npm run test:contract:local
         - name: Build Packages
           command: npm run build
         - name: Unit Tests
@@ -54,11 +54,18 @@ validation:
         - name: Integration Tests
           command: npm run test:integration
 
-    # Phase 2: System Tests (3 parallel runners, ~3-5 min each)
+    # Phase 2: System Tests (4 parallel runners, ~3-5 min each)
     # Only parallelize long-running tests where it provides real benefit
+    # Port allocation (configured in package.json scripts):
+    #   - Contract Tests: HTTP port 3001 (test:contract:local)
+    #   - System Tests (HTTP): HTTP port 3002 (test:system:ci)
+    #   - System Tests (STDIO): No HTTP port (test:system:stdio)
+    #   - Headless Browser Tests: Playwright ports 4001+ (browser automation)
     - name: 'System Tests'
       parallel: true  # Parallel execution for slow tests
       steps:
+        - name: Contract Tests
+          command: npm run test:contract:local
         - name: System Tests (STDIO)
           command: npm run test:system:stdio
         - name: System Tests (HTTP)

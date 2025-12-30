@@ -1,19 +1,37 @@
 import { vi } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import type {
-  MicrosoftOAuthConfig,
-  OAuthSession,
-  StoredTokenInfo,
-  OAuthUserInfo
+  MicrosoftOAuthConfig
 } from '@mcp-typescript-simple/auth';
 import { logger } from '@mcp-typescript-simple/auth';
 import { MemoryPKCEStore } from '@mcp-typescript-simple/persistence';
 
+import {
+  createMockResponse,
+  setupFetchMocking,
+  testAuthorizationRequestParams,
+  testAntiCachingHeaders,
+  testAuthorizationCallbackSuccess,
+  testOAuthCallbackErrors,
+  createTestAuthCache,
+  testCachedAuthentication,
+  testTokenExchangeSuccess,
+  testSilentCodeVerifierMissing,
+  testTokenRefreshFlow,
+  testTokenRefreshMissingToken,
+  testLogoutFlow,
+  testVerifyAccessTokenValid,
+  testVerifyAccessTokenFetchesUserInfo,
+  testVerifyAccessTokenInvalid,
+  testGetUserInfoSuccess,
+  testGetUserInfoFromAPI,
+  testGetUserInfoError,
+  testProviderMetadata
+} from './test-helpers.js';
 
-/* eslint-disable sonarjs/no-unused-vars */
-let originalFetch: typeof globalThis.fetch;
 const fetchMock = vi.fn() as MockFunction<typeof fetch>;
+const { setupFetchBeforeAll, restoreFetchAfterAll, resetMocksBeforeEach } = setupFetchMocking(fetchMock);
 
 const baseConfig: MicrosoftOAuthConfig = {
   type: 'microsoft',
@@ -24,493 +42,167 @@ const baseConfig: MicrosoftOAuthConfig = {
   tenantId: 'common'
 };
 
-type MockResponse = Response & {
-  statusCode?: number;
-  jsonPayload?: unknown;
-  redirectUrl?: string;
-  headers?: Record<string, string>;
-};
-
-const createMockResponse = (): MockResponse => {
-  const data: Partial<Response> & {
-    statusCode?: number;
-    jsonPayload?: unknown;
-    redirectUrl?: string;
-    headers?: Record<string, string>;
-  } = {
-    headers: {}
-  };
-
-  data.status = vi.fn((code: number) => {
-    data.statusCode = code;
-    return data as Response;
-  });
-  data.json = vi.fn((payload: unknown) => {
-    data.jsonPayload = payload;
-    return data as Response;
-  });
-  data.redirect = vi.fn((statusOrUrl: number | string, maybeUrl?: string) => {
-    if (typeof statusOrUrl === 'number') {
-      data.statusCode = statusOrUrl;
-      data.redirectUrl = maybeUrl ?? '';
-    } else {
-      data.redirectUrl = statusOrUrl;
-    }
-    return data as Response;
-  });
-  data.set = vi.fn((name: string, value?: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-  data.setHeader = vi.fn((name: string, value: string | string[]) => {
-    if (data.headers && typeof value === 'string') {
-      data.headers[name] = value;
-    }
-    return data as Response;
-  });
-
-  return data as MockResponse;
-};
-
-const jsonReply = <T>(body: T, init?: { status?: number; statusText?: string }) => {
-  const payload = typeof body === 'string' ? body : JSON.stringify(body);
-  return new Response(payload, {
-    status: init?.status ?? 200,
-    statusText: init?.statusText,
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
-
 let MicrosoftOAuthProvider: typeof import('@mcp-typescript-simple/auth').MicrosoftOAuthProvider;
+
+/**
+ * Helper to create a valid JWT token (simplified format for testing)
+ */
+function createTestJWT(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const signature = Buffer.from('fake-signature').toString('base64url');
+  return `${header}.${payloadStr}.${signature}`;
+}
 
 beforeAll(async () => {
   ({ MicrosoftOAuthProvider } = await import('@mcp-typescript-simple/auth'));
 });
 
 describe('MicrosoftOAuthProvider', () => {
-  beforeAll(() => {
-    originalFetch = globalThis.fetch;
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
-  });
-
-  afterAll(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  beforeEach(() => {
-    fetchMock.mockReset();
-    vi.clearAllMocks();
-  });
+  beforeAll(setupFetchBeforeAll);
+  afterAll(restoreFetchAfterAll);
+  beforeEach(resetMocksBeforeEach);
 
   const createProvider = () => {
-    return new MicrosoftOAuthProvider(baseConfig, undefined, undefined, new MemoryPKCEStore());
+    return new MicrosoftOAuthProvider(baseConfig, undefined, new MemoryPKCEStore());
   };
 
   describe('handleAuthorizationRequest', () => {
+    // eslint-disable-next-line sonarjs/assertions-in-tests
     it('redirects to authorization URL with correct parameters', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      expect(res.redirect).toHaveBeenCalledTimes(1);
-      const redirectUrl = res.redirectUrl;
-
-      expect(redirectUrl).toContain('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
-      expect(redirectUrl).toContain('client_id=client-id');
-      expect(redirectUrl).toContain('redirect_uri=');
-      expect(redirectUrl).toContain('response_type=code');
-      expect(redirectUrl).toContain('scope=');
-      expect(redirectUrl).toContain('state=');
-      expect(redirectUrl).toContain('code_challenge=');
-      expect(redirectUrl).toContain('code_challenge_method=S256');
-
-      loggerInfoSpy.mockRestore();
-      provider.dispose();
+      await testAuthorizationRequestParams(createProvider, 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize');
     });
 
+    // eslint-disable-next-line sonarjs/assertions-in-tests
     it('sets anti-caching headers', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-
-      const loggerInfoSpy = vi.spyOn(logger, 'oauthInfo').mockImplementation(() => {});
-
-      await provider.handleAuthorizationRequest({} as Request, res);
-
-      // Anti-caching headers should be set
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', expect.stringContaining('no-store'));
-
-      loggerInfoSpy.mockRestore();
-      provider.dispose();
+      await testAntiCachingHeaders(createProvider);
     });
   });
 
   describe('handleAuthorizationCallback', () => {
-    it('exchanges code for tokens and fetches user info', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-
-      // Store a session first
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+    it('exchanges code for tokens and fetches user info', testAuthorizationCallbackSuccess(
+      createProvider,
+      {
+        provider: 'microsoft',
         redirectUri: baseConfig.redirectUri,
         scopes: baseConfig.scopes,
-        provider: 'microsoft',
-        expiresAt: now + 5_000
-      });
-
-      // Mock token exchange response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'access-token',
-        token_type: 'Bearer',
-        scope: 'openid profile email',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
-      }));
-
-      // Mock Microsoft user response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user123',
-        mail: 'test@example.com',
-        displayName: 'Test User'
-      }));
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          code: 'auth-code',
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.json).toHaveBeenCalledTimes(1);
-      expect(res.jsonPayload).toMatchObject({
-        access_token: 'access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        user: {
+        mockTokenResponse: {
+          access_token: 'access-token',
+          token_type: 'Bearer',
+          scope: 'openid profile email',
+          expires_in: 3600,
+          refresh_token: 'refresh-token'
+        },
+        mockUserResponses: [
+          {
+            id: 'user123',
+            mail: 'test@example.com',
+            displayName: 'Test User'
+          }
+        ],
+        expectedUser: {
           sub: 'user123',
           email: 'test@example.com',
           name: 'Test User',
           provider: 'microsoft'
+        },
+        expectedTokenResponse: {
+          access_token: 'access-token',
+          token_type: 'Bearer',
+          expires_in: 3600
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('returns error if code is missing', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        query: {
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Missing authorization code or state'
-      });
-
-      provider.dispose();
-    });
-
-    it('returns error if OAuth provider returns error', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        query: {
-          error: 'access_denied',
-          error_description: 'User denied access'
-        }
-      } as unknown as Request;
-
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({
-        error: 'Authorization failed',
-        details: 'access_denied'
-      });
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
-
-    it('returns error when token exchange does not provide access token', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      (provider as unknown as { storeSession: (_state: string, _session: OAuthSession) => void }).storeSession('state123', {
-        state: 'state123',
-        codeVerifier: 'verifier',
-        codeChallenge: 'challenge',
+    describe('OAuth callback error handling', testOAuthCallbackErrors(
+      createProvider,
+      {
         redirectUri: baseConfig.redirectUri,
         scopes: baseConfig.scopes,
-        provider: 'microsoft',
-        expiresAt: now + 5_000
-      });
-
-      // Mock empty token response
-      fetchMock.mockResolvedValueOnce(jsonReply({}));
-
-      const res = createMockResponse();
-      const req = {
-        query: {
-          code: 'code123',
-          state: 'state123'
-        }
-      } as unknown as Request;
-
-      await provider.handleAuthorizationCallback(req, res);
-
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Authorization failed' }));
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
+        provider: 'microsoft'
+      }
+    ));
   });
 
   describe('handleTokenExchange', () => {
-    it('exchanges authorization code for access token', async () => {
-      const provider = createProvider();
-      const _now = Date.now();
-
-      const authCode = 'auth-code-123';
-      const codeVerifier = 'verifier-123';
-
-      // Store PKCE mapping using pkceStore
-      const pkceStore = (provider as any).pkceStore;
-      await pkceStore.storeCodeVerifier(`microsoft:${authCode}`, {
-        codeVerifier,
-        state: 'test-state'
-      }, 600);
-
-      // Mock token exchange response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'new-access-token',
-        token_type: 'Bearer',
-        scope: 'openid profile email',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
-      }));
-
-      // Mock Microsoft user response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user456',
-        mail: 'dev@example.com',
-        displayName: 'Developer User'
-      }));
-
-      const res = createMockResponse();
-      const req = {
-        body: {
-          grant_type: 'authorization_code',
-          code: authCode,
-          code_verifier: codeVerifier,
-          redirect_uri: baseConfig.redirectUri
+    it('exchanges authorization code for access token', testTokenExchangeSuccess(
+      createProvider,
+      {
+        authCode: 'auth-code-123',
+        codeVerifier: 'verifier-123',
+        redirectUri: baseConfig.redirectUri,
+        provider: 'microsoft',
+        tokenResponse: {
+          access_token: 'new-access-token',
+          token_type: 'Bearer',
+          scope: 'openid profile email',
+          expires_in: 3600,
+          refresh_token: 'refresh-token'
+        },
+        userInfoResponse: {
+          id: 'user456',
+          mail: 'dev@example.com',
+          displayName: 'Developer User'
+        },
+        setupCodeVerifier: async (provider, authCode, codeVerifier) => {
+          const pkceStore = (provider as any).pkceStore;
+          await pkceStore.storeCodeVerifier(`microsoft:${authCode}`, {
+            codeVerifier,
+            state: 'test-state'
+          }, 600);
         }
-      } as unknown as Request;
+      }
+    ));
 
-      await provider.handleTokenExchange(req, res);
-
-      expect(res.json).toHaveBeenCalledTimes(1);
-      expect(res.jsonPayload).toMatchObject({
-        access_token: 'new-access-token',
-        token_type: 'Bearer',
-        expires_in: 3600,
-        refresh_token: 'refresh-token'
-      });
-
-      provider.dispose();
-    });
-
-    it('returns silently when code_verifier is missing (not my code)', async () => {
-      const provider = createProvider();
-
-      const res = createMockResponse();
-      const req = {
-        body: {
-          grant_type: 'authorization_code',
-          code: 'some-code',
-          redirect_uri: baseConfig.redirectUri
-        }
-      } as unknown as Request;
-
-      await provider.handleTokenExchange(req, res);
-
-      // Should return without sending any response (let loop try next provider)
-      expect(res.status).not.toHaveBeenCalled();
-      expect(res.json).not.toHaveBeenCalled();
-
-      provider.dispose();
-    });
+    it('returns silently when code_verifier is missing (not my code)', testSilentCodeVerifierMissing(
+      createProvider,
+      baseConfig.redirectUri
+    ));
   });
 
   describe('handleTokenRefresh', () => {
-    it('refreshes tokens using the Microsoft token endpoint', async () => {
-      const provider = createProvider();
-      const now = Date.now();
-      const stored: StoredTokenInfo = {
-        accessToken: 'old-access',
+    it('refreshes tokens using the Microsoft token endpoint', testTokenRefreshFlow(
+      createProvider,
+      {
         refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: now + 1_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
+        tokenResponse: {
+          access_token: 'new-access',
+          refresh_token: 'new-refresh',
+          expires_in: 7200
         },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('old-access', stored);
-
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        access_token: 'new-access',
-        refresh_token: 'new-refresh',
-        expires_in: 7200
-      }));
-
-      const res = createMockResponse();
-
-      await provider.handleTokenRefresh({
-        body: { refresh_token: 'refresh-token' }
-      } as unknown as Request, res);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-        expect.objectContaining({ method: 'POST' })
-      );
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        access_token: 'new-access',
-        refresh_token: 'new-refresh'
-      }));
-
-      const newToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('new-access');
-      expect(newToken?.refreshToken).toBe('new-refresh');
-
-      const oldToken = await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('old-access');
-      expect(oldToken).toBeNull();
-
-      provider.dispose();
-    });
+        expectedTokenEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
+      }
+    ));
 
     it('rejects refresh requests with unknown refresh tokens', async () => {
       const provider = createProvider();
       const res = createMockResponse();
 
-      await provider.handleTokenRefresh({
-        body: { refresh_token: 'unknown' },
-        headers: { host: 'localhost:3000' },
-        secure: false
-      } as unknown as Request, res);
+      // Mock Microsoft API returning error for invalid refresh token
+      fetchMock.mockResolvedValueOnce(new Response('Invalid grant', { status: 400 }));
 
-      expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' });
+      await testTokenRefreshMissingToken(provider, res);
+      expect(res.status).toHaveBeenCalledWith(401); // Verify helper assertions executed
 
       provider.dispose();
     });
   });
 
   describe('handleLogout', () => {
-    it('removes token on logout', async () => {
-      const provider = createProvider();
-      const accessToken = 'token-to-remove';
-
-      // Store a token first
-      const userInfo: OAuthUserInfo = {
-        sub: 'user123',
-        email: 'test@example.com',
-        name: 'Test User',
-        provider: 'microsoft'
-      };
-
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
-
-      // Mock successful revocation
-      fetchMock.mockResolvedValueOnce(new Response('', { status: 200 }));
-
-      const res = createMockResponse();
-      const req = {
-        headers: {
-          authorization: `Bearer ${accessToken}`
-        }
-      } as unknown as Request;
-
-      await provider.handleLogout(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      provider.dispose();
-    });
-
-    it('succeeds even without authorization header', async () => {
-      const provider = createProvider();
-      const res = createMockResponse();
-      const req = {
-        headers: {}
-      } as unknown as Request;
-
-      await provider.handleLogout(req, res);
-
-      expect(res.json).toHaveBeenCalledWith({ success: true });
-
-      provider.dispose();
-    });
+    describe('standard logout flow', testLogoutFlow(createProvider));
 
     it('succeeds even when revocation fails', async () => {
       const provider = createProvider();
 
-      const stored: StoredTokenInfo = {
-        accessToken: 'access-token',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresAt: Date.now() + 3_600_000,
-        userInfo: {
-          sub: 'user-id',
-          email: 'user@example.com',
-          name: 'User Example',
-          provider: 'microsoft'
-        },
-        provider: 'microsoft',
-        scopes: baseConfig.scopes
-      };
-      (provider as unknown as { storeToken: (_token: string, _info: StoredTokenInfo) => void }).storeToken('access-token', stored);
-
+      // ADR 006: No server-side token storage, just test revocation behavior
       // Mock revocation failure
       fetchMock.mockResolvedValueOnce(new Response('error', {
         status: 500,
         statusText: 'Error'
       }));
 
-      const consoleWarnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => {});
-      const consoleErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(logger, 'oauthWarn').mockImplementation(() => { /* no-op mock */ });
+      const consoleErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => { /* no-op mock */ });
 
       const res = createMockResponse();
       await provider.handleLogout({
@@ -519,7 +211,6 @@ describe('MicrosoftOAuthProvider', () => {
 
       expect(consoleWarnSpy).toHaveBeenCalled();
       expect(res.json).toHaveBeenCalledWith({ success: true });
-      expect(await (provider as unknown as { getToken: (_token: string) => Promise<StoredTokenInfo | null> }).getToken('access-token')).toBeNull();
 
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -528,180 +219,313 @@ describe('MicrosoftOAuthProvider', () => {
   });
 
   describe('verifyAccessToken', () => {
-    it('verifies valid token from cache', async () => {
-      const provider = createProvider();
-      const accessToken = 'valid-token';
-      const userInfo: OAuthUserInfo = {
-        sub: 'user789',
-        email: 'verified@example.com',
-        name: 'Verified User',
-        provider: 'microsoft'
-      };
-
-      // Store token
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
-
-      const authInfo = await provider.verifyAccessToken(accessToken);
-
-      expect(authInfo).toMatchObject({
-        scopes: baseConfig.scopes,
-        extra: {
-          userInfo: {
-            email: 'verified@example.com',
-            name: 'Verified User'
-          }
+    it('verifies valid token from cache', testVerifyAccessTokenValid(
+      createProvider,
+      {
+        accessToken: 'valid-token',
+        mockUserResponse: {
+          id: 'user789',
+          mail: 'verified@example.com',
+          displayName: 'Verified User'
+        },
+        expectedScopes: baseConfig.scopes,
+        expectedUserInfo: {
+          email: 'verified@example.com',
+          name: 'Verified User'
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('fetches user info if token not in cache', async () => {
-      const provider = createProvider();
-      const accessToken = 'uncached-token';
-
-      // Mock Microsoft user response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user999',
-        mail: 'fetched@example.com',
-        displayName: 'Fetched User'
-      }));
-
-      const authInfo = await provider.verifyAccessToken(accessToken);
-
-      expect(authInfo).toMatchObject({
-        extra: {
-          userInfo: {
-            email: 'fetched@example.com',
-            name: 'Fetched User'
-          }
+    it('fetches user info if token not in cache', testVerifyAccessTokenFetchesUserInfo(
+      createProvider,
+      {
+        accessToken: 'uncached-token',
+        mockUserResponse: {
+          id: 'user999',
+          mail: 'fetched@example.com',
+          displayName: 'Fetched User'
+        },
+        expectedUserInfo: {
+          email: 'fetched@example.com',
+          name: 'Fetched User'
         }
-      });
+      }
+    ));
 
-      provider.dispose();
-    });
-
-    it('throws error for invalid token', async () => {
-      const provider = createProvider();
-      const invalidToken = 'invalid-token';
-
-      // Mock failed Microsoft response
-      fetchMock.mockResolvedValueOnce(new Response('Unauthorized', { status: 401 }));
-
-      const loggerErrorSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      await expect(provider.verifyAccessToken(invalidToken)).rejects.toThrow();
-
-      loggerErrorSpy.mockRestore();
-      provider.dispose();
-    });
+    it('throws error for invalid token', testVerifyAccessTokenInvalid(
+      createProvider,
+      'invalid-token'
+    ));
   });
 
+  // Microsoft-specific: Tests caching of user info with Microsoft's id/mail/displayName structure
   describe('getUserInfo', () => {
-    it('returns cached user info', async () => {
-      const provider = createProvider();
-      const accessToken = 'cached-info-token';
-      const userInfo: OAuthUserInfo = {
-        sub: 'user101',
-        email: 'cached@example.com',
-        name: 'Cached User',
-        provider: 'microsoft'
-      };
+    it('returns cached user info', testGetUserInfoSuccess(
+      createProvider,
+      {
+        accessToken: 'cached-info-token',
+        mockUserResponse: {
+          id: 'user101',
+          mail: 'cached@example.com',
+          displayName: 'Cached User'
+        },
+        expectedUserInfo: {
+          sub: 'user101',
+          email: 'cached@example.com',
+          name: 'Cached User',
+          provider: 'microsoft'
+        }
+      }
+    ));
 
-      // Store token with user info
-      (provider as unknown as { storeToken: (_token: string, _info: any) => Promise<void> })
-        .storeToken(accessToken, {
-          accessToken,
-          expiresAt: Date.now() + 3600_000,
-          userInfo,
-          provider: 'microsoft',
-          scopes: baseConfig.scopes
-        });
+    it('fetches user info from API if not cached', testGetUserInfoFromAPI(
+      createProvider,
+      {
+        accessToken: 'api-fetch-token',
+        mockUserResponse: {
+          id: 'user202',
+          mail: 'api@example.com',
+          displayName: 'API User'
+        },
+        expectedUserInfo: {
+          sub: 'user202',
+          email: 'api@example.com',
+          name: 'API User',
+          provider: 'microsoft'
+        }
+      }
+    ));
 
-      const result = await provider.getUserInfo(accessToken);
-
-      expect(result).toEqual(userInfo);
-
-      provider.dispose();
-    });
-
-    it('fetches user info from API if not cached', async () => {
-      const provider = createProvider();
-      const accessToken = 'api-fetch-token';
-
-      // Mock Microsoft user response
-      fetchMock.mockResolvedValueOnce(jsonReply({
-        id: 'user202',
-        mail: 'api@example.com',
-        displayName: 'API User'
-      }));
-
-      const result = await provider.getUserInfo(accessToken);
-
-      expect(result).toMatchObject({
-        sub: 'user202',
-        email: 'api@example.com',
-        name: 'API User',
-        provider: 'microsoft'
-      });
-
-      provider.dispose();
-    });
-
-    it('throws when Microsoft user info cannot be retrieved', async () => {
-      const provider = createProvider();
-
-      const consoleSpy = vi.spyOn(logger, 'oauthError').mockImplementation(() => {});
-
-      fetchMock.mockResolvedValueOnce(new Response('forbidden', {
-        status: 403,
-        statusText: 'Forbidden'
-      }));
-
-      await expect(provider.getUserInfo('token')).rejects.toThrow('Failed to get user information');
-
-      consoleSpy.mockRestore();
-      provider.dispose();
-    });
+    it('throws when Microsoft user info cannot be retrieved', testGetUserInfoError(
+      createProvider,
+      {
+        accessToken: 'token',
+        errorStatus: 403,
+        errorStatusText: 'Forbidden',
+        expectedErrorMessage: 'Failed to get user information'
+      }
+    ));
   });
 
-  describe('provider metadata', () => {
-    it('returns correct provider type', () => {
-      const provider = createProvider();
-      expect(provider.getProviderType()).toBe('microsoft');
-      provider.dispose();
-    });
+  describe('provider metadata', testProviderMetadata(
+    createProvider,
+    {
+      type: 'microsoft',
+      name: 'Microsoft',
+      authEndpoint: '/auth/microsoft',
+      callbackEndpoint: '/auth/microsoft/callback',
+      refreshEndpoint: '/auth/microsoft/refresh',
+      logoutEndpoint: '/auth/microsoft/logout',
+      defaultScopes: ['openid', 'profile', 'email']
+    }
+  ));
 
-    it('returns correct provider name', () => {
+  describe('JWT Validation (ADR 006)', () => {
+    it('should validate ID token locally by checking expiry and audience', async () => {
       const provider = createProvider();
-      expect(provider.getProviderName()).toBe('Microsoft');
-      provider.dispose();
-    });
 
-    it('returns correct endpoints', () => {
-      const provider = createProvider();
-      const endpoints = provider.getEndpoints();
+      const validPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId,
+        exp: Math.floor(Date.now() / 1000) + 3600 // Valid for 1 hour
+      };
 
-      expect(endpoints).toEqual({
-        authEndpoint: '/auth/microsoft',
-        callbackEndpoint: '/auth/microsoft/callback',
-        refreshEndpoint: '/auth/microsoft/refresh',
-        logoutEndpoint: '/auth/microsoft/logout'
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        idToken: createTestJWT(validPayload),
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
       });
 
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(true);
+
       provider.dispose();
     });
 
-    it('returns correct default scopes', () => {
+    // eslint-disable-next-line sonarjs/assertions-in-tests
+    it('should reject expired ID tokens', async () => {
+      const expiredPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId,
+        exp: Math.floor(Date.now() / 1000) - 3600 // Expired 1 hour ago
+      };
+
+      await testCachedAuthentication(
+        createProvider,
+        {
+          provider: 'microsoft',
+          clientId: baseConfig.clientId,
+          idToken: createTestJWT(expiredPayload),
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        },
+        false
+      );
+    });
+
+    // eslint-disable-next-line sonarjs/assertions-in-tests
+    it('should reject tokens with audience mismatch', async () => {
+      const mismatchedPayload = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: 'wrong-client-id',
+        exp: Math.floor(Date.now() / 1000) + 3600
+      };
+
+      await testCachedAuthentication(
+        createProvider,
+        {
+          provider: 'microsoft',
+          clientId: baseConfig.clientId,
+          idToken: createTestJWT(mismatchedPayload),
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        },
+        false
+      );
+    });
+
+    // eslint-disable-next-line sonarjs/assertions-in-tests
+    it('should reject malformed JWT tokens (invalid structure)', async () => {
+      await testCachedAuthentication(
+        createProvider,
+        {
+          provider: 'microsoft',
+          clientId: baseConfig.clientId,
+          idToken: 'invalid.jwt', // Only 2 parts instead of 3
+          userInfo: { sub: 'user-123', email: 'test@example.com' }
+        },
+        false
+      );
+    });
+
+    it('should reject JWT with invalid JSON payload', async () => {
       const provider = createProvider();
-      expect(provider.getDefaultScopes()).toEqual(['openid', 'profile', 'email']);
+
+      // Create JWT with invalid JSON in payload
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
+      const invalidPayload = Buffer.from('not-valid-json{').toString('base64url');
+      const signature = Buffer.from('fake-signature').toString('base64url');
+      const invalidJWT = `${header}.${invalidPayload}.${signature}`;
+
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        idToken: invalidJWT,
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
+      });
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      expect(result).toBe(false);
+
+      provider.dispose();
+    });
+
+    it('should accept token without expiry claim', async () => {
+      const provider = createProvider();
+
+      const payloadNoExp = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        aud: baseConfig.clientId
+        // No exp field
+      };
+
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        idToken: createTestJWT(payloadNoExp),
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
+      });
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should accept token without expiry (but log warning)
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should accept token without audience claim', async () => {
+      const provider = createProvider();
+
+      const payloadNoAud = {
+        sub: 'user-123',
+        email: 'test@example.com',
+        exp: Math.floor(Date.now() / 1000) + 3600
+        // No aud field
+      };
+
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        idToken: createTestJWT(payloadNoAud),
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
+      });
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should accept token without audience (validation is optional)
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching when no ID token available', async () => {
+      const provider = createProvider();
+
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        // No idToken - only userInfo
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
+      });
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return true because within TTL
+      expect(result).toBe(true);
+
+      provider.dispose();
+    });
+
+    it('should fallback to TTL-based caching and return false when TTL expired', async () => {
+      const provider = createProvider();
+
+      const authCache = createTestAuthCache({
+        provider: 'microsoft',
+        clientId: baseConfig.clientId,
+        lastValidated: Date.now() - 600000, // 10 minutes ago (beyond 5-minute TTL)
+        // No idToken - only userInfo
+        userInfo: {
+          sub: 'user-123',
+          email: 'test@example.com'
+        }
+      });
+
+      const result = await (provider as any).canUseCachedAuthentication(authCache);
+
+      // Should return false because TTL expired
+      expect(result).toBe(false);
+
       provider.dispose();
     });
   });

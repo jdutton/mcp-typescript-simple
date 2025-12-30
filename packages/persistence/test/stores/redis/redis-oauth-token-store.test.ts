@@ -22,41 +22,29 @@
 import { vi } from 'vitest';
 import { RedisOAuthTokenStore, StoredTokenInfo } from '../../../src/index.js';
 import { TokenEncryptionService } from '../../../src/encryption/token-encryption-service.js';
+import {
+  RedisTestInstance,
+  setupRedisWithEncryption,
+} from '../../helpers/redis-test-helpers.js';
 
-// Hoist Redis mock to avoid initialization issues
-
-/* eslint-disable sonarjs/no-unused-vars */
+// Hoist Redis mock at module scope (required for Vitest)
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires both default and named exports
+// Mock Redis for testing
 vi.mock('ioredis', () => ({
   default: RedisMock,
   Redis: RedisMock,
 }));
 
-// Create a shared Redis instance for direct inspection
-let sharedRedis: any = null;
-
 describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
   let store: RedisOAuthTokenStore;
   let encryptionService: TokenEncryptionService;
+  let sharedRedis: any;
 
   beforeEach(async () => {
-    // Set encryption key for tests (required - must be 32 bytes base64)
-    process.env.TOKEN_ENCRYPTION_KEY = 'Wp3suOcV+cleewUEOGUkE7JNgsnzwmiBMNqF7q9sQSI=';
-
-    // Create encryption service
-    encryptionService = new TokenEncryptionService({
-      encryptionKey: process.env.TOKEN_ENCRYPTION_KEY,
-    });
-
-    // Create shared Redis instance if not exists
-    if (!sharedRedis) {
-      sharedRedis = new (RedisMock as any)();
-    }
-
-    // Flush all data between tests
-    await sharedRedis.flushall();
+    const setup = await setupRedisWithEncryption();
+    encryptionService = setup.encryptionService;
+    sharedRedis = setup.sharedRedis;
 
     // Create store with encryption service
     store = new RedisOAuthTokenStore('redis://localhost:6379', encryptionService);
@@ -69,11 +57,7 @@ describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
   });
 
   afterAll(async () => {
-    // Clean up shared Redis instance
-    if (sharedRedis) {
-      await sharedRedis.quit();
-      sharedRedis = null;
-    }
+    await RedisTestInstance.cleanup();
   });
 
   describe('Constructor Requirements', () => {
@@ -81,8 +65,8 @@ describe('RedisOAuthTokenStore - Refresh Token Index Encryption', () => {
       // CRITICAL: Constructor should throw if encryption service not provided
       // Zero-tolerance security stance - no silent fallback to unencrypted storage
       expect(() => {
-         
-        const _store = new RedisOAuthTokenStore('redis://localhost:6379', undefined as any);
+        // eslint-disable-next-line sonarjs/constructor-for-side-effects
+        new RedisOAuthTokenStore('redis://localhost:6379', undefined as any);
       }).toThrow(/TokenEncryptionService is REQUIRED/);
     });
 

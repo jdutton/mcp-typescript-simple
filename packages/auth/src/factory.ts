@@ -23,8 +23,6 @@ import { logger } from './utils/logger.js';
 import {
   SessionStoreFactory,
   OAuthSessionStore,
-  OAuthTokenStoreFactory,
-  OAuthTokenStore,
   PKCEStoreFactory,
   PKCEStore
 } from '@mcp-typescript-simple/persistence';
@@ -39,7 +37,6 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   private static exitHandler?: () => void;
   private readonly activeProviders = new Set<OAuthProvider>();
   private sessionStore!: OAuthSessionStore;
-  private tokenStore!: OAuthTokenStore;
   private pkceStore!: PKCEStore;
 
   private constructor() {
@@ -52,7 +49,6 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   private async initialize(): Promise<void> {
     // Initialize stores (auto-detect Redis vs memory)
     this.sessionStore = SessionStoreFactory.create();
-    this.tokenStore = await OAuthTokenStoreFactory.create();
     this.pkceStore = PKCEStoreFactory.create();
   }
 
@@ -106,20 +102,20 @@ export class OAuthProviderFactory implements IOAuthProviderFactory {
   createProvider(config: OAuthConfig): OAuthProvider {
     switch (config.type) {
       case 'google':
-        return this.registerProvider(new GoogleOAuthProvider(config as GoogleOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
+        return this.registerProvider(new GoogleOAuthProvider(config, this.sessionStore, this.pkceStore));
 
       case 'github':
-        return this.registerProvider(new GitHubOAuthProvider(config as GitHubOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
+        return this.registerProvider(new GitHubOAuthProvider(config, this.sessionStore, this.pkceStore));
 
       case 'microsoft':
-        return this.registerProvider(new MicrosoftOAuthProvider(config as MicrosoftOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
+        return this.registerProvider(new MicrosoftOAuthProvider(config, this.sessionStore, this.pkceStore));
 
       case 'generic':
-        return this.registerProvider(new GenericOAuthProvider(config as GenericOAuthConfig, this.sessionStore, this.tokenStore, this.pkceStore));
+        return this.registerProvider(new GenericOAuthProvider(config, this.sessionStore, this.pkceStore));
 
       default: {
-        const { type } = config as { type?: string };
-        return this.throwUnsupportedProvider(type ?? 'unknown', config as never);
+        const { type } = config;
+        return this.throwUnsupportedProvider(type ?? 'unknown', config);
       }
     }
   }

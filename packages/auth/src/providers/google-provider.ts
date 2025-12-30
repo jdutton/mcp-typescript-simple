@@ -20,8 +20,8 @@ import {
 import { logger } from '../utils/logger.js';
 import {
   OAuthSessionStore,
-  OAuthTokenStore,
-  PKCEStore
+  PKCEStore,
+  SessionAuthCache
 } from '@mcp-typescript-simple/persistence';
 
 /**
@@ -31,8 +31,8 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   private oauth2Client: OAuth2Client;
   protected config: GoogleOAuthConfig; // Override with specific config type
 
-  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore, tokenStore?: OAuthTokenStore, pkceStore?: PKCEStore) {
-    super(config, sessionStore, tokenStore, pkceStore);
+  constructor(config: GoogleOAuthConfig, sessionStore?: OAuthSessionStore, pkceStore?: PKCEStore) {
+    super(config, sessionStore, pkceStore);
     this.config = config; // Explicitly set the properly typed config
 
     this.oauth2Client = new OAuth2Client(
@@ -181,7 +181,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         return;
       }
 
-      // Store token information
+      // ADR 006: Tokens are not stored - client is responsible for managing tokens
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token ?? undefined,
@@ -191,8 +191,6 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         provider: 'google',
         scopes: session.scopes,
       };
-
-      await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up session
       void this.removeSession(state);
@@ -232,6 +230,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
   /**
    * Handle token refresh requests
+   * ADR 006: Tokens are not stored - client is responsible for managing tokens
    */
   async handleTokenRefresh(req: Request, res: Response): Promise<void> {
     try {
@@ -240,14 +239,6 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
       if (!refresh_token || typeof refresh_token !== 'string') {
         this.setAntiCachingHeaders(res);
         res.status(400).json({ error: 'Missing refresh token' });
-        return;
-      }
-
-      // Find token info by refresh token
-      const tokenData = await this.findTokenByRefreshToken(refresh_token);
-      if (!tokenData) {
-        this.setAntiCachingHeaders(res);
-        res.status(401).json({ error: 'Invalid refresh token' });
         return;
       }
 
@@ -262,22 +253,10 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         throw new OAuthTokenError('Failed to refresh access token', 'google');
       }
 
-      // Update stored token information
-      const newTokenInfo: StoredTokenInfo = {
-        ...tokenData.tokenInfo,
-        accessToken: credentials.access_token,
-        refreshToken: credentials.refresh_token ?? tokenData.tokenInfo.refreshToken,
-        expiresAt: credentials.expiry_date ?? (Date.now() + 3600 * 1000),
-      };
-
-      // Remove old token and store new one
-      await this.removeToken(tokenData.accessToken);
-      await this.storeToken(credentials.access_token, newTokenInfo);
-
       const response: Pick<OAuthTokenResponse, 'access_token' | 'refresh_token' | 'expires_in' | 'token_type'> = {
         access_token: credentials.access_token,
-        refresh_token: newTokenInfo.refreshToken,
-        expires_in: Math.floor((newTokenInfo.expiresAt - Date.now()) / 1000),
+        refresh_token: credentials.refresh_token ?? refresh_token,
+        expires_in: credentials.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 3600,
         token_type: 'Bearer',
       };
 
@@ -295,16 +274,79 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
   }
 
   /**
+   * Override canUseCachedAuthentication for Google JWT validation (ADR 006)
+   *
+   * Google provides ID tokens (JWTs) that can be verified locally without API calls.
+   * This method validates the JWT signature and expiry claim.
+   *
+   * Performance: ~1ms (local signature verification) vs ~200ms (API call)
+   *
+   * @param authCache - Session authentication cache
+   * @returns true if JWT is valid, false if expired or invalid
+   */
+  protected async canUseCachedAuthentication(authCache: SessionAuthCache): Promise<boolean> {
+    // Check if we have an ID token to validate
+    const extra = authCache.authInfo.extra;
+    const idToken = typeof extra?.idToken === 'string' ? extra.idToken : undefined;
+
+    if (!idToken) {
+      // No ID token available - fall back to opaque token validation
+      logger.oauthDebug('No ID token available for JWT validation, using TTL-based caching', {
+        provider: 'google'
+      });
+      return super.canUseCachedAuthentication(authCache);
+    }
+
+    try {
+      // Verify ID token using Google's OAuth client
+      // This performs local JWT signature verification + expiry check
+      const ticket = await this.oauth2Client.verifyIdToken({
+        idToken,
+        audience: this.config.clientId,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        logger.oauthDebug('ID token payload invalid', { provider: 'google' });
+        return false;
+      }
+
+      // Check expiry (payload.exp is in seconds, Date.now() is in milliseconds)
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        logger.oauthDebug('ID token expired', {
+          provider: 'google',
+          exp: payload.exp,
+          now
+        });
+        return false;
+      }
+
+      // JWT is valid - use cached auth
+      logger.oauthDebug('Google ID token validated locally (JWT signature + expiry)', {
+        provider: 'google',
+        userId: payload.sub
+      });
+      return true;
+
+    } catch (error) {
+      // JWT validation failed - need re-validation with provider
+      logger.oauthDebug('Google ID token validation failed', {
+        provider: 'google',
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return false;
+    }
+  }
+
+  /**
    * Handle logout requests
+   * ADR 006: Tokens are not stored - client is responsible for revoking tokens if needed
    */
   async handleLogout(req: Request, res: Response): Promise<void> {
     try {
-      const authHeader = req.headers.authorization;
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        await this.removeToken(token);
-      }
-
+      // ADR 006: No token storage to clean up
+      // Client is responsible for discarding their tokens
       this.setAntiCachingHeaders(res);
       res.json({ success: true });
     } catch (error) {
@@ -316,26 +358,15 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
   /**
    * Verify an access token and return auth info
+   * ADR 006: Direct verification with Google API (no local token storage)
    */
-  // eslint-disable-next-line sonarjs/cognitive-complexity -- Complex token verification logic with multiple fallback mechanisms
   async verifyAccessToken(token: string): Promise<AuthInfo> {
     try {
-      logger.oauthDebug('Verifying token', {
+      logger.oauthDebug('Verifying token with Google API', {
         provider: 'google',
         tokenPrefix: token.substring(0, 8),
         tokenSuffix: token.substring(token.length - 8)
       });
-
-      // Check our local token store first
-      logger.oauthDebug('Checking local token store first', { provider: 'google' });
-      const tokenInfo = await this.getToken(token);
-      if (tokenInfo) {
-        logger.oauthDebug('Found token in local storage, using cached info', { provider: 'google' });
-        return this.buildAuthInfoFromCache(token, tokenInfo);
-      }
-
-      // If not in local store, verify with Google
-      logger.oauthDebug('Token not in local store, verifying with Google API', { provider: 'google' });
 
       let userInfo: { sub: string; email: string; scopes?: string[]; expiry_date?: number };
 
@@ -502,7 +533,7 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         providerData: payload,
       };
 
-      // Store token information
+      // ADR 006: Tokens are not stored - client is responsible for managing tokens
       const tokenInfo: StoredTokenInfo = {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token ?? undefined,
@@ -512,8 +543,6 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
         provider: 'google',
         scopes: ['openid', 'email', 'profile'], // Default scopes for token exchange
       };
-
-      await this.storeToken(tokens.access_token, tokenInfo);
 
       // Clean up authorization code mapping and session after successful token exchange
       await this.cleanupAfterTokenExchange(code);
@@ -591,16 +620,11 @@ export class GoogleOAuthProvider extends BaseOAuthProvider {
 
   /**
    * Get user information from an access token
+   * ADR 006: Direct fetch from Google API (no local token storage)
    */
   async getUserInfo(accessToken: string): Promise<OAuthUserInfo> {
     try {
-      // Check local store first
-      const tokenInfo = await this.getToken(accessToken);
-      if (tokenInfo) {
-        return tokenInfo.userInfo;
-      }
-
-      // Fetch from Google API
+      // ADR 006: Fetch directly from Google API
       return await this.fetchUserInfo(accessToken);
 
     } catch (error) {

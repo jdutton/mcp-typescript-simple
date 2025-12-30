@@ -20,6 +20,7 @@ import { TokenEncryptionService } from '../encryption/token-encryption-service.j
 import { getSecretsProvider } from '@mcp-typescript-simple/config/secrets';
 import { logger } from '../logger.js';
 import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
+import { createStore, type BaseStoreFactoryOptions } from './base-store-factory.js';
 
 export type OAuthTokenStoreType = 'memory' | 'file' | 'redis' | 'auto';
 
@@ -44,25 +45,17 @@ export class OAuthTokenStoreFactory {
    * Create an OAuth token store based on configuration
    */
   static async create(options: OAuthTokenStoreFactoryOptions = {}): Promise<OAuthTokenStore> {
-    const storeType = options.type ?? 'auto';
-
-    if (storeType === 'auto') {
-      return this.createAutoDetected();
-    }
-
-    switch (storeType) {
-      case 'memory':
-        return this.createMemoryStore();
-
-      case 'file':
-        return this.createFileStore(options.fileOptions);
-
-      case 'redis':
-        return this.createRedisStore();
-
-      default:
-        throw new Error(`Unknown OAuth token store type: ${storeType}`);
-    }
+    return createStore<OAuthTokenStore>(
+      options as BaseStoreFactoryOptions,
+      {
+        createAutoDetected: () => this.createAutoDetected(),
+        createMemoryStore: () => this.createMemoryStore(),
+        createRedisStore: () => this.createRedisStore(),
+        createFileStore: (fileOpts) => this.createFileStore(fileOpts as FileOAuthTokenStoreOptions | undefined)
+      },
+      'OAuth token',
+      options.fileOptions
+    ) as Promise<OAuthTokenStore>;
   }
 
   /**
@@ -183,7 +176,7 @@ export class OAuthTokenStoreFactory {
         warnings.push('OAuth tokens will be lost if request hits different instance');
       }
     } else {
-      detectedType = type as Exclude<OAuthTokenStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

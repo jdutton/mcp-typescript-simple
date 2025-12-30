@@ -10,39 +10,47 @@
  */
 
 import { vi } from 'vitest';
-import { RedisPKCEStore , PKCEData } from '../../src/index.js';
+import { RedisPKCEStore, PKCEData } from '../../src/index.js';
+import {
+  RedisTestInstance,
+} from '../helpers/redis-test-helpers.js';
 
 // Hoist Redis mock to avoid initialization issues
-
- 
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires both default and named exports
+// Mock Redis for testing
 vi.mock('ioredis', () => ({
   default: RedisMock,
   Redis: RedisMock,
 }));
 
-// Create a shared Redis instance for cleanup
-let sharedRedis: any = null;
-
 describe('RedisPKCEStore', () => {
   let store: RedisPKCEStore;
+  let sharedRedis: any;
 
   beforeEach(async () => {
-    if (!sharedRedis) {
-      sharedRedis = new (RedisMock as any)();
-    }
-    // Flush all data between tests
-    await sharedRedis.flushall();
+    await RedisTestInstance.flush();
+    sharedRedis = await RedisTestInstance.getInstance();
 
     // Create store with mock Redis URL
     store = new RedisPKCEStore('redis://localhost:6379');
   });
 
-  afterEach(() => {
-    // ioredis-mock doesn't require explicit cleanup
+  afterAll(async () => {
+    await RedisTestInstance.cleanup();
   });
+
+  /**
+   * Helper: Verify store/delete cycle with existence checks
+   * Common pattern: store data, verify exists, delete, verify no longer exists
+   */
+  async function verifyStoreAndDelete(code: string, data: PKCEData): Promise<void> {
+    await store.storeCodeVerifier(code, data);
+    expect(await store.hasCodeVerifier(code)).toBe(true);
+
+    await store.deleteCodeVerifier(code);
+    expect(await store.hasCodeVerifier(code)).toBe(false);
+  }
 
   describe('storeCodeVerifier', () => {
     it('should store PKCE data with default TTL', async () => {
@@ -199,11 +207,7 @@ describe('RedisPKCEStore', () => {
         state: 'delete-test-state'
       };
 
-      await store.storeCodeVerifier(code, data);
-      expect(await store.hasCodeVerifier(code)).toBe(true);
-
-      await store.deleteCodeVerifier(code);
-      expect(await store.hasCodeVerifier(code)).toBe(false);
+      await verifyStoreAndDelete(code, data);
     });
   });
 
@@ -215,11 +219,7 @@ describe('RedisPKCEStore', () => {
         state: 'delete-state'
       };
 
-      await store.storeCodeVerifier(code, data);
-      expect(await store.hasCodeVerifier(code)).toBe(true);
-
-      await store.deleteCodeVerifier(code);
-      expect(await store.hasCodeVerifier(code)).toBe(false);
+      await verifyStoreAndDelete(code, data);
 
       const retrieved = await store.getCodeVerifier(code);
       expect(retrieved).toBeNull();

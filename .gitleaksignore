@@ -8,6 +8,10 @@ packages/auth/test/factory.test.ts:generic-api-key:73
 # Documentation example showing generated .env.example output
 # This is NOT a real secret - it's documentation of scaffolding tool output
 packages/create-mcp-typescript-simple/README.md:generic-api-key:98
+
+# ADR 006 documentation example showing TOKEN_ENCRYPTION_KEY (to be deprecated)
+# This is NOT a real secret - it's the same test fixture used throughout the codebase
+docs/adr/006-session-based-auth-caching.md:generic-api-key:589
 packages/example-mcp/test/integration/admin-token-endpoints.test.ts:generic-api-key:52
 packages/example-mcp/test/system/vitest-global-setup.ts:generic-api-key:154
 packages/http-server/test/server/streamable-http-server.test.ts:generic-api-key:17
@@ -15,3 +19,5 @@ packages/persistence/test/oauth-token-store-factory.test.ts:generic-api-key:14
 packages/persistence/test/stores/file-oauth-token-store.test.ts:generic-api-key:25
 packages/persistence/test/stores/redis/redis-mcp-metadata-store.test.ts:generic-api-key:36
 packages/persistence/test/stores/redis/redis-oauth-token-store.test.ts:generic-api-key:43
+packages/persistence/test/helpers/redis-test-helpers.ts:generic-api-key:192
+.github/.jscpd-baseline.json:generic-api-key:42

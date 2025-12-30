@@ -42,11 +42,13 @@ export default [
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off', // Requires type information
 
       // Relaxed rules for test files
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-empty-function': ['warn', { allow: [] }], // Catch empty async methods
       'no-undef': 'off',
 
       // SonarJS rules - HIGH VALUE (warn in tests for visibility without blocking)
@@ -55,6 +57,10 @@ export default [
       'sonarjs/updated-loop-counter': 'error', // Prevent infinite loops/bugs (still error)
       'sonarjs/no-unused-vars': 'warn', // Covered by @typescript-eslint/no-unused-vars
 
+      // Callback nesting depth (catch SonarQube brain-overload issues)
+      'max-nested-callbacks': ['error', { max: 4 }], // Limit callback nesting to 4 levels (SonarQube threshold)
+      'max-depth': ['warn', { max: 4 }], // Warn on deep block nesting
+
       // SonarJS rules - LOW VALUE (disable for tests)
       'sonarjs/no-dead-store': 'off', // Test setup often assigns for clarity
       'sonarjs/os-command': 'off',
@@ -62,14 +68,14 @@ export default [
       'sonarjs/no-nested-functions': 'off', // Common in describe/it blocks
       'sonarjs/no-nested-template-literals': 'off',
       'sonarjs/slow-regex': 'off',
-      'sonarjs/cognitive-complexity': 'off', // Test readability > complexity
+      'sonarjs/cognitive-complexity': ['warn', 15], // Match SonarQube threshold (warn for visibility)
       'sonarjs/no-nested-conditional': 'off', // Complex test setup sometimes needs nested conditionals
       'sonarjs/no-hardcoded-passwords': 'off', // Test fixtures need test credentials
       'sonarjs/no-hardcoded-secrets': 'off', // Test fixtures need test secrets
       'sonarjs/pseudo-random': 'off', // Math.random() fine for test data
       'sonarjs/no-empty-test-file': 'off', // Placeholder test files during development
       'sonarjs/no-clear-text-protocols': 'off', // Tests use http://localhost
-      'sonarjs/todo-tag': 'off', // TODOs in tests are useful for tracking coverage
+      'sonarjs/todo-tag': 'warn', // Track TODOs without blocking
       'sonarjs/unused-import': 'off', // Covered by @typescript-eslint/no-unused-vars
       'sonarjs/no-identical-functions': 'off', // Test helper functions intentionally duplicated
       'sonarjs/publicly-writable-directories': 'off', // Tests use /tmp for temporary files
@@ -147,6 +153,8 @@ export default [
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'error', // Catch unnecessary type assertions
+      '@typescript-eslint/no-empty-function': 'error', // Prevent empty functions in production
 
       // TypeScript async/promise safety - STRICT
       '@typescript-eslint/no-floating-promises': 'error',
@@ -208,6 +216,7 @@ export default [
       'unicorn/no-useless-undefined': 'error',
       'unicorn/prefer-ternary': 'off', // Can reduce readability
       'unicorn/prefer-string-raw': 'error',
+      'unicorn/prefer-export-from': 'error', // Use direct export-from pattern
     },
   },
   {
@@ -241,6 +250,7 @@ export default [
       '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/prefer-nullish-coalescing': 'off',
       '@typescript-eslint/prefer-optional-chain': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off', // Requires type information
 
       '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',

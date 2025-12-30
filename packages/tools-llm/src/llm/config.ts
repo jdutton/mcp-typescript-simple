@@ -8,8 +8,6 @@ import { logger } from '../utils/logger.js';
 type ProviderConfigMap = LLMConfig['providers'];
 
 export class LLMConfigManager {
-  constructor() {}
-
   async loadConfig(): Promise<LLMConfig> {
     // Read directly from process.env
     const claudeKey = process.env.ANTHROPIC_API_KEY ?? '';

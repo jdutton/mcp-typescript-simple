@@ -99,8 +99,8 @@ describe('LLMManager', () => {
 
   it('falls back to Claude when default provider fails (no explicit provider requested)', async () => {
     const manager = createManager();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
+    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });
 
     const anthropicResponse = {
       content: [{ type: 'text', text: 'fallback' }],
@@ -234,8 +234,8 @@ describe('LLMManager error handling', () => {
 
   it('fails loudly when explicitly requested provider fails (no fallback)', async () => {
     const manager = new LLMManager();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
+    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });
 
     const openAiError = new Error('OpenAI down');
     const openAiClient = {
@@ -271,8 +271,8 @@ describe('LLMManager error handling', () => {
 
   it('throws a descriptive error when fallback provider is unavailable', async () => {
     const manager = new LLMManager();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
+    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });
 
     const openAiClient = {
       chat: {
@@ -295,8 +295,8 @@ describe('LLMManager error handling', () => {
 
   it('surfaces errors from Claude when no fallback is available', async () => {
     const manager = new LLMManager();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => { /* no-op mock */ });
+    vi.spyOn(console, 'log').mockImplementation(() => { /* no-op mock */ });
 
     const claudeClient = {
       messages: {

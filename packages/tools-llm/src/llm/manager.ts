@@ -223,7 +223,7 @@ export class LLMManager {
       if (!isValidModelForProvider(provider, requestedModel)) {
         throw new Error(`Model '${requestedModel}' is not valid for provider '${provider}'`);
       }
-      return requestedModel as ModelsForProvider<T>;
+      return requestedModel;
     }
 
     const defaultModel = getDefaultModelForProvider(provider);
@@ -231,7 +231,7 @@ export class LLMManager {
       throw new Error(`Default model '${defaultModel}' is not valid for provider '${provider}'`);
     }
 
-    return defaultModel as ModelsForProvider<T>;
+    return defaultModel;
   }
 
   /**

@@ -586,10 +586,77 @@ export class MCPStreamableHttpServer {
   }
 
   /**
+   * Authenticate request using session-based authentication (ADR 006)
+   * Uses O(1) provider lookup via session cache
+   */
+  private async authenticateWithSession(
+    token: string,
+    sessionIdHeader: string,
+    requestId: string
+  ): Promise<AuthInfo | null> {
+    logger.debug("Using session-based authentication (ADR 006)", {
+      requestId,
+      sessionId: sessionIdHeader
+    });
+
+    // Get session to determine which provider to use
+    const session = await this.sessionManager?.getSession(sessionIdHeader);
+
+    if (!session?.auth) {
+      logger.warn("Auth failed: Session not found or not authenticated", {
+        requestId,
+        sessionId: sessionIdHeader
+      });
+      return null;
+    }
+
+    // O(1) provider lookup via session
+    const providerType = session.auth.provider;
+    const provider = this.oauthProviders?.get(providerType);
+
+    if (!provider) {
+      logger.warn("Auth failed: Provider not found for session", {
+        requestId,
+        sessionId: sessionIdHeader,
+        provider: providerType
+      });
+      return null;
+    }
+
+    // Verify token with session-based authentication caching
+    logger.debug("Verifying token with session-based provider", {
+      provider: providerType,
+      requestId,
+      sessionId: sessionIdHeader
+    });
+    const authInfo = await provider.verifyAccessTokenWithSession(token, sessionIdHeader);
+
+    // Log success
+    const userInfo = authInfo.extra?.userInfo;
+    const userEmail = userInfo && typeof userInfo === 'object' && 'email' in userInfo
+      ? (userInfo as { email?: string }).email
+      : undefined;
+    const userSub = userInfo && typeof userInfo === 'object' && 'sub' in userInfo
+      ? (userInfo as { sub?: string }).sub
+      : undefined;
+
+    logger.info("Auth success (session-based)", {
+      requestId,
+      sessionId: sessionIdHeader,
+      provider: providerType,
+      clientId: authInfo.clientId,
+      scopes: authInfo.scopes?.join(', ') ?? 'none',
+      user: userEmail ?? userSub ?? undefined
+    });
+
+    return authInfo;
+  }
+
+  /**
    * Set up Streamable HTTP endpoints for MCP communication
    */
   private setupStreamableHTTPRoutes(): void {
-    // Create custom auth middleware with multi-provider support
+    // Create custom auth middleware with session-based authentication (ADR 006)
     const authMiddleware = this.options.requireAuth && this.oauthProviders
       ? async (req: Request, res: Response, next: NextFunction) => {
           const requestId = (req as Request & { requestId?: string }).requestId ?? 'unknown';
@@ -612,51 +679,65 @@ export class MCPStreamableHttpServer {
 
           const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
+          // Extract session ID from mcp-session-id header (ADR 006)
+          const sessionIdHeader = req.headers['mcp-session-id'] as string | undefined;
+
           try {
-            // Look up token in each provider's token store to find which provider issued it
-            // This is secure because we check local storage first, not external provider APIs
-            let providerType: OAuthProviderType | undefined;
-            let correctProvider: OAuthProvider | undefined;
-
-            if (!this.oauthProviders) {
-              throw new Error('OAuth providers not initialized');
-            }
-            for (const [type, provider] of this.oauthProviders.entries()) {
-              // Check if this provider's token store has this token
-              // This calls hasToken() which is a local store lookup, NOT an API call
-              try {
-                const hasToken = await provider.hasToken(token);
-
-                if (hasToken) {
-                  providerType = type;
-                  correctProvider = provider;
-                  logger.debug("Token belongs to provider", { provider: type, requestId });
-                  break;
-                }
-              } catch (error) {
-                // Token not in this provider's store, continue
-                logger.debug("Token lookup failed for provider", { provider: type, requestId, error });
-                continue;
-              }
-            }
-
-            if (!correctProvider || !providerType) {
-              logger.warn("Auth failed: Token not found in any provider token store", { requestId });
-              this.sendUnauthorizedResponse(res, requestId, 'Invalid or expired access token');
+            // ADR 006: Session-based authentication caching (MANDATORY)
+            // mcp-session-id header is required for authentication
+            if (!sessionIdHeader || !this.sessionManager) {
+              logger.warn("Auth failed: Missing mcp-session-id header", { requestId });
+              this.sendUnauthorizedResponse(res, requestId, 'Missing mcp-session-id header');
               return;
             }
 
-            // Now verify ONLY with the correct provider (secure - no token leakage)
-            logger.debug("Verifying token with correct provider", { provider: providerType, requestId });
-            const authInfo = await correctProvider.verifyAccessToken(token);
+            logger.debug("Using session-based authentication (ADR 006)", {
+              requestId,
+              sessionId: sessionIdHeader
+            });
+
+            // Get session to determine which provider to use
+            const session = await this.sessionManager.getSession(sessionIdHeader);
+
+            if (!session?.auth) {
+              logger.warn("Auth failed: Session not found or not authenticated", {
+                requestId,
+                sessionId: sessionIdHeader
+              });
+              this.sendUnauthorizedResponse(res, requestId, 'Session not found or expired');
+              return;
+            }
+
+            // O(1) provider lookup via session
+            const providerType = session.auth.provider;
+            const provider = this.oauthProviders?.get(providerType);
+
+            if (!provider) {
+              logger.warn("Auth failed: Provider not found for session", {
+                requestId,
+                sessionId: sessionIdHeader,
+                provider: providerType
+              });
+              this.sendUnauthorizedResponse(res, requestId, 'Provider not available');
+              return;
+            }
+
+            // Verify token with session-based authentication caching
+            logger.debug("Verifying token with session-based provider", {
+              provider: providerType,
+              requestId,
+              sessionId: sessionIdHeader
+            });
+            const authInfo = await provider.verifyAccessTokenWithSession(token, sessionIdHeader);
 
             // Attach auth info to request
             (req as AuthenticatedRequest).auth = authInfo;
 
             // Log success
             const userInfo = authInfo.extra?.userInfo as OAuthUserInfo | undefined;
-            logger.info("Auth success", {
+            logger.info("Auth success (session-based)", {
               requestId,
+              sessionId: sessionIdHeader,
               provider: providerType,
               clientId: authInfo.clientId,
               scopes: authInfo.scopes?.join(', ') ?? 'none',

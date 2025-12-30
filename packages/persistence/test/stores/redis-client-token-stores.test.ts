@@ -3,28 +3,28 @@
  */
 
 import { vi } from 'vitest';
-import { RedisClientStore , RedisOAuthTokenStore } from '../../src/index.js';
+import { RedisClientStore, RedisOAuthTokenStore } from '../../src/index.js';
 import { createTestEncryptionService } from '../helpers/encryption-test-helper.js';
+import {
+  RedisTestInstance,
+} from '../helpers/redis-test-helpers.js';
 
-// Hoist Redis mock to avoid initialization issues
+// Hoist Redis mock at module scope (required for Vitest)
 const RedisMock = vi.hoisted(() => require('ioredis-mock'));
 
-// Mock Redis for testing - Vitest requires both default and named exports
+// Mock Redis for testing
 vi.mock('ioredis', () => ({
   default: RedisMock,
   Redis: RedisMock,
 }));
 
-// Create a shared Redis instance for cleanup
-let sharedRedis: any = null;
-
 describe('Redis Client and OAuth Token Stores', () => {
   beforeEach(async () => {
-    if (!sharedRedis) {
-      sharedRedis = new (RedisMock as any)();
-    }
-    // Flush all data between tests
-    await sharedRedis.flushall();
+    await RedisTestInstance.flush();
+  });
+
+  afterAll(async () => {
+    await RedisTestInstance.cleanup();
   });
 
   describe('RedisClientStore', () => {
@@ -163,8 +163,11 @@ describe('Redis Client and OAuth Token Stores', () => {
 
         const clients = await store.listClients();
         expect(clients).toHaveLength(2);
-        expect(clients.map((c) => c.client_name)).toContain('Client 1');
-        expect(clients.map((c) => c.client_name)).toContain('Client 2');
+
+        const getClientName = (c: { client_name?: string }) => c.client_name;
+        const clientNames = clients.map(getClientName);
+        expect(clientNames).toContain('Client 1');
+        expect(clientNames).toContain('Client 2');
       });
 
       it('should return empty array when no clients', async () => {

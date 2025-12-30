@@ -14,6 +14,7 @@ import { MemorySessionStore } from '../stores/memory/memory-session-store.js';
 import { RedisSessionStore } from '../stores/redis/redis-session-store.js';
 import { logger } from '../logger.js';
 import { getRedisKeyPrefix } from '../stores/redis/redis-utils.js';
+import { createStore, type BaseStoreFactoryOptions } from './base-store-factory.js';
 
 export type SessionStoreType = 'memory' | 'redis' | 'auto';
 
@@ -32,22 +33,15 @@ export class SessionStoreFactory {
    * Create a session store based on configuration
    */
   static create(options: SessionStoreFactoryOptions = {}): OAuthSessionStore {
-    const storeType = options.type ?? 'auto';
-
-    if (storeType === 'auto') {
-      return this.createAutoDetected();
-    }
-
-    switch (storeType) {
-      case 'memory':
-        return this.createMemoryStore();
-
-      case 'redis':
-        return this.createRedisStore();
-
-      default:
-        throw new Error(`Unknown session store type: ${storeType}`);
-    }
+    return createStore<OAuthSessionStore>(
+      options as BaseStoreFactoryOptions,
+      {
+        createAutoDetected: () => this.createAutoDetected(),
+        createMemoryStore: () => this.createMemoryStore(),
+        createRedisStore: () => this.createRedisStore()
+      },
+      'session'
+    ) as OAuthSessionStore;
   }
 
   /**
@@ -111,7 +105,7 @@ export class SessionStoreFactory {
         warnings.push('OAuth state will be lost if callback hits different instance');
       }
     } else {
-      detectedType = type as Exclude<SessionStoreType, 'auto'>;
+      detectedType = type; // TypeScript narrows the type when type !== 'auto'
     }
 
     // Validate selected/detected type

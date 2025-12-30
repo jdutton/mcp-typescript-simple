@@ -19,6 +19,9 @@ describeSystemTest('STDIO Transport System', () => {
 
   // Only run these tests in STDIO mode
   conditionalDescribe(isSTDIOEnvironment(environment), 'STDIO Mode Tests', () => {
+    // Helper to extract tool names from tool objects
+    const extractToolName = (tool: { name: string }) => tool.name;
+
     beforeAll(async () => {
       client = new STDIOTestClient({
         timeout: 15000,
@@ -42,7 +45,7 @@ describeSystemTest('STDIO Transport System', () => {
         expect(tools.length).toBeGreaterThan(0);
 
         // Verify basic tools are available
-        const toolNames = tools.map(tool => tool.name);
+        const toolNames = tools.map(extractToolName);
         expect(toolNames).toContain('hello');
         expect(toolNames).toContain('echo');
         expect(toolNames).toContain('current-time');
@@ -171,30 +174,37 @@ describeSystemTest('STDIO Transport System', () => {
     });
 
     describe('LLM Tools (if available)', () => {
+      // Helper to test LLM chat tool execution
+      const testLLMChatTool = async () => {
+        try {
+          const result = await client.callTool('chat', {
+            message: 'Hello, this is a test message'
+          });
+          expect(result.content).toBeDefined();
+          console.log('✅ LLM chat tool executed successfully');
+        } catch (error) {
+          console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
+        }
+      };
+
       test('should list LLM tools if API keys are configured', async () => {
         const tools = await client.listTools();
-        const toolNames = tools.map(tool => tool.name);
+        const toolNamesSet = new Set(tools.map(extractToolName));
 
         const llmTools = ['chat', 'analyze', 'summarize', 'explain'];
-        const availableLLMTools = llmTools.filter(tool => toolNames.includes(tool));
+        const isToolAvailable = (tool: string) => toolNamesSet.has(tool);
+        const availableLLMTools = llmTools.filter(isToolAvailable);
 
-        if (availableLLMTools.length > 0) {
-          console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);
-
-          // Test one LLM tool if available
-          if (availableLLMTools.includes('chat')) {
-            try {
-              const result = await client.callTool('chat', {
-                message: 'Hello, this is a test message'
-              });
-              expect(result.content).toBeDefined();
-              console.log('✅ LLM chat tool executed successfully');
-            } catch (error) {
-              console.log(`ℹ️  LLM chat tool failed (expected if no API keys): ${error}`);
-            }
-          }
-        } else {
+        if (availableLLMTools.length === 0) {
           console.log('ℹ️  No LLM tools available (no API keys configured)');
+          return;
+        }
+
+        console.log(`✅ LLM tools available: ${availableLLMTools.join(', ')}`);
+
+        // Test one LLM tool if available
+        if (availableLLMTools.includes('chat')) {
+          await testLLMChatTool();
         }
       });
     });

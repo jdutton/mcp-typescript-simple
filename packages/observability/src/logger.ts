@@ -171,13 +171,14 @@ export class ObservabilityLogger {
       return obj;
     }
 
+    // TypeScript now knows obj is a non-null object
     visited ??= new WeakSet();
 
-    if (visited.has(obj as object)) {
+    if (visited.has(obj)) {
       return '[Circular Reference]';
     }
 
-    visited.add(obj as object);
+    visited.add(obj);
 
     if (Array.isArray(obj)) {
       return obj.map(item => this.sanitizeObject(item, visited));
