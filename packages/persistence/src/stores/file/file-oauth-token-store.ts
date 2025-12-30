@@ -42,6 +42,7 @@ import { OAuthTokenStore, serializeOAuthToken, deserializeOAuthToken } from '../
 import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
+import { logTokenNotFound, logTokenRetrieved, logTokenDeleted, validateTokenExpiry } from '../oauth-token-utils.js';
 
 interface PersistedOAuthTokenData {
   version: number;
@@ -233,28 +234,23 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
     const tokenInfo = this.tokens.get(accessToken);
 
     if (!tokenInfo) {
-      logger.debug('OAuth token not found', {
-        tokenPrefix: accessToken.substring(0, 8),
-      });
+      logTokenNotFound(accessToken, 'access');
       return null;
     }
 
-    // Verify not expired
-    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-      logger.warn('OAuth token expired', {
-        tokenPrefix: accessToken.substring(0, 8),
-        expiredAt: new Date(tokenInfo.expiresAt).toISOString(),
-      });
-      await this.deleteToken(accessToken);
+    // Verify not expired using shared utility
+    const validatedToken = await validateTokenExpiry(
+      tokenInfo,
+      accessToken,
+      async () => this.deleteToken(accessToken)
+    );
+
+    if (!validatedToken) {
       return null;
     }
 
-    logger.debug('OAuth token retrieved', {
-      tokenPrefix: accessToken.substring(0, 8),
-      provider: tokenInfo.provider,
-    });
-
-    return tokenInfo;
+    logTokenRetrieved(accessToken, validatedToken);
+    return validatedToken;
   }
 
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
@@ -262,9 +258,7 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
     const accessToken = this.refreshTokenIndex.get(refreshToken);
 
     if (!accessToken) {
-      logger.debug('OAuth token not found by refresh token', {
-        refreshTokenPrefix: refreshToken.substring(0, 8),
-      });
+      logTokenNotFound(refreshToken, 'refresh');
       return null;
     }
 
@@ -274,28 +268,23 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
       // Clean up stale index entry
       this.refreshTokenIndex.delete(refreshToken);
       this.scheduleSave();
-      logger.debug('OAuth token not found by refresh token (stale index)', {
-        refreshTokenPrefix: refreshToken.substring(0, 8),
-      });
+      logTokenNotFound(refreshToken, 'refresh', 'stale index');
       return null;
     }
 
-    // Verify not expired
-    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-      logger.warn('OAuth token expired during refresh token lookup', {
-        tokenPrefix: accessToken.substring(0, 8),
-        expiredAt: new Date(tokenInfo.expiresAt).toISOString(),
-      });
-      await this.deleteToken(accessToken);
+    // Verify not expired using shared utility
+    const validatedToken = await validateTokenExpiry(
+      tokenInfo,
+      accessToken,
+      async () => this.deleteToken(accessToken)
+    );
+
+    if (!validatedToken) {
       return null;
     }
 
-    logger.debug('OAuth token found by refresh token', {
-      tokenPrefix: accessToken.substring(0, 8),
-      provider: tokenInfo.provider,
-    });
-
-    return { accessToken, tokenInfo };
+    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');
+    return { accessToken, tokenInfo: validatedToken };
   }
 
   async deleteToken(accessToken: string): Promise<void> {
@@ -309,10 +298,9 @@ export class FileOAuthTokenStore implements OAuthTokenStore {
 
     if (existed) {
       this.scheduleSave();
-      logger.debug('OAuth token deleted', {
-        tokenPrefix: accessToken.substring(0, 8),
-      });
     }
+
+    logTokenDeleted(accessToken, existed);
   }
 
   async cleanup(): Promise<number> {

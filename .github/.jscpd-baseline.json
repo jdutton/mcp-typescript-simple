@@ -38,6 +38,42 @@
     },
     {
       "format": "typescript",
+      "lines": 19,
+      "fragment": ");\n      return null;\n    }\n\n    // Decrypt and deserialize token data - fail fast on decryption errors\n    const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);\n\n    // Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken,",
+      "tokens": 0,
+      "firstFile": {
+        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
+        "start": 164,
+        "end": 182,
+        "startLoc": {
+          "line": 164,
+          "column": 14,
+          "position": 1173
+        },
+        "endLoc": {
+          "line": 182,
+          "column": 2,
+          "position": 1281
+        }
+      },
+      "secondFile": {
+        "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
+        "start": 122,
+        "end": 140,
+        "startLoc": {
+          "line": 122,
+          "column": 9,
+          "position": 853
+        },
+        "endLoc": {
+          "line": 140,
+          "column": 2,
+          "position": 961
+        }
+      }
+    },
+    {
+      "format": "typescript",
       "lines": 14,
       "fragment": ");\n\n      logger.info('Token validated and used', {\n        tokenId: result.token.id,\n        usageCount: result.token.usage_count,\n        maxUses: result.token.max_uses ?? 'unlimited',\n      });\n    }\n\n    return result;\n  }\n\n  async getToken(id: string): Promise<InitialAccessToken | undefined> {\n    return",
       "tokens": 0,
@@ -146,73 +182,73 @@
     },
     {
       "format": "typescript",
-      "lines": 11,
-      "fragment": ", {\n      tokenPrefix: accessToken.substring(0, 8),\n      provider: tokenInfo.provider\n    });\n\n    return tokenInfo;\n  }\n\n  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {\n    // O(1) lookup using secondary index\n    const accessToken",
+      "lines": 18,
+      "fragment": "// Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken);\n    return validatedToken;\n  }\n\n  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {\n    // O(1) lookup using secondary index\n    const accessToken",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 69,
-        "end": 79,
+        "start": 58,
+        "end": 75,
         "startLoc": {
-          "line": 69,
-          "column": 24,
-          "position": 539
+          "line": 58,
+          "column": 5,
+          "position": 444
         },
         "endLoc": {
-          "line": 79,
+          "line": 75,
           "column": 12,
-          "position": 624
+          "position": 568
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 140,
-        "end": 150,
+        "start": 129,
+        "end": 146,
         "startLoc": {
-          "line": 140,
-          "column": 47,
-          "position": 990
+          "line": 129,
+          "column": 5,
+          "position": 892
         },
         "endLoc": {
-          "line": 150,
+          "line": 146,
           "column": 16,
-          "position": 1075
+          "position": 1016
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 11,
-      "fragment": "// Verify not expired\n    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {\n      logger.warn('OAuth token expired during refresh token lookup', {\n        tokenPrefix: accessToken.substring(0, 8),\n        expiredAt: new Date(tokenInfo.expiresAt).toISOString()\n      });\n      await this.deleteToken(accessToken);\n      return null;\n    }\n\n    logger.debug('OAuth token found by refresh token'",
+      "lines": 17,
+      "fragment": "// Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');\n    return { accessToken, tokenInfo: validatedToken };\n  }\n\n  async deleteToken(accessToken: string): Promise<void> {\n    const tokenInfo",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 99,
-        "end": 109,
+        "start": 91,
+        "end": 107,
         "startLoc": {
-          "line": 99,
+          "line": 91,
           "column": 5,
-          "position": 770
+          "position": 679
         },
         "endLoc": {
-          "line": 109,
-          "column": 37,
-          "position": 870
+          "line": 107,
+          "column": 10,
+          "position": 796
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/redis/redis-oauth-token-store.ts",
-        "start": 179,
-        "end": 189,
+        "start": 171,
+        "end": 187,
         "startLoc": {
-          "line": 179,
+          "line": 171,
           "column": 5,
-          "position": 1306
+          "position": 1212
         },
         "endLoc": {
-          "line": 189,
-          "column": 58,
-          "position": 1406
+          "line": 187,
+          "column": 4,
+          "position": 1329
         }
       }
     },
@@ -439,17 +475,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 69,
-        "end": 76,
+        "start": 70,
+        "end": 77,
         "startLoc": {
-          "line": 69,
+          "line": 70,
           "column": 3,
-          "position": 248
+          "position": 270
         },
         "endLoc": {
-          "line": 76,
+          "line": 77,
           "column": 27,
-          "position": 337
+          "position": 359
         }
       },
       "secondFile": {
@@ -475,17 +511,17 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 143,
-        "end": 165,
+        "start": 144,
+        "end": 166,
         "startLoc": {
-          "line": 143,
+          "line": 144,
           "column": 40,
-          "position": 888
+          "position": 910
         },
         "endLoc": {
-          "line": 165,
+          "line": 166,
           "column": 6,
-          "position": 1020
+          "position": 1042
         }
       },
       "secondFile": {
@@ -511,248 +547,140 @@
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 210,
-        "end": 222,
+        "start": 211,
+        "end": 223,
         "startLoc": {
-          "line": 210,
+          "line": 211,
           "column": 6,
-          "position": 1424
+          "position": 1446
         },
         "endLoc": {
-          "line": 222,
+          "line": 223,
           "column": 5,
-          "position": 1508
+          "position": 1530
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 29,
-        "end": 41,
+        "start": 30,
+        "end": 42,
         "startLoc": {
-          "line": 29,
+          "line": 30,
           "column": 2,
-          "position": 193
+          "position": 218
         },
         "endLoc": {
-          "line": 41,
+          "line": 42,
           "column": 7,
-          "position": 277
+          "position": 302
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 9,
-      "fragment": "});\n  }\n\n  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {\n    const tokenInfo = this.tokens.get(accessToken);\n\n    if (!tokenInfo) {\n      logger.debug('OAuth token not found', {\n        tokenPrefix: accessToken.substring(0, 8),",
+      "lines": 41,
+      "fragment": "});\n  }\n\n  async getToken(accessToken: string): Promise<StoredTokenInfo | null> {\n    const tokenInfo = this.tokens.get(accessToken);\n\n    if (!tokenInfo) {\n      logTokenNotFound(accessToken, 'access');\n      return null;\n    }\n\n    // Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken);\n    return validatedToken;\n  }\n\n  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {\n    // O(1) lookup using secondary index\n    const accessToken = this.refreshTokenIndex.get(refreshToken);\n\n    if (!accessToken) {\n      logTokenNotFound(refreshToken, 'refresh');\n      return null;\n    }\n\n    const tokenInfo = this.tokens.get(accessToken);\n\n    if (!tokenInfo) {\n      // Clean up stale index entry\n      this.refreshTokenIndex.delete(refreshToken);\n      this",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 229,
-        "end": 237,
+        "start": 230,
+        "end": 270,
         "startLoc": {
-          "line": 229,
+          "line": 230,
           "column": 5,
-          "position": 1580
+          "position": 1602
         },
         "endLoc": {
-          "line": 237,
-          "column": 2,
-          "position": 1662
+          "line": 270,
+          "column": 5,
+          "position": 1894
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 46,
-        "end": 55,
+        "start": 47,
+        "end": 87,
         "startLoc": {
-          "line": 46,
+          "line": 47,
           "column": 5,
-          "position": 339
+          "position": 364
         },
         "endLoc": {
-          "line": 55,
-          "column": 2,
-          "position": 423
+          "line": 87,
+          "column": 17,
+          "position": 656
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 9,
-      "fragment": "});\n      return null;\n    }\n\n    // Verify not expired\n    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {\n      logger.warn('OAuth token expired', {\n        tokenPrefix: accessToken.substring(0, 8),\n        expiredAt: new Date(tokenInfo.expiresAt).toISOString(),",
+      "lines": 30,
+      "fragment": ");\n      logTokenNotFound(refreshToken, 'refresh', 'stale index');\n      return null;\n    }\n\n    // Verify not expired using shared utility\n    const validatedToken = await validateTokenExpiry(\n      tokenInfo,\n      accessToken,\n      async () => this.deleteToken(accessToken)\n    );\n\n    if (!validatedToken) {\n      return null;\n    }\n\n    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');\n    return { accessToken, tokenInfo: validatedToken };\n  }\n\n  async deleteToken(accessToken: string): Promise<void> {\n    const tokenInfo = this.tokens.get(accessToken);\n    const existed = this.tokens.delete(accessToken);\n\n    // Clean up secondary index\n    if (tokenInfo?.refreshToken) {\n      this.refreshTokenIndex.delete(tokenInfo.refreshToken);\n    }\n\n    if",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 238,
-        "end": 246,
+        "start": 270,
+        "end": 299,
         "startLoc": {
-          "line": 238,
-          "column": 7,
-          "position": 1665
+          "line": 270,
+          "column": 2,
+          "position": 1898
         },
         "endLoc": {
-          "line": 246,
-          "column": 2,
-          "position": 1748
+          "line": 299,
+          "column": 3,
+          "position": 2107
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 55,
-        "end": 64,
+        "start": 86,
+        "end": 115,
         "startLoc": {
-          "line": 55,
-          "column": 7,
-          "position": 423
+          "line": 86,
+          "column": 13,
+          "position": 652
         },
         "endLoc": {
-          "line": 64,
-          "column": 2,
-          "position": 508
+          "line": 115,
+          "column": 16,
+          "position": 861
         }
       }
     },
     {
       "format": "typescript",
-      "lines": 12,
-      "fragment": "});\n\n    return tokenInfo;\n  }\n\n  async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {\n    // O(1) lookup using secondary index\n    const accessToken = this.refreshTokenIndex.get(refreshToken);\n\n    if (!accessToken) {\n      logger.debug('OAuth token not found by refresh token', {\n        refreshTokenPrefix: refreshToken.substring(0, 8),",
+      "lines": 11,
+      "fragment": ") {\n        this.tokens.delete(accessToken);\n        // Clean up secondary index\n        if (tokenInfo.refreshToken) {\n          this.refreshTokenIndex.delete(tokenInfo.refreshToken);\n        }\n        cleanedCount++;\n        logger.debug('Expired OAuth token cleaned up', {\n          tokenPrefix: accessToken.substring(0, 8),\n          provider: tokenInfo.provider,\n          expiredAt: new Date(tokenInfo.expiresAt)",
       "tokens": 0,
       "firstFile": {
         "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 255,
-        "end": 266,
+        "start": 311,
+        "end": 321,
         "startLoc": {
-          "line": 255,
-          "column": 5,
-          "position": 1811
-        },
-        "endLoc": {
-          "line": 266,
-          "column": 2,
-          "position": 1916
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 72,
-        "end": 84,
-        "startLoc": {
-          "line": 72,
-          "column": 5,
-          "position": 567
-        },
-        "endLoc": {
-          "line": 84,
-          "column": 2,
-          "position": 674
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 9,
-      "fragment": "});\n      return null;\n    }\n\n    // Verify not expired\n    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {\n      logger.warn('OAuth token expired during refresh token lookup', {\n        tokenPrefix: accessToken.substring(0, 8),\n        expiredAt: new Date(tokenInfo.expiresAt).toISOString(),",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 279,
-        "end": 287,
-        "startLoc": {
-          "line": 279,
-          "column": 7,
-          "position": 2009
-        },
-        "endLoc": {
-          "line": 287,
-          "column": 2,
-          "position": 2092
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 95,
-        "end": 104,
-        "startLoc": {
-          "line": 95,
-          "column": 7,
-          "position": 755
-        },
-        "endLoc": {
-          "line": 104,
-          "column": 2,
-          "position": 840
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 16,
-      "fragment": "});\n\n    return { accessToken, tokenInfo };\n  }\n\n  async deleteToken(accessToken: string): Promise<void> {\n    const tokenInfo = this.tokens.get(accessToken);\n    const existed = this.tokens.delete(accessToken);\n\n    // Clean up secondary index\n    if (tokenInfo?.refreshToken) {\n      this.refreshTokenIndex.delete(tokenInfo.refreshToken);\n    }\n\n    if (existed) {\n      this",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 296,
-        "end": 311,
-        "startLoc": {
-          "line": 296,
-          "column": 5,
-          "position": 2155
-        },
-        "endLoc": {
           "line": 311,
-          "column": 5,
-          "position": 2273
+          "column": 4,
+          "position": 2224
+        },
+        "endLoc": {
+          "line": 321,
+          "column": 2,
+          "position": 2319
         }
       },
       "secondFile": {
         "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 112,
-        "end": 127,
+        "start": 122,
+        "end": 132,
         "startLoc": {
-          "line": 112,
-          "column": 5,
-          "position": 899
-        },
-        "endLoc": {
-          "line": 127,
-          "column": 7,
-          "position": 1017
-        }
-      }
-    },
-    {
-      "format": "typescript",
-      "lines": 20,
-      "fragment": "});\n    }\n  }\n\n  async cleanup(): Promise<number> {\n    const now = Date.now();\n    let cleanedCount = 0;\n\n    for (const [accessToken, tokenInfo] of this.tokens.entries()) {\n      if (tokenInfo.expiresAt && tokenInfo.expiresAt <= now) {\n        this.tokens.delete(accessToken);\n        // Clean up secondary index\n        if (tokenInfo.refreshToken) {\n          this.refreshTokenIndex.delete(tokenInfo.refreshToken);\n        }\n        cleanedCount++;\n        logger.debug('Expired OAuth token cleaned up', {\n          tokenPrefix: accessToken.substring(0, 8),\n          provider: tokenInfo.provider,\n          expiredAt: new Date(tokenInfo.expiresAt).toISOString(),",
-      "tokens": 0,
-      "firstFile": {
-        "name": "packages/persistence/src/stores/file/file-oauth-token-store.ts",
-        "start": 314,
-        "end": 333,
-        "startLoc": {
-          "line": 314,
-          "column": 7,
-          "position": 2306
-        },
-        "endLoc": {
-          "line": 333,
+          "line": 122,
           "column": 2,
-          "position": 2500
-        }
-      },
-      "secondFile": {
-        "name": "packages/persistence/src/stores/memory/memory-oauth-token-store.ts",
-        "start": 129,
-        "end": 149,
-        "startLoc": {
-          "line": 129,
-          "column": 7,
-          "position": 1041
+          "position": 937
         },
         "endLoc": {
-          "line": 149,
+          "line": 132,
           "column": 2,
-          "position": 1237
+          "position": 1033
         }
       }
     },

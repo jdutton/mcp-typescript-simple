@@ -31,6 +31,7 @@ import { StoredTokenInfo } from '../../types.js';
 import { logger } from '../../logger.js';
 import { TokenEncryptionService } from '../../encryption/token-encryption-service.js';
 import { maskRedisUrl, createRedisClient, normalizeKeyPrefix } from './redis-utils.js';
+import { logTokenNotFound, logTokenRetrieved, logTokenDeleted, validateTokenExpiry } from '../oauth-token-utils.js';
 
 export class RedisOAuthTokenStore implements OAuthTokenStore {
   private redis: Redis;
@@ -118,31 +119,26 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const data = await this.redis.get(key);
 
     if (!data) {
-      logger.debug('OAuth token not found in Redis', {
-        tokenPrefix: accessToken.substring(0, 8)
-      });
+      logTokenNotFound(accessToken, 'access');
       return null;
     }
 
     // Decrypt and deserialize token data - fail fast on decryption errors
     const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
-    // Double-check expiration (Redis should have already handled this)
-    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-      logger.warn('OAuth token expired (cleaning up)', {
-        tokenPrefix: accessToken.substring(0, 8),
-        expiredAt: new Date(tokenInfo.expiresAt).toISOString()
-      });
-      await this.deleteToken(accessToken);
+    // Verify not expired using shared utility
+    const validatedToken = await validateTokenExpiry(
+      tokenInfo,
+      accessToken,
+      async () => this.deleteToken(accessToken)
+    );
+
+    if (!validatedToken) {
       return null;
     }
 
-    logger.debug('OAuth token retrieved from Redis (decrypted)', {
-      tokenPrefix: accessToken.substring(0, 8),
-      provider: tokenInfo.provider
-    });
-
-    return tokenInfo;
+    logTokenRetrieved(accessToken, validatedToken);
+    return validatedToken;
   }
 
   async findByRefreshToken(refreshToken: string): Promise<{ accessToken: string; tokenInfo: StoredTokenInfo } | null> {
@@ -151,9 +147,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     const encryptedAccessToken = await this.redis.get(refreshIndexKey);
 
     if (!encryptedAccessToken) {
-      logger.debug('OAuth token not found by refresh token in Redis', {
-        refreshTokenPrefix: refreshToken.substring(0, 8)
-      });
+      logTokenNotFound(refreshToken, 'refresh');
       return null;
     }
 
@@ -167,31 +161,26 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
     if (!data) {
       // Clean up stale index entry
       await this.redis.del(refreshIndexKey);
-      logger.debug('OAuth token not found by refresh token in Redis (stale index)', {
-        refreshTokenPrefix: refreshToken.substring(0, 8)
-      });
+      logTokenNotFound(refreshToken, 'refresh', 'stale index');
       return null;
     }
 
     // Decrypt and deserialize token data - fail fast on decryption errors
     const tokenInfo = deserializeOAuthToken<StoredTokenInfo>(data, this.encryptionService);
 
-    // Verify not expired
-    if (tokenInfo.expiresAt && tokenInfo.expiresAt < Date.now()) {
-      logger.warn('OAuth token expired during refresh token lookup', {
-        tokenPrefix: accessToken.substring(0, 8),
-        expiredAt: new Date(tokenInfo.expiresAt).toISOString()
-      });
-      await this.deleteToken(accessToken);
+    // Verify not expired using shared utility
+    const validatedToken = await validateTokenExpiry(
+      tokenInfo,
+      accessToken,
+      async () => this.deleteToken(accessToken)
+    );
+
+    if (!validatedToken) {
       return null;
     }
 
-    logger.debug('OAuth token found by refresh token in Redis (decrypted)', {
-      tokenPrefix: accessToken.substring(0, 8),
-      provider: tokenInfo.provider
-    });
-
-    return { accessToken, tokenInfo };
+    logTokenRetrieved(accessToken, validatedToken, 'by refresh token');
+    return { accessToken, tokenInfo: validatedToken };
   }
 
   async deleteToken(accessToken: string): Promise<void> {
@@ -199,6 +188,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
 
     // Fetch token info to get refresh token for index cleanup
     const data = await this.redis.get(key);
+    const existed = data !== null;
 
     // Delete token and secondary index in parallel
     const deletePromises = [this.redis.del(key)];
@@ -214,9 +204,7 @@ export class RedisOAuthTokenStore implements OAuthTokenStore {
 
     await Promise.all(deletePromises);
 
-    logger.debug('OAuth token deleted from Redis', {
-      tokenPrefix: accessToken.substring(0, 8)
-    });
+    logTokenDeleted(accessToken, existed);
   }
 
   async cleanup(): Promise<number> {
